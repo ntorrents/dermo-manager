@@ -19,10 +19,19 @@ import {
 	Sparkles,
 	Minus,
 	AlertTriangle,
+	LogOut,
+	Lock,
+	Mail,
 } from "lucide-react";
 
 import { initializeApp } from "firebase/app";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
+import {
+	getAuth,
+	signInWithEmailAndPassword,
+	createUserWithEmailAndPassword,
+	signOut,
+	onAuthStateChanged,
+} from "firebase/auth";
 import {
 	getFirestore,
 	collection,
@@ -36,6 +45,7 @@ import {
 	getDoc,
 } from "firebase/firestore";
 
+// --- CONFIGURACIÓN FIREBASE (Directa) ---
 const firebaseConfig = {
 	apiKey: "AIzaSyAb1p23xRpeoR6Ycshis8C7r8eBO-IgIqc",
 	authDomain: "dermo-gestion-christine.firebaseapp.com",
@@ -74,6 +84,54 @@ const Toast = ({ message, type, onClose }) => {
 	);
 };
 
+// Modal de Confirmación Genérico (Elegante)
+const ConfirmModal = ({
+	isOpen,
+	title,
+	message,
+	onConfirm,
+	onCancel,
+	isDestructive = false,
+}) => {
+	if (!isOpen) return null;
+
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+			<div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+				<div className="p-6 text-center">
+					<div
+						className={`mx-auto mb-4 w-12 h-12 rounded-full flex items-center justify-center ${
+							isDestructive
+								? "bg-red-100 text-red-600"
+								: "bg-rose-100 text-rose-600"
+						}`}>
+						{isDestructive ? <LogOut size={24} /> : <AlertCircle size={24} />}
+					</div>
+					<h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
+					<p className="text-sm text-gray-500 mb-6">{message}</p>
+
+					<div className="flex gap-3">
+						<button
+							onClick={onCancel}
+							className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors">
+							Cancelar
+						</button>
+						<button
+							onClick={onConfirm}
+							className={`flex-1 px-4 py-2.5 text-white font-medium rounded-xl shadow-sm transition-transform active:scale-95 ${
+								isDestructive
+									? "bg-red-500 hover:bg-red-600"
+									: "bg-rose-500 hover:bg-rose-600"
+							}`}>
+							Confirmar
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+};
+
 const StatCard = ({ title, value, subtext, gradient, icon: Icon }) => (
 	<div
 		className={`relative overflow-hidden rounded-2xl p-6 text-white shadow-lg ${gradient}`}>
@@ -95,17 +153,134 @@ const StatCard = ({ title, value, subtext, gradient, icon: Icon }) => (
 	</div>
 );
 
+// --- COMPONENTE DE LOGIN ---
+const LoginScreen = () => {
+	const [isRegistering, setIsRegistering] = useState(false);
+	const [email, setEmail] = useState("");
+	const [password, setPassword] = useState("");
+	const [error, setError] = useState("");
+	const [loading, setLoading] = useState(false);
+
+	const handleAuth = async (e) => {
+		e.preventDefault();
+		setError("");
+		setLoading(true);
+		try {
+			if (isRegistering) {
+				await createUserWithEmailAndPassword(auth, email, password);
+			} else {
+				await signInWithEmailAndPassword(auth, email, password);
+			}
+		} catch (err) {
+			console.error(err);
+			if (err.code === "auth/invalid-credential")
+				setError("Email o contraseña incorrectos.");
+			else if (err.code === "auth/email-already-in-use")
+				setError("Este email ya está registrado.");
+			else if (err.code === "auth/weak-password")
+				setError("La contraseña debe tener al menos 6 caracteres.");
+			else setError("Error de conexión. Inténtalo de nuevo.");
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	return (
+		<div className="min-h-screen flex items-center justify-center bg-rose-50 p-4">
+			<div className="bg-white w-full max-w-md p-8 rounded-3xl shadow-xl border border-rose-100">
+				<div className="text-center mb-8">
+					<h1 className="text-3xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent mb-2">
+						DermoApp
+					</h1>
+					<p className="text-gray-500 text-sm">
+						Gestión profesional para tu negocio
+					</p>
+				</div>
+
+				<form onSubmit={handleAuth} className="space-y-4">
+					<div>
+						<label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
+							Email
+						</label>
+						<div className="relative">
+							<Mail className="absolute left-3 top-3 text-gray-400" size={18} />
+							<input
+								type="email"
+								required
+								className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition-all bg-gray-50 focus:bg-white"
+								placeholder="ejemplo@dermo.com"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+							/>
+						</div>
+					</div>
+					<div>
+						<label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
+							Contraseña
+						</label>
+						<div className="relative">
+							<Lock className="absolute left-3 top-3 text-gray-400" size={18} />
+							<input
+								type="password"
+								required
+								className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition-all bg-gray-50 focus:bg-white"
+								placeholder="••••••••"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+							/>
+						</div>
+					</div>
+
+					{error && (
+						<div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm flex items-center gap-2">
+							<AlertTriangle size={16} /> {error}
+						</div>
+					)}
+
+					<button
+						type="submit"
+						disabled={loading}
+						className="w-full bg-rose-500 text-white font-bold py-3.5 rounded-xl hover:bg-rose-600 transition-transform active:scale-95 shadow-lg shadow-rose-200 flex justify-center items-center">
+						{loading ? (
+							<Loader2 className="animate-spin" />
+						) : isRegistering ? (
+							"Crear Cuenta"
+						) : (
+							"Iniciar Sesión"
+						)}
+					</button>
+				</form>
+
+				<div className="mt-6 text-center">
+					<p className="text-sm text-gray-500">
+						{isRegistering ? "¿Ya tienes cuenta?" : "¿Eres nueva aquí?"}
+						<button
+							onClick={() => {
+								setIsRegistering(!isRegistering);
+								setError("");
+							}}
+							className="ml-2 text-rose-600 font-bold hover:underline">
+							{isRegistering ? "Inicia Sesión" : "Regístrate"}
+						</button>
+					</p>
+				</div>
+			</div>
+		</div>
+	);
+};
+
 // --- APP PRINCIPAL ---
 
 const DermoManager = () => {
 	const [user, setUser] = useState(null);
-	const [loading, setLoading] = useState(true);
+	const [authLoading, setAuthLoading] = useState(true);
 	const [activeTab, setActiveTab] = useState("dashboard");
 	const [currentMonth, setCurrentMonth] = useState(
 		new Date().toISOString().slice(0, 7)
 	);
 	const [toast, setToast] = useState(null);
-	const [confirmDeleteId, setConfirmDeleteId] = useState(null); // Estado para confirmar borrado suave
+	const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+	const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // Nuevo estado para el modal
 
 	const [inventory, setInventory] = useState([]);
 	const [treatments, setTreatments] = useState([]);
@@ -139,15 +314,19 @@ const DermoManager = () => {
 	// --- CONEXIÓN ---
 	useEffect(() => {
 		const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-			if (currentUser) setUser(currentUser);
-			else signInAnonymously(auth).catch((e) => console.error(e));
-			setLoading(false);
+			setUser(currentUser);
+			setAuthLoading(false);
 		});
 		return () => unsubscribeAuth();
 	}, []);
 
 	useEffect(() => {
-		if (!user) return;
+		if (!user) {
+			setInventory([]);
+			setTreatments([]);
+			setEntries([]);
+			return;
+		}
 		const inventoryRef = collection(db, "users", user.uid, "inventory");
 		const treatmentsRef = collection(db, "users", user.uid, "treatments");
 		const entriesRef = collection(db, "users", user.uid, "finance_entries");
@@ -171,6 +350,12 @@ const DermoManager = () => {
 	}, [user]);
 
 	const showToast = (message, type = "success") => setToast({ message, type });
+
+	// Función Logout actualizada para usar Modal
+	const handleLogout = async () => {
+		await signOut(auth);
+		setShowLogoutConfirm(false);
+	};
 
 	// --- LÓGICA DE NEGOCIO ---
 
@@ -210,7 +395,6 @@ const DermoManager = () => {
 		}
 	};
 
-	// NUEVO: Función para restar stock (Mermas/Roturas)
 	const handleReduceStock = async (item) => {
 		const qty = prompt(
 			`¿Cuántas unidades de ${item.name} vas a dar de baja (rotura, pérdida, etc.)?`
@@ -220,18 +404,15 @@ const DermoManager = () => {
 		const reason = prompt("Motivo de la baja (opcional):", "Rotura/Merma");
 
 		try {
-			// 1. Restar Stock
 			await updateDoc(doc(db, "users", user.uid, "inventory", item.id), {
 				stock: Math.max(0, item.stock - Number(qty)),
 			});
-
-			// 2. Registrar el suceso en finanzas (Coste 0, solo informativo)
 			await addDoc(collection(db, "users", user.uid, "finance_entries"), {
 				date: new Date().toISOString().split("T")[0],
 				type: "expense",
 				category: "Merma",
 				description: `Baja Stock (${qty} ${item.unit}): ${reason || "Merma"}`,
-				amount: 0, // No afecta a la caja porque ya se pagó
+				amount: 0,
 				createdAt: new Date().toISOString(),
 			});
 
@@ -261,7 +442,6 @@ const DermoManager = () => {
 	};
 
 	const handleRegisterSession = async (treatment) => {
-		// Verificar Stock
 		const missingStock = treatment.recipe.find((item) => {
 			const material = inventory.find((m) => m.id === item.materialId);
 			return !material || material.stock < item.quantity;
@@ -276,7 +456,6 @@ const DermoManager = () => {
 		}
 
 		try {
-			// 1. Restar Stock
 			for (const item of treatment.recipe) {
 				const material = inventory.find((m) => m.id === item.materialId);
 				if (material) {
@@ -286,15 +465,13 @@ const DermoManager = () => {
 					);
 				}
 			}
-
-			// 2. Registrar Ingreso (¡AHORA GUARDAMOS LA RECETA PARA PODER DESHACER!)
 			await addDoc(collection(db, "users", user.uid, "finance_entries"), {
 				date: new Date().toISOString().split("T")[0],
 				type: "income",
 				category: "Servicio",
 				description: `Sesión: ${treatment.name}`,
 				amount: treatment.price,
-				recipeSnapshot: treatment.recipe, // Guardamos qué se gastó para poder devolverlo si borramos
+				recipeSnapshot: treatment.recipe,
 				createdAt: new Date().toISOString(),
 			});
 			showToast(`Sesión de ${treatment.name} registrada`);
@@ -319,18 +496,14 @@ const DermoManager = () => {
 		}
 	};
 
-	// NUEVO: Borrado inteligente y suave
 	const handleDeleteEntry = async (entry) => {
-		// Si no es el que estamos confirmando, activamos modo confirmación
 		if (confirmDeleteId !== entry.id) {
 			setConfirmDeleteId(entry.id);
-			// Auto-cancelar confirmación tras 4 segundos
 			setTimeout(() => setConfirmDeleteId(null), 4000);
 			return;
 		}
 
 		try {
-			// 1. Si la entrada tiene receta (es una sesión), DEVOLVEMOS EL STOCK
 			if (entry.recipeSnapshot && Array.isArray(entry.recipeSnapshot)) {
 				for (const item of entry.recipeSnapshot) {
 					const material = inventory.find((m) => m.id === item.materialId);
@@ -347,8 +520,6 @@ const DermoManager = () => {
 			} else {
 				showToast("Movimiento eliminado");
 			}
-
-			// 2. Borrar documento
 			await deleteDoc(doc(db, "users", user.uid, "finance_entries", entry.id));
 			setConfirmDeleteId(null);
 		} catch (e) {
@@ -397,13 +568,20 @@ const DermoManager = () => {
 		link.click();
 	};
 
-	if (loading)
+	// --- RENDERIZADO CONDICIONAL ---
+
+	// 1. Cargando...
+	if (authLoading)
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-rose-50">
 				<Loader2 className="animate-spin text-rose-500" size={48} />
 			</div>
 		);
 
+	// 2. Si no hay usuario, mostrar Login
+	if (!user) return <LoginScreen />;
+
+	// 3. Si hay usuario, mostrar la App completa (Dashboard)
 	return (
 		<div className="min-h-screen bg-gray-50 font-sans text-gray-800 pb-20 md:pb-0">
 			{toast && (
@@ -414,7 +592,17 @@ const DermoManager = () => {
 				/>
 			)}
 
-			{/* SIDEBAR */}
+			{/* MODAL CONFIRMACIÓN LOGOUT */}
+			<ConfirmModal
+				isOpen={showLogoutConfirm}
+				title="Cerrar Sesión"
+				message="¿Seguro que quieres salir? Tendrás que volver a ingresar tus datos."
+				onCancel={() => setShowLogoutConfirm(false)}
+				onConfirm={handleLogout}
+				isDestructive={true}
+			/>
+
+			{/* SIDEBAR DESKTOP */}
 			<div className="hidden md:fixed md:inset-y-0 md:left-0 md:flex md:w-64 md:flex-col md:bg-white md:border-r md:shadow-sm z-20">
 				<div className="flex items-center justify-center h-20 border-b bg-rose-50">
 					<h1 className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
@@ -440,6 +628,13 @@ const DermoManager = () => {
 						</button>
 					))}
 				</nav>
+				<div className="p-4 border-t">
+					<button
+						onClick={() => setShowLogoutConfirm(true)}
+						className="w-full flex items-center space-x-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors font-medium">
+						<LogOut size={20} /> <span>Cerrar Sesión</span>
+					</button>
+				</div>
 			</div>
 
 			{/* HEADER MOBILE */}
@@ -447,9 +642,11 @@ const DermoManager = () => {
 				<span className="font-bold text-xl bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
 					DermoApp
 				</span>
-				<div className="w-8 h-8 bg-rose-100 rounded-full flex items-center justify-center text-rose-600">
-					<span className="font-bold text-xs">CD</span>
-				</div>
+				<button
+					onClick={() => setShowLogoutConfirm(true)}
+					className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-red-100 hover:text-red-500 transition-colors">
+					<LogOut size={16} />
+				</button>
 			</div>
 
 			{/* MAIN */}
@@ -460,7 +657,7 @@ const DermoManager = () => {
 						<div className="flex justify-between items-center">
 							<div>
 								<h2 className="text-2xl font-bold text-gray-800">
-									Hola, Christine 👋
+									Hola, {user.email?.split("@")[0]} 👋
 								</h2>
 								<p className="text-gray-500 text-sm">
 									Resumen de {currentMonth}
@@ -527,7 +724,6 @@ const DermoManager = () => {
 								) : (
 									<div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
 										{treatments.map((t) => (
-											// CAMBIO: Div en lugar de button global para evitar clicks accidentales
 											<div
 												key={t.id}
 												className="w-full flex justify-between items-center p-4 bg-gray-50 rounded-xl border border-transparent hover:border-rose-100 transition-all">
@@ -535,7 +731,6 @@ const DermoManager = () => {
 													{t.name}
 												</span>
 												<div className="flex items-center space-x-2">
-													{/* Botón específico para la acción */}
 													<button
 														onClick={() => handleRegisterSession(t)}
 														className="bg-white text-gray-700 hover:bg-rose-500 hover:text-white border hover:border-rose-500 px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2">
@@ -723,6 +918,12 @@ const DermoManager = () => {
 														{cost.toFixed(2)}€
 													</span>
 												</div>
+												<div className="flex justify-between text-sm">
+													<span className="text-gray-500">Beneficio Neto</span>
+													<span className="font-bold text-emerald-600">
+														{profit.toFixed(2)}€
+													</span>
+												</div>
 												<div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden flex">
 													<div
 														className="bg-rose-300 h-full"
@@ -837,14 +1038,12 @@ const DermoManager = () => {
 												Stock
 											</span>
 										</div>
-										{/* Botón Restar Stock (Merma) */}
 										<button
 											onClick={() => handleReduceStock(item)}
 											className="bg-gray-50 text-gray-500 p-2 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors border border-gray-100"
 											title="Restar Stock (Rotura/Pérdida)">
 											<Minus size={18} />
 										</button>
-										{/* Botón Añadir Stock (Compra) */}
 										<button
 											onClick={() => {
 												const qty = prompt(
