@@ -5,11 +5,8 @@ import {
 	TrendingUp,
 	TrendingDown,
 	DollarSign,
-	FileText,
-	Download,
 	Package,
 	Syringe,
-	Calendar,
 	BarChart3,
 	AlertCircle,
 	CheckCircle,
@@ -17,11 +14,20 @@ import {
 	X,
 	Search,
 	Sparkles,
-	Minus,
-	AlertTriangle,
 	LogOut,
 	Lock,
 	Mail,
+	User,
+	Zap,
+	Armchair,
+	Home,
+	Briefcase,
+	RefreshCw,
+	Check,
+	Pencil,
+	ChevronRight,
+	MoreHorizontal,
+	Tag,
 } from "lucide-react";
 
 import { initializeApp } from "firebase/app";
@@ -31,8 +37,8 @@ import {
 	createUserWithEmailAndPassword,
 	signOut,
 	onAuthStateChanged,
-	GoogleAuthProvider, // Importamos el proveedor de Google
-	signInWithPopup, // Importamos la función de ventana emergente
+	GoogleAuthProvider,
+	signInWithPopup,
 } from "firebase/auth";
 import {
 	getFirestore,
@@ -44,10 +50,9 @@ import {
 	onSnapshot,
 	query,
 	orderBy,
-	getDoc,
 } from "firebase/firestore";
 
-// --- CONFIGURACIÓN FIREBASE (Directa) ---
+// --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
 	apiKey: "AIzaSyAb1p23xRpeoR6Ycshis8C7r8eBO-IgIqc",
 	authDomain: "dermo-gestion-christine.firebaseapp.com",
@@ -61,17 +66,24 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// --- UTILIDADES ---
+const formatCurrency = (amount) =>
+	new Intl.NumberFormat("es-ES", {
+		style: "currency",
+		currency: "EUR",
+		maximumFractionDigits: 0,
+	}).format(amount);
+
 // --- COMPONENTES UI ---
 
 const Toast = ({ message, type, onClose }) => {
 	useEffect(() => {
-		const timer = setTimeout(onClose, 3000);
-		return () => clearTimeout(timer);
+		const t = setTimeout(onClose, 3000);
+		return () => clearTimeout(t);
 	}, [onClose]);
-
 	return (
 		<div
-			className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg flex items-center space-x-2 animate-in slide-in-from-top-5 fade-in duration-300 ${
+			className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-in slide-in-from-top-5 fade-in duration-300 ${
 				type === "success"
 					? "bg-emerald-50 text-emerald-800 border border-emerald-100"
 					: "bg-rose-50 text-rose-800 border border-rose-100"
@@ -86,7 +98,6 @@ const Toast = ({ message, type, onClose }) => {
 	);
 };
 
-// Modal de Confirmación Genérico (Elegante)
 const ConfirmModal = ({
 	isOpen,
 	title,
@@ -96,7 +107,6 @@ const ConfirmModal = ({
 	isDestructive = false,
 }) => {
 	if (!isOpen) return null;
-
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
 			<div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
@@ -111,20 +121,68 @@ const ConfirmModal = ({
 					</div>
 					<h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
 					<p className="text-sm text-gray-500 mb-6">{message}</p>
-
 					<div className="flex gap-3">
 						<button
 							onClick={onCancel}
-							className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors">
+							className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">
 							Cancelar
 						</button>
 						<button
 							onClick={onConfirm}
-							className={`flex-1 px-4 py-2.5 text-white font-medium rounded-xl shadow-sm transition-transform active:scale-95 ${
-								isDestructive
-									? "bg-red-500 hover:bg-red-600"
-									: "bg-rose-500 hover:bg-rose-600"
+							className={`flex-1 px-4 py-2.5 text-white font-medium rounded-xl shadow-sm active:scale-95 ${
+								isDestructive ? "bg-red-500" : "bg-rose-500"
 							}`}>
+							Confirmar
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+};
+
+const SessionModal = ({ isOpen, treatment, onClose, onConfirm }) => {
+	const [clientName, setClientName] = useState("");
+	if (!isOpen || !treatment) return null;
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+			<div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+				<div className="p-6">
+					<h3 className="text-lg font-bold text-gray-900 mb-1">
+						Registrar Sesión
+					</h3>
+					<p className="text-sm text-gray-500 mb-4">
+						{treatment.name} -{" "}
+						<span className="font-bold text-rose-500">{treatment.price}€</span>
+					</p>
+					<div className="mb-4">
+						<label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+							Nombre del Cliente (Opcional)
+						</label>
+						<div className="relative">
+							<User
+								className="absolute left-3 top-2.5 text-gray-400"
+								size={16}
+							/>
+							<input
+								type="text"
+								placeholder="Ej: María García"
+								className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 focus:border-rose-500 outline-none text-sm"
+								value={clientName}
+								onChange={(e) => setClientName(e.target.value)}
+								autoFocus
+							/>
+						</div>
+					</div>
+					<div className="flex gap-3">
+						<button
+							onClick={onClose}
+							className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200">
+							Cancelar
+						</button>
+						<button
+							onClick={() => onConfirm(treatment, clientName)}
+							className="flex-1 px-4 py-2 bg-rose-500 text-white font-medium rounded-xl hover:bg-rose-600 shadow-sm">
 							Confirmar
 						</button>
 					</div>
@@ -136,67 +194,124 @@ const ConfirmModal = ({
 
 const StatCard = ({ title, value, subtext, gradient, icon: Icon }) => (
 	<div
-		className={`relative overflow-hidden rounded-2xl p-6 text-white shadow-lg ${gradient}`}>
-		<div className="relative z-10 flex justify-between items-start">
-			<div>
-				<p className="text-white/80 text-xs font-bold uppercase tracking-wider mb-1">
+		className={`relative overflow-hidden rounded-2xl p-5 text-white shadow-lg ${gradient}`}>
+		<div className="relative z-10">
+			<div className="flex justify-between items-start mb-2">
+				<div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+					<Icon size={20} className="text-white" />
+				</div>
+				<span className="text-xs font-bold uppercase tracking-wider opacity-80">
 					{title}
-				</p>
-				<h3 className="text-3xl font-bold tracking-tight">{value}</h3>
-				{subtext && (
-					<p className="text-white/70 text-xs mt-2 font-medium">{subtext}</p>
-				)}
+				</span>
 			</div>
-			<div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-				<Icon size={24} className="text-white" />
-			</div>
+			<h3 className="text-2xl font-bold tracking-tight">{value}</h3>
+			{subtext && (
+				<p className="text-white/80 text-xs mt-1 font-medium">{subtext}</p>
+			)}
 		</div>
-		<div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+		<div className="absolute -bottom-4 -right-4 w-20 h-20 bg-white/10 rounded-full blur-xl"></div>
 	</div>
 );
 
-// --- COMPONENTE DE LOGIN ---
+// Gráfica de Área Suave (SVG Puro)
+const SmoothAreaChart = ({ data }) => {
+	const height = 100;
+	const width = 300;
+	const maxVal = Math.max(...data.map((d) => d.value), 10);
+
+	const points = data
+		.map((d, i) => {
+			const x = (i / (data.length - 1)) * width;
+			const y = height - (d.value / maxVal) * height;
+			return `${x},${y}`;
+		})
+		.join(" ");
+
+	const areaPoints = `${points} ${width},${height} 0,${height}`;
+
+	return (
+		<div className="w-full mt-4">
+			<div className="relative h-40 w-full overflow-hidden">
+				<svg
+					viewBox={`0 0 ${width} ${height}`}
+					className="w-full h-full overflow-visible"
+					preserveAspectRatio="none">
+					<defs>
+						<linearGradient id="gradient" x1="0" x2="0" y1="0" y2="1">
+							<stop offset="0%" stopColor="#f43f5e" stopOpacity="0.2" />
+							<stop offset="100%" stopColor="#f43f5e" stopOpacity="0" />
+						</linearGradient>
+					</defs>
+					<polygon points={areaPoints} fill="url(#gradient)" />
+					<polyline
+						points={points}
+						fill="none"
+						stroke="#f43f5e"
+						strokeWidth="3"
+						strokeLinecap="round"
+						vectorEffect="non-scaling-stroke"
+					/>
+					{data.map((d, i) => {
+						const x = (i / (data.length - 1)) * width;
+						const y = height - (d.value / maxVal) * height;
+						return (
+							<g key={i}>
+								<circle
+									cx={x}
+									cy={y}
+									r="3"
+									fill="white"
+									stroke="#f43f5e"
+									strokeWidth="2"
+									vectorEffect="non-scaling-stroke"
+								/>
+							</g>
+						);
+					})}
+				</svg>
+			</div>
+			<div className="flex justify-between mt-2 text-xs text-gray-400 font-medium px-1">
+				{data.map((d, i) => (
+					<div key={i} className="flex flex-col items-center">
+						<span>{d.label}</span>
+						<span className="text-[10px] text-gray-300 font-normal">
+							{formatCurrency(d.value)}
+						</span>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+};
+
+// --- LOGIN ---
 const LoginScreen = () => {
-	const [isRegistering, setIsRegistering] = useState(false);
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
-
-	// Manejador para Login con Google
-	const handleGoogleLogin = async () => {
-		setError("");
-		const provider = new GoogleAuthProvider();
-		try {
-			await signInWithPopup(auth, provider);
-			// El onAuthStateChanged se encargará del resto
-		} catch (err) {
-			console.error(err);
-			setError("No se pudo iniciar sesión con Google.");
-		}
-	};
+	const [error, setError] = useState("");
+	const [isRegistering, setIsRegistering] = useState(false);
 
 	const handleAuth = async (e) => {
 		e.preventDefault();
-		setError("");
 		setLoading(true);
+		setError("");
 		try {
-			if (isRegistering) {
+			if (isRegistering)
 				await createUserWithEmailAndPassword(auth, email, password);
-			} else {
-				await signInWithEmailAndPassword(auth, email, password);
-			}
-		} catch (err) {
-			console.error(err);
-			if (err.code === "auth/invalid-credential")
-				setError("Email o contraseña incorrectos.");
-			else if (err.code === "auth/email-already-in-use")
-				setError("Este email ya está registrado.");
-			else if (err.code === "auth/weak-password")
-				setError("La contraseña debe tener al menos 6 caracteres.");
-			else setError("Error de conexión. Inténtalo de nuevo.");
+			else await signInWithEmailAndPassword(auth, email, password);
+		} catch (e) {
+			setError(e.message);
 		} finally {
 			setLoading(false);
+		}
+	};
+
+	const handleGoogle = async () => {
+		try {
+			await signInWithPopup(auth, new GoogleAuthProvider());
+		} catch (e) {
+			setError("Error Google");
 		}
 	};
 
@@ -204,436 +319,452 @@ const LoginScreen = () => {
 		<div className="min-h-screen flex items-center justify-center bg-rose-50 p-4">
 			<div className="bg-white w-full max-w-md p-8 rounded-3xl shadow-xl border border-rose-100">
 				<div className="text-center mb-8">
-					<h1 className="text-3xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent mb-2">
+					<h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-purple-600">
 						DermoApp
 					</h1>
-					<p className="text-gray-500 text-sm">
-						Gestión profesional para tu negocio
+					<p className="text-gray-400 text-sm">
+						Gestión inteligente para esteticistas
 					</p>
 				</div>
-
-				<form onSubmit={handleAuth} className="space-y-4">
-					<div>
-						<label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
-							Email
-						</label>
-						<div className="relative">
-							<Mail className="absolute left-3 top-3 text-gray-400" size={18} />
-							<input
-								type="email"
-								required
-								className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition-all bg-gray-50 focus:bg-white"
-								placeholder="ejemplo@dermo.com"
-								value={email}
-								onChange={(e) => setEmail(e.target.value)}
-							/>
-						</div>
+				<button
+					onClick={handleGoogle}
+					className="w-full mb-4 py-3 rounded-xl border border-gray-200 flex justify-center items-center gap-2 hover:bg-gray-50 font-medium text-gray-700">
+					<span className="text-lg">G</span> Continuar con Google
+				</button>
+				<div className="relative flex py-2 items-center">
+					<div className="flex-grow border-t"></div>
+					<span className="flex-shrink-0 mx-4 text-gray-400 text-xs">
+						O usa tu email
+					</span>
+					<div className="flex-grow border-t"></div>
+				</div>
+				<form onSubmit={handleAuth} className="space-y-4 mt-4">
+					<div className="relative">
+						<Mail className="absolute left-3 top-3 text-gray-400" size={18} />
+						<input
+							type="email"
+							placeholder="Email"
+							className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 outline-none focus:border-rose-500"
+							value={email}
+							onChange={(e) => setEmail(e.target.value)}
+							required
+						/>
 					</div>
-					<div>
-						<label className="block text-xs font-bold text-gray-500 mb-1 ml-1 uppercase">
-							Contraseña
-						</label>
-						<div className="relative">
-							<Lock className="absolute left-3 top-3 text-gray-400" size={18} />
-							<input
-								type="password"
-								required
-								className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition-all bg-gray-50 focus:bg-white"
-								placeholder="••••••••"
-								value={password}
-								onChange={(e) => setPassword(e.target.value)}
-							/>
-						</div>
+					<div className="relative">
+						<Lock className="absolute left-3 top-3 text-gray-400" size={18} />
+						<input
+							type="password"
+							placeholder="Contraseña"
+							className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 outline-none focus:border-rose-500"
+							value={password}
+							onChange={(e) => setPassword(e.target.value)}
+							required
+						/>
 					</div>
-
-					{error && (
-						<div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm flex items-center gap-2">
-							<AlertTriangle size={16} /> {error}
-						</div>
-					)}
-
-					<button
-						type="submit"
-						disabled={loading}
-						className="w-full bg-rose-500 text-white font-bold py-3.5 rounded-xl hover:bg-rose-600 transition-transform active:scale-95 shadow-lg shadow-rose-200 flex justify-center items-center">
+					{error && <p className="text-red-500 text-xs">{error}</p>}
+					<button className="w-full py-3 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600">
 						{loading ? (
-							<Loader2 className="animate-spin" />
+							<Loader2 className="animate-spin mx-auto" />
 						) : isRegistering ? (
 							"Crear Cuenta"
 						) : (
-							"Iniciar Sesión"
+							"Entrar"
 						)}
 					</button>
 				</form>
-
-				{/* Separador */}
-				<div className="relative flex py-5 items-center">
-					<div className="flex-grow border-t border-gray-200"></div>
-					<span className="flex-shrink-0 mx-4 text-gray-400 text-xs">
-						O continúa con
-					</span>
-					<div className="flex-grow border-t border-gray-200"></div>
-				</div>
-
-				{/* Botón de Google */}
 				<button
-					onClick={handleGoogleLogin}
-					type="button"
-					className="w-full bg-white border border-gray-200 text-gray-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-transform active:scale-95 shadow-sm flex justify-center items-center gap-3">
-					<svg className="w-5 h-5" viewBox="0 0 24 24">
-						<path
-							d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-							fill="#4285F4"
-						/>
-						<path
-							d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-							fill="#34A853"
-						/>
-						<path
-							d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-							fill="#FBBC05"
-						/>
-						<path
-							d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-							fill="#EA4335"
-						/>
-					</svg>
-					Google
+					onClick={() => setIsRegistering(!isRegistering)}
+					className="mt-4 text-sm text-rose-500 hover:underline w-full text-center">
+					{isRegistering ? "¿Ya tienes cuenta?" : "Crear cuenta nueva"}
 				</button>
-
-				<div className="mt-6 text-center">
-					<p className="text-sm text-gray-500">
-						{isRegistering ? "¿Ya tienes cuenta?" : "¿Eres nueva aquí?"}
-						<button
-							onClick={() => {
-								setIsRegistering(!isRegistering);
-								setError("");
-							}}
-							className="ml-2 text-rose-600 font-bold hover:underline">
-							{isRegistering ? "Inicia Sesión" : "Regístrate con Email"}
-						</button>
-					</p>
-				</div>
 			</div>
 		</div>
 	);
 };
 
-// --- APP PRINCIPAL ---
+// --- CONSTANTES ---
+const EXPENSE_TYPES = {
+	STOCK: {
+		label: "Material (Stock)",
+		icon: Package,
+		color: "text-blue-600",
+		bg: "bg-blue-50",
+	},
+	RECURRING: {
+		label: "Recurrente (Alquiler/Luz)",
+		icon: Zap,
+		color: "text-orange-600",
+		bg: "bg-orange-50",
+	},
+	INVESTMENT: {
+		label: "Inversión (Mobiliario)",
+		icon: Armchair,
+		color: "text-purple-600",
+		bg: "bg-purple-50",
+	},
+};
 
+// --- APP PRINCIPAL ---
 const DermoManager = () => {
 	const [user, setUser] = useState(null);
 	const [authLoading, setAuthLoading] = useState(true);
 	const [activeTab, setActiveTab] = useState("dashboard");
+	const [financeSubTab, setFinanceSubTab] = useState("income"); // 'income' | 'expense' (para móvil/organización)
 	const [currentMonth, setCurrentMonth] = useState(
 		new Date().toISOString().slice(0, 7)
 	);
 	const [toast, setToast] = useState(null);
-	const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-	const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // Nuevo estado para el modal
 
+	// Datos
 	const [inventory, setInventory] = useState([]);
 	const [treatments, setTreatments] = useState([]);
 	const [entries, setEntries] = useState([]);
+	const [recurringConfig, setRecurringConfig] = useState([]);
 
-	const [showAddMaterial, setShowAddMaterial] = useState(false);
-	const [showAddTreatment, setShowAddTreatment] = useState(false);
-	const [showAddEntry, setShowAddEntry] = useState(false);
+	// Modales y Estados UI
+	const [showLogout, setShowLogout] = useState(false);
+	const [selectedTreatment, setSelectedTreatment] = useState(null);
+	const [clientName, setClientName] = useState("");
+	const [searchTerm, setSearchTerm] = useState("");
+	const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
-	const [newMaterial, setNewMaterial] = useState({
-		name: "",
-		unitCost: "",
-		stock: "",
-		unit: "ud",
-	});
-	const [newTreatmentName, setNewTreatmentName] = useState("");
-	const [newTreatmentPrice, setNewTreatmentPrice] = useState("");
-	const [newRecipeItem, setNewRecipeItem] = useState({
-		materialId: "",
-		quantity: 1,
-	});
-	const [tempRecipe, setTempRecipe] = useState([]);
-	const [newEntry, setNewEntry] = useState({
-		date: new Date().toISOString().split("T")[0],
-		type: "expense",
-		category: "Otros",
+	// Modales Configuración
+	const [showRecurringModal, setShowRecurringModal] = useState(false);
+	const [newRecurring, setNewRecurring] = useState({ name: "", amount: "" });
+
+	// Inputs Finanzas Manuales
+	const [manualEntry, setManualEntry] = useState({
 		description: "",
 		amount: "",
-	});
+		category: "Otros",
+		type: "expense",
+	}); // Unified
+	const [showManualEntryModal, setShowManualEntryModal] = useState(false);
+
+	// Inputs Inventario/Tratamientos
+	const [showAddInv, setShowAddInv] = useState(false);
+	const [editingInv, setEditingInv] = useState(null);
+	const [newInv, setNewInv] = useState({ name: "", unitCost: "", stock: "" });
+
+	const [showAddTreat, setShowAddTreat] = useState(false);
+	const [editingTreat, setEditingTreat] = useState(null);
+	const [newTreat, setNewTreat] = useState({ name: "", price: "" });
+	const [tempRecipe, setTempRecipe] = useState([]);
+	const [recipeItem, setRecipeItem] = useState({ materialId: "", quantity: 1 });
 
 	// --- CONEXIÓN ---
 	useEffect(() => {
-		const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
-			setUser(currentUser);
+		return onAuthStateChanged(auth, (u) => {
+			setUser(u);
 			setAuthLoading(false);
 		});
-		return () => unsubscribeAuth();
 	}, []);
 
 	useEffect(() => {
-		if (!user) {
-			setInventory([]);
-			setTreatments([]);
-			setEntries([]);
-			return;
-		}
-		const inventoryRef = collection(db, "users", user.uid, "inventory");
-		const treatmentsRef = collection(db, "users", user.uid, "treatments");
-		const entriesRef = collection(db, "users", user.uid, "finance_entries");
+		if (!user) return;
+		const base = `users/${user.uid}`;
 
-		const unsub1 = onSnapshot(query(inventoryRef, orderBy("name")), (snap) =>
-			setInventory(snap.docs.map((d) => ({ ...d.data(), id: d.id })))
+		const unsub1 = onSnapshot(
+			query(collection(db, `${base}/inventory`), orderBy("name")),
+			(s) => setInventory(s.docs.map((d) => ({ ...d.data(), id: d.id })))
 		);
-		const unsub2 = onSnapshot(query(treatmentsRef, orderBy("name")), (snap) =>
-			setTreatments(snap.docs.map((d) => ({ ...d.data(), id: d.id })))
+		const unsub2 = onSnapshot(
+			query(collection(db, `${base}/treatments`), orderBy("name")),
+			(s) => setTreatments(s.docs.map((d) => ({ ...d.data(), id: d.id })))
 		);
 		const unsub3 = onSnapshot(
-			query(entriesRef, orderBy("date", "desc")),
-			(snap) => setEntries(snap.docs.map((d) => ({ ...d.data(), id: d.id })))
+			query(collection(db, `${base}/finance_entries`), orderBy("date", "desc")),
+			(s) => setEntries(s.docs.map((d) => ({ ...d.data(), id: d.id })))
+		);
+		const unsub4 = onSnapshot(
+			query(collection(db, `${base}/recurring_config`), orderBy("name")),
+			(s) => setRecurringConfig(s.docs.map((d) => ({ ...d.data(), id: d.id })))
 		);
 
 		return () => {
 			unsub1();
 			unsub2();
 			unsub3();
+			unsub4();
 		};
 	}, [user]);
 
-	const showToast = (message, type = "success") => setToast({ message, type });
-
-	// Función Logout actualizada para usar Modal
+	const showToastMsg = (msg, type = "success") =>
+		setToast({ message: msg, type });
 	const handleLogout = async () => {
 		await signOut(auth);
-		setShowLogoutConfirm(false);
+		setShowLogout(false);
 	};
 
 	// --- LÓGICA DE NEGOCIO ---
 
-	const handleAddMaterial = async () => {
-		if (!newMaterial.name) return;
+	const calculateTreatmentCost = (recipe) =>
+		recipe?.reduce((total, r) => {
+			const item = inventory.find((m) => m.id === r.materialId);
+			return total + (item ? item.unitCost * r.quantity : 0);
+		}, 0) || 0;
+
+	// 1. SESIONES
+	const handleSession = async () => {
+		if (!selectedTreatment) return;
+		const missing = selectedTreatment.recipe?.find((r) => {
+			const item = inventory.find((i) => i.id === r.materialId);
+			return !item || item.stock < r.quantity;
+		});
+
+		if (missing) {
+			showToastMsg("Falta material en inventario", "error");
+			return;
+		}
+
 		try {
-			await addDoc(collection(db, "users", user.uid, "inventory"), {
-				...newMaterial,
-				unitCost: Number(newMaterial.unitCost),
-				stock: Number(newMaterial.stock),
+			selectedTreatment.recipe?.forEach(async (r) => {
+				const item = inventory.find((i) => i.id === r.materialId);
+				if (item)
+					await updateDoc(
+						doc(db, `users/${user.uid}/inventory`, r.materialId),
+						{ stock: item.stock - r.quantity }
+					);
+			});
+
+			const cost = calculateTreatmentCost(selectedTreatment.recipe);
+
+			await addDoc(collection(db, `users/${user.uid}/finance_entries`), {
+				date: new Date().toISOString().split("T")[0],
+				type: "income",
+				category: "Servicio",
+				description: clientName
+					? `${selectedTreatment.name} (${clientName})`
+					: selectedTreatment.name,
+				amount: Number(selectedTreatment.price),
+				relatedCost: cost,
+				recipeSnapshot: selectedTreatment.recipe,
 				createdAt: new Date().toISOString(),
 			});
-			setNewMaterial({ name: "", unitCost: "", stock: "", unit: "ud" });
-			setShowAddMaterial(false);
-			showToast("Material añadido");
+
+			if (cost > 0) {
+				await addDoc(collection(db, `users/${user.uid}/finance_entries`), {
+					date: new Date().toISOString().split("T")[0],
+					type: "expense",
+					category: "Material",
+					isAutomatic: true,
+					description: `Material: ${selectedTreatment.name}`,
+					amount: cost,
+				});
+			}
+
+			showToastMsg("Sesión registrada");
+			setSelectedTreatment(null);
+			setClientName("");
 		} catch (e) {
-			showToast("Error al guardar", "error");
+			showToastMsg("Error", "error");
+		}
+	};
+
+	// 2. INVENTARIO CRUD
+	const saveInventory = async () => {
+		if (!newInv.name) return;
+		try {
+			if (editingInv)
+				await updateDoc(doc(db, `users/${user.uid}/inventory`, editingInv.id), {
+					...newInv,
+					unitCost: Number(newInv.unitCost),
+					stock: Number(newInv.stock),
+				});
+			else
+				await addDoc(collection(db, `users/${user.uid}/inventory`), {
+					...newInv,
+					unitCost: Number(newInv.unitCost),
+					stock: Number(newInv.stock),
+					createdAt: new Date().toISOString(),
+				});
+			setNewInv({ name: "", unitCost: "", stock: "" });
+			setEditingInv(null);
+			setShowAddInv(false);
+		} catch (e) {
+			showToastMsg("Error al guardar", "error");
 		}
 	};
 
 	const handleAddStock = async (item, qty, cost) => {
-		try {
-			await updateDoc(doc(db, "users", user.uid, "inventory", item.id), {
-				stock: item.stock + Number(qty),
-			});
-			await addDoc(collection(db, "users", user.uid, "finance_entries"), {
+		await updateDoc(doc(db, `users/${user.uid}/inventory`, item.id), {
+			stock: item.stock + Number(qty),
+		});
+		if (cost > 0)
+			await addDoc(collection(db, `users/${user.uid}/finance_entries`), {
 				date: new Date().toISOString().split("T")[0],
 				type: "expense",
+				expenseType: "STOCK",
 				category: "Material",
 				description: `Compra Stock: ${item.name}`,
 				amount: Number(cost),
 				createdAt: new Date().toISOString(),
 			});
-			showToast(`Stock de ${item.name} aumentado`);
-		} catch (e) {
-			showToast("Error en la compra", "error");
-		}
+		showToastMsg("Stock actualizado");
 	};
 
-	const handleReduceStock = async (item) => {
-		const qty = prompt(
-			`¿Cuántas unidades de ${item.name} vas a dar de baja (rotura, pérdida, etc.)?`
-		);
-		if (!qty) return;
-
-		const reason = prompt("Motivo de la baja (opcional):", "Rotura/Merma");
-
-		try {
-			await updateDoc(doc(db, "users", user.uid, "inventory", item.id), {
-				stock: Math.max(0, item.stock - Number(qty)),
-			});
-			await addDoc(collection(db, "users", user.uid, "finance_entries"), {
-				date: new Date().toISOString().split("T")[0],
-				type: "expense",
-				category: "Merma",
-				description: `Baja Stock (${qty} ${item.unit}): ${reason || "Merma"}`,
-				amount: 0,
-				createdAt: new Date().toISOString(),
-			});
-
-			showToast(`Dadas de baja ${qty} uds de ${item.name}`);
-		} catch (e) {
-			showToast("Error al actualizar", "error");
-		}
-	};
-
-	const handleSaveTreatment = async () => {
-		if (!newTreatmentName || !newTreatmentPrice) return;
-		try {
-			await addDoc(collection(db, "users", user.uid, "treatments"), {
-				name: newTreatmentName,
-				price: Number(newTreatmentPrice),
-				recipe: tempRecipe,
-				createdAt: new Date().toISOString(),
-			});
-			setNewTreatmentName("");
-			setNewTreatmentPrice("");
-			setTempRecipe([]);
-			setShowAddTreatment(false);
-			showToast("Tratamiento creado");
-		} catch (e) {
-			showToast("Error al crear", "error");
-		}
-	};
-
-	const handleRegisterSession = async (treatment) => {
-		const missingStock = treatment.recipe.find((item) => {
-			const material = inventory.find((m) => m.id === item.materialId);
-			return !material || material.stock < item.quantity;
-		});
-
-		if (missingStock) {
-			const matName =
-				inventory.find((m) => m.id === missingStock.materialId)?.name ||
-				"Material desconocido";
-			showToast(`¡Falta stock de ${matName}!`, "error");
-			return;
-		}
-
-		try {
-			for (const item of treatment.recipe) {
-				const material = inventory.find((m) => m.id === item.materialId);
-				if (material) {
-					await updateDoc(
-						doc(db, "users", user.uid, "inventory", item.materialId),
-						{ stock: material.stock - item.quantity }
-					);
-				}
-			}
-			await addDoc(collection(db, "users", user.uid, "finance_entries"), {
-				date: new Date().toISOString().split("T")[0],
-				type: "income",
-				category: "Servicio",
-				description: `Sesión: ${treatment.name}`,
-				amount: treatment.price,
-				recipeSnapshot: treatment.recipe,
-				createdAt: new Date().toISOString(),
-			});
-			showToast(`Sesión de ${treatment.name} registrada`);
-		} catch (e) {
-			showToast("Error al registrar sesión", "error");
-		}
-	};
-
-	const handleAddEntry = async () => {
-		if (!newEntry.amount) return;
-		try {
-			await addDoc(collection(db, "users", user.uid, "finance_entries"), {
-				...newEntry,
-				amount: Number(newEntry.amount),
-				createdAt: new Date().toISOString(),
-			});
-			setNewEntry({ ...newEntry, description: "", amount: "" });
-			setShowAddEntry(false);
-			showToast("Movimiento registrado");
-		} catch (e) {
-			showToast("Error al guardar", "error");
-		}
-	};
-
-	const handleDeleteEntry = async (entry) => {
-		if (confirmDeleteId !== entry.id) {
-			setConfirmDeleteId(entry.id);
-			setTimeout(() => setConfirmDeleteId(null), 4000);
-			return;
-		}
-
-		try {
-			if (entry.recipeSnapshot && Array.isArray(entry.recipeSnapshot)) {
-				for (const item of entry.recipeSnapshot) {
-					const material = inventory.find((m) => m.id === item.materialId);
-					if (material) {
-						await updateDoc(
-							doc(db, "users", user.uid, "inventory", item.materialId),
-							{
-								stock: material.stock + item.quantity,
-							}
-						);
-					}
-				}
-				showToast("Sesión eliminada y stock restaurado");
-			} else {
-				showToast("Movimiento eliminado");
-			}
-			await deleteDoc(doc(db, "users", user.uid, "finance_entries", entry.id));
-			setConfirmDeleteId(null);
-		} catch (e) {
-			showToast("Error al borrar", "error");
-		}
-	};
-
-	const calculateTreatmentCost = (recipe) =>
-		recipe.reduce((total, item) => {
-			const material = inventory.find((m) => m.id === item.materialId);
-			return total + (material ? material.unitCost * item.quantity : 0);
-		}, 0);
-
+	// 3. TRATAMIENTOS CRUD
 	const addToRecipe = () => {
-		if (!newRecipeItem.materialId) return;
+		if (!recipeItem.materialId) return;
 		setTempRecipe([
 			...tempRecipe,
 			{
-				materialId: newRecipeItem.materialId,
-				quantity: Number(newRecipeItem.quantity),
+				materialId: recipeItem.materialId,
+				quantity: Number(recipeItem.quantity),
 			},
 		]);
-		setNewRecipeItem({ materialId: "", quantity: 1 });
+		setRecipeItem({ materialId: "", quantity: 1 });
 	};
 
+	const saveTreatment = async () => {
+		if (!newTreat.name) return;
+		const data = {
+			name: newTreat.name,
+			price: Number(newTreat.price),
+			recipe: tempRecipe,
+		};
+		try {
+			if (editingTreat)
+				await updateDoc(
+					doc(db, `users/${user.uid}/treatments`, editingTreat.id),
+					data
+				);
+			else
+				await addDoc(collection(db, `users/${user.uid}/treatments`), {
+					...data,
+					createdAt: new Date().toISOString(),
+				});
+			setNewTreat({ name: "", price: "" });
+			setTempRecipe([]);
+			setEditingTreat(null);
+			setShowAddTreat(false);
+		} catch (e) {
+			showToastMsg("Error al guardar", "error");
+		}
+	};
+
+	const deleteItem = async (col, id) => {
+		if (confirm("¿Seguro que quieres borrarlo?"))
+			await deleteDoc(doc(db, `users/${user.uid}/${col}`, id));
+	};
+
+	// 4. FINANZAS
+	const addRecurringConfig = async () => {
+		if (!newRecurring.name || !newRecurring.amount) return;
+		await addDoc(collection(db, `users/${user.uid}/recurring_config`), {
+			name: newRecurring.name,
+			amount: Number(newRecurring.amount),
+		});
+		setNewRecurring({ name: "", amount: "" });
+	};
+
+	const payRecurring = async (configItem) => {
+		await addDoc(collection(db, `users/${user.uid}/finance_entries`), {
+			date: new Date().toISOString().split("T")[0],
+			type: "expense",
+			category: "Fijo",
+			description: configItem.name,
+			amount: configItem.amount,
+			recurringId: configItem.id,
+			monthKey: currentMonth,
+		});
+		showToastMsg("Pago registrado");
+	};
+
+	// Nuevo: Añadir Ingreso/Gasto Manual Unificado
+	const openManualEntryModal = (type) => {
+		setManualEntry({
+			description: "",
+			amount: "",
+			category: type === "income" ? "Extra" : "Otros",
+			type: type,
+		});
+		setShowManualEntryModal(true);
+	};
+
+	const addManualEntry = async () => {
+		if (!manualEntry.amount) return;
+		await addDoc(collection(db, `users/${user.uid}/finance_entries`), {
+			date: new Date().toISOString().split("T")[0],
+			type: manualEntry.type,
+			category: manualEntry.category,
+			description: manualEntry.description,
+			amount: Number(manualEntry.amount),
+			isManual: true,
+		});
+		setManualEntry({
+			description: "",
+			amount: "",
+			category: "Otros",
+			type: "expense",
+		});
+		setShowManualEntryModal(false);
+	};
+
+	const deleteEntry = async (id) => {
+		if (confirmDeleteId !== id) {
+			setConfirmDeleteId(id);
+			setTimeout(() => setConfirmDeleteId(null), 4000);
+			return;
+		}
+		await deleteDoc(doc(db, `users/${user.uid}/finance_entries`, id));
+		setConfirmDeleteId(null);
+	};
+
+	// --- CALCULOS ---
 	const filteredEntries = useMemo(
-		() => entries.filter((e) => e.date && e.date.startsWith(currentMonth)),
+		() => entries.filter((e) => e.date.startsWith(currentMonth)),
 		[entries, currentMonth]
 	);
-	const totalIncome = filteredEntries
+
+	const income = filteredEntries
 		.filter((e) => e.type === "income")
-		.reduce((acc, curr) => acc + curr.amount, 0);
-	const totalExpense = filteredEntries
-		.filter((e) => e.type === "expense")
-		.reduce((acc, curr) => acc + curr.amount, 0);
-
-	const exportData = () => {
-		let csv = "Tipo,Fecha,Categoria,Descripcion,Importe\n";
-		entries.forEach(
+		.reduce((acc, c) => acc + c.amount, 0);
+	const expenseMaterial = filteredEntries
+		.filter((e) => e.category === "Material")
+		.reduce((acc, c) => acc + c.amount, 0);
+	const expenseFixed = filteredEntries
+		.filter((e) => e.category === "Fijo")
+		.reduce((acc, c) => acc + c.amount, 0);
+	// Otros gastos ahora incluye todo lo que no sea Material ni Fijo
+	const expenseOther = filteredEntries
+		.filter(
 			(e) =>
-				(csv += `${e.type},${e.date},${e.category},${e.description},${e.amount}\n`)
-		);
-		const link = document.createElement("a");
-		link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
-		link.download = `dermo_data_${currentMonth}.csv`;
-		link.click();
-	};
+				e.type === "expense" &&
+				e.category !== "Material" &&
+				e.category !== "Fijo"
+		)
+		.reduce((acc, c) => acc + c.amount, 0);
 
-	// --- RENDERIZADO CONDICIONAL ---
+	const netProfit = income - (expenseMaterial + expenseFixed + expenseOther);
 
-	// 1. Cargando...
+	const chartData = useMemo(() => {
+		const data = [];
+		for (let i = 5; i >= 0; i--) {
+			const d = new Date();
+			d.setMonth(d.getMonth() - i);
+			const key = d.toISOString().slice(0, 7);
+			const val = entries
+				.filter((e) => e.date.startsWith(key) && e.type === "income")
+				.reduce((acc, c) => acc + c.amount, 0);
+			data.push({
+				label: d.toLocaleString("es-ES", { month: "short" }),
+				value: val,
+			});
+		}
+		return data;
+	}, [entries]);
+
 	if (authLoading)
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-rose-50">
-				<Loader2 className="animate-spin text-rose-500" size={48} />
+				<Loader2 className="animate-spin text-rose-500" />
 			</div>
 		);
-
-	// 2. Si no hay usuario, mostrar Login
 	if (!user) return <LoginScreen />;
 
-	// 3. Si hay usuario, mostrar la App completa (Dashboard)
 	return (
-		<div className="min-h-screen bg-gray-50 font-sans text-gray-800 pb-20 md:pb-0">
+		<div className="min-h-[100dvh] bg-gray-50 pb-24 md:pb-0 font-sans text-gray-800">
 			{toast && (
 				<Toast
 					message={toast.message}
@@ -641,281 +772,227 @@ const DermoManager = () => {
 					onClose={() => setToast(null)}
 				/>
 			)}
-
-			{/* MODAL CONFIRMACIÓN LOGOUT */}
 			<ConfirmModal
-				isOpen={showLogoutConfirm}
-				title="Cerrar Sesión"
-				message="¿Seguro que quieres salir? Tendrás que volver a ingresar tus datos."
-				onCancel={() => setShowLogoutConfirm(false)}
+				isOpen={showLogout}
+				title="Salir"
+				message="¿Cerrar sesión?"
+				onCancel={() => setShowLogout(false)}
 				onConfirm={handleLogout}
-				isDestructive={true}
+				isDestructive
+			/>
+			<SessionModal
+				isOpen={!!selectedTreatment}
+				treatment={selectedTreatment}
+				onClose={() => setSelectedTreatment(null)}
+				onConfirm={handleSession}
 			/>
 
-			{/* SIDEBAR DESKTOP */}
-			<div className="hidden md:fixed md:inset-y-0 md:left-0 md:flex md:w-64 md:flex-col md:bg-white md:border-r md:shadow-sm z-20">
-				<div className="flex items-center justify-center h-20 border-b bg-rose-50">
-					<h1 className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
-						DermoApp
-					</h1>
+			{/* NAVBARS */}
+			<div className="hidden md:fixed md:inset-y-0 md:left-0 md:flex md:w-64 md:flex-col md:bg-white md:border-r z-20">
+				<div className="h-20 flex items-center justify-center border-b">
+					<h1 className="text-2xl font-bold text-rose-500">DermoApp</h1>
 				</div>
-				<nav className="flex-1 space-y-2 p-4">
+				<nav className="p-4 space-y-2 flex-1">
 					{[
-						{ id: "dashboard", icon: BarChart3, label: "Resumen" },
-						{ id: "treatments", icon: Syringe, label: "Tratamientos" },
-						{ id: "inventory", icon: Package, label: "Inventario" },
-						{ id: "finance", icon: DollarSign, label: "Finanzas" },
-					].map((item) => (
+						{ id: "dashboard", l: "Resumen", i: BarChart3 },
+						{ id: "treatments", l: "Tratamientos", i: Syringe },
+						{ id: "inventory", l: "Stock", i: Package },
+						{ id: "finance", l: "Finanzas", i: DollarSign },
+					].map((t) => (
 						<button
-							key={item.id}
-							onClick={() => setActiveTab(item.id)}
-							className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 font-medium ${
-								activeTab === item.id
-									? "bg-rose-500 text-white shadow-lg shadow-rose-200"
-									: "text-gray-500 hover:bg-rose-50 hover:text-rose-600"
+							key={t.id}
+							onClick={() => setActiveTab(t.id)}
+							className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-colors ${
+								activeTab === t.id
+									? "bg-rose-500 text-white"
+									: "text-gray-500 hover:bg-gray-50"
 							}`}>
-							<item.icon size={20} /> <span>{item.label}</span>
+							<t.i size={20} /> {t.l}
 						</button>
 					))}
 				</nav>
 				<div className="p-4 border-t">
 					<button
-						onClick={() => setShowLogoutConfirm(true)}
-						className="w-full flex items-center space-x-3 px-4 py-3 text-red-500 hover:bg-red-50 rounded-xl transition-colors font-medium">
-						<LogOut size={20} /> <span>Cerrar Sesión</span>
+						onClick={() => setShowLogout(true)}
+						className="flex items-center gap-3 text-red-500 font-medium">
+						<LogOut size={20} /> Salir
 					</button>
 				</div>
 			</div>
-
-			{/* HEADER MOBILE */}
-			<div className="md:hidden bg-white border-b sticky top-0 z-10 px-4 h-16 flex items-center justify-between shadow-sm">
-				<span className="font-bold text-xl bg-gradient-to-r from-rose-500 to-purple-600 bg-clip-text text-transparent">
-					DermoApp
-				</span>
-				<button
-					onClick={() => setShowLogoutConfirm(true)}
-					className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-600 hover:bg-red-100 hover:text-red-500 transition-colors">
-					<LogOut size={16} />
+			<div className="md:hidden h-16 bg-white border-b sticky top-0 z-40 px-4 flex items-center justify-between shadow-sm">
+				<span className="font-bold text-xl text-rose-500">DermoApp</span>
+				<button onClick={() => setShowLogout(true)}>
+					<LogOut size={16} className="text-gray-400" />
 				</button>
 			</div>
 
-			{/* MAIN */}
-			<main className="md:pl-64 p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-				{/* DASHBOARD */}
+			<main className="md:pl-64 p-4 md:p-8 max-w-6xl mx-auto space-y-6">
 				{activeTab === "dashboard" && (
-					<div className="space-y-6 animate-in fade-in duration-500">
+					<div className="space-y-6 animate-in fade-in">
 						<div className="flex justify-between items-center">
 							<div>
-								<h2 className="text-2xl font-bold text-gray-800">
-									Hola, {user.email?.split("@")[0]} 👋
+								<h2 className="text-2xl font-bold">
+									Hola, {user.email?.split("@")[0]}
 								</h2>
-								<p className="text-gray-500 text-sm">
-									Resumen de {currentMonth}
+								<p className="text-sm text-gray-500">
+									Tu negocio en {new Date().getFullYear()}
 								</p>
 							</div>
 							<input
 								type="month"
 								value={currentMonth}
 								onChange={(e) => setCurrentMonth(e.target.value)}
-								className="bg-white border-none shadow-sm rounded-lg px-3 py-2 text-sm font-medium text-gray-600 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer hover:bg-gray-50"
+								className="bg-white border rounded-lg p-2 text-sm font-bold shadow-sm"
 							/>
 						</div>
 
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-							<StatCard
-								title="Ingresos"
-								value={`${totalIncome.toFixed(0)}€`}
-								subtext={`${
-									filteredEntries.filter((e) => e.type === "income").length
-								} sesiones`}
-								gradient="bg-gradient-to-br from-emerald-400 to-emerald-600"
-								icon={TrendingUp}
-							/>
-							<StatCard
-								title="Gastos"
-								value={`${totalExpense.toFixed(0)}€`}
-								subtext="Material y Fijos"
-								gradient="bg-gradient-to-br from-rose-400 to-rose-600"
-								icon={TrendingDown}
-							/>
-							<StatCard
-								title="Beneficio Neto"
-								value={`${(totalIncome - totalExpense).toFixed(0)}€`}
-								subtext={`Margen: ${
-									totalIncome > 0
-										? (
-												((totalIncome - totalExpense) / totalIncome) *
-												100
-										  ).toFixed(0)
-										: 0
-								}%`}
-								gradient="bg-gradient-to-br from-blue-500 to-indigo-600"
-								icon={Sparkles}
-							/>
+						{/* CARDS REORDERED FOR UX */}
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+							<div className="lg:col-span-1">
+								<StatCard
+									title="Facturación"
+									value={formatCurrency(income)}
+									subtext="Bruto Total"
+									gradient="bg-gradient-to-br from-emerald-500 to-emerald-700"
+									icon={TrendingUp}
+								/>
+							</div>
+							<div className="lg:col-span-1">
+								<StatCard
+									title="Beneficio Neto"
+									value={formatCurrency(netProfit)}
+									subtext="En Caja"
+									gradient="bg-gradient-to-br from-rose-500 to-purple-600"
+									icon={Sparkles}
+								/>
+							</div>
+							<div className="lg:col-span-1">
+								<StatCard
+									title="Material"
+									value={formatCurrency(expenseMaterial)}
+									subtext="Variable"
+									gradient="bg-gradient-to-br from-blue-400 to-blue-600"
+									icon={Package}
+								/>
+							</div>
+							<div className="lg:col-span-1">
+								<StatCard
+									title="Gastos Fijos"
+									value={formatCurrency(expenseFixed)}
+									subtext="Estructura"
+									gradient="bg-gradient-to-br from-orange-400 to-orange-600"
+									icon={Home}
+								/>
+							</div>
+							<div className="lg:col-span-1">
+								<StatCard
+									title="Otros/Inv."
+									value={formatCurrency(expenseOther)}
+									subtext="Extras"
+									gradient="bg-gradient-to-br from-gray-500 to-gray-700"
+									icon={Tag}
+								/>
+							</div>
 						</div>
 
-						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-							<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-								<h3 className="font-bold text-gray-800 mb-4 flex items-center">
-									<Syringe className="mr-2 text-rose-500" size={20} />
-									Sesión Rápida
-								</h3>
-								{treatments.length === 0 ? (
-									<div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-										<p className="text-gray-400 text-sm mb-2">
-											No hay tratamientos creados
-										</p>
-										<button
-											onClick={() => setActiveTab("treatments")}
-											className="text-rose-500 font-medium text-sm hover:underline">
-											Crear el primero
-										</button>
-									</div>
-								) : (
-									<div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-										{treatments.map((t) => (
-											<div
-												key={t.id}
-												className="w-full flex justify-between items-center p-4 bg-gray-50 rounded-xl border border-transparent hover:border-rose-100 transition-all">
-												<span className="font-semibold text-gray-700">
-													{t.name}
-												</span>
-												<div className="flex items-center space-x-2">
-													<button
-														onClick={() => handleRegisterSession(t)}
-														className="bg-white text-gray-700 hover:bg-rose-500 hover:text-white border hover:border-rose-500 px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm transition-colors flex items-center gap-2">
-														<span>Registrar</span>
-														<span className="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-xs font-bold">
-															{t.price}€
-														</span>
-													</button>
-												</div>
-											</div>
-										))}
-									</div>
-								)}
-							</div>
-
-							<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-								<h3 className="font-bold text-gray-800 mb-4 flex items-center">
-									<AlertCircle className="mr-2 text-orange-400" size={20} />
-									Aviso de Stock
-								</h3>
-								<div className="space-y-3">
-									{inventory.filter((i) => i.stock < 10).length === 0 ? (
-										<div className="flex flex-col items-center justify-center h-40 text-gray-400">
-											<CheckCircle
-												size={40}
-												className="mb-2 text-emerald-100"
-											/>
-											<p className="text-sm">
-												Todo el inventario está correcto
-											</p>
-										</div>
-									) : (
-										inventory
-											.filter((i) => i.stock < 10)
-											.map((item) => (
-												<div
-													key={item.id}
-													className="flex justify-between items-center p-3 bg-orange-50/50 rounded-xl border border-orange-100">
-													<div className="flex items-center space-x-3">
-														<div
-															className={`w-2 h-2 rounded-full ${
-																item.stock === 0
-																	? "bg-red-500"
-																	: "bg-orange-400"
-															}`}></div>
-														<span className="text-gray-700 font-medium">
-															{item.name}
-														</span>
-													</div>
-													<span
-														className={`px-2 py-1 rounded-lg text-xs font-bold ${
-															item.stock === 0
-																? "bg-red-100 text-red-600"
-																: "bg-orange-100 text-orange-600"
-														}`}>
-														{item.stock} {item.unit}
-													</span>
-												</div>
-											))
-									)}
-								</div>
-							</div>
+						<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+							<h3 className="font-bold text-gray-700 mb-2">
+								Tendencia de Ingresos
+							</h3>
+							<SmoothAreaChart data={chartData} />
 						</div>
 					</div>
 				)}
 
-				{/* TRATAMIENTOS */}
+				{/* --- PESTAÑA TRATAMIENTOS --- */}
 				{activeTab === "treatments" && (
-					<div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-						<div className="flex justify-between items-center">
-							<h2 className="text-2xl font-bold text-gray-800">Tratamientos</h2>
+					<div className="space-y-6 animate-in fade-in">
+						<div className="flex justify-between items-center gap-4">
+							<div className="relative flex-1">
+								<Search
+									className="absolute left-3 top-3 text-gray-400"
+									size={18}
+								/>
+								<input
+									placeholder="Buscar tratamiento..."
+									className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl focus:ring-2 ring-rose-200 outline-none"
+									value={searchTerm}
+									onChange={(e) => setSearchTerm(e.target.value)}
+								/>
+							</div>
 							<button
-								onClick={() => setShowAddTreatment(!showAddTreatment)}
-								className="bg-rose-500 text-white p-3 rounded-full shadow-lg shadow-rose-200 hover:bg-rose-600 hover:scale-105 transition-all">
-								{showAddTreatment ? <X size={24} /> : <Plus size={24} />}
+								onClick={() => {
+									setEditingTreat(null);
+									setNewTreat({ name: "", price: "" });
+									setTempRecipe([]);
+									setShowAddTreat(!showAddTreat);
+								}}
+								className="bg-rose-500 text-white p-3 rounded-xl shadow-lg">
+								<Plus />
 							</button>
 						</div>
 
-						{showAddTreatment && (
-							<div className="bg-white p-6 rounded-2xl shadow-lg border border-rose-100 animate-in zoom-in-95 duration-200">
-								<h3 className="font-bold text-gray-800 mb-4">
-									Diseñar Nuevo Tratamiento
+						{showAddTreat && (
+							<div className="bg-white p-6 rounded-2xl shadow-lg border border-rose-100 mb-6">
+								<h3 className="font-bold mb-4 text-gray-800">
+									{editingTreat ? "Editar Tratamiento" : "Nuevo Tratamiento"}
 								</h3>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+								<div className="grid grid-cols-2 gap-4 mb-4">
 									<input
-										className="input-field"
-										placeholder="Nombre (ej. Botox Completo)"
-										value={newTreatmentName}
-										onChange={(e) => setNewTreatmentName(e.target.value)}
+										className="p-3 border rounded-xl w-full"
+										placeholder="Nombre"
+										value={newTreat.name}
+										onChange={(e) =>
+											setNewTreat({ ...newTreat, name: e.target.value })
+										}
 									/>
 									<input
 										type="number"
-										className="input-field"
-										placeholder="Precio Venta (€)"
-										value={newTreatmentPrice}
-										onChange={(e) => setNewTreatmentPrice(e.target.value)}
+										className="p-3 border rounded-xl w-full"
+										placeholder="Precio (€)"
+										value={newTreat.price}
+										onChange={(e) =>
+											setNewTreat({ ...newTreat, price: e.target.value })
+										}
 									/>
 								</div>
-								<div className="bg-gray-50 p-4 rounded-xl mb-4 border border-gray-100">
-									<p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">
-										Materiales necesarios (Receta)
+								<div className="bg-gray-50 p-4 rounded-xl mb-4 border border-gray-200">
+									<p className="text-xs font-bold text-gray-500 uppercase mb-2">
+										Receta (Materiales)
 									</p>
-									<div className="flex gap-2 mb-3">
+									<div className="flex gap-2 mb-2">
 										<select
-											className="input-field flex-1"
-											value={newRecipeItem.materialId}
+											className="flex-1 p-2 border rounded-lg"
+											value={recipeItem.materialId}
 											onChange={(e) =>
-												setNewRecipeItem({
-													...newRecipeItem,
+												setRecipeItem({
+													...recipeItem,
 													materialId: e.target.value,
 												})
 											}>
-											<option value="">Añadir material...</option>
+											<option value="">Seleccionar material...</option>
 											{inventory.map((m) => (
 												<option key={m.id} value={m.id}>
-													{m.name} ({m.unitCost}€)
+													{m.name}
 												</option>
 											))}
 										</select>
 										<input
 											type="number"
+											className="w-20 p-2 border rounded-lg"
 											placeholder="Cant."
-											className="input-field w-20 text-center"
-											value={newRecipeItem.quantity}
+											value={recipeItem.quantity}
 											onChange={(e) =>
-												setNewRecipeItem({
-													...newRecipeItem,
+												setRecipeItem({
+													...recipeItem,
 													quantity: e.target.value,
 												})
 											}
 										/>
 										<button
 											onClick={addToRecipe}
-											className="bg-gray-200 hover:bg-gray-300 px-4 rounded-xl transition-colors">
-											<Plus size={20} />
+											className="bg-gray-200 px-3 rounded-lg">
+											<Plus size={16} />
 										</button>
 									</div>
 									<div className="flex flex-wrap gap-2">
@@ -924,57 +1001,73 @@ const DermoManager = () => {
 											return (
 												<span
 													key={i}
-													className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white border shadow-sm text-gray-700">
+													className="text-xs bg-white border px-2 py-1 rounded-full flex items-center gap-1">
 													{mat?.name}{" "}
-													<span className="text-rose-500 ml-1 font-bold">
-														x{r.quantity}
-													</span>
+													<b className="text-rose-500">x{r.quantity}</b>{" "}
+													<button
+														onClick={() =>
+															setTempRecipe(
+																tempRecipe.filter((_, ix) => ix !== i)
+															)
+														}>
+														<X size={12} />
+													</button>
 												</span>
 											);
 										})}
 									</div>
 								</div>
 								<button
-									onClick={handleSaveTreatment}
-									className="w-full btn-primary py-3">
+									onClick={saveTreatment}
+									className="w-full bg-rose-500 text-white font-bold py-3 rounded-xl">
 									Guardar Tratamiento
 								</button>
 							</div>
 						)}
 
 						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-							{treatments.map((t) => {
-								const cost = calculateTreatmentCost(t.recipe);
-								const profit = t.price - cost;
-								return (
-									<div
-										key={t.id}
-										className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group">
-										<div className="relative z-10">
-											<h3 className="font-bold text-lg text-gray-800 mb-1">
-												{t.name}
-											</h3>
-											<div className="flex items-baseline space-x-2 mb-4">
+							{treatments
+								.filter((t) =>
+									t.name.toLowerCase().includes(searchTerm.toLowerCase())
+								)
+								.map((t) => {
+									const cost = calculateTreatmentCost(t.recipe);
+									const profit = t.price - cost;
+									return (
+										<div
+											key={t.id}
+											className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group">
+											<div className="flex justify-between items-start mb-2">
+												<h3 className="font-bold text-gray-800 text-lg">
+													{t.name}
+												</h3>
+												<button
+													onClick={() => {
+														setEditingTreat(t);
+														setNewTreat({ name: t.name, price: t.price });
+														setTempRecipe(t.recipe);
+														setShowAddTreat(true);
+													}}
+													className="text-gray-300 hover:text-blue-500">
+													<Pencil size={16} />
+												</button>
+											</div>
+											<div className="flex items-baseline gap-2 mb-4">
 												<span className="text-2xl font-bold text-rose-500">
 													{t.price}€
 												</span>
 												<span className="text-xs text-gray-400">PVP</span>
 											</div>
-
-											<div className="space-y-2 mb-4">
-												<div className="flex justify-between text-sm">
-													<span className="text-gray-500">Coste Material</span>
-													<span className="font-medium text-gray-700">
-														{cost.toFixed(2)}€
-													</span>
+											<div className="bg-gray-50 rounded-lg p-3 mb-4 space-y-1">
+												<div className="flex justify-between text-xs text-gray-500">
+													<span>Coste Material</span>
+													<span>{cost.toFixed(2)}€</span>
 												</div>
-												<div className="flex justify-between text-sm">
-													<span className="text-gray-500">Beneficio Neto</span>
-													<span className="font-bold text-emerald-600">
-														{profit.toFixed(2)}€
-													</span>
+												<div className="flex justify-between text-xs font-bold text-emerald-600">
+													<span>Beneficio</span>
+													<span>{profit.toFixed(2)}€</span>
 												</div>
-												<div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden flex">
+												<div className="w-full bg-gray-200 h-1.5 rounded-full mt-2 overflow-hidden flex">
 													<div
 														className="bg-rose-300 h-full"
 														style={{
@@ -987,291 +1080,483 @@ const DermoManager = () => {
 														}}></div>
 												</div>
 											</div>
-
-											<button
-												onClick={() => handleRegisterSession(t)}
-												className="w-full py-2 rounded-lg bg-gray-800 text-white font-medium text-sm hover:bg-gray-900 transition-colors shadow-sm">
-												Realizar Sesión
-											</button>
+											<div className="flex gap-2">
+												<button
+													onClick={() => deleteItem("treatments", t.id)}
+													className="p-2 text-gray-300 hover:text-red-500 bg-gray-50 rounded-lg">
+													<Trash2 size={18} />
+												</button>
+												<button
+													onClick={() => setSelectedTreatment(t)}
+													className="flex-1 bg-gray-900 text-white rounded-lg font-bold text-sm py-2 hover:bg-black">
+													Realizar Sesión
+												</button>
+											</div>
 										</div>
-									</div>
-								);
-							})}
+									);
+								})}
 						</div>
 					</div>
 				)}
 
-				{/* INVENTARIO */}
+				{/* --- PESTAÑA INVENTARIO --- */}
 				{activeTab === "inventory" && (
-					<div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-						<div className="flex justify-between items-center">
-							<h2 className="text-2xl font-bold text-gray-800">Almacén</h2>
+					<div className="space-y-6 animate-in fade-in">
+						<div className="flex justify-between items-center gap-4">
+							<div className="relative flex-1">
+								<Search
+									className="absolute left-3 top-3 text-gray-400"
+									size={18}
+								/>
+								<input
+									placeholder="Buscar material..."
+									className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl focus:ring-2 ring-rose-200 outline-none"
+									value={searchTerm}
+									onChange={(e) => setSearchTerm(e.target.value)}
+								/>
+							</div>
 							<button
-								onClick={() => setShowAddMaterial(!showAddMaterial)}
-								className="bg-rose-500 text-white p-3 rounded-full shadow-lg shadow-rose-200 hover:bg-rose-600 hover:scale-105 transition-all">
-								{showAddMaterial ? <X size={24} /> : <Plus size={24} />}
+								onClick={() => {
+									setEditingInv(null);
+									setNewInv({ name: "", unitCost: "", stock: "" });
+									setShowAddInv(!showAddInv);
+								}}
+								className="bg-rose-500 text-white p-3 rounded-xl shadow-lg">
+								<Plus />
 							</button>
 						</div>
 
-						{showAddMaterial && (
-							<div className="bg-white p-6 rounded-2xl shadow-lg border border-rose-100 animate-in zoom-in-95 duration-200">
-								<h3 className="font-bold text-gray-800 mb-4">Nuevo Material</h3>
+						{showAddInv && (
+							<div className="bg-white p-6 rounded-2xl shadow-lg border border-rose-100 mb-6">
+								<h3 className="font-bold mb-4 text-gray-800">
+									{editingInv ? "Editar Material" : "Nuevo Material"}
+								</h3>
 								<div className="flex flex-wrap gap-4 items-end">
 									<div className="flex-1 min-w-[200px]">
-										<label className="label">Nombre</label>
+										<label className="text-xs font-bold text-gray-500">
+											Nombre
+										</label>
 										<input
-											placeholder="Ej. Agujas 12p"
-											className="input-field w-full"
-											value={newMaterial.name}
+											className="w-full p-3 border rounded-xl"
+											value={newInv.name}
 											onChange={(e) =>
-												setNewMaterial({ ...newMaterial, name: e.target.value })
+												setNewInv({ ...newInv, name: e.target.value })
 											}
 										/>
 									</div>
 									<div className="w-24">
-										<label className="label">Coste Unit.</label>
+										<label className="text-xs font-bold text-gray-500">
+											Coste/ud
+										</label>
 										<input
 											type="number"
-											placeholder="0.00"
-											className="input-field w-full"
-											value={newMaterial.unitCost}
+											className="w-full p-3 border rounded-xl"
+											value={newInv.unitCost}
 											onChange={(e) =>
-												setNewMaterial({
-													...newMaterial,
-													unitCost: e.target.value,
-												})
+												setNewInv({ ...newInv, unitCost: e.target.value })
 											}
 										/>
 									</div>
 									<div className="w-24">
-										<label className="label">Stock Ini.</label>
+										<label className="text-xs font-bold text-gray-500">
+											Stock
+										</label>
 										<input
 											type="number"
-											placeholder="0"
-											className="input-field w-full"
-											value={newMaterial.stock}
+											className="w-full p-3 border rounded-xl"
+											value={newInv.stock}
 											onChange={(e) =>
-												setNewMaterial({
-													...newMaterial,
-													stock: e.target.value,
-												})
+												setNewInv({ ...newInv, stock: e.target.value })
 											}
 										/>
 									</div>
 									<button
-										onClick={handleAddMaterial}
-										className="btn-primary px-6 py-2.5 h-[42px] mb-[1px]">
+										onClick={saveInventory}
+										className="bg-rose-500 text-white px-6 py-3 rounded-xl font-bold h-[50px]">
 										Guardar
 									</button>
 								</div>
 							</div>
 						)}
 
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-							{inventory.map((item) => (
-								<div
-									key={item.id}
-									className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-									<div>
-										<p className="font-bold text-gray-800">{item.name}</p>
-										<p className="text-sm text-gray-400">
-											Coste: {item.unitCost}€ / ud
-										</p>
-									</div>
-									<div className="flex items-center gap-2">
-										<div
-											className={`flex flex-col items-end mr-3 ${
-												item.stock < 5 ? "text-red-500" : "text-gray-600"
-											}`}>
-											<span className="text-xl font-bold">{item.stock}</span>
-											<span className="text-[10px] uppercase font-bold tracking-wider">
-												Stock
-											</span>
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+							{inventory
+								.filter((i) =>
+									i.name.toLowerCase().includes(searchTerm.toLowerCase())
+								)
+								.map((item) => (
+									<div
+										key={item.id}
+										className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group">
+										<div>
+											<div className="flex items-center gap-2 mb-1">
+												<p className="font-bold text-gray-800">{item.name}</p>
+												<button
+													onClick={() => {
+														setEditingInv(item);
+														setNewInv(item);
+														setShowAddInv(true);
+													}}
+													className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+													<Pencil size={14} />
+												</button>
+											</div>
+											<p className="text-xs text-gray-400 font-mono">
+												Coste: {item.unitCost}€
+											</p>
 										</div>
-										<button
-											onClick={() => handleReduceStock(item)}
-											className="bg-gray-50 text-gray-500 p-2 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors border border-gray-100"
-											title="Restar Stock (Rotura/Pérdida)">
-											<Minus size={18} />
-										</button>
-										<button
-											onClick={() => {
-												const qty = prompt(
-													`¿Cuántas unidades de ${item.name} has comprado?`
-												);
-												if (qty) {
-													const cost = prompt("¿Coste TOTAL de esta compra?");
-													if (cost) handleAddStock(item, qty, cost);
-												}
-											}}
-											className="bg-rose-50 text-rose-600 p-2 rounded-lg hover:bg-rose-100 transition-colors border border-rose-100"
-											title="Añadir Compra">
-											<Plus size={18} />
-										</button>
+										<div className="flex items-center gap-3">
+											<div
+												className={`flex flex-col items-end ${
+													item.stock < 5 ? "text-red-500" : "text-gray-600"
+												}`}>
+												<span className="text-xl font-bold">{item.stock}</span>
+												<span className="text-[10px] font-bold uppercase tracking-wider">
+													Stock
+												</span>
+											</div>
+											<button
+												onClick={() => {
+													const q = prompt("Cant?");
+													if (q)
+														handleAddStock(item, q, prompt("Coste total?"));
+												}}
+												className="bg-rose-50 text-rose-600 p-2 rounded-lg hover:bg-rose-100">
+												<Plus size={20} />
+											</button>
+										</div>
 									</div>
-								</div>
-							))}
+								))}
 						</div>
 					</div>
 				)}
 
-				{/* FINANZAS */}
+				{/* --- PESTAÑA FINANZAS (DIVIDIDA) --- */}
 				{activeTab === "finance" && (
-					<div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+					<div className="space-y-6 animate-in fade-in">
 						<div className="flex justify-between items-center">
-							<h2 className="text-2xl font-bold text-gray-800">Libro Diario</h2>
-							<div className="flex space-x-2">
+							<h2 className="text-2xl font-bold">Finanzas</h2>
+							<div className="flex gap-2">
 								<button
-									onClick={exportData}
-									className="bg-white border border-gray-200 text-gray-600 p-2 rounded-xl hover:bg-gray-50">
-									<Download size={20} />
-								</button>
-								<button
-									onClick={() => setShowAddEntry(!showAddEntry)}
-									className="bg-rose-500 text-white p-3 rounded-xl shadow-lg shadow-rose-200 hover:bg-rose-600">
-									{showAddEntry ? <X size={20} /> : <Plus size={20} />}
+									onClick={() => setShowRecurringModal(!showRecurringModal)}
+									className="bg-white border text-gray-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 flex items-center gap-2">
+									<Briefcase size={16} /> Config. Fijos
 								</button>
 							</div>
 						</div>
 
-						{showAddEntry && (
-							<div className="bg-white p-6 rounded-2xl shadow-lg border border-rose-100 animate-in zoom-in-95 duration-200">
-								<h3 className="font-bold text-gray-800 mb-4">
-									Añadir Movimiento Manual
-								</h3>
-								<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+						{/* MODAL CONFIG RECURRENTES */}
+						{showRecurringModal && (
+							<div className="bg-gray-100 p-4 rounded-2xl border border-gray-200 animate-in fade-in">
+								<h4 className="font-bold text-sm text-gray-700 mb-3">
+									Configurar gasto mensual
+								</h4>
+								<div className="flex gap-2 mb-4">
 									<input
-										type="date"
-										className="input-field"
-										value={newEntry.date}
+										placeholder="Nombre (ej. Alquiler)"
+										className="flex-1 p-2 rounded-lg border text-sm"
+										value={newRecurring.name}
 										onChange={(e) =>
-											setNewEntry({ ...newEntry, date: e.target.value })
-										}
-									/>
-									<select
-										className="input-field"
-										value={newEntry.type}
-										onChange={(e) =>
-											setNewEntry({ ...newEntry, type: e.target.value })
-										}>
-										<option value="income">Ingreso (+)</option>
-										<option value="expense">Gasto (-)</option>
-									</select>
-									<input
-										className="input-field md:col-span-2"
-										placeholder="Concepto (ej. Alquiler cabina)"
-										value={newEntry.description}
-										onChange={(e) =>
-											setNewEntry({ ...newEntry, description: e.target.value })
+											setNewRecurring({ ...newRecurring, name: e.target.value })
 										}
 									/>
 									<input
 										type="number"
-										className="input-field"
 										placeholder="Importe (€)"
-										value={newEntry.amount}
+										className="w-24 p-2 rounded-lg border text-sm"
+										value={newRecurring.amount}
 										onChange={(e) =>
-											setNewEntry({ ...newEntry, amount: e.target.value })
+											setNewRecurring({
+												...newRecurring,
+												amount: e.target.value,
+											})
 										}
 									/>
-									<button onClick={handleAddEntry} className="btn-primary">
-										Registrar
+									<button
+										onClick={addRecurringConfig}
+										className="bg-gray-800 text-white px-4 rounded-lg text-sm font-bold">
+										Añadir
+									</button>
+								</div>
+								<div className="space-y-2">
+									{recurringConfig.map((c) => (
+										<div
+											key={c.id}
+											className="flex justify-between items-center text-sm bg-white p-2 rounded border">
+											<span>
+												{c.name} ({c.amount}€)
+											</span>
+											<button
+												onClick={() => deleteItem("recurring_config", c.id)}
+												className="text-red-400 hover:text-red-600">
+												<Trash2 size={14} />
+											</button>
+										</div>
+									))}
+								</div>
+							</div>
+						)}
+
+						{/* MODAL GASTO/INGRESO MANUAL */}
+						{showManualEntryModal && (
+							<div className="bg-white p-6 rounded-2xl shadow-lg border border-rose-100 animate-in zoom-in-95 mb-4">
+								<div className="flex justify-between mb-4">
+									<h3 className="font-bold">
+										{manualEntry.type === "income"
+											? "Registrar Ingreso Extra"
+											: "Registrar Gasto"}
+									</h3>
+									<button onClick={() => setShowManualEntryModal(false)}>
+										<X size={20} />
+									</button>
+								</div>
+								<div className="grid gap-4">
+									<input
+										className="w-full p-3 border rounded-xl"
+										placeholder={
+											manualEntry.type === "income"
+												? "Concepto (ej. Bono Regalo)"
+												: "Concepto (ej. Silla nueva)"
+										}
+										value={manualEntry.description}
+										onChange={(e) =>
+											setManualEntry({
+												...manualEntry,
+												description: e.target.value,
+											})
+										}
+									/>
+									<div className="flex gap-2">
+										<input
+											type="number"
+											className="flex-1 p-3 border rounded-xl"
+											placeholder="Importe (€)"
+											value={manualEntry.amount}
+											onChange={(e) =>
+												setManualEntry({
+													...manualEntry,
+													amount: e.target.value,
+												})
+											}
+										/>
+										{manualEntry.type === "expense" && (
+											<select
+												className="flex-1 p-3 border rounded-xl bg-white"
+												value={manualEntry.category}
+												onChange={(e) =>
+													setManualEntry({
+														...manualEntry,
+														category: e.target.value,
+													})
+												}>
+												<option>Otros</option>
+												<option>Mobiliario</option>
+												<option>Transporte</option>
+												<option>Impuestos</option>
+												<option>Formación</option>
+											</select>
+										)}
+									</div>
+									<button
+										onClick={addManualEntry}
+										className={`w-full text-white font-bold py-3 rounded-xl ${
+											manualEntry.type === "income"
+												? "bg-emerald-500 hover:bg-emerald-600"
+												: "bg-rose-500 hover:bg-rose-600"
+										}`}>
+										{manualEntry.type === "income"
+											? "Guardar Ingreso"
+											: "Guardar Gasto"}
 									</button>
 								</div>
 							</div>
 						)}
 
-						<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-							{filteredEntries.map((entry, index) => (
-								<div
-									key={entry.id}
-									className={`p-4 flex justify-between items-center hover:bg-gray-50 transition-colors ${
-										index !== filteredEntries.length - 1
-											? "border-b border-gray-100"
-											: ""
-									}`}>
-									<div className="flex items-center space-x-4">
-										<div
-											className={`p-2 rounded-full ${
-												entry.type === "income"
-													? "bg-emerald-100 text-emerald-600"
-													: "bg-rose-100 text-rose-600"
-											}`}>
-											{entry.category === "Merma" ? (
-												<AlertTriangle size={18} />
-											) : entry.type === "income" ? (
-												<TrendingUp size={18} />
-											) : (
-												<TrendingDown size={18} />
-											)}
-										</div>
-										<div>
-											<p className="font-bold text-gray-800 text-sm md:text-base">
-												{entry.description}
-											</p>
-											<p className="text-xs text-gray-400">
-												{entry.date} • {entry.category}
-											</p>
-										</div>
+						{/* GASTOS RECURRENTES (Avisos) */}
+						{recurringConfig.length > 0 && (
+							<div className="mb-6">
+								<h3 className="text-xs font-bold text-gray-400 uppercase mb-2">
+									Pagos Recurrentes (
+									{new Date(currentMonth).toLocaleString("es-ES", {
+										month: "long",
+									})}
+									)
+								</h3>
+								<div className="flex gap-3 overflow-x-auto pb-2">
+									{recurringConfig.map((conf) => {
+										const isPaid = filteredEntries.some(
+											(e) => e.recurringId === conf.id
+										);
+										return (
+											<button
+												key={conf.id}
+												onClick={() => !isPaid && payRecurring(conf)}
+												disabled={isPaid}
+												className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${
+													isPaid
+														? "bg-emerald-50 border-emerald-200 text-emerald-700"
+														: "bg-white border-orange-200 text-gray-700 hover:border-orange-400 shadow-sm"
+												}`}>
+												{isPaid ? (
+													<Check size={14} />
+												) : (
+													<Zap size={14} className="text-orange-500" />
+												)}
+												{conf.name}
+											</button>
+										);
+									})}
+								</div>
+							</div>
+						)}
+
+						{/* LISTAS SEPARADAS: INGRESOS vs GASTOS */}
+						<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+							{/* COLUMNA INGRESOS */}
+							<div className="flex flex-col gap-4">
+								<div className="flex justify-between items-end">
+									<div>
+										<h3 className="font-bold text-gray-700 flex items-center gap-2">
+											<TrendingUp className="text-emerald-500" /> Ingresos
+										</h3>
+										<p className="text-2xl font-bold text-emerald-600">
+											{formatCurrency(income)}
+										</p>
 									</div>
-									<div className="flex items-center space-x-4">
-										<span
-											className={`font-bold text-sm md:text-base ${
-												entry.category === "Merma"
-													? "text-orange-500"
-													: entry.type === "income"
-													? "text-emerald-600"
-													: "text-rose-600"
-											}`}>
-											{entry.type === "income" ? "+" : "-"}
-											{entry.amount}€
-										</span>
-										{/* Botón de Borrado Suave */}
-										<button
-											onClick={() => handleDeleteEntry(entry)}
-											className={`transition-all duration-200 flex items-center gap-1 ${
-												confirmDeleteId === entry.id
-													? "bg-red-50 text-red-600 px-3 py-1 rounded-full text-xs font-bold"
-													: "text-gray-300 hover:text-red-400"
-											}`}>
-											{confirmDeleteId === entry.id ? (
-												"¿Borrar?"
-											) : (
-												<Trash2 size={16} />
-											)}
-										</button>
+									<button
+										onClick={() => openManualEntryModal("income")}
+										className="text-xs bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-lg border border-emerald-100 hover:bg-emerald-100">
+										+ Ingreso Extra
+									</button>
+								</div>
+								<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1">
+									<div className="divide-y divide-gray-100">
+										{filteredEntries
+											.filter((e) => e.type === "income")
+											.map((e) => (
+												<div
+													key={e.id}
+													className="p-3 flex justify-between items-center hover:bg-gray-50">
+													<div>
+														<p className="font-bold text-gray-800 text-sm">
+															{e.description}
+														</p>
+														<p className="text-xs text-gray-400">
+															{e.date} • {e.category}
+														</p>
+													</div>
+													<div className="flex items-center gap-2">
+														<span className="font-bold text-emerald-600">
+															+{e.amount}€
+														</span>
+														<button
+															onClick={() => deleteEntry(e.id)}
+															className="text-gray-300 hover:text-red-400">
+															<Trash2 size={14} />
+														</button>
+													</div>
+												</div>
+											))}
+										{filteredEntries.filter((e) => e.type === "income")
+											.length === 0 && (
+											<p className="p-4 text-center text-sm text-gray-400">
+												Sin ingresos este mes.
+											</p>
+										)}
 									</div>
 								</div>
-							))}
-							{filteredEntries.length === 0 && (
-								<div className="p-8 text-center text-gray-400">
-									<p>No hay movimientos este mes</p>
+							</div>
+
+							{/* COLUMNA GASTOS */}
+							<div className="flex flex-col gap-4">
+								<div className="flex justify-between items-end">
+									<div>
+										<h3 className="font-bold text-gray-700 flex items-center gap-2">
+											<TrendingDown className="text-rose-500" /> Gastos
+										</h3>
+										<p className="text-2xl font-bold text-rose-600">
+											{formatCurrency(
+												expenseMaterial + expenseFixed + expenseOther
+											)}
+										</p>
+									</div>
+									<button
+										onClick={() => openManualEntryModal("expense")}
+										className="text-xs bg-rose-50 text-rose-700 font-bold px-3 py-1.5 rounded-lg border border-rose-100 hover:bg-rose-100">
+										+ Registrar Gasto
+									</button>
 								</div>
-							)}
+								<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1">
+									<div className="divide-y divide-gray-100">
+										{filteredEntries
+											.filter((e) => e.type === "expense")
+											.map((e) => (
+												<div
+													key={e.id}
+													className="p-3 flex justify-between items-center hover:bg-gray-50">
+													<div className="flex items-center gap-2">
+														<div
+															className={`w-1.5 h-1.5 rounded-full ${
+																e.category === "Material"
+																	? "bg-blue-400"
+																	: e.category === "Fijo"
+																	? "bg-orange-400"
+																	: "bg-purple-400"
+															}`}></div>
+														<div>
+															<p className="font-bold text-gray-800 text-sm">
+																{e.description}
+															</p>
+															<p className="text-xs text-gray-400">
+																{e.date} • {e.category}
+															</p>
+														</div>
+													</div>
+													<div className="flex items-center gap-2">
+														<span className="font-bold text-rose-600">
+															-{e.amount}€
+														</span>
+														<button
+															onClick={() => deleteEntry(e.id)}
+															className={`text-gray-300 hover:text-red-400 transition-all ${
+																confirmDeleteId === e.id
+																	? "text-red-500 scale-125"
+																	: ""
+															}`}>
+															<Trash2 size={14} />
+														</button>
+													</div>
+												</div>
+											))}
+										{filteredEntries.filter((e) => e.type === "expense")
+											.length === 0 && (
+											<p className="p-4 text-center text-sm text-gray-400">
+												Sin gastos este mes.
+											</p>
+										)}
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
 				)}
 			</main>
 
-			{/* BOTTOM NAV MOBILE */}
-			<div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around items-center h-16 z-50 px-2 pb-safe">
+			<div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t flex justify-around items-center h-16 z-50 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
 				{[
-					{ id: "dashboard", icon: BarChart3, label: "Inicio" },
-					{ id: "treatments", icon: Syringe, label: "Tratar" },
-					{ id: "inventory", icon: Package, label: "Stock" },
-					{ id: "finance", icon: DollarSign, label: "Caja" },
-				].map((item) => (
+					{ id: "dashboard", l: "Inicio", i: BarChart3 },
+					{ id: "treatments", l: "Tratar", i: Syringe },
+					{ id: "inventory", l: "Stock", i: Package },
+					{ id: "finance", l: "Finanzas", i: DollarSign },
+				].map((t) => (
 					<button
-						key={item.id}
-						onClick={() => setActiveTab(item.id)}
-						className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${
-							activeTab === item.id ? "text-rose-500" : "text-gray-400"
+						key={t.id}
+						onClick={() => setActiveTab(t.id)}
+						className={`flex flex-col items-center gap-1 ${
+							activeTab === t.id ? "text-rose-500" : "text-gray-400"
 						}`}>
-						<item.icon
-							size={activeTab === item.id ? 24 : 22}
-							strokeWidth={activeTab === item.id ? 2.5 : 2}
-						/>
-						<span className="text-[10px] font-medium">{item.label}</span>
+						<t.i size={20} />{" "}
+						<span className="text-[10px] font-medium">{t.l}</span>
 					</button>
 				))}
 			</div>
