@@ -7,6 +7,7 @@ import {
 	DollarSign,
 	LogOut,
 	Settings,
+	Users,
 } from "lucide-react";
 
 export const Sidebar = ({ activeTab, setActiveTab, onLogout, companyName }) => (
@@ -19,6 +20,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onLogout, companyName }) => (
 		<nav className="p-4 space-y-2 flex-1">
 			{[
 				{ id: "dashboard", l: "Resumen", i: BarChart3 },
+				{ id: "clients", l: "Clientes", i: Users },
 				{ id: "treatments", l: "Tratamientos", i: Syringe },
 				{ id: "inventory", l: "Stock", i: Package },
 				{ id: "finance", l: "Finanzas", i: DollarSign },
