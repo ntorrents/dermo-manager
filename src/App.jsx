@@ -182,6 +182,8 @@ const DermoManager = () => {
 					<DashboardTab
 						user={user}
 						entries={entries}
+						inventory={inventory}
+						treatments={treatments}
 						currentMonth={currentMonth}
 						setCurrentMonth={setCurrentMonth}
 						userName={
