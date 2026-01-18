@@ -1,71 +1,127 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { formatCurrency } from "./format"; // Asegúrate de que esta ruta es correcta
+import { formatCurrency } from "./format";
 
 export const generateInvoice = (entry, client, profile) => {
 	const doc = new jsPDF();
 	const pageWidth = doc.internal.pageSize.width;
 
-	// --- 1. CABECERA (Datos de la Empresa/Médico) ---
-	doc.setFontSize(20);
-	doc.setTextColor(225, 29, 72); // Rose-600
-	doc.text(profile?.companyName || "DermoApp", 14, 22);
+	// --- 1. CABECERA (Datos Fiscales Emisor) ---
+	// Usamos una variable 'y' que irá bajando para que no se solapen los textos
+	let y = 22;
 
-	doc.setFontSize(10);
-	doc.setTextColor(100);
-	// Datos del doctor/empresa
+	// Nombre Comercial (Grande y Rosa)
+	doc.setFontSize(18);
+	doc.setTextColor(225, 29, 72); // Rose-600
+	doc.text(profile?.companyName || "DermoApp", 14, y);
+	y += 8; // Bajamos 8 puntos
+
+	// Datos Fiscales (Pequeño y Gris Oscuro)
+	doc.setFontSize(9);
+	doc.setTextColor(80);
+
+	// Nombre Profesional
 	const drName = profile?.name
 		? `${profile.name} ${profile.surname || ""}`
 		: "";
-	doc.text(drName, 14, 30);
-	if (profile?.collegiateNumber)
-		doc.text(`Nº Col: ${profile.collegiateNumber}`, 14, 35);
-	if (profile?.mobile) doc.text(`Tel: ${profile.mobile}`, 14, 40);
+	if (drName) {
+		doc.text(drName, 14, y);
+		y += 5;
+	}
 
-	// --- 2. DATOS DE LA FACTURA (Derecha) ---
+	// NIF / CIF (Nuevo)
+	if (profile?.nif) {
+		doc.text(`NIF/CIF: ${profile.nif}`, 14, y);
+		y += 5;
+	}
+
+	// Dirección (Nuevo)
+	if (profile?.address) {
+		doc.text(profile.address, 14, y);
+		y += 5;
+	}
+
+	// Ciudad / CP (Nuevo)
+	if (profile?.city) {
+		doc.text(profile.city, 14, y);
+		y += 5;
+	}
+
+	// Nº Colegiado (Si existe)
+	if (profile?.collegiateNumber) {
+		doc.text(`Nº Col: ${profile.collegiateNumber}`, 14, y);
+		y += 5;
+	}
+
+	// Teléfono (Si existe)
+	if (profile?.mobile) {
+		doc.text(`Tel: ${profile.mobile}`, 14, y);
+		y += 5;
+	}
+
+	// --- 2. DATOS DE LA FACTURA (Derecha Superior) ---
+	// La parte derecha siempre empieza arriba, independientemente de la izquierda
+	let yRight = 22;
+	const rightColX = pageWidth - 14;
+
 	const invoiceNum = `F-${entry.date.replace(/-/g, "")}-${entry.id.slice(0, 4).toUpperCase()}`;
 
-	doc.setFontSize(11);
+	doc.setFontSize(14);
 	doc.setTextColor(0);
-	doc.text("FACTURA", pageWidth - 14, 22, { align: "right" });
+	doc.text("FACTURA", rightColX, yRight, { align: "right" });
+	yRight += 8;
 
 	doc.setFontSize(10);
 	doc.setTextColor(100);
-	doc.text(`Nº: ${invoiceNum}`, pageWidth - 14, 30, { align: "right" });
-	doc.text(`Fecha: ${entry.date}`, pageWidth - 14, 35, { align: "right" });
+	doc.text(`Nº: ${invoiceNum}`, rightColX, yRight, { align: "right" });
+	yRight += 5;
+	doc.text(`Fecha: ${entry.date}`, rightColX, yRight, { align: "right" });
 
 	// --- 3. DATOS DEL CLIENTE (Caja gris) ---
+	// Calculamos dónde debe empezar la caja del cliente.
+	// Debe ser debajo de los datos de la empresa, pero mínimo en la posición 65 para que no quede muy pegado arriba.
+	const boxStartY = Math.max(y + 10, 65);
+
 	doc.setFillColor(249, 250, 251); // Gray-50
-	doc.rect(14, 50, pageWidth - 28, 25, "F");
+	doc.rect(14, boxStartY, pageWidth - 28, 25, "F");
 
 	doc.setFontSize(9);
 	doc.setTextColor(156, 163, 175); // Gray-400
-	doc.text("FACTURAR A:", 18, 58);
+	doc.text("FACTURAR A:", 18, boxStartY + 8);
 
 	doc.setFontSize(10);
 	doc.setTextColor(0);
-	doc.text(`${client.name} ${client.surname || ""}`, 18, 65);
-	if (client.address) doc.text(client.address, 18, 70);
-	// Si tuvieras DNI del cliente, iría aquí
+
+	// Nombre Cliente
+	const clientName = `${client.name} ${client.surname || ""}`;
+	doc.text(clientName, 18, boxStartY + 15);
+
+	// Dirección Cliente (Si la tuviéramos en el futuro)
+	if (client.address) {
+		doc.text(client.address, 18, boxStartY + 20);
+	}
 
 	// --- 4. TABLA DE SERVICIOS ---
+	// La tabla empieza 15 puntos por debajo de la caja del cliente
+	const tableStartY = boxStartY + 35;
+
 	const tableBody = [
 		[
-			entry.description || "Servicio de Dermatología", // Concepto
-			"1", // Cantidad
-			formatCurrency(entry.amount), // Precio Unitario
-			formatCurrency(entry.amount), // Total
+			entry.description || "Servicio de Dermatología",
+			"1",
+			formatCurrency(entry.amount),
+			formatCurrency(entry.amount),
 		],
 	];
 
 	autoTable(doc, {
-		startY: 85,
+		startY: tableStartY,
 		head: [["Descripción", "Cant.", "Precio Unit.", "Total"]],
 		body: tableBody,
 		theme: "grid",
 		headStyles: { fillColor: [225, 29, 72], textColor: 255, fontStyle: "bold" },
 		columnStyles: {
-			0: { cellWidth: "auto" }, // Descripción ancha
+			0: { cellWidth: "auto" },
 			1: { cellWidth: 20, halign: "center" },
 			2: { cellWidth: 30, halign: "right" },
 			3: { cellWidth: 30, halign: "right" },
@@ -78,6 +134,7 @@ export const generateInvoice = (entry, client, profile) => {
 
 	doc.setFontSize(12);
 	doc.setFont("helvetica", "bold");
+	doc.setTextColor(0);
 	doc.text(`TOTAL: ${formatCurrency(entry.amount)}`, pageWidth - 14, finalY, {
 		align: "right",
 	});
@@ -100,5 +157,6 @@ export const generateInvoice = (entry, client, profile) => {
 	});
 
 	// Guardar PDF
-	doc.save(`Factura_${client.name}_${entry.date}.pdf`);
+	const safeName = clientName.replace(/[^a-z0-9]/gi, "_");
+	doc.save(`Factura_${safeName}_${entry.date}.pdf`);
 };

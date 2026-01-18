@@ -1,10 +1,10 @@
-// /Users/nilto/Documents/GitHub/DermoManager/src/App.jsx
+// src/App.jsx
 import React, { useState } from "react";
 import { Loader2, LogOut } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { useData } from "./hooks/useData";
 import { useProfile } from "./hooks/useProfile";
-import { useClients } from "./hooks/useClients"; // <--- 1. NUEVO IMPORT
+import { useClients } from "./hooks/useClients";
 import { logout } from "./services/auth";
 import { addDocument, updateDocument } from "./services/firestore";
 
@@ -30,7 +30,7 @@ const DermoManager = () => {
 	// Hooks de datos
 	const { inventory, treatments, entries, recurringConfig } = useData(user);
 	const profile = useProfile(user);
-	const { clients } = useClients(user); // <--- 2. CARGAMOS CLIENTES
+	const { clients } = useClients(user);
 
 	const [activeTab, setActiveTab] = useState("dashboard");
 	const [currentMonth, setCurrentMonth] = useState(
@@ -43,10 +43,8 @@ const DermoManager = () => {
 	const showToastMsg = (msg, type = "success") =>
 		setToast({ message: msg, type });
 
-	// --- LÓGICA DE SESIÓN ACTUALIZADA ---
+	// --- LÓGICA DE SESIÓN ---
 	const handleSession = async (treatment, clientData) => {
-		// clientData ahora puede ser un objeto completo {id, name...} o {name, isGuest}
-
 		// 1. Validar Stock
 		const missing = treatment.recipe?.find((r) => {
 			const item = inventory.find((i) => i.id === r.materialId);
@@ -78,12 +76,12 @@ const DermoManager = () => {
 					return total + (item ? item.unitCost * r.quantity : 0);
 				}, 0) || 0;
 
-			// Preparar nombre para mostrar
+			// Preparar nombre
 			const displayName = clientData.id
 				? `${treatment.name} (${clientData.name} ${clientData.surname || ""})`
 				: `${treatment.name} (${clientData.name})`;
 
-			// 4. Registrar Ingreso (CON CLIENT ID SI EXISTE)
+			// 4. Registrar Ingreso
 			await addDocument(user.uid, "finance_entries", {
 				date: new Date().toISOString().split("T")[0],
 				type: "income",
@@ -91,17 +89,13 @@ const DermoManager = () => {
 				description: displayName,
 				amount: Number(treatment.price),
 				relatedCost: cost,
-
-				// --- NUEVOS CAMPOS CRM ---
-				clientId: clientData.id || null, // Guardamos la referencia
-				clientNameSnapshot: clientData.name, // Guardamos el nombre tal cual estaba hoy
-				// -------------------------
-
+				clientId: clientData.id || null,
+				clientNameSnapshot: clientData.name,
 				recipeSnapshot: treatment.recipe || [],
 				createdAt: new Date().toISOString(),
 			});
 
-			// 5. Registrar Gasto de Material
+			// 5. Registrar Gasto
 			if (cost > 0) {
 				await addDocument(user.uid, "finance_entries", {
 					date: new Date().toISOString().split("T")[0],
@@ -155,12 +149,11 @@ const DermoManager = () => {
 			<SessionModal
 				isOpen={!!selectedTreatment}
 				treatment={selectedTreatment}
-				clients={clients} // <--- 3. PASAMOS LA LISTA AL MODAL
+				clients={clients}
 				onClose={() => setSelectedTreatment(null)}
 				onConfirm={handleSession}
 			/>
 
-			{/* Sidebar y Header */}
 			<Sidebar
 				activeTab={activeTab}
 				setActiveTab={setActiveTab}
@@ -168,6 +161,7 @@ const DermoManager = () => {
 				companyName={profile?.companyName}
 			/>
 
+			{/* Header Móvil */}
 			<div className="md:hidden h-16 bg-white border-b sticky top-0 z-40 px-4 flex items-center justify-between shadow-sm">
 				<span className="font-bold text-xl text-rose-500">
 					{profile?.companyName || "DermoApp"}
@@ -192,7 +186,6 @@ const DermoManager = () => {
 					/>
 				)}
 
-				{/* AÑADIDO: Bloque condicional para Clientes */}
 				{activeTab === "clients" && (
 					<ClientsTab user={user} showToast={showToastMsg} profile={profile} />
 				)}

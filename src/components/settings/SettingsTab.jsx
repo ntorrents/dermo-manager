@@ -1,4 +1,3 @@
-// /src/components/settings/SettingsTab.jsx
 import React, { useState, useEffect } from "react";
 import {
 	User,
@@ -9,207 +8,260 @@ import {
 	Building2,
 	Phone,
 	FileText,
-	CheckCircle2,
+	MapPin,
+	CreditCard,
 } from "lucide-react";
-// Asegúrate de importar la nueva función reauthenticate
 import { updateUserPassword, reauthenticate } from "../../services/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../../services/firebase";
 
 export const SettingsTab = ({ user, profile, showToast }) => {
+	// --- ESTADOS ---
 	const [formData, setFormData] = useState({
-		companyName: "",
+		// Datos Personales
 		name: "",
 		surname: "",
-		collegiateNumber: "",
 		mobile: "",
+		// Datos Fiscales
+		companyName: "",
+		nif: "",
+		collegiateNumber: "",
+		address: "",
+		city: "",
 	});
 
-	// Estados para contraseñas
-	const [currentPassword, setCurrentPassword] = useState(""); // Nueva validación
+	// Estados Contraseña
+	const [currentPassword, setCurrentPassword] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
 
-	// Estados de carga y lógica
+	// Loaders y Flags
 	const [loadingProfile, setLoadingProfile] = useState(false);
 	const [loadingPass, setLoadingPass] = useState(false);
 	const [isGoogleUser, setIsGoogleUser] = useState(false);
 
-	// 1. Detectar si el usuario usa Google al cargar
+	// --- EFECTOS ---
+
+	// 1. Detectar usuario de Google
 	useEffect(() => {
 		if (user) {
-			// providerId para Google es 'google.com'
 			const isGoogle = user.providerData.some(
-				(provider) => provider.providerId === "google.com",
+				(p) => p.providerId === "google.com",
 			);
 			setIsGoogleUser(isGoogle);
 		}
 	}, [user]);
 
+	// 2. Cargar Perfil
 	useEffect(() => {
-		if (profile && Object.keys(profile).length > 0) {
+		if (profile) {
 			setFormData({
-				companyName: profile.companyName || "",
 				name: profile.name || "",
 				surname: profile.surname || "",
-				collegiateNumber: profile.collegiateNumber || "",
 				mobile: profile.mobile || "",
+				companyName: profile.companyName || "",
+				nif: profile.nif || "",
+				collegiateNumber: profile.collegiateNumber || "",
+				address: profile.address || "",
+				city: profile.city || "",
 			});
 		}
 	}, [profile]);
 
+	// --- MANEJADORES ---
+
 	const handleUpdateProfile = async () => {
 		setLoadingProfile(true);
 		try {
-			await setDoc(doc(db, `users/${user.uid}/settings/profile`), formData, {
-				merge: true,
-			});
-			showToast("Perfil actualizado correctamente");
+			await setDoc(
+				doc(db, `users/${user.uid}/settings/profile`),
+				{
+					...formData,
+					id: "profile",
+				},
+				{ merge: true },
+			);
+			showToast("Datos guardados correctamente");
 		} catch (error) {
-			showToast("Error al guardar datos", error);
+			console.error(error);
+			showToast("Error al guardar datos", "error");
 		} finally {
 			setLoadingProfile(false);
 		}
 	};
 
 	const handleUpdatePassword = async () => {
-		// Validaciones básicas
-		if (!currentPassword || !password || !confirmPassword) {
-			showToast("Rellena todos los campos de contraseña", "error");
-			return;
-		}
-		if (password.length < 6) {
-			showToast("La nueva contraseña debe tener 6 caracteres", "error");
-			return;
-		}
-		if (password !== confirmPassword) {
-			showToast("Las contraseñas nuevas no coinciden", "error");
-			return;
-		}
+		if (!currentPassword || !password || !confirmPassword)
+			return showToast("Rellena todos los campos", "error");
+		if (password !== confirmPassword)
+			return showToast("Las contraseñas no coinciden", "error");
+		if (password.length < 6) return showToast("Mínimo 6 caracteres", "error");
 
 		setLoadingPass(true);
 		try {
-			// 1. Re-autenticar (Verificar contraseña actual)
 			await reauthenticate(user, currentPassword);
-
-			// 2. Si pasa, actualizamos a la nueva
 			await updateUserPassword(user, password);
-
-			showToast("Contraseña actualizada con éxito");
-
-			// Limpiar campos
+			showToast("Contraseña actualizada");
 			setCurrentPassword("");
 			setPassword("");
 			setConfirmPassword("");
 		} catch (e) {
-			console.error(e);
-			// Manejo de errores específicos de Firebase
-			if (
-				e.code === "auth/invalid-credential" ||
-				e.code === "auth/wrong-password"
-			) {
-				showToast("La contraseña actual es incorrecta", "error");
-			} else {
-				showToast("Error al actualizar contraseña", "error");
-			}
+			showToast("Contraseña actual incorrecta", "error");
 		} finally {
 			setLoadingPass(false);
 		}
 	};
 
 	return (
-		<div className="space-y-6 animate-in fade-in">
-			<h2 className="text-2xl font-bold text-gray-800">Configuración</h2>
+		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
+			<div className="flex justify-between items-center">
+				<h2 className="text-2xl font-bold text-gray-800">Configuración</h2>
+			</div>
 
-			{/* Datos Profesionales */}
-			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 max-w-2xl">
+			{/* TARJETA 1: DATOS DE EMPRESA */}
+			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
 				<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-					<User size={20} className="text-rose-500" /> Perfil Profesional
+					<Building2 size={20} className="text-rose-500" /> Datos de Facturación
 				</h3>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div className="md:col-span-2">
-						<label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
-							Nombre de la Empresa
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							Nombre Comercial
 						</label>
-						<div className="relative">
+						<div className="relative mt-1">
 							<Building2
 								className="absolute left-3 top-3 text-gray-400"
 								size={18}
 							/>
 							<input
-								type="text"
+								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
 								value={formData.companyName}
 								onChange={(e) =>
 									setFormData({ ...formData, companyName: e.target.value })
 								}
-								className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
-								placeholder="DermoApp"
+								placeholder="Ej: DermoClinic"
 							/>
 						</div>
 					</div>
-					{/* Resto de inputs de perfil igual que antes... */}
+
 					<div>
-						<label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
-							Nombre
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							NIF / CIF
 						</label>
-						<input
-							type="text"
-							value={formData.name}
-							onChange={(e) =>
-								setFormData({ ...formData, name: e.target.value })
-							}
-							className="w-full p-3 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
-						/>
+						<div className="relative mt-1">
+							<CreditCard
+								className="absolute left-3 top-3 text-gray-400"
+								size={18}
+							/>
+							<input
+								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
+								value={formData.nif}
+								onChange={(e) =>
+									setFormData({ ...formData, nif: e.target.value })
+								}
+								placeholder="12345678X"
+							/>
+						</div>
 					</div>
 					<div>
-						<label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
-							Apellidos
-						</label>
-						<input
-							type="text"
-							value={formData.surname}
-							onChange={(e) =>
-								setFormData({ ...formData, surname: e.target.value })
-							}
-							className="w-full p-3 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
-						/>
-					</div>
-					<div>
-						<label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+						<label className="text-xs font-bold text-gray-500 uppercase">
 							Nº Colegiado
 						</label>
-						<div className="relative">
+						<div className="relative mt-1">
 							<FileText
 								className="absolute left-3 top-3 text-gray-400"
 								size={18}
 							/>
 							<input
-								type="text"
+								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
 								value={formData.collegiateNumber}
 								onChange={(e) =>
 									setFormData({ ...formData, collegiateNumber: e.target.value })
 								}
-								className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
+							/>
+						</div>
+					</div>
+
+					<div className="md:col-span-2">
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							Dirección Fiscal
+						</label>
+						<div className="relative mt-1">
+							<MapPin
+								className="absolute left-3 top-3 text-gray-400"
+								size={18}
+							/>
+							<input
+								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
+								value={formData.address}
+								onChange={(e) =>
+									setFormData({ ...formData, address: e.target.value })
+								}
+								placeholder="Calle, Número..."
 							/>
 						</div>
 					</div>
 					<div>
-						<label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
-							Móvil
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							Ciudad / CP
 						</label>
-						<div className="relative">
+						<input
+							className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
+							value={formData.city}
+							onChange={(e) =>
+								setFormData({ ...formData, city: e.target.value })
+							}
+						/>
+					</div>
+					<div>
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							Teléfono
+						</label>
+						<div className="relative mt-1">
 							<Phone
 								className="absolute left-3 top-3 text-gray-400"
 								size={18}
 							/>
 							<input
-								type="text"
+								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
 								value={formData.mobile}
 								onChange={(e) =>
 									setFormData({ ...formData, mobile: e.target.value })
 								}
-								className="w-full pl-10 p-3 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
+							/>
+						</div>
+					</div>
+				</div>
+
+				{/* Sub-sección Contacto */}
+				<div className="mt-6 pt-6 border-t border-gray-100">
+					<h4 className="text-xs font-bold text-gray-500 uppercase mb-3">
+						Persona de Contacto
+					</h4>
+					<div className="grid grid-cols-2 gap-4">
+						<div>
+							<label className="text-xs font-bold text-gray-500 uppercase">
+								Nombre
+							</label>
+							<input
+								className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
+								value={formData.name}
+								onChange={(e) =>
+									setFormData({ ...formData, name: e.target.value })
+								}
+							/>
+						</div>
+						<div>
+							<label className="text-xs font-bold text-gray-500 uppercase">
+								Apellidos
+							</label>
+							<input
+								className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
+								value={formData.surname}
+								onChange={(e) =>
+									setFormData({ ...formData, surname: e.target.value })
+								}
 							/>
 						</div>
 					</div>
@@ -219,94 +271,83 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 					<button
 						onClick={handleUpdateProfile}
 						disabled={loadingProfile}
-						className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-black flex items-center gap-2 disabled:opacity-50">
+						className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-black flex items-center gap-2">
 						{loadingProfile ? (
 							<Loader2 className="animate-spin" size={16} />
 						) : (
 							<Save size={16} />
 						)}
-						Guardar Perfil
+						Guardar Datos
 					</button>
 				</div>
 			</div>
 
-			{/* Seguridad - Lógica Condicional Google vs Email */}
-			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 max-w-2xl">
+			{/* TARJETA 2: SEGURIDAD */}
+			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
 				<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
 					<Lock size={20} className="text-rose-500" /> Seguridad
 				</h3>
 
-				{isGoogleUser ? (
-					// --- VISTA PARA USUARIOS DE GOOGLE ---
-					<div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
-						<div className="bg-blue-100 p-2 rounded-full text-blue-600">
-							<CheckCircle2 size={20} />
-						</div>
+				{!isGoogleUser ? (
+					<div className="space-y-4 max-w-md">
 						<div>
-							<h4 className="font-bold text-blue-900 text-sm">
-								Sesión iniciada con Google
-							</h4>
-							<p className="text-blue-700 text-xs mt-1">
-								Tu cuenta está gestionada por Google. Para cambiar tu
-								contraseña, debes hacerlo desde la configuración de tu cuenta de
-								Google.
-							</p>
-						</div>
-					</div>
-				) : (
-					// --- VISTA PARA USUARIOS DE EMAIL (CON CAMPO ACTUAL) ---
-					<div className="space-y-4">
-						<div>
-							<label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+							<label className="text-xs font-bold text-gray-500 uppercase">
 								Contraseña Actual
 							</label>
 							<input
 								type="password"
-								placeholder="Escribe tu contraseña actual para verificar"
 								value={currentPassword}
 								onChange={(e) => setCurrentPassword(e.target.value)}
-								className="w-full p-3 border border-gray-200 rounded-xl focus:border-rose-500 outline-none bg-gray-50"
+								className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none bg-gray-50"
 							/>
 						</div>
-						<div className="border-t border-gray-100 my-4"></div>
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div className="grid grid-cols-2 gap-4">
 							<div>
-								<label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
-									Nueva Contraseña
+								<label className="text-xs font-bold text-gray-500 uppercase">
+									Nueva
 								</label>
 								<input
 									type="password"
-									placeholder="Mínimo 6 caracteres"
 									value={password}
 									onChange={(e) => setPassword(e.target.value)}
-									className="w-full p-3 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
+									className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none"
 								/>
 							</div>
 							<div>
-								<label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
-									Confirmar Nueva
+								<label className="text-xs font-bold text-gray-500 uppercase">
+									Repetir
 								</label>
 								<input
 									type="password"
-									placeholder="Repite la nueva contraseña"
 									value={confirmPassword}
 									onChange={(e) => setConfirmPassword(e.target.value)}
-									className="w-full p-3 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
+									className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none"
 								/>
 							</div>
 						</div>
-						<div className="flex justify-end mt-2">
+						<div className="flex justify-end pt-2">
 							<button
 								onClick={handleUpdatePassword}
-								disabled={loadingPass || !currentPassword || !password}
-								className="bg-rose-50 text-rose-600 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-100 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+								disabled={loadingPass}
+								className="bg-rose-50 text-rose-600 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-100 flex items-center gap-2">
 								{loadingPass ? (
 									<Loader2 className="animate-spin" size={16} />
 								) : (
 									<ShieldAlert size={16} />
-								)}
-								Actualizar Contraseña
+								)}{" "}
+								Actualizar
 							</button>
+						</div>
+					</div>
+				) : (
+					<div className="p-4 bg-blue-50 text-blue-800 rounded-xl text-sm border border-blue-100 flex items-center gap-3">
+						<ShieldAlert size={20} />
+						<div>
+							<p className="font-bold">Cuenta vinculada a Google</p>
+							<p className="opacity-80">
+								La gestión de tu contraseña se realiza directamente a través de
+								Google.
+							</p>
 						</div>
 					</div>
 				)}
