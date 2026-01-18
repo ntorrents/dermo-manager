@@ -1,358 +1,656 @@
-// /Users/nilto/Documents/GitHub/DermoManager/src/components/finance/FinanceTab.jsx
-import React, { useState, useMemo } from "react";
+// src/components/finance/FinanceTab.jsx
+import React, { useState, useMemo, useEffect } from "react";
 import {
-	Briefcase,
-	Trash2,
-	X,
-	Zap,
-	Check,
+	Plus,
 	TrendingUp,
 	TrendingDown,
+	Search,
+	FileSpreadsheet,
+	Settings,
+	Trash2,
+	CheckCircle2,
+	AlertCircle,
+	X,
+	ArrowRight,
+	Loader2,
 } from "lucide-react";
-import { addDocument, deleteDocument } from "../../services/firestore";
+import {
+	addDocument,
+	deleteDocument,
+	updateDocument,
+} from "../../services/firestore";
 import { formatCurrency } from "../../utils/format";
+import { exportToCSV } from "../../utils/export";
 
-export const FinanceTab = ({
-	user,
-	entries,
-	recurringConfig,
-	currentMonth,
-	showToast,
-}) => {
-	const [showRecurringModal, setShowRecurringModal] = useState(false);
-	const [newRecurring, setNewRecurring] = useState({ name: "", amount: "" });
-	const [showManualEntryModal, setShowManualEntryModal] = useState(false);
-	const [manualEntry, setManualEntry] = useState({
-		description: "",
-		amount: "",
-		category: "Otros",
-		type: "expense",
+// Importaciones directas de Firebase para asegurar la lectura de configuración
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../../services/firebase";
+
+export const FinanceTab = ({ user, entries, currentMonth, showToast }) => {
+	// --- ESTADOS ---
+	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [isConfigOpen, setIsConfigOpen] = useState(false);
+	const [searchTerm, setSearchTerm] = useState("");
+
+	// Estado de configuración (Auto-gestionado)
+	const [activeConfig, setActiveConfig] = useState({
+		rent: 0,
+		insurance: 0,
+		others: 0,
 	});
-	const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+	const [configId, setConfigId] = useState(null); // Para saber qué documento actualizar
+	const [loadingConfig, setLoadingConfig] = useState(true);
 
-	const filteredEntries = useMemo(
-		() => entries.filter((e) => e.date.startsWith(currentMonth)),
-		[entries, currentMonth],
-	);
-	const income = filteredEntries
-		.filter((e) => e.type === "income")
-		.reduce((acc, c) => acc + c.amount, 0);
-	const expenses = filteredEntries
-		.filter((e) => e.type === "expense")
-		.reduce((acc, c) => acc + c.amount, 0);
+	// Estado temporal para el formulario de edición
+	const [tempConfig, setTempConfig] = useState({
+		rent: 0,
+		insurance: 0,
+		others: 0,
+	});
 
-	const addRecurringConfig = async () => {
-		if (!newRecurring.name || !newRecurring.amount) return;
-		await addDocument(user.uid, "recurring_config", {
-			name: newRecurring.name,
-			amount: Number(newRecurring.amount),
-		});
-		setNewRecurring({ name: "", amount: "" });
+	const [formData, setFormData] = useState({
+		type: "expense",
+		amount: "",
+		category: "General",
+		description: "",
+		date: new Date().toISOString().split("T")[0],
+	});
+
+	// --- 1. CARGA DE CONFIGURACIÓN (AUTÓNOMA) ---
+	// Esto arregla que desaparezca al cambiar de pestaña. La pestaña busca sus propios datos.
+	useEffect(() => {
+		const fetchConfig = async () => {
+			try {
+				// Buscamos un documento en 'settings' que sea de tipo 'finance_config'
+				const q = query(
+					collection(db, `users/${user.uid}/settings`),
+					where("type", "==", "finance_config"),
+				);
+				const snapshot = await getDocs(q);
+
+				if (!snapshot.empty) {
+					// Si existe, lo cargamos
+					const docData = snapshot.docs[0].data();
+					setActiveConfig({
+						rent: Number(docData.rent) || 0,
+						insurance: Number(docData.insurance) || 0,
+						others: Number(docData.others) || 0,
+					});
+					setConfigId(snapshot.docs[0].id); // Guardamos el ID para actualizar luego
+				} else {
+					// Si no existe, dejamos todo a 0
+					setActiveConfig({ rent: 0, insurance: 0, others: 0 });
+					setConfigId(null);
+				}
+			} catch (error) {
+				console.error("Error cargando config de finanzas:", error);
+			} finally {
+				setLoadingConfig(false);
+			}
+		};
+
+		if (user) fetchConfig();
+	}, [user]);
+
+	// --- LÓGICA DE DATOS PRINCIPAL ---
+	const filteredEntries = useMemo(() => {
+		return entries
+			.filter((e) => e.date.startsWith(currentMonth))
+			.filter(
+				(e) =>
+					e.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+					e.category?.toLowerCase().includes(searchTerm.toLowerCase()),
+			)
+			.sort((a, b) => new Date(b.date) - new Date(a.date));
+	}, [entries, currentMonth, searchTerm]);
+
+	const incomes = filteredEntries.filter((e) => e.type === "income");
+	const expenses = filteredEntries.filter((e) => e.type === "expense");
+
+	const totalIncome = incomes.reduce((acc, curr) => acc + curr.amount, 0);
+	const totalExpense = expenses.reduce((acc, curr) => acc + curr.amount, 0);
+	const netProfit = totalIncome - totalExpense;
+
+	// --- LÓGICA DE ESTADO DE PAGOS ---
+	const checkPaymentStatus = (concept, amount) => {
+		if (!amount || Number(amount) === 0) return { status: "disabled" };
+
+		// Busca si hay un gasto este mes que sea 'Fijo' y contenga el nombre del concepto
+		const found = expenses.find(
+			(e) =>
+				e.category === "Fijo" &&
+				e.description.toLowerCase().includes(concept.toLowerCase()),
+		);
+
+		return found
+			? { status: "paid", id: found.id }
+			: { status: "pending", amount: amount };
 	};
 
-	const payRecurring = async (configItem) => {
-		await addDocument(user.uid, "finance_entries", {
-			date: new Date().toISOString().split("T")[0],
-			type: "expense",
-			category: "Fijo",
-			description: configItem.name,
-			amount: configItem.amount,
-			recurringId: configItem.id,
-			monthKey: currentMonth,
-		});
-		showToast("Pago registrado");
+	const fixedStatus = {
+		rent: checkPaymentStatus("Alquiler", activeConfig.rent),
+		insurance: checkPaymentStatus("Cuota/Seguro", activeConfig.insurance),
+		others: checkPaymentStatus("Otros Fijos", activeConfig.others),
 	};
 
-	const addManualEntry = async () => {
-		if (!manualEntry.amount) return;
-		await addDocument(user.uid, "finance_entries", {
-			date: new Date().toISOString().split("T")[0],
-			type: manualEntry.type,
-			category: manualEntry.category,
-			description: manualEntry.description,
-			amount: Number(manualEntry.amount),
-			isManual: true,
-		});
-		setManualEntry({
-			description: "",
+	// --- MANEJADORES ---
+	const openModal = (type) => {
+		setFormData({
+			type,
 			amount: "",
-			category: "Otros",
-			type: "expense",
+			category: type === "income" ? "Servicio" : "Material",
+			description: "",
+			date: new Date().toISOString().split("T")[0],
 		});
-		setShowManualEntryModal(false);
+		setIsModalOpen(true);
 	};
 
-	const deleteEntry = async (id) => {
-		if (confirmDeleteId !== id) {
-			setConfirmDeleteId(id);
-			setTimeout(() => setConfirmDeleteId(null), 4000);
-			return;
+	const handleSaveEntry = async (e) => {
+		e.preventDefault();
+		if (!formData.amount || !formData.description) return;
+		try {
+			await addDocument(user.uid, "finance_entries", {
+				...formData,
+				amount: Number(formData.amount),
+				createdAt: new Date().toISOString(),
+			});
+			showToast("Movimiento registrado");
+			setIsModalOpen(false);
+		} catch (error) {
+			console.error(error);
+			showToast("Error al guardar", "error");
 		}
-		await deleteDocument(user.uid, "finance_entries", id);
-		setConfirmDeleteId(null);
+	};
+
+	const payFixedExpense = async (description, amount) => {
+		if (
+			confirm(
+				`¿Confirmar pago de ${description} por ${formatCurrency(amount)}?`,
+			)
+		) {
+			try {
+				// Fecha de HOY (Real)
+				const today = new Date().toISOString().split("T")[0];
+
+				await addDocument(user.uid, "finance_entries", {
+					type: "expense",
+					amount: Number(amount),
+					category: "Fijo",
+					description: `${description} (${currentMonth})`,
+					date: today,
+					createdAt: new Date().toISOString(),
+				});
+
+				showToast("Gasto fijo registrado ✅");
+			} catch (error) {
+				console.error(error);
+				showToast("Error al registrar pago", "error");
+			}
+		}
+	};
+
+	const handleDelete = async (id) => {
+		if (confirm("¿Eliminar este movimiento?")) {
+			await deleteDocument(user.uid, "finance_entries", id);
+			showToast("Movimiento eliminado");
+		}
+	};
+
+	// --- 2. GUARDADO DE CONFIGURACIÓN CORREGIDO ---
+	const handleSaveConfig = async (e) => {
+		e.preventDefault();
+
+		const newConfig = {
+			rent: Number(tempConfig.rent) || 0,
+			insurance: Number(tempConfig.insurance) || 0,
+			others: Number(tempConfig.others) || 0,
+			type: "finance_config", // IMPORTANTE: Para encontrarlo luego
+		};
+
+		// Actualización Optimista (para verlo ya)
+		setActiveConfig(newConfig);
+
+		try {
+			if (configId) {
+				// Si ya sabemos cuál es el documento, lo actualizamos
+				await updateDocument(user.uid, "settings", configId, newConfig);
+				showToast("Configuración actualizada");
+			} else {
+				// Si no existe ID, creamos uno nuevo y guardamos su referencia
+				const docRef = await addDocument(user.uid, "settings", newConfig);
+				setConfigId(docRef.id); // Guardamos el ID nuevo para futuras ediciones
+				showToast("Configuración creada");
+			}
+			setIsConfigOpen(false);
+		} catch (error) {
+			console.error(error);
+			showToast("Error al guardar configuración", "error");
+		}
+	};
+
+	const handleExport = () => {
+		exportToCSV(filteredEntries, `Contabilidad_${currentMonth}.csv`);
+		showToast("Excel descargado");
+	};
+
+	const openConfigModal = () => {
+		setTempConfig(activeConfig);
+		setIsConfigOpen(true);
 	};
 
 	return (
-		<div className="space-y-6 animate-in fade-in">
-			<div className="flex justify-between items-center">
-				<h2 className="text-2xl font-bold">Finanzas</h2>
-				<button
-					onClick={() => setShowRecurringModal(!showRecurringModal)}
-					className="bg-white border text-gray-600 px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-50 flex items-center gap-2">
-					<Briefcase size={16} /> Config. Fijos
-				</button>
+		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
+			{/* Header: Balance */}
+			<div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+				<div>
+					<p className="text-gray-400 text-xs font-bold uppercase tracking-wider">
+						Flujo de Caja (Real)
+					</p>
+					<h2
+						className={`text-3xl font-bold ${netProfit >= 0 ? "text-gray-800" : "text-red-500"}`}>
+						{formatCurrency(netProfit)}
+					</h2>
+				</div>
+
+				<div className="flex flex-wrap gap-3 w-full md:w-auto">
+					<div className="relative flex-1 md:w-64">
+						<Search className="absolute left-3 top-3 text-gray-400" size={16} />
+						<input
+							placeholder="Buscar..."
+							className="w-full pl-9 p-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 ring-rose-100 outline-none text-sm"
+							value={searchTerm}
+							onChange={(e) => setSearchTerm(e.target.value)}
+						/>
+					</div>
+					<button
+						onClick={handleExport}
+						className="bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-colors text-sm">
+						<FileSpreadsheet size={18} /> Excel
+					</button>
+				</div>
 			</div>
 
-			{showRecurringModal && (
-				<div className="bg-gray-100 p-4 rounded-2xl border border-gray-200 animate-in fade-in">
-					<h4 className="font-bold text-sm text-gray-700 mb-3">
-						Configurar gasto mensual
-					</h4>
-					<div className="flex gap-2 mb-4">
-						<input
-							placeholder="Nombre"
-							className="flex-1 p-2 rounded-lg border text-sm"
-							value={newRecurring.name}
-							onChange={(e) =>
-								setNewRecurring({ ...newRecurring, name: e.target.value })
-							}
-						/>
-						<input
-							type="number"
-							placeholder="€"
-							className="w-24 p-2 rounded-lg border text-sm"
-							value={newRecurring.amount}
-							onChange={(e) =>
-								setNewRecurring({ ...newRecurring, amount: e.target.value })
-							}
-						/>
-						<button
-							onClick={addRecurringConfig}
-							className="bg-gray-800 text-white px-4 rounded-lg text-sm font-bold">
-							Añadir
-						</button>
-					</div>
-					<div className="space-y-2">
-						{recurringConfig.map((c) => (
-							<div
-								key={c.id}
-								className="flex justify-between items-center text-sm bg-white p-2 rounded border">
-								<span>
-									{c.name} ({c.amount}€)
-								</span>
-								<button
-									onClick={() =>
-										deleteDocument(user.uid, "recurring_config", c.id)
-									}
-									className="text-red-400 hover:text-red-600">
-									<Trash2 size={14} />
-								</button>
+			{/* GRID PRINCIPAL */}
+			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+				{/* COLUMNA IZQUIERDA: INGRESOS */}
+				<div className="space-y-4">
+					<div className="flex justify-between items-center px-2">
+						<h3 className="font-bold text-gray-700 flex items-center gap-2">
+							<div className="bg-green-100 p-1.5 rounded-lg text-green-600">
+								<TrendingUp size={16} />
 							</div>
-						))}
-					</div>
-				</div>
-			)}
-
-			{showManualEntryModal && (
-				<div className="bg-white p-6 rounded-2xl shadow-lg border border-rose-100 animate-in zoom-in-95 mb-4">
-					<div className="flex justify-between mb-4">
-						<h3 className="font-bold">
-							{manualEntry.type === "income"
-								? "Registrar Ingreso"
-								: "Registrar Gasto"}
+							Ingresos
 						</h3>
-						<button onClick={() => setShowManualEntryModal(false)}>
-							<X size={20} />
-						</button>
+						<span className="text-green-600 font-bold">
+							{formatCurrency(totalIncome)}
+						</span>
 					</div>
-					<div className="grid gap-4">
-						<input
-							className="w-full p-3 border rounded-xl"
-							placeholder="Concepto"
-							value={manualEntry.description}
-							onChange={(e) =>
-								setManualEntry({ ...manualEntry, description: e.target.value })
-							}
-						/>
-						<div className="flex gap-2">
-							<input
-								type="number"
-								className="flex-1 p-3 border rounded-xl"
-								placeholder="Importe (€)"
-								value={manualEntry.amount}
-								onChange={(e) =>
-									setManualEntry({ ...manualEntry, amount: e.target.value })
-								}
-							/>
-							{manualEntry.type === "expense" && (
-								<select
-									className="flex-1 p-3 border rounded-xl bg-white"
-									value={manualEntry.category}
-									onChange={(e) =>
-										setManualEntry({ ...manualEntry, category: e.target.value })
-									}>
-									<option>Otros</option>
-									<option>Mobiliario</option>
-									<option>Transporte</option>
-									<option>Impuestos</option>
-									<option>Formación</option>
-								</select>
-							)}
-						</div>
-						<button
-							onClick={addManualEntry}
-							className={`w-full text-white font-bold py-3 rounded-xl ${manualEntry.type === "income" ? "bg-emerald-500" : "bg-rose-500"}`}>
-							Guardar
-						</button>
-					</div>
-				</div>
-			)}
 
-			{recurringConfig.length > 0 && (
-				<div className="mb-6">
-					<h3 className="text-xs font-bold text-gray-400 uppercase mb-2">
-						Pagos Recurrentes (
-						{new Date(currentMonth).toLocaleString("es-ES", { month: "long" })})
-					</h3>
-					<div className="flex gap-3 overflow-x-auto pb-2">
-						{recurringConfig.map((conf) => {
-							const isPaid = filteredEntries.some(
-								(e) => e.recurringId === conf.id,
-							);
-							return (
-								<button
-									key={conf.id}
-									onClick={() => !isPaid && payRecurring(conf)}
-									disabled={isPaid}
-									className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all ${isPaid ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-white border-orange-200 text-gray-700 hover:border-orange-400 shadow-sm"}`}>
-									{isPaid ? (
-										<Check size={14} />
-									) : (
-										<Zap size={14} className="text-orange-500" />
-									)}{" "}
-									{conf.name}
-								</button>
-							);
-						})}
-					</div>
-				</div>
-			)}
+					<button
+						onClick={() => openModal("income")}
+						className="w-full py-3 border-2 border-dashed border-green-200 bg-green-50 text-green-600 rounded-xl font-bold hover:bg-green-100 transition-colors flex justify-center items-center gap-2">
+						<Plus size={18} /> Añadir Ingreso
+					</button>
 
-			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				<div className="flex flex-col gap-4">
-					<div className="flex justify-between items-end">
-						<div>
-							<h3 className="font-bold text-gray-700 flex items-center gap-2">
-								<TrendingUp className="text-emerald-500" /> Ingresos
-							</h3>
-							<p className="text-2xl font-bold text-emerald-600">
-								{formatCurrency(income)}
-							</p>
-						</div>
-						<button
-							onClick={() => {
-								setManualEntry({
-									...manualEntry,
-									type: "income",
-									category: "Extra",
-								});
-								setShowManualEntryModal(true);
-							}}
-							className="text-xs bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-lg border border-emerald-100 hover:bg-emerald-100">
-							+ Ingreso Extra
-						</button>
-					</div>
-					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1">
-						<div className="divide-y divide-gray-100">
-							{filteredEntries
-								.filter((e) => e.type === "income")
-								.map((e) => (
+					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[200px]">
+						{incomes.length > 0 ? (
+							<div className="divide-y divide-gray-100">
+								{incomes.map((entry) => (
 									<div
-										key={e.id}
-										className="p-3 flex justify-between items-center hover:bg-gray-50">
+										key={entry.id}
+										className="p-4 hover:bg-gray-50 flex justify-between items-center group">
 										<div>
 											<p className="font-bold text-gray-800 text-sm">
-												{e.description}
+												{entry.description}
 											</p>
-											<p className="text-xs text-gray-400">
-												{e.date} • {e.category}
-											</p>
+											<p className="text-xs text-gray-400">{entry.date}</p>
 										</div>
-										<div className="flex items-center gap-2">
-											<span className="font-bold text-emerald-600">
-												+{e.amount}€
+										<div className="flex items-center gap-3">
+											<span className="font-bold text-green-600">
+												+{formatCurrency(entry.amount)}
 											</span>
 											<button
-												onClick={() => deleteEntry(e.id)}
-												className="text-gray-300 hover:text-red-400">
+												onClick={() => handleDelete(entry.id)}
+												className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
 												<Trash2 size={14} />
 											</button>
 										</div>
 									</div>
 								))}
-						</div>
+							</div>
+						) : (
+							<div className="p-8 text-center text-gray-400 text-sm">
+								Sin ingresos
+							</div>
+						)}
 					</div>
 				</div>
 
-				<div className="flex flex-col gap-4">
-					<div className="flex justify-between items-end">
-						<div>
-							<h3 className="font-bold text-gray-700 flex items-center gap-2">
-								<TrendingDown className="text-rose-500" /> Gastos
-							</h3>
-							<p className="text-2xl font-bold text-rose-600">
-								{formatCurrency(expenses)}
-							</p>
-						</div>
-						<button
-							onClick={() => {
-								setManualEntry({
-									...manualEntry,
-									type: "expense",
-									category: "Otros",
-								});
-								setShowManualEntryModal(true);
-							}}
-							className="text-xs bg-rose-50 text-rose-700 font-bold px-3 py-1.5 rounded-lg border border-rose-100 hover:bg-rose-100">
-							+ Registrar Gasto
-						</button>
+				{/* COLUMNA CENTRAL: GASTOS */}
+				<div className="space-y-4">
+					<div className="flex justify-between items-center px-2">
+						<h3 className="font-bold text-gray-700 flex items-center gap-2">
+							<div className="bg-red-100 p-1.5 rounded-lg text-red-600">
+								<TrendingDown size={16} />
+							</div>
+							Gastos
+						</h3>
+						<span className="text-red-600 font-bold">
+							{formatCurrency(totalExpense)}
+						</span>
 					</div>
-					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1">
-						<div className="divide-y divide-gray-100">
-							{filteredEntries
-								.filter((e) => e.type === "expense")
-								.map((e) => (
+
+					<button
+						onClick={() => openModal("expense")}
+						className="w-full py-3 border-2 border-dashed border-red-200 bg-red-50 text-red-600 rounded-xl font-bold hover:bg-red-100 transition-colors flex justify-center items-center gap-2">
+						<Plus size={18} /> Añadir Gasto
+					</button>
+
+					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden min-h-[200px]">
+						{expenses.length > 0 ? (
+							<div className="divide-y divide-gray-100">
+								{expenses.map((entry) => (
 									<div
-										key={e.id}
-										className="p-3 flex justify-between items-center hover:bg-gray-50">
-										<div className="flex items-center gap-2">
-											<div
-												className={`w-1.5 h-1.5 rounded-full ${e.category === "Material" ? "bg-blue-400" : e.category === "Fijo" ? "bg-orange-400" : "bg-purple-400"}`}></div>
-											<div>
-												<p className="font-bold text-gray-800 text-sm">
-													{e.description}
-												</p>
-												<p className="text-xs text-gray-400">
-													{e.date} • {e.category}
-												</p>
-											</div>
+										key={entry.id}
+										className="p-4 hover:bg-gray-50 flex justify-between items-center group">
+										<div>
+											<p className="font-bold text-gray-800 text-sm">
+												{entry.description}
+											</p>
+											<p className="text-xs text-gray-400">
+												{entry.date} •
+												<span
+													className={`${entry.category === "Fijo" ? "text-purple-600 font-bold bg-purple-50 px-1 rounded" : ""}`}>
+													{" "}
+													{entry.category}
+												</span>
+											</p>
 										</div>
-										<div className="flex items-center gap-2">
-											<span className="font-bold text-rose-600">
-												-{e.amount}€
+										<div className="flex items-center gap-3">
+											<span className="font-bold text-red-600">
+												-{formatCurrency(entry.amount)}
 											</span>
 											<button
-												onClick={() => deleteEntry(e.id)}
-												className={`text-gray-300 hover:text-red-400 transition-all ${confirmDeleteId === e.id ? "text-red-500 scale-125" : ""}`}>
+												onClick={() => handleDelete(entry.id)}
+												className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
 												<Trash2 size={14} />
 											</button>
 										</div>
 									</div>
 								))}
-						</div>
+							</div>
+						) : (
+							<div className="p-8 text-center text-gray-400 text-sm">
+								Sin gastos
+							</div>
+						)}
+					</div>
+				</div>
+
+				{/* COLUMNA DERECHA: CONTROL DE FIJOS */}
+				<div className="space-y-4">
+					<div className="flex justify-between items-center px-2 h-[28px]">
+						<h3 className="font-bold text-gray-700 text-sm uppercase tracking-wide">
+							Control de Fijos
+						</h3>
+						<button
+							onClick={openConfigModal}
+							className="text-xs text-gray-400 hover:text-rose-500 flex items-center gap-1">
+							<Settings size={14} /> Configurar
+						</button>
+					</div>
+
+					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-4">
+						{loadingConfig ? (
+							<div className="flex justify-center py-4 text-rose-500">
+								<Loader2 className="animate-spin" />
+							</div>
+						) : (
+							<>
+								<div className="flex items-center gap-2 mb-2 text-xs text-gray-400">
+									<CheckCircle2 size={12} className="text-green-500" /> Pagado
+									<span className="text-gray-300">|</span>
+									<ArrowRight size={12} className="text-rose-500" /> Pendiente
+								</div>
+
+								{/* LISTA DE FIJOS */}
+								{[
+									{
+										id: "rent",
+										label: "Alquiler",
+										val: activeConfig.rent,
+										status: fixedStatus.rent,
+									},
+									{
+										id: "insurance",
+										label: "Cuota/Seguro",
+										val: activeConfig.insurance,
+										status: fixedStatus.insurance,
+									},
+									{
+										id: "others",
+										label: "Otros Fijos",
+										val: activeConfig.others,
+										status: fixedStatus.others,
+									},
+								].map(
+									(item) =>
+										item.status.status !== "disabled" && (
+											<div
+												key={item.id}
+												className={`flex justify-between items-center p-3 rounded-xl border ${item.status.status === "paid" ? "bg-green-50 border-green-100" : "bg-white border-gray-100 shadow-sm"}`}>
+												<div>
+													<p className="font-bold text-gray-800 text-sm">
+														{item.label}
+													</p>
+													<p className="text-xs text-gray-500">
+														{formatCurrency(item.val)}
+													</p>
+												</div>
+												{item.status.status === "paid" ? (
+													<span className="flex items-center gap-1 text-xs font-bold text-green-600">
+														<CheckCircle2 size={16} />
+													</span>
+												) : (
+													<button
+														onClick={() =>
+															payFixedExpense(item.label, item.val)
+														}
+														className="text-xs bg-rose-500 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-rose-600 shadow-sm">
+														Pagar
+													</button>
+												)}
+											</div>
+										),
+								)}
+
+								{activeConfig.rent === 0 &&
+									activeConfig.insurance === 0 &&
+									activeConfig.others === 0 && (
+										<div className="text-center py-4">
+											<AlertCircle className="mx-auto text-gray-300 mb-2" />
+											<p className="text-xs text-gray-400">
+												Sin gastos fijos configurados.
+											</p>
+											<button
+												onClick={openConfigModal}
+												className="text-rose-500 font-bold text-xs mt-2 underline">
+												Configurar
+											</button>
+										</div>
+									)}
+							</>
+						)}
 					</div>
 				</div>
 			</div>
+
+			{/* MODALES */}
+			{isModalOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div
+						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+						onClick={() => setIsModalOpen(false)}
+					/>
+					<div className="relative bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 animate-in zoom-in-95">
+						<div className="flex justify-between items-center mb-4">
+							<h3
+								className={`font-bold text-lg ${formData.type === "income" ? "text-green-600" : "text-red-600"}`}>
+								{formData.type === "income" ? "Nuevo Ingreso" : "Nuevo Gasto"}
+							</h3>
+							<button onClick={() => setIsModalOpen(false)}>
+								<X className="text-gray-400" />
+							</button>
+						</div>
+						<form onSubmit={handleSaveEntry} className="space-y-4">
+							<div>
+								<label className="text-xs font-bold text-gray-500 uppercase">
+									Concepto
+								</label>
+								<input
+									required
+									className="w-full p-3 border rounded-xl mt-1"
+									placeholder="Ej: Tratamiento..."
+									value={formData.description}
+									onChange={(e) =>
+										setFormData({ ...formData, description: e.target.value })
+									}
+								/>
+							</div>
+							<div className="grid grid-cols-2 gap-4">
+								<div>
+									<label className="text-xs font-bold text-gray-500 uppercase">
+										Importe (€)
+									</label>
+									<input
+										required
+										type="number"
+										step="0.01"
+										className="w-full p-3 border rounded-xl mt-1"
+										placeholder="0.00"
+										value={formData.amount}
+										onChange={(e) =>
+											setFormData({ ...formData, amount: e.target.value })
+										}
+									/>
+								</div>
+								<div>
+									<label className="text-xs font-bold text-gray-500 uppercase">
+										Fecha
+									</label>
+									<input
+										type="date"
+										className="w-full p-3 border rounded-xl mt-1"
+										value={formData.date}
+										onChange={(e) =>
+											setFormData({ ...formData, date: e.target.value })
+										}
+									/>
+								</div>
+							</div>
+							<div>
+								<label className="text-xs font-bold text-gray-500 uppercase">
+									Categoría
+								</label>
+								<select
+									className="w-full p-3 border rounded-xl mt-1 bg-white"
+									value={formData.category}
+									onChange={(e) =>
+										setFormData({ ...formData, category: e.target.value })
+									}>
+									{formData.type === "income" ? (
+										<>
+											<option>Servicio</option>
+											<option>Producto</option>
+											<option>Otros</option>
+										</>
+									) : (
+										<>
+											<option>Material</option>
+											<option>Alquiler</option>
+											<option>Marketing</option>
+											<option>Impuestos</option>
+											<option>Fijo</option>
+											<option>Otros</option>
+										</>
+									)}
+								</select>
+							</div>
+							<button
+								className={`w-full text-white font-bold py-3 rounded-xl mt-2 ${formData.type === "income" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}`}>
+								Guardar
+							</button>
+						</form>
+					</div>
+				</div>
+			)}
+
+			{isConfigOpen && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+					<div
+						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+						onClick={() => setIsConfigOpen(false)}
+					/>
+					<div className="relative bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 animate-in zoom-in-95">
+						<div className="flex justify-between items-center mb-4">
+							<h3 className="font-bold text-lg text-gray-800">
+								Gastos Fijos Mensuales
+							</h3>
+							<button onClick={() => setIsConfigOpen(false)}>
+								<X className="text-gray-400" />
+							</button>
+						</div>
+						<p className="text-xs text-gray-500 mb-4">
+							Configura los importes. Cada mes podrás confirmar el pago con un
+							clic.
+						</p>
+						<form onSubmit={handleSaveConfig} className="space-y-4">
+							<div>
+								<label className="text-xs font-bold text-gray-500 uppercase">
+									Alquiler Local
+								</label>
+								<input
+									type="number"
+									className="w-full p-3 border rounded-xl mt-1"
+									value={tempConfig.rent}
+									onChange={(e) =>
+										setTempConfig({ ...tempConfig, rent: e.target.value })
+									}
+								/>
+							</div>
+							<div>
+								<label className="text-xs font-bold text-gray-500 uppercase">
+									Seguros / Cuota
+								</label>
+								<input
+									type="number"
+									className="w-full p-3 border rounded-xl mt-1"
+									value={tempConfig.insurance}
+									onChange={(e) =>
+										setTempConfig({ ...tempConfig, insurance: e.target.value })
+									}
+								/>
+							</div>
+							<div>
+								<label className="text-xs font-bold text-gray-500 uppercase">
+									Otros
+								</label>
+								<input
+									type="number"
+									className="w-full p-3 border rounded-xl mt-1"
+									value={tempConfig.others}
+									onChange={(e) =>
+										setTempConfig({ ...tempConfig, others: e.target.value })
+									}
+								/>
+							</div>
+							<button className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-black mt-2">
+								Guardar Configuración
+							</button>
+						</form>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };
