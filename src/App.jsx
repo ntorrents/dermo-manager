@@ -214,6 +214,7 @@ const DermoManager = () => {
 						entries={entries}
 						recurringConfig={recurringConfig}
 						currentMonth={currentMonth}
+						setCurrentMonth={setCurrentMonth}
 						showToast={showToastMsg}
 					/>
 				)}
