@@ -34,7 +34,7 @@ const DermoManager = () => {
 
 	const [activeTab, setActiveTab] = useState("dashboard");
 	const [currentMonth, setCurrentMonth] = useState(
-		new Date().toISOString().slice(0, 7),
+		new Date().toISOString().slice(0, 7)
 	);
 	const [toast, setToast] = useState(null);
 	const [showLogout, setShowLogout] = useState(false);
