@@ -1,42 +1,76 @@
-// /Users/nilto/Documents/GitHub/DermoManager/src/hooks/useData.js
 import { useState, useEffect } from "react";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "../services/firebase";
+import { supabase } from "../services/supabase";
 
 export const useData = (user) => {
-	const [inventory, setInventory] = useState([]);
-	const [treatments, setTreatments] = useState([]);
-	const [entries, setEntries] = useState([]);
-	const [recurringConfig, setRecurringConfig] = useState([]);
+	const [data, setData] = useState({
+		inventory: [],
+		treatments: [],
+		recurringConfig: [],
+		loading: true,
+	});
 
 	useEffect(() => {
-		if (!user) return;
-		const base = `users/${user.uid}`;
+		if (!user) {
+			setData((prev) => ({ ...prev, loading: false }));
+			return;
+		}
 
-		const unsub1 = onSnapshot(
-			query(collection(db, `${base}/inventory`), orderBy("name")),
-			(s) => setInventory(s.docs.map((d) => ({ ...d.data(), id: d.id }))),
-		);
-		const unsub2 = onSnapshot(
-			query(collection(db, `${base}/treatments`), orderBy("name")),
-			(s) => setTreatments(s.docs.map((d) => ({ ...d.data(), id: d.id }))),
-		);
-		const unsub3 = onSnapshot(
-			query(collection(db, `${base}/finance_entries`), orderBy("date", "desc")),
-			(s) => setEntries(s.docs.map((d) => ({ ...d.data(), id: d.id }))),
-		);
-		const unsub4 = onSnapshot(
-			query(collection(db, `${base}/recurring_config`), orderBy("name")),
-			(s) => setRecurringConfig(s.docs.map((d) => ({ ...d.data(), id: d.id }))),
-		);
+		const fetchAllData = async () => {
+			try {
+				// Ejecutamos todas las consultas a la vez para ganar velocidad
+				const [invRes, treatRes, recRes] = await Promise.all([
+					supabase.from("inventory").select("*").order("name"),
+					supabase.from("treatments").select("*").order("name"),
+					supabase.from("recurring_config").select("*"),
+				]);
+
+				if (invRes.error) throw invRes.error;
+				if (treatRes.error) throw treatRes.error;
+				if (recRes.error) throw recRes.error;
+
+				setData({
+					inventory: invRes.data || [],
+					treatments: treatRes.data || [],
+					recurringConfig: recRes.data || [],
+					loading: false,
+				});
+			} catch (error) {
+				console.error("Error cargando datos globales:", error.message);
+				setData((prev) => ({ ...prev, loading: false }));
+			}
+		};
+
+		fetchAllData();
+
+		// Suscripciones en tiempo real para que los cambios se vean al instante
+		const channels = [
+			supabase
+				.channel("realtime-inventory")
+				.on(
+					"postgres_changes",
+					{ event: "*", schema: "public", table: "inventory" },
+					fetchAllData
+				),
+			supabase
+				.channel("realtime-treatments")
+				.on(
+					"postgres_changes",
+					{ event: "*", schema: "public", table: "treatments" },
+					fetchAllData
+				),
+			supabase
+				.channel("realtime-recurring")
+				.on(
+					"postgres_changes",
+					{ event: "*", schema: "public", table: "recurring_config" },
+					fetchAllData
+				),
+		].map((channel) => channel.subscribe());
 
 		return () => {
-			unsub1();
-			unsub2();
-			unsub3();
-			unsub4();
+			channels.forEach((channel) => supabase.removeChannel(channel));
 		};
 	}, [user]);
 
-	return { inventory, treatments, entries, recurringConfig };
+	return data;
 };
