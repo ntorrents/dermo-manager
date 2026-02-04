@@ -1,161 +1,194 @@
-import React, { useState, useEffect, useRef } from "react";
-import { User, Search, X, Check } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, Calendar, User, Search, Euro, Tag } from "lucide-react";
 
 export const SessionModal = ({
 	isOpen,
 	treatment,
-	clients = [],
+	clients,
+	inventory,
 	onClose,
 	onConfirm,
 }) => {
-	// Buscador y Selección
-	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedClient, setSelectedClient] = useState(null);
-	const [showSuggestions, setShowSuggestions] = useState(false);
+	const [searchTerm, setSearchTerm] = useState("");
+	const [finalPrice, setFinalPrice] = useState("");
 
-	// Referencia para detectar clics fuera
-	const wrapperRef = useRef(null);
-
-	// Resetear estados al abrir/cerrar
 	useEffect(() => {
-		if (isOpen) {
-			setSearchTerm("");
+		if (isOpen && treatment) {
+			setFinalPrice(treatment.price);
 			setSelectedClient(null);
-			setShowSuggestions(false);
+			setSearchTerm("");
 		}
-	}, [isOpen]);
-
-	// Cerrar sugerencias al hacer clic fuera
-	useEffect(() => {
-		function handleClickOutside(event) {
-			if (wrapperRef.current && !wrapperRef.current.contains(event.target)) {
-				setShowSuggestions(false);
-			}
-		}
-		document.addEventListener("mousedown", handleClickOutside);
-		return () => document.removeEventListener("mousedown", handleClickOutside);
-	}, [wrapperRef]);
+	}, [isOpen, treatment]);
 
 	if (!isOpen || !treatment) return null;
 
-	// Filtrar clientes (máximo 5 sugerencias)
-	const filteredClients = clients
-		.filter(
-			(c) =>
-				c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				c.surname?.toLowerCase().includes(searchTerm.toLowerCase()),
-		)
-		.slice(0, 5);
+	const filteredClients = clients.filter((c) =>
+		`${c.name} ${c.surname}`.toLowerCase().includes(searchTerm.toLowerCase())
+	);
 
-	const handleSelect = (client) => {
-		setSelectedClient(client);
-		setSearchTerm(`${client.name} ${client.surname || ""}`.trim());
-		setShowSuggestions(false);
-	};
-
-	const handleSubmit = () => {
-		// Enviamos el objeto cliente entero (si existe) O el texto escrito
-		const clientData = selectedClient || { name: searchTerm, isGuest: true };
-		onConfirm(treatment, clientData);
+	const handleConfirm = () => {
+		if (!selectedClient) return;
+		onConfirm(treatment, selectedClient, Number(finalPrice));
 	};
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-			<div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
-				<div className="p-6">
-					<h3 className="text-lg font-bold text-gray-900 mb-1">
-						Registrar Sesión
-					</h3>
-					<p className="text-sm text-gray-500 mb-6">
-						{treatment.name} -{" "}
-						<span className="font-bold text-rose-500">{treatment.price}€</span>
-					</p>
+		<div className="fixed inset-0 z-[100] flex justify-center items-center p-4">
+			<div
+				className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+				onClick={onClose}
+			/>
+			<div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+				<div className="p-8 border-b bg-gray-50 flex justify-between items-start">
+					<div>
+						<h3 className="text-2xl font-black text-gray-800 tracking-tight leading-none">
+							Nueva Sesión
+						</h3>
+						<p className="text-rose-500 font-bold mt-2 text-lg">
+							{treatment.name}
+						</p>
+					</div>
+					<button
+						onClick={onClose}
+						className="p-2 bg-white rounded-full text-gray-400 hover:text-gray-600 shadow-sm border border-gray-100 transition-colors">
+						<X size={20} />
+					</button>
+				</div>
 
-					<div className="mb-6 relative" ref={wrapperRef}>
-						<label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
-							Cliente
+				<div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
+					{/* 1. SELECCIÓN DE CLIENTE */}
+					<div className="space-y-3">
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+							<User size={14} /> Seleccionar Cliente
 						</label>
 
-						{/* Input Buscador */}
-						<div className="relative">
-							<User
-								className={`absolute left-3 top-3 transition-colors ${selectedClient ? "text-rose-500" : "text-gray-400"}`}
-								size={18}
-							/>
-							<input
-								type="text"
-								placeholder="Buscar o escribir nombre..."
-								className={`w-full pl-10 pr-10 py-3 rounded-xl border outline-none text-sm transition-all ${
-									selectedClient
-										? "border-rose-500 bg-rose-50 text-rose-900 font-bold"
-										: "border-gray-200 focus:border-rose-500"
-								}`}
-								value={searchTerm}
-								onChange={(e) => {
-									setSearchTerm(e.target.value);
-									setSelectedClient(null); // Al escribir, quitamos la selección fija
-									setShowSuggestions(true);
-								}}
-								onFocus={() => setShowSuggestions(true)}
-							/>
-							{/* Botón X para limpiar */}
-							{searchTerm && (
-								<button
-									onClick={() => {
-										setSearchTerm("");
-										setSelectedClient(null);
-									}}
-									className="absolute right-3 top-3 text-gray-400 hover:text-gray-600">
-									<X size={16} />
-								</button>
-							)}
-						</div>
+						{!selectedClient ? (
+							<div className="relative group">
+								<Search
+									className="absolute left-4 top-4 text-gray-400 group-focus-within:text-rose-500 transition-colors"
+									size={20}
+								/>
+								<input
+									autoFocus
+									className="w-full pl-12 p-4 bg-gray-50 border-2 border-transparent focus:border-rose-100 focus:bg-white rounded-2xl outline-none font-bold text-gray-800 transition-all placeholder:text-gray-300"
+									placeholder="Buscar por nombre..."
+									value={searchTerm}
+									onChange={(e) => setSearchTerm(e.target.value)}
+								/>
 
-						{/* Lista de Sugerencias (Dropdown) */}
-						{showSuggestions && searchTerm && !selectedClient && (
-							<div className="absolute w-full mt-2 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden max-h-48 overflow-y-auto">
-								{filteredClients.length > 0 ? (
-									filteredClients.map((client) => (
-										<button
-											key={client.id}
-											onClick={() => handleSelect(client)}
-											className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center justify-between border-b border-gray-50 last:border-0">
-											<div>
-												<p className="font-bold text-sm text-gray-800">
-													{client.name} {client.surname}
-												</p>
-												<p className="text-xs text-gray-400">
-													{client.phone || "Sin teléfono"}
-												</p>
+								{searchTerm && (
+									<div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl max-h-48 overflow-y-auto z-20">
+										{filteredClients.length > 0 ? (
+											filteredClients.map((client) => (
+												<button
+													key={client.id}
+													onClick={() => {
+														setSelectedClient(client);
+														setSearchTerm("");
+													}}
+													className="w-full text-left p-4 hover:bg-rose-50 flex items-center gap-3 transition-colors border-b border-gray-50 last:border-0">
+													<div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-black text-xs">
+														{client.name[0]}
+													</div>
+													<div>
+														<p className="font-bold text-gray-800 text-sm">
+															{client.name} {client.surname}
+														</p>
+													</div>
+												</button>
+											))
+										) : (
+											<div className="p-4 text-center text-gray-400 text-xs font-bold">
+												No se encontraron clientes.
 											</div>
-											<Check
-												size={14}
-												className="text-gray-300 opacity-0 group-hover:opacity-100"
-											/>
-										</button>
-									))
-								) : (
-									<div className="p-3 text-xs text-gray-400 text-center">
-										No encontrado. Se registrará como nombre libre.
+										)}
 									</div>
 								)}
+							</div>
+						) : (
+							<div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex justify-between items-center animate-in fade-in slide-in-from-bottom-2">
+								<div className="flex items-center gap-3">
+									<div className="w-10 h-10 rounded-xl bg-white text-rose-500 flex items-center justify-center font-black shadow-sm">
+										{selectedClient.name[0]}
+									</div>
+									<div>
+										<p className="font-bold text-gray-900 leading-tight">
+											{selectedClient.name} {selectedClient.surname}
+										</p>
+										<p className="text-xs text-rose-400 font-bold mt-0.5">
+											Cliente seleccionado
+										</p>
+									</div>
+								</div>
+								<button
+									onClick={() => setSelectedClient(null)}
+									className="text-xs font-black bg-white text-gray-400 hover:text-rose-500 px-3 py-2 rounded-lg border border-gray-100 transition-colors">
+									CAMBIAR
+								</button>
 							</div>
 						)}
 					</div>
 
-					<div className="flex gap-3">
-						<button
-							onClick={onClose}
-							className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 text-sm">
-							Cancelar
-						</button>
-						<button
-							onClick={handleSubmit}
-							disabled={!searchTerm}
-							className="flex-1 px-4 py-2.5 bg-rose-500 text-white font-medium rounded-xl hover:bg-rose-600 shadow-sm text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-							Confirmar
-						</button>
+					{/* 2. PRECIO */}
+					<div className="space-y-3">
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+							<Tag size={14} /> Precio a Cobrar (€)
+						</label>
+						<div className="relative">
+							<Euro
+								className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+								size={20}
+							/>
+							<input
+								type="number"
+								step="0.01"
+								className="w-full pl-12 p-4 bg-gray-50 border-2 border-transparent focus:border-emerald-100 focus:bg-white rounded-2xl outline-none font-black text-2xl text-gray-800 transition-all"
+								value={finalPrice}
+								onChange={(e) => setFinalPrice(e.target.value)}
+							/>
+						</div>
+						<p className="text-[10px] text-gray-400 font-bold pl-1">
+							* Puedes modificar este precio si aplicas un descuento.
+						</p>
 					</div>
+
+					{/* 3. RESUMEN MATERIALES (CORREGIDO) */}
+					{treatment.recipe?.length > 0 && (
+						<div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+							<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
+								Material a consumir
+							</p>
+							<div className="space-y-2">
+								{treatment.recipe.map((item, idx) => {
+									// BUSCAMOS EL NOMBRE REAL EN EL INVENTARIO
+									const materialName =
+										inventory?.find((i) => i.id === item.materialId)?.name ||
+										"Material desconocido";
+
+									return (
+										<div
+											key={idx}
+											className="flex justify-between text-xs font-bold text-gray-600">
+											<span>{materialName}</span>
+											<span className="bg-white px-2 py-0.5 rounded-md border border-gray-100">
+												x{item.quantity}
+											</span>
+										</div>
+									);
+								})}
+							</div>
+						</div>
+					)}
+				</div>
+
+				<div className="p-8 border-t bg-gray-50">
+					<button
+						disabled={!selectedClient || !finalPrice}
+						onClick={handleConfirm}
+						className="w-full bg-[#1e293b] hover:bg-black text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
+						<Calendar size={20} className="text-rose-500" />
+						Confirmar Sesión
+					</button>
 				</div>
 			</div>
 		</div>

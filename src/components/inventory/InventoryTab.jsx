@@ -14,21 +14,21 @@ import {
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 
-export const InventoryTab = ({ user, inventory = [], showToast }) => {
+export const InventoryTab = ({
+	user,
+	inventory = [],
+	showToast,
+	onRefresh,
+}) => {
 	const [searchTerm, setSearchTerm] = useState("");
-
-	// Estados para Modal de Crear/Editar
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState(null);
-
-	// Estados para Modal de Reponer Stock
 	const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
 	const [restockItem, setRestockItem] = useState(null);
 	const [restockData, setRestockData] = useState({
 		quantity: "",
 		totalCost: "",
 	});
-
 	const [loading, setLoading] = useState(false);
 	const [formData, setFormData] = useState({
 		name: "",
@@ -47,7 +47,6 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 		inventory?.filter((item) => Number(item.stock) <= Number(item.min_stock))
 			.length || 0;
 
-	// --- LÓGICA: CREAR / EDITAR ---
 	const openModal = (item = null) => {
 		if (item) {
 			setEditingItem(item);
@@ -91,7 +90,6 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 				if (error) throw error;
 				showToast("Material actualizado");
 			} else {
-				// CORREGIDO: user.id
 				const { error } = await supabase
 					.from("inventory")
 					.insert([{ ...payload, user_id: user.id }]);
@@ -99,14 +97,14 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 				showToast("Material creado");
 			}
 			setIsModalOpen(false);
+			if (onRefresh) await onRefresh();
 		} catch (error) {
-			showToast("Error al guardar", "error");
+			showToast("Error al guardar", error);
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// --- LÓGICA: REPONER STOCK (Precio Medio Ponderado) ---
 	const openRestockModal = (item) => {
 		setRestockItem(item);
 		setRestockData({ quantity: "", totalCost: "" });
@@ -119,12 +117,9 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 		try {
 			const qtyBought = Number(restockData.quantity);
 			const purchaseCost = Number(restockData.totalCost);
-
 			const currentStock = Number(restockItem.stock);
 			const currentUnitCost = Number(restockItem.unit_cost);
-
 			const newStock = currentStock + qtyBought;
-			// Fórmula: ((Stock actual * Coste actual) + Coste compra nueva) / Stock Total nuevo
 			const newUnitCost =
 				(currentStock * currentUnitCost + purchaseCost) / newStock;
 
@@ -138,11 +133,9 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 
 			if (error) throw error;
 
-			// Registrar el gasto en finanzas
-			// CORREGIDO: user.id
 			await supabase.from("finance_entries").insert([
 				{
-					user_id: user.id, // Antes user.uid
+					user_id: user.id,
 					date: new Date().toISOString().split("T")[0],
 					type: "expense",
 					category: "Material",
@@ -153,8 +146,9 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 
 			showToast("Stock repuesto y coste actualizado");
 			setIsRestockModalOpen(false);
+			if (onRefresh) await onRefresh();
 		} catch (error) {
-			showToast("Error al reponer stock", "error");
+			showToast("Error al reponer stock", error);
 		} finally {
 			setLoading(false);
 		}
@@ -162,7 +156,6 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20">
-			{/* Buscador y Botón */}
 			<div className="flex flex-col md:flex-row gap-4 justify-between items-center">
 				<div className="relative flex-1 w-full md:max-w-md">
 					<Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
@@ -180,7 +173,6 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 				</button>
 			</div>
 
-			{/* Alerta de Stock Bajo */}
 			{lowStockCount > 0 && (
 				<div className="bg-[#fffbeb] border border-[#fef3c7] p-4 rounded-2xl flex items-start gap-4 shadow-sm">
 					<div className="p-2 bg-white rounded-xl shadow-sm">
@@ -196,7 +188,6 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 				</div>
 			)}
 
-			{/* Tabla Profesional Restaurada */}
 			<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
 				<table className="w-full text-left border-collapse">
 					<thead>
@@ -264,11 +255,13 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 										</button>
 										<button
 											onClick={async () => {
-												if (confirm("¿Eliminar?"))
+												if (confirm("¿Eliminar?")) {
 													await supabase
 														.from("inventory")
 														.delete()
 														.eq("id", item.id);
+													if (onRefresh) await onRefresh();
+												}
 											}}
 											className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">
 											<Trash2 size={18} />
@@ -280,8 +273,7 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 					</tbody>
 				</table>
 			</div>
-
-			{/* --- MODAL 1: NUEVO MATERIAL --- */}
+			{/* ... (Modales Nuevo Material y Reponer Stock, asegúrate de mantener el contenido interior igual, solo cambia el handleSave/handleRestock que ya puse arriba) */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-50 flex justify-center items-start p-4">
 					<div
@@ -366,8 +358,6 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 					</div>
 				</div>
 			)}
-
-			{/* --- MODAL 2: REPONER STOCK --- */}
 			{isRestockModalOpen && (
 				<div className="fixed inset-0 z-[60] mt-[100px] flex items-center justify-center p-4">
 					<div
@@ -391,7 +381,6 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 								<X size={24} />
 							</button>
 						</div>
-
 						<form onSubmit={handleRestock} className="space-y-6">
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
@@ -415,7 +404,6 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 									</span>
 								</div>
 							</div>
-
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
 									COSTE TOTAL DE LA COMPRA (€)
@@ -438,7 +426,6 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 									Pon lo que te ha costado la factura entera de este producto.
 								</p>
 							</div>
-
 							<div className="bg-blue-50/50 p-4 rounded-2xl flex items-start gap-3 border border-blue-100">
 								<Info className="text-blue-500 shrink-0 mt-0.5" size={18} />
 								<p className="text-xs font-bold text-blue-700 leading-relaxed">
@@ -446,7 +433,6 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 									Ponderado).
 								</p>
 							</div>
-
 							<button
 								disabled={loading}
 								className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-[1.5rem] shadow-xl shadow-blue-100 transition-all text-lg flex justify-center">

@@ -21,15 +21,18 @@ import { ClientsTab } from "./components/clients/ClientsTab";
 
 const DermoManager = () => {
 	const { user, loading: authLoading } = useAuth();
+
 	const {
 		inventory,
 		treatments,
 		entries,
 		recurringConfig,
 		loading: dataLoading,
+		refreshData,
 	} = useData(user);
+
 	const profile = useProfile(user);
-	const { clients } = useClients(user);
+	const { clients, refreshClients } = useClients(user);
 
 	const [activeTab, setActiveTab] = useState("dashboard");
 	const [currentMonth, setCurrentMonth] = useState(
@@ -42,7 +45,7 @@ const DermoManager = () => {
 	const showToastMsg = (msg, type = "success") =>
 		setToast({ message: msg, type });
 
-	const handleSession = async (treatment, clientData) => {
+	const handleSession = async (treatment, clientData, finalPrice) => {
 		const missing = treatment.recipe?.find((r) => {
 			const item = inventory.find((i) => i.id === r.materialId);
 			return !item || Number(item.stock) < Number(r.quantity);
@@ -68,7 +71,7 @@ const DermoManager = () => {
 				}
 			}
 
-			// 2. Calcular Coste
+			// 2. Calcular Coste (Solo informativo)
 			const cost =
 				treatment.recipe?.reduce((total, r) => {
 					const item = inventory.find((m) => m.id === r.materialId);
@@ -82,17 +85,17 @@ const DermoManager = () => {
 				? `${treatment.name} (${clientData.name} ${clientData.surname || ""})`
 				: `${treatment.name} (${clientData.name})`;
 
-			// 3. Registrar Ingreso (OJO: user.id aquí)
+			// 3. Registrar Ingreso (con precio final)
 			const { error: finError } = await supabase
 				.from("finance_entries")
 				.insert([
 					{
-						user_id: user.id, // CORREGIDO: user.id
+						user_id: user.id,
 						date: new Date().toISOString().split("T")[0],
 						type: "income",
 						category: "Servicio",
 						description: displayName,
-						amount: Number(treatment.price),
+						amount: Number(finalPrice),
 						related_cost: Number(cost),
 						client_id: clientData.id || null,
 					},
@@ -100,28 +103,12 @@ const DermoManager = () => {
 
 			if (finError) throw finError;
 
-			// 4. Registrar Gasto Automático
-			if (cost > 0) {
-				const { error: expError } = await supabase
-					.from("finance_entries")
-					.insert([
-						{
-							user_id: user.id, // CORREGIDO: user.id
-							date: new Date().toISOString().split("T")[0],
-							type: "expense",
-							category: "Material",
-							description: `Consumo material: ${treatment.name}`,
-							amount: Number(cost),
-							is_automatic: true,
-						},
-					]);
-				if (expError) throw expError;
-			}
-
-			showToastMsg("Sesión registrada y stock actualizado");
+			showToastMsg("Sesión registrada correctamente");
 			setSelectedTreatment(null);
+
+			await refreshData();
 		} catch (e) {
-			console.error("Error en handleSession:", e.message);
+			console.error("Error en handleSession:", e);
 			showToastMsg("Error al procesar la sesión", "error");
 		}
 	};
@@ -164,6 +151,7 @@ const DermoManager = () => {
 				isOpen={!!selectedTreatment}
 				treatment={selectedTreatment}
 				clients={clients}
+				inventory={inventory} // <--- ¡AQUÍ ESTÁ EL CAMBIO IMPORTANTE!
 				onClose={() => setSelectedTreatment(null)}
 				onConfirm={handleSession}
 			/>
@@ -194,7 +182,13 @@ const DermoManager = () => {
 					/>
 				)}
 				{activeTab === "clients" && (
-					<ClientsTab user={user} showToast={showToastMsg} profile={profile} />
+					<ClientsTab
+						user={user}
+						showToast={showToastMsg}
+						profile={profile}
+						clients={clients}
+						onRefresh={refreshClients}
+					/>
 				)}
 				{activeTab === "treatments" && (
 					<TreatmentsTab
@@ -203,6 +197,7 @@ const DermoManager = () => {
 						inventory={inventory}
 						showToast={showToastMsg}
 						onSelectTreatment={setSelectedTreatment}
+						onRefresh={refreshData}
 					/>
 				)}
 				{activeTab === "inventory" && (
@@ -210,6 +205,7 @@ const DermoManager = () => {
 						user={user}
 						inventory={inventory}
 						showToast={showToastMsg}
+						onRefresh={refreshData}
 					/>
 				)}
 				{activeTab === "finance" && (
@@ -220,6 +216,7 @@ const DermoManager = () => {
 						currentMonth={currentMonth}
 						setCurrentMonth={setCurrentMonth}
 						showToast={showToastMsg}
+						onRefresh={refreshData}
 					/>
 				)}
 				{activeTab === "settings" && (

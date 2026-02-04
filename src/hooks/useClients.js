@@ -1,9 +1,28 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../services/supabase";
 
 export const useClients = (user) => {
 	const [clients, setClients] = useState([]);
 	const [loading, setLoading] = useState(true);
+
+	const fetchClients = useCallback(async () => {
+		if (!user) return;
+		try {
+			setLoading(true);
+			const { data, error } = await supabase
+				.from("clients")
+				.select("*")
+				.eq("user_id", user.id)
+				.order("name", { ascending: true });
+
+			if (error) throw error;
+			setClients(data || []);
+		} catch (err) {
+			console.error("Error cargando clientes:", err.message);
+		} finally {
+			setLoading(false);
+		}
+	}, [user]);
 
 	useEffect(() => {
 		if (!user) {
@@ -12,28 +31,8 @@ export const useClients = (user) => {
 			return;
 		}
 
-		const fetchClients = async () => {
-			try {
-				setLoading(true);
-				// CORREGIDO: user.id
-				const { data, error } = await supabase
-					.from("clients")
-					.select("*")
-					.eq("user_id", user.id)
-					.order("name", { ascending: true });
-
-				if (error) throw error;
-				setClients(data || []);
-			} catch (err) {
-				console.error("Error cargando clientes:", err.message);
-			} finally {
-				setLoading(false);
-			}
-		};
-
 		fetchClients();
 
-		// CORREGIDO: Filtro de realtime con user.id
 		const channel = supabase
 			.channel("clients-realtime")
 			.on(
@@ -49,7 +48,7 @@ export const useClients = (user) => {
 			.subscribe();
 
 		return () => supabase.removeChannel(channel);
-	}, [user]);
+	}, [user, fetchClients]);
 
-	return { clients, loading };
+	return { clients, loading, refreshClients: fetchClients };
 };

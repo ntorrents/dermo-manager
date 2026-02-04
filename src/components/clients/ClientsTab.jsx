@@ -11,10 +11,7 @@ import {
 	Download,
 	Trash2,
 } from "lucide-react";
-
-// Servicios e Hooks
 import { supabase } from "../../services/supabase";
-import { useClients } from "../../hooks/useClients";
 import { useClientHistory } from "../../hooks/useClientHistory";
 import { generateInvoice } from "../../utils/invoiceGenerator";
 
@@ -67,8 +64,16 @@ const ClientHistoryList = ({ user, client, profile }) => {
 	);
 };
 
-export const ClientsTab = ({ user, showToast, profile }) => {
-	const { clients, loading } = useClients(user);
+// CAMBIO: Recibimos 'clients' por props
+export const ClientsTab = ({
+	user,
+	showToast,
+	profile,
+	onRefresh,
+	clients = [],
+}) => {
+	// Eliminado useClients interno para evitar conflictos de doble fuente de verdad
+
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingClient, setEditingClient] = useState(null);
@@ -81,7 +86,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 		email: "",
 		address: "",
 		notes: "",
-		dni: "", // Aseguramos que existe el campo dni
+		dni: "",
 	});
 
 	const filteredClients = clients.filter(
@@ -125,38 +130,32 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 		try {
 			if (!formData.name) return showToast("El nombre es obligatorio", "error");
 
-			// CORRECCIÓN CLAVE: user.id en lugar de user.uid
 			const payload = {
 				...formData,
 				user_id: user.id,
 			};
 
 			if (editingClient) {
-				// Al editar no es estrictamente necesario reenviar user_id, pero no daña
 				const { error } = await supabase
 					.from("clients")
-					.update(formData) // Actualizamos solo los datos del form
+					.update(formData)
 					.eq("id", editingClient.id);
 				if (error) throw error;
 				showToast("Cliente actualizado");
 			} else {
-				const { error } = await supabase.from("clients").insert([payload]); // Aquí usamos el payload con user.id correcto
+				const { error } = await supabase.from("clients").insert([payload]);
 				if (error) throw error;
 				showToast("Cliente creado");
 			}
 			setIsModalOpen(false);
+
+			// CAMBIO: Llamamos solo a onRefresh (que actualiza App.jsx)
+			if (onRefresh) await onRefresh();
 		} catch (error) {
-			console.error(error); // Para ver el error real en consola si ocurre
+			console.error(error);
 			showToast("Error al guardar", "error");
 		}
 	};
-
-	if (loading)
-		return (
-			<div className="p-8 flex justify-center">
-				<Loader2 className="animate-spin text-rose-500" />
-			</div>
-		);
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
@@ -208,9 +207,19 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 								</td>
 								<td className="p-4 text-right">
 									<button
-										onClick={(e) => {
+										onClick={async (e) => {
 											e.stopPropagation();
-											// Lógica de borrado pendiente, se puede añadir aquí
+											if (
+												confirm(
+													"¿Eliminar cliente? Se borrará su historial también."
+												)
+											) {
+												await supabase
+													.from("clients")
+													.delete()
+													.eq("id", client.id);
+												if (onRefresh) await onRefresh();
+											}
 										}}
 										className="p-2 text-gray-300 hover:text-red-500">
 										<Trash2 size={16} />
@@ -222,7 +231,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 				</table>
 			</div>
 
-			{/* --- MODAL --- */}
+			{/* MODAL */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-50 flex justify-center items-start p-4">
 					<div

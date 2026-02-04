@@ -18,6 +18,7 @@ export const TreatmentsTab = ({
 	inventory = [],
 	showToast,
 	onSelectTreatment,
+	onRefresh, // Nuevo prop
 }) => {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingTreatment, setEditingTreatment] = useState(null);
@@ -26,10 +27,9 @@ export const TreatmentsTab = ({
 	const [formData, setFormData] = useState({
 		name: "",
 		price: "",
-		recipe: [], // Array de objetos { materialId: '', quantity: 1 }
+		recipe: [],
 	});
 
-	// --- LÓGICA DE CÁLCULO DE COSTES ---
 	const calculateCost = (recipe) => {
 		return (
 			recipe?.reduce((total, item) => {
@@ -44,7 +44,6 @@ export const TreatmentsTab = ({
 		);
 	};
 
-	// --- LÓGICA: CREAR / EDITAR ---
 	const openModal = (t = null) => {
 		if (t) {
 			setEditingTreatment(t);
@@ -74,7 +73,6 @@ export const TreatmentsTab = ({
 				if (error) throw error;
 				showToast("Tratamiento actualizado");
 			} else {
-				// CORREGIDO: user.id
 				const { error } = await supabase
 					.from("treatments")
 					.insert([{ ...payload, user_id: user.id }]);
@@ -82,14 +80,14 @@ export const TreatmentsTab = ({
 				showToast("Tratamiento creado");
 			}
 			setIsModalOpen(false);
+			if (onRefresh) await onRefresh(); // RECARGA MANUAL
 		} catch (error) {
-			showToast("Error al guardar", "error");
+			showToast("Error al guardar", error);
 		} finally {
 			setLoading(false);
 		}
 	};
 
-	// Gestión de Receta (Materiales)
 	const addMaterial = () =>
 		setFormData({
 			...formData,
@@ -108,7 +106,6 @@ export const TreatmentsTab = ({
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20">
-			{/* Cabecera */}
 			<div className="flex justify-between items-center">
 				<h2 className="text-3xl font-black text-gray-800 tracking-tight italic">
 					Tratamientos
@@ -120,7 +117,6 @@ export const TreatmentsTab = ({
 				</button>
 			</div>
 
-			{/* Grid de Tarjetas */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 				{treatments.map((t) => {
 					const materialCost = calculateCost(t.recipe);
@@ -147,18 +143,20 @@ export const TreatmentsTab = ({
 									</button>
 									<button
 										onClick={async () => {
-											if (confirm("¿Eliminar?"))
+											if (confirm("¿Eliminar?")) {
 												await supabase
 													.from("treatments")
 													.delete()
 													.eq("id", t.id);
+												if (onRefresh) await onRefresh(); // RECARGA MANUAL
+											}
 										}}
 										className="p-2 text-gray-300 hover:text-red-500 transition-colors">
 										<Trash2 size={16} />
 									</button>
 								</div>
 							</div>
-
+							{/* ... (resto de la tarjeta igual) */}
 							<div className="flex items-baseline gap-1 mb-6">
 								<span className="text-4xl font-black text-[#f43f5e] tracking-tighter">
 									{t.price}€
@@ -167,8 +165,6 @@ export const TreatmentsTab = ({
 									PVP
 								</span>
 							</div>
-
-							{/* Desglose de Rentabilidad */}
 							<div className="bg-gray-50 rounded-2xl p-4 space-y-2 mb-6">
 								<div className="flex justify-between text-sm font-bold">
 									<span className="text-gray-400">Coste Material</span>
@@ -183,7 +179,6 @@ export const TreatmentsTab = ({
 									</span>
 								</div>
 							</div>
-
 							<button
 								onClick={() => onSelectTreatment(t)}
 								className="w-full bg-[#1e293b] hover:bg-rose-500 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-lg transition-all active:scale-95">
@@ -193,8 +188,7 @@ export const TreatmentsTab = ({
 					);
 				})}
 			</div>
-
-			{/* --- MODAL: NUEVO TRATAMIENTO --- */}
+			{/* ... (Modal Nuevo Tratamiento igual, solo revisa el botón de cerrar y inputs) ... */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-50 flex justify-center items-start p-4">
 					<div
@@ -202,7 +196,6 @@ export const TreatmentsTab = ({
 						onClick={() => setIsModalOpen(false)}
 					/>
 					<div className="relative bg-white w-full max-w-lg rounded-t-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-[0px] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
-						{/* Cabecera */}
 						<div className="p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
 							<h3 className="text-2xl font-black text-gray-800 tracking-tight">
 								{editingTreatment ? "Ajustar Tratamiento" : "Nuevo Tratamiento"}
@@ -213,8 +206,6 @@ export const TreatmentsTab = ({
 								<X size={24} />
 							</button>
 						</div>
-
-						{/* Cuerpo (Scrollable) */}
 						<div className="flex-1 overflow-y-auto p-8 bg-white custom-scrollbar">
 							<form
 								onSubmit={handleSave}
@@ -248,8 +239,6 @@ export const TreatmentsTab = ({
 										/>
 									</div>
 								</div>
-
-								{/* Sección de Receta */}
 								<div className="space-y-4">
 									<div className="flex justify-between items-center">
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
@@ -262,7 +251,6 @@ export const TreatmentsTab = ({
 											<Plus size={16} /> Añadir Material
 										</button>
 									</div>
-
 									{formData.recipe.length === 0 ? (
 										<div className="p-8 border-2 border-dashed border-gray-100 rounded-[2rem] text-center text-gray-400">
 											<Beaker className="mx-auto mb-2 opacity-20" size={32} />
@@ -315,8 +303,6 @@ export const TreatmentsTab = ({
 										</div>
 									)}
 								</div>
-
-								{/* Dashboard de Beneficio en el Modal */}
 								<div className="mt-auto bg-[#1e293b] rounded-[2rem] p-6 text-white shadow-xl">
 									<div className="flex justify-between items-center mb-4">
 										<div className="flex items-center gap-2">

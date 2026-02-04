@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useMemo, useEffect } from "react";
 import {
 	Plus,
@@ -14,8 +15,6 @@ import {
 	Loader2,
 	Calendar,
 } from "lucide-react";
-
-// Conexión Supabase y utilidades
 import { supabase } from "../../services/supabase";
 import { formatCurrency, formatDate } from "../../utils/format";
 import { exportToCSV } from "../../utils/export";
@@ -26,17 +25,14 @@ export const FinanceTab = ({
 	currentMonth,
 	setCurrentMonth,
 	showToast,
+	onRefresh, // Nuevo prop
 }) => {
-	// --- ESTADOS ---
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isConfigOpen, setIsConfigOpen] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [viewMode, setViewMode] = useState("month");
-
-	// Estado para gastos fijos (Desde tabla recurring_config)
 	const [recurringExpenses, setRecurringExpenses] = useState([]);
 	const [loadingConfig, setLoadingConfig] = useState(true);
-
 	const [formData, setFormData] = useState({
 		type: "expense",
 		amount: "",
@@ -45,16 +41,13 @@ export const FinanceTab = ({
 		date: new Date().toISOString().split("T")[0],
 	});
 
-	// --- 1. CARGA DE CONFIGURACIÓN (SUPABASE) ---
 	const fetchConfig = async () => {
 		try {
 			setLoadingConfig(true);
 			const { data, error } = await supabase
 				.from("recurring_config")
 				.select("*")
-				// CORREGIDO: user.id en lugar de user.uid
 				.eq("user_id", user.id);
-
 			if (error) throw error;
 			setRecurringExpenses(data || []);
 		} catch (error) {
@@ -68,7 +61,6 @@ export const FinanceTab = ({
 		if (user) fetchConfig();
 	}, [user]);
 
-	// --- 2. LÓGICA DE FILTRADO Y CÁLCULOS ---
 	const filteredEntries = useMemo(() => {
 		let data = entries;
 		if (viewMode === "month") {
@@ -77,7 +69,6 @@ export const FinanceTab = ({
 			const year = currentMonth.split("-")[0];
 			data = data.filter((e) => e.date.startsWith(year));
 		}
-
 		return data
 			.filter(
 				(e) =>
@@ -95,7 +86,6 @@ export const FinanceTab = ({
 		.reduce((acc, curr) => acc + Number(curr.amount), 0);
 	const netProfit = totalIncome - totalExpense;
 
-	// --- 3. LÓGICA DE ESTADO DE PAGOS ---
 	const getFixedStatus = (expense) => {
 		const found = entries
 			.filter((e) => e.date.startsWith(currentMonth))
@@ -104,11 +94,9 @@ export const FinanceTab = ({
 					e.category === "Fijo" &&
 					e.description.toLowerCase().includes(expense.category.toLowerCase())
 			);
-
 		return found ? { paid: true, date: found.date } : { paid: false };
 	};
 
-	// --- 4. MANEJADORES ---
 	const openEntryModal = (type) => {
 		setFormData({
 			type,
@@ -130,14 +118,15 @@ export const FinanceTab = ({
 				{
 					...formData,
 					amount: Number(formData.amount),
-					user_id: user.id, // CORREGIDO: user.id
+					user_id: user.id,
 				},
 			]);
 			if (error) throw error;
 			showToast("Movimiento registrado");
 			setIsModalOpen(false);
+			if (onRefresh) await onRefresh();
 		} catch (error) {
-			showToast("Error al guardar", "error");
+			showToast("Error al guardar", error);
 		}
 	};
 
@@ -148,10 +137,9 @@ export const FinanceTab = ({
 					currentMonth === new Date().toISOString().slice(0, 7)
 						? new Date().toISOString().split("T")[0]
 						: `${currentMonth}-01`;
-
 				const { error } = await supabase.from("finance_entries").insert([
 					{
-						user_id: user.id, // CORREGIDO: user.id
+						user_id: user.id,
 						type: "expense",
 						amount: Number(expense.amount),
 						category: "Fijo",
@@ -161,8 +149,9 @@ export const FinanceTab = ({
 				]);
 				if (error) throw error;
 				showToast(`Pago de ${expense.category} registrado ✅`);
+				if (onRefresh) await onRefresh();
 			} catch (error) {
-				showToast("Error al registrar pago", "error");
+				showToast("Error al registrar pago", error);
 			}
 		}
 	};
@@ -174,42 +163,41 @@ export const FinanceTab = ({
 				.delete()
 				.eq("id", id);
 			if (error) showToast("Error al eliminar", "error");
-			else showToast("Eliminado");
+			else {
+				showToast("Eliminado");
+				if (onRefresh) await onRefresh();
+			}
 		}
 	};
 
 	const handleSaveConfig = async (e) => {
 		e.preventDefault();
 		try {
-			// Sincronización con Supabase: Borramos y recreamos para el usuario actual
-			await supabase.from("recurring_config").delete().eq("user_id", user.id); // CORREGIDO: user.id
-
+			await supabase.from("recurring_config").delete().eq("user_id", user.id);
 			const toInsert = recurringExpenses
 				.filter((exp) => exp.category && exp.amount > 0)
 				.map((exp) => ({
-					user_id: user.id, // CORREGIDO: user.id
+					user_id: user.id,
 					category: exp.category,
 					amount: Number(exp.amount),
 				}));
-
 			if (toInsert.length > 0) {
 				const { error } = await supabase
 					.from("recurring_config")
 					.insert(toInsert);
 				if (error) throw error;
 			}
-
 			showToast("Configuración guardada");
 			setIsConfigOpen(false);
-			fetchConfig();
+			fetchConfig(); // Recarga la config local
+			// No hace falta onRefresh global porque esto no afecta a los números del dashboard hasta que se paguen
 		} catch (error) {
-			showToast("Error al configurar", "error");
+			showToast("Error al configurar", error);
 		}
 	};
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
-			{/* BALANCE HEADER */}
 			<div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
 				<div>
 					<p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">
@@ -430,8 +418,7 @@ export const FinanceTab = ({
 					</div>
 				</div>
 			</div>
-
-			{/* MODAL 1: NUEVO MOVIMIENTO */}
+			{/* Modales (se mantienen igual, solo cambia handleSaveEntry y handleSaveConfig que ya puse arriba) */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-[9999] flex justify-center items-start p-4">
 					<div
@@ -545,8 +532,6 @@ export const FinanceTab = ({
 					</div>
 				</div>
 			)}
-
-			{/* MODAL 2: CONFIGURACIÓN */}
 			{isConfigOpen && (
 				<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
 					<div
@@ -567,7 +552,6 @@ export const FinanceTab = ({
 								<X size={24} className="text-gray-300" />
 							</button>
 						</div>
-
 						<form
 							onSubmit={handleSaveConfig}
 							className="p-8 space-y-6 bg-white">
@@ -620,7 +604,6 @@ export const FinanceTab = ({
 										</div>
 									</div>
 								))}
-
 								<button
 									type="button"
 									onClick={() =>
@@ -633,7 +616,6 @@ export const FinanceTab = ({
 									<Plus size={14} /> Añadir concepto personalizado
 								</button>
 							</div>
-
 							<button className="w-full bg-[#1e293b] text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg hover:bg-black transition-all shadow-slate-200 mt-4">
 								Guardar Configuración
 							</button>
