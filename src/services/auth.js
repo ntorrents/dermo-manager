@@ -7,7 +7,7 @@ export const login = async (email, password) => {
 		password,
 	});
 	if (error) throw error;
-	return data.user;
+	return data;
 };
 
 // Cerrar sesión
@@ -16,7 +16,7 @@ export const logout = async () => {
 	if (error) throw error;
 };
 
-// Actualizar contraseña (mucho más simple que en Firebase)
+// Actualizar contraseña
 export const updateUserPassword = async (newPassword) => {
 	const { data, error } = await supabase.auth.updateUser({
 		password: newPassword,
@@ -25,10 +25,18 @@ export const updateUserPassword = async (newPassword) => {
 	return data;
 };
 
-// Función auxiliar para obtener usuario actual
-export const getCurrentUser = async () => {
-	const {
-		data: { user },
-	} = await supabase.auth.getUser();
-	return user;
+// --- AÑADIDO: Iniciar sesión con Google ---
+export const signInWithGoogle = async () => {
+	// Redirige a la URL actual tras el login (funciona en localhost y en vercel si está configurado)
+	const redirectTo = window.location.origin;
+
+	const { data, error } = await supabase.auth.signInWithOAuth({
+		provider: "google",
+		options: {
+			redirectTo: redirectTo,
+		},
+	});
+
+	if (error) throw error;
+	return data;
 };
