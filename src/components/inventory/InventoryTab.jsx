@@ -1,396 +1,405 @@
 import React, { useState } from "react";
 import {
-	Search,
 	Plus,
+	Search,
 	Package,
+	Trash2,
+	Edit2,
+	Loader2,
 	AlertTriangle,
-	ArrowDown,
-	TrendingUp,
 	X,
+	RotateCcw,
 	Save,
-	RefreshCw,
+	Info,
 } from "lucide-react";
-import {
-	addDocument,
-	updateDocument,
-	deleteDocument,
-} from "../../services/firestore";
-import { formatCurrency } from "../../utils/format";
+import { supabase } from "../../services/supabase";
 
-export const InventoryTab = ({ user, inventory, showToast }) => {
+export const InventoryTab = ({ user, inventory = [], showToast }) => {
 	const [searchTerm, setSearchTerm] = useState("");
-	const [isFormOpen, setIsFormOpen] = useState(false);
-	const [isRestockOpen, setIsRestockOpen] = useState(false); // Modal de reposición
+
+	// Estados para Modal de Crear/Editar
+	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState(null);
 
-	// Estado para Crear/Editar Producto
-	const [formData, setFormData] = useState({
-		name: "",
-		stock: "",
-		unit: "uds",
-		unitCost: "",
-		minStock: "5", // Nuevo campo: Alerta de stock bajo
-	});
-
-	// Estado para Reposición (Restock)
+	// Estados para Modal de Reponer Stock
+	const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
+	const [restockItem, setRestockItem] = useState(null);
 	const [restockData, setRestockData] = useState({
 		quantity: "",
 		totalCost: "",
 	});
 
-	// Filtrar inventario
-	const filteredInventory = inventory.filter((item) =>
-		item.name.toLowerCase().includes(searchTerm.toLowerCase()),
-	);
+	const [loading, setLoading] = useState(false);
+	const [formData, setFormData] = useState({
+		name: "",
+		stock: "",
+		unit: "uds",
+		unit_cost: "",
+		min_stock: "5",
+	});
 
-	// --- LÓGICA DE ALERTA ---
-	const lowStockItems = inventory.filter((i) => i.stock <= (i.minStock || 5));
+	const filteredInventory =
+		inventory?.filter((item) =>
+			item.name.toLowerCase().includes(searchTerm.toLowerCase())
+		) || [];
 
-	// --- GESTIÓN DE PRODUCTOS (Crear/Editar) ---
-	const openForm = (item = null) => {
+	const lowStockCount =
+		inventory?.filter((item) => Number(item.stock) <= Number(item.min_stock))
+			.length || 0;
+
+	// --- LÓGICA: CREAR / EDITAR ---
+	const openModal = (item = null) => {
 		if (item) {
 			setEditingItem(item);
-			setFormData(item);
+			setFormData({
+				name: item.name,
+				stock: item.stock,
+				unit: item.unit || "uds",
+				unit_cost: item.unit_cost,
+				min_stock: item.min_stock,
+			});
 		} else {
 			setEditingItem(null);
 			setFormData({
 				name: "",
 				stock: "",
 				unit: "uds",
-				unitCost: "",
-				minStock: "5",
+				unit_cost: "",
+				min_stock: "5",
 			});
 		}
-		setIsFormOpen(true);
+		setIsModalOpen(true);
 	};
 
-	const handleSaveProduct = async (e) => {
+	const handleSave = async (e) => {
 		e.preventDefault();
+		setLoading(true);
 		try {
-			const dataToSave = {
-				...formData,
+			const payload = {
+				name: formData.name,
 				stock: Number(formData.stock),
-				unitCost: Number(formData.unitCost),
-				minStock: Number(formData.minStock),
+				unit: formData.unit,
+				unit_cost: Number(formData.unit_cost),
+				min_stock: Number(formData.min_stock),
 			};
 
 			if (editingItem) {
-				await updateDocument(user.uid, "inventory", editingItem.id, dataToSave);
-				showToast("Producto actualizado");
+				const { error } = await supabase
+					.from("inventory")
+					.update(payload)
+					.eq("id", editingItem.id);
+				if (error) throw error;
+				showToast("Material actualizado");
 			} else {
-				await addDocument(user.uid, "inventory", dataToSave);
-				showToast("Producto creado");
+				const { error } = await supabase
+					.from("inventory")
+					.insert([{ ...payload, user_id: user.uid }]);
+				if (error) throw error;
+				showToast("Material creado");
 			}
-			setIsFormOpen(false);
+			setIsModalOpen(false);
 		} catch (error) {
-			console.error(error);
 			showToast("Error al guardar", "error");
+		} finally {
+			setLoading(false);
 		}
 	};
 
-	const handleDelete = async (id) => {
-		if (confirm("¿Eliminar este producto?")) {
-			await deleteDocument(user.uid, "inventory", id);
-			showToast("Producto eliminado");
-		}
-	};
-
-	// --- GESTIÓN DE REPOSICIÓN (Cálculo PMP) ---
-	const openRestock = (item) => {
-		setEditingItem(item);
+	// --- LÓGICA: REPONER STOCK (Precio Medio Ponderado) ---
+	const openRestockModal = (item) => {
+		setRestockItem(item);
 		setRestockData({ quantity: "", totalCost: "" });
-		setIsRestockOpen(true);
+		setIsRestockModalOpen(true);
 	};
 
 	const handleRestock = async (e) => {
 		e.preventDefault();
-		if (!editingItem) return;
-
-		const quantityAdded = Number(restockData.quantity);
-		const costOfPurchase = Number(restockData.totalCost);
-
-		if (quantityAdded <= 0)
-			return showToast("La cantidad debe ser positiva", "error");
-
+		setLoading(true);
 		try {
-			// 1. Calcular Valor Actual
-			const currentValue = editingItem.stock * editingItem.unitCost;
+			const qtyBought = Number(restockData.quantity);
+			const purchaseCost = Number(restockData.totalCost);
 
-			// 2. Calcular Nuevo Stock Total
-			const newStock = editingItem.stock + quantityAdded;
+			const currentStock = Number(restockItem.stock);
+			const currentUnitCost = Number(restockItem.unit_cost);
 
-			// 3. Calcular Nuevo Coste Unitario (PMP)
-			// Si el stock era 0 o negativo, el nuevo precio es simplemente el de la compra
-			let newUnitCost;
-			if (editingItem.stock <= 0) {
-				newUnitCost = costOfPurchase / quantityAdded;
-			} else {
-				// (Valor Viejo + Valor Nuevo) / Stock Total
-				newUnitCost = (currentValue + costOfPurchase) / newStock;
-			}
+			const newStock = currentStock + qtyBought;
+			// Fórmula: ((Stock actual * Coste actual) + Coste compra nueva) / Stock Total nuevo
+			const newUnitCost =
+				(currentStock * currentUnitCost + purchaseCost) / newStock;
 
-			// 4. Guardar en Firestore
-			await updateDocument(user.uid, "inventory", editingItem.id, {
-				stock: newStock,
-				unitCost: newUnitCost, // Guardamos el precio promediado
-			});
+			const { error } = await supabase
+				.from("inventory")
+				.update({
+					stock: newStock,
+					unit_cost: parseFloat(newUnitCost.toFixed(2)),
+				})
+				.eq("id", restockItem.id);
 
-			showToast(
-				`Stock actualizado. Nuevo precio medio: ${formatCurrency(newUnitCost)}`,
-			);
-			setIsRestockOpen(false);
+			if (error) throw error;
+
+			// Opcional: Registrar el gasto en finanzas
+			await supabase.from("finance_entries").insert([
+				{
+					user_id: user.uid,
+					date: new Date().toISOString().split("T")[0],
+					type: "expense",
+					category: "Material",
+					description: `Reposición: ${restockItem.name} (${qtyBought} ${restockItem.unit})`,
+					amount: purchaseCost,
+				},
+			]);
+
+			showToast("Stock repuesto y coste actualizado");
+			setIsRestockModalOpen(false);
 		} catch (error) {
-			console.error(error);
 			showToast("Error al reponer stock", "error");
+		} finally {
+			setLoading(false);
 		}
 	};
 
 	return (
-		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
-			{/* Header y Buscador */}
+		<div className="space-y-6 animate-in fade-in pb-20">
+			{/* Buscador y Botón */}
 			<div className="flex flex-col md:flex-row gap-4 justify-between items-center">
 				<div className="relative flex-1 w-full md:max-w-md">
-					<Search className="absolute left-3 top-3 text-gray-400" size={18} />
+					<Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
 					<input
 						placeholder="Buscar material..."
-						className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl focus:ring-2 ring-rose-100 outline-none shadow-sm"
+						className="w-full pl-12 p-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm outline-none focus:ring-2 ring-rose-100"
 						value={searchTerm}
 						onChange={(e) => setSearchTerm(e.target.value)}
 					/>
 				</div>
 				<button
-					onClick={() => openForm()}
-					className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-3 rounded-xl font-bold flex items-center gap-2 shadow-sm transition-colors w-full md:w-auto justify-center">
+					onClick={() => openModal()}
+					className="bg-[#f43f5e] hover:bg-rose-600 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-rose-100 transition-all w-full md:w-auto justify-center">
 					<Plus size={20} /> Nuevo Material
 				</button>
 			</div>
 
-			{/* ALERTA DE STOCK BAJO (Solo visible si hay productos bajos) */}
-			{lowStockItems.length > 0 && (
-				<div className="bg-orange-50 border border-orange-100 p-4 rounded-xl flex items-start gap-3">
-					<AlertTriangle
-						className="text-orange-500 shrink-0 mt-0.5"
-						size={20}
-					/>
+			{/* Alerta de Stock Bajo */}
+			{lowStockCount > 0 && (
+				<div className="bg-[#fffbeb] border border-[#fef3c7] p-4 rounded-2xl flex items-start gap-4 shadow-sm">
+					<div className="p-2 bg-white rounded-xl shadow-sm">
+						<AlertTriangle className="text-[#d97706]" size={20} />
+					</div>
 					<div>
-						<h4 className="font-bold text-orange-800 text-sm">
-							Stock Bajo Detectado
-						</h4>
-						<p className="text-xs text-orange-600 mt-1">
-							Tienes {lowStockItems.length} productos por debajo del mínimo.
-							Revisa la lista.
+						<h4 className="font-bold text-[#92400e]">Stock Bajo Detectado</h4>
+						<p className="text-sm text-[#b45309]">
+							Tienes {lowStockCount} productos por debajo del mínimo. Revisa la
+							lista.
 						</p>
 					</div>
 				</div>
 			)}
 
-			{/* Tabla de Inventario */}
-			<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+			{/* Tabla Profesional Restaurada */}
+			<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
 				<table className="w-full text-left border-collapse">
 					<thead>
-						<tr className="bg-gray-50 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase tracking-wider">
-							<th className="p-4">Material</th>
-							<th className="p-4 text-center">Stock</th>
-							<th className="p-4 text-right hidden md:table-cell">
-								Coste Unit.
-							</th>
-							<th className="p-4 text-right">Acciones</th>
+						<tr className="bg-gray-50/50 border-b text-[11px] font-black text-gray-400 uppercase tracking-[0.1em]">
+							<th className="p-6">Material</th>
+							<th className="p-6 text-center">Stock</th>
+							<th className="p-6 text-center">Coste Unit.</th>
+							<th className="p-6 text-right">Acciones</th>
 						</tr>
 					</thead>
 					<tbody className="divide-y divide-gray-100">
-						{filteredInventory.map((item) => {
-							const isLowStock = item.stock <= (item.minStock || 5);
-							return (
-								<tr
-									key={item.id}
-									className={`hover:bg-gray-50/50 transition-colors ${isLowStock ? "bg-orange-50/30" : ""}`}>
-									<td className="p-4">
-										<div className="flex items-center gap-3">
-											<div
-												className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${isLowStock ? "bg-orange-100 text-orange-600" : "bg-gray-100 text-gray-500"}`}>
-												<Package size={20} />
-											</div>
-											<div>
-												<p className="font-bold text-gray-900">{item.name}</p>
-												<p className="text-xs text-gray-400">{item.unit}</p>
-											</div>
+						{filteredInventory.map((item) => (
+							<tr
+								key={item.id}
+								className="hover:bg-gray-50/30 transition-colors group">
+								<td className="p-6">
+									<div className="flex items-center gap-4">
+										<div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-rose-50 group-hover:text-rose-500 transition-colors">
+											<Package size={24} />
 										</div>
-									</td>
-									<td className="p-4 text-center">
+										<div>
+											<p className="font-bold text-gray-900 text-lg leading-tight">
+												{item.name}
+											</p>
+											<p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+												{item.unit || "uds"}
+											</p>
+										</div>
+									</div>
+								</td>
+								<td className="p-6 text-center">
+									<div className="inline-flex flex-col items-center">
 										<span
-											className={`px-3 py-1 rounded-full text-sm font-bold ${
-												isLowStock
-													? "bg-red-100 text-red-600 border border-red-200"
-													: "bg-green-100 text-green-700 border border-green-200"
+											className={`px-4 py-1.5 rounded-full text-sm font-black shadow-sm ${
+												Number(item.stock) <= Number(item.min_stock)
+													? "bg-rose-50 text-rose-600 border border-rose-100"
+													: "bg-emerald-50 text-emerald-600 border border-emerald-100"
 											}`}>
 											{item.stock}
 										</span>
-										{isLowStock && (
-											<p className="text-[10px] text-red-500 font-bold mt-1">
+										{Number(item.stock) <= Number(item.min_stock) && (
+											<span className="text-[10px] font-black text-rose-500 mt-1 uppercase tracking-tighter italic">
 												¡Reponer!
-											</p>
+											</span>
 										)}
-									</td>
-									<td className="p-4 text-right hidden md:table-cell">
-										<p className="text-sm font-medium text-gray-600">
-											{formatCurrency(item.unitCost)}
-										</p>
-									</td>
-									<td className="p-4 text-right">
-										<div className="flex justify-end gap-2">
-											{/* Botón Reponer */}
-											<button
-												onClick={() => openRestock(item)}
-												className="p-2 text-blue-500 bg-blue-50 hover:bg-blue-100 rounded-lg shadow-sm transition-colors"
-												title="Añadir Compra (Reponer)">
-												<RefreshCw size={16} />
-											</button>
-											{/* Editar */}
-											<button
-												onClick={() => openForm(item)}
-												className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
-												<Save size={16} />
-											</button>
-											{/* Borrar */}
-											<button
-												onClick={() => handleDelete(item.id)}
-												className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg">
-												<X size={16} />
-											</button>
-										</div>
-									</td>
-								</tr>
-							);
-						})}
+									</div>
+								</td>
+								<td className="p-6 text-center">
+									<span className="font-bold text-gray-600 text-lg">
+										{item.unit_cost} €
+									</span>
+								</td>
+								<td className="p-6 text-right">
+									<div className="flex justify-end gap-2">
+										<button
+											onClick={() => openRestockModal(item)}
+											className="p-2.5 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-500 hover:text-white transition-all shadow-sm"
+											title="Reponer Stock">
+											<RotateCcw size={18} />
+										</button>
+										<button
+											onClick={() => openModal(item)}
+											className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-200 transition-all shadow-sm">
+											<Edit2 size={18} />
+										</button>
+										<button
+											onClick={async () => {
+												if (confirm("¿Eliminar?"))
+													await supabase
+														.from("inventory")
+														.delete()
+														.eq("id", item.id);
+											}}
+											className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">
+											<Trash2 size={18} />
+										</button>
+									</div>
+								</td>
+							</tr>
+						))}
 					</tbody>
 				</table>
 			</div>
 
-			{/* MODAL 1: CREAR / EDITAR PRODUCTO */}
-			{isFormOpen && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+			{/* --- MODAL 1: NUEVO MATERIAL (Full Height) --- */}
+			{isModalOpen && (
+				<div className="fixed inset-0 z-50 flex justify-center items-start p-4">
 					<div
 						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-						onClick={() => setIsFormOpen(false)}
+						onClick={() => setIsModalOpen(false)}
 					/>
-					<div className="relative bg-white w-full max-w-md rounded-2xl shadow-xl p-6 animate-in zoom-in-95">
-						<div className="flex justify-between items-center mb-4">
-							<h3 className="font-bold text-lg">
+					<div className="relative bg-white w-full max-w-lg rounded-t-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-[0px] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
+						<div className="p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
+							<h3 className="text-2xl font-black text-gray-800 tracking-tight">
 								{editingItem ? "Editar Material" : "Nuevo Material"}
 							</h3>
-							<button onClick={() => setIsFormOpen(false)}>
-								<X className="text-gray-400" />
+							<button
+								onClick={() => setIsModalOpen(false)}
+								className="text-gray-400 hover:text-gray-600 p-2">
+								<X size={24} />
 							</button>
 						</div>
-						<form onSubmit={handleSaveProduct} className="space-y-4">
-							<div>
-								<label className="text-xs font-bold text-gray-500 uppercase">
-									Nombre
-								</label>
-								<input
-									required
-									className="w-full p-2 border rounded-xl"
-									value={formData.name}
-									onChange={(e) =>
-										setFormData({ ...formData, name: e.target.value })
-									}
-								/>
-							</div>
-							<div className="grid grid-cols-2 gap-4">
+						<div className="flex-1 overflow-y-auto p-8 bg-white custom-scrollbar">
+							<form
+								onSubmit={handleSave}
+								className="space-y-6 flex flex-col min-h-full">
 								<div>
-									<label className="text-xs font-bold text-gray-500 uppercase">
-										Stock Actual
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+										Nombre
 									</label>
 									<input
 										required
+										className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-gray-200 focus:bg-white rounded-2xl outline-none font-bold transition-all"
+										value={formData.name}
+										onChange={(e) =>
+											setFormData({ ...formData, name: e.target.value })
+										}
+									/>
+								</div>
+								<div className="grid grid-cols-2 gap-4">
+									<input
 										type="number"
-										className="w-full p-2 border rounded-xl"
+										placeholder="Stock"
+										className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
 										value={formData.stock}
 										onChange={(e) =>
 											setFormData({ ...formData, stock: e.target.value })
 										}
 									/>
-								</div>
-								<div>
-									<label className="text-xs font-bold text-gray-500 uppercase">
-										Unidad (ml, caja...)
-									</label>
 									<input
-										className="w-full p-2 border rounded-xl"
+										placeholder="Unidad"
+										className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
 										value={formData.unit}
 										onChange={(e) =>
 											setFormData({ ...formData, unit: e.target.value })
 										}
 									/>
 								</div>
-							</div>
-							<div className="grid grid-cols-2 gap-4">
-								<div>
-									<label className="text-xs font-bold text-gray-500 uppercase">
-										Coste Unitario (€)
-									</label>
+								<div className="grid grid-cols-2 gap-4">
 									<input
-										required
 										type="number"
 										step="0.01"
-										className="w-full p-2 border rounded-xl"
-										value={formData.unitCost}
+										placeholder="Coste Unit."
+										className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
+										value={formData.unit_cost}
 										onChange={(e) =>
-											setFormData({ ...formData, unitCost: e.target.value })
+											setFormData({ ...formData, unit_cost: e.target.value })
 										}
 									/>
-								</div>
-								<div>
-									<label className="text-xs font-bold text-rose-500 uppercase">
-										Alerta Mínima
-									</label>
 									<input
 										type="number"
-										className="w-full p-2 border border-rose-100 bg-rose-50 rounded-xl font-bold text-rose-700"
-										value={formData.minStock}
+										placeholder="Mínimo"
+										className="w-full p-4 bg-rose-50 text-rose-600 rounded-2xl outline-none font-bold"
+										value={formData.min_stock}
 										onChange={(e) =>
-											setFormData({ ...formData, minStock: e.target.value })
+											setFormData({ ...formData, min_stock: e.target.value })
 										}
 									/>
 								</div>
-							</div>
-							<button className="w-full bg-rose-500 text-white font-bold py-3 rounded-xl hover:bg-rose-600 mt-2">
-								Guardar
-							</button>
-						</form>
+								<div className="mt-auto pt-8">
+									<button className="w-full bg-[#f43f5e] text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg">
+										Guardar Material
+									</button>
+								</div>
+							</form>
+						</div>
 					</div>
 				</div>
 			)}
 
-			{/* MODAL 2: REPONER STOCK (Cálculo PMP) */}
-			{isRestockOpen && editingItem && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+			{/* --- MODAL 2: REPONER STOCK (Estilo image_5e3e53.png) --- */}
+			{isRestockModalOpen && (
+				<div className="fixed inset-0 z-[60] mt-[100px] flex items-center justify-center p-4">
 					<div
-						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-						onClick={() => setIsRestockOpen(false)}
+						className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+						onClick={() => setIsRestockModalOpen(false)}
 					/>
-					<div className="relative bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 animate-in zoom-in-95">
-						<div className="flex justify-between items-center mb-1">
-							<h3 className="font-bold text-lg text-blue-600">Reponer Stock</h3>
-							<button onClick={() => setIsRestockOpen(false)}>
-								<X className="text-gray-400" />
+					<div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 animate-in zoom-in-95 duration-200">
+						<div className="flex justify-between items-start mb-6">
+							<div>
+								<h3 className="text-2xl font-black text-blue-600 tracking-tight">
+									Reponer Stock
+								</h3>
+								<p className="text-gray-500 font-bold">
+									Añadir unidades a{" "}
+									<span className="text-gray-800">{restockItem?.name}</span>
+								</p>
+							</div>
+							<button
+								onClick={() => setIsRestockModalOpen(false)}
+								className="text-gray-400 hover:text-gray-600 p-1">
+								<X size={24} />
 							</button>
 						</div>
-						<p className="text-sm text-gray-500 mb-4">
-							Añadir unidades a <strong>{editingItem.name}</strong>
-						</p>
 
-						<form onSubmit={handleRestock} className="space-y-4">
+						<form onSubmit={handleRestock} className="space-y-6">
 							<div>
-								<label className="text-xs font-bold text-gray-500 uppercase">
-									Cantidad Comprada
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+									CANTIDAD COMPRADA
 								</label>
 								<div className="relative">
 									<input
-										required
 										type="number"
-										className="w-full p-3 pl-3 border rounded-xl font-bold text-lg"
-										placeholder="0"
+										required
+										className="w-full p-4 bg-gray-50 border-2 border-gray-100 focus:border-blue-200 rounded-2xl outline-none font-bold text-xl transition-all"
 										value={restockData.quantity}
 										onChange={(e) =>
 											setRestockData({
@@ -399,21 +408,22 @@ export const InventoryTab = ({ user, inventory, showToast }) => {
 											})
 										}
 									/>
-									<span className="absolute right-3 top-3.5 text-gray-400 text-sm">
-										{editingItem.unit}
+									<span className="absolute right-4 top-4 text-gray-400 font-bold">
+										{restockItem?.unit || "uds"}
 									</span>
 								</div>
 							</div>
+
 							<div>
-								<label className="text-xs font-bold text-gray-500 uppercase">
-									Coste TOTAL de la compra (€)
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+									COSTE TOTAL DE LA COMPRA (€)
 								</label>
 								<input
-									required
 									type="number"
 									step="0.01"
-									className="w-full p-3 border rounded-xl font-bold text-lg"
+									required
 									placeholder="0.00"
+									className="w-full p-4 bg-gray-50 border-2 border-gray-100 focus:border-blue-200 rounded-2xl outline-none font-bold text-xl transition-all"
 									value={restockData.totalCost}
 									onChange={(e) =>
 										setRestockData({
@@ -422,20 +432,27 @@ export const InventoryTab = ({ user, inventory, showToast }) => {
 										})
 									}
 								/>
-								<p className="text-xs text-gray-400 mt-1">
+								<p className="mt-2 text-[11px] text-gray-400 font-medium leading-relaxed">
 									Pon lo que te ha costado la factura entera de este producto.
 								</p>
 							</div>
 
-							<div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-800">
-								<p>
-									ℹ️ Se recalculará el coste unitario automáticamente (Precio
-									Medio Ponderado).
+							<div className="bg-blue-50/50 p-4 rounded-2xl flex items-start gap-3 border border-blue-100">
+								<Info className="text-blue-500 shrink-0 mt-0.5" size={18} />
+								<p className="text-xs font-bold text-blue-700 leading-relaxed">
+									Se recalculará el coste unitario automáticamente (Precio Medio
+									Ponderado).
 								</p>
 							</div>
 
-							<button className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 mt-2 shadow-lg shadow-blue-200">
-								Confirmar Compra
+							<button
+								disabled={loading}
+								className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-[1.5rem] shadow-xl shadow-blue-100 transition-all text-lg flex justify-center">
+								{loading ? (
+									<Loader2 className="animate-spin" />
+								) : (
+									"Confirmar Compra"
+								)}
 							</button>
 						</form>
 					</div>

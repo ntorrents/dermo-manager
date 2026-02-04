@@ -1,12 +1,15 @@
-// src/App.jsx
 import React, { useState } from "react";
 import { Loader2, LogOut } from "lucide-react";
+
+// Contexto y Autenticación
 import { useAuth } from "./context/AuthContext";
+import { logout } from "./services/auth";
+import { supabase } from "./services/supabase"; // Importación esencial corregida
+
+// Hooks de datos (Migrados a Supabase)
 import { useData } from "./hooks/useData";
 import { useProfile } from "./hooks/useProfile";
 import { useClients } from "./hooks/useClients";
-import { logout } from "./services/auth";
-import { addDocument, updateDocument } from "./services/firestore";
 
 // UI Components
 import { Toast } from "./components/ui/Toast";
@@ -25,10 +28,16 @@ import { SettingsTab } from "./components/settings/SettingsTab";
 import { ClientsTab } from "./components/clients/ClientsTab";
 
 const DermoManager = () => {
-	const { user, loading } = useAuth();
+	const { user, loading: authLoading } = useAuth();
 
 	// Hooks de datos
-	const { inventory, treatments, entries, recurringConfig } = useData(user);
+	const {
+		inventory,
+		treatments,
+		entries,
+		recurringConfig,
+		loading: dataLoading,
+	} = useData(user);
 	const profile = useProfile(user);
 	const { clients } = useClients(user);
 
@@ -43,9 +52,9 @@ const DermoManager = () => {
 	const showToastMsg = (msg, type = "success") =>
 		setToast({ message: msg, type });
 
-	// --- LÓGICA DE SESIÓN ---
+	// --- LÓGICA DE SESIÓN (SUPABASE TRANSACTIONAL LOGIC) ---
 	const handleSession = async (treatment, clientData) => {
-		// 1. Validar Stock
+		// 1. Validar Stock localmente antes de intentar la operación
 		const missing = treatment.recipe?.find((r) => {
 			const item = inventory.find((i) => i.id === r.materialId);
 			return !item || item.stock < r.quantity;
@@ -57,68 +66,88 @@ const DermoManager = () => {
 		}
 
 		try {
-			// 2. Descontar Stock
-			if (treatment.recipe) {
+			// 2. Descontar Stock en Supabase
+			if (treatment.recipe && treatment.recipe.length > 0) {
 				for (const r of treatment.recipe) {
 					const item = inventory.find((i) => i.id === r.materialId);
 					if (item) {
-						await updateDocument(user.uid, "inventory", r.materialId, {
-							stock: item.stock - r.quantity,
-						});
+						const { error: invError } = await supabase
+							.from("inventory")
+							.update({ stock: Number(item.stock) - Number(r.quantity) })
+							.eq("id", r.materialId);
+						if (invError) throw invError;
 					}
 				}
 			}
 
-			// 3. Calcular Coste
+			// 3. Calcular Coste basado en el inventario actual
 			const cost =
 				treatment.recipe?.reduce((total, r) => {
 					const item = inventory.find((m) => m.id === r.materialId);
-					return total + (item ? item.unitCost * r.quantity : 0);
+					return (
+						total +
+						(item ? (Number(item.unit_cost) || 0) * Number(r.quantity) : 0)
+					);
 				}, 0) || 0;
 
-			// Preparar nombre
 			const displayName = clientData.id
 				? `${treatment.name} (${clientData.name} ${clientData.surname || ""})`
 				: `${treatment.name} (${clientData.name})`;
 
-			// 4. Registrar Ingreso
-			await addDocument(user.uid, "finance_entries", {
-				date: new Date().toISOString().split("T")[0],
-				type: "income",
-				category: "Servicio",
-				description: displayName,
-				amount: Number(treatment.price),
-				relatedCost: cost,
-				clientId: clientData.id || null,
-				clientNameSnapshot: clientData.name,
-				recipeSnapshot: treatment.recipe || [],
-				createdAt: new Date().toISOString(),
-			});
+			// 4. Registrar Ingreso en Supabase (finance_entries)
+			const { error: finError } = await supabase
+				.from("finance_entries")
+				.insert([
+					{
+						user_id: user.uid, // Mantenemos el ID de Firebase para el campo user_id (TEXT)
+						date: new Date().toISOString().split("T")[0],
+						type: "income",
+						category: "Servicio",
+						description: displayName,
+						amount: Number(treatment.price),
+						related_cost: Number(cost),
+						client_id: clientData.id || null,
+					},
+				]);
 
-			// 5. Registrar Gasto
+			if (finError) throw finError;
+
+			// 5. Registrar Gasto Automático si hay coste asociado
 			if (cost > 0) {
-				await addDocument(user.uid, "finance_entries", {
-					date: new Date().toISOString().split("T")[0],
-					type: "expense",
-					category: "Material",
-					isAutomatic: true,
-					description: `Material: ${treatment.name}`,
-					amount: cost,
-				});
+				const { error: expError } = await supabase
+					.from("finance_entries")
+					.insert([
+						{
+							user_id: user.uid,
+							date: new Date().toISOString().split("T")[0],
+							type: "expense",
+							category: "Material",
+							description: `Consumo material: ${treatment.name}`,
+							amount: Number(cost),
+							is_automatic: true,
+						},
+					]);
+				if (expError) throw expError;
 			}
 
-			showToastMsg("Sesión registrada con éxito");
+			showToastMsg("Sesión registrada y stock actualizado");
 			setSelectedTreatment(null);
 		} catch (e) {
-			console.error("Error en handleSession:", e);
-			showToastMsg("Error al registrar sesión", "error");
+			console.error("Error en handleSession:", e.message);
+			showToastMsg("Error al procesar la sesión", "error");
 		}
 	};
 
-	if (loading)
+	// --- ESTADOS DE CARGA ---
+	if (authLoading || (user && dataLoading))
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-rose-50">
-				<Loader2 className="animate-spin text-rose-500" />
+				<div className="flex flex-col items-center gap-4">
+					<Loader2 className="animate-spin text-rose-500" size={40} />
+					<p className="text-rose-400 font-medium">
+						Sincronizando con Supabase...
+					</p>
+				</div>
 			</div>
 		);
 
@@ -136,8 +165,8 @@ const DermoManager = () => {
 
 			<ConfirmModal
 				isOpen={showLogout}
-				title="Salir"
-				message="¿Cerrar sesión?"
+				title="Cerrar Sesión"
+				message="¿Estás seguro de que quieres salir del gestor?"
 				onCancel={() => setShowLogout(false)}
 				onConfirm={() => {
 					logout();
@@ -146,6 +175,7 @@ const DermoManager = () => {
 				isDestructive
 			/>
 
+			{/* Modal de Registro de Sesión */}
 			<SessionModal
 				isOpen={!!selectedTreatment}
 				treatment={selectedTreatment}
@@ -163,11 +193,11 @@ const DermoManager = () => {
 
 			{/* Header Móvil */}
 			<div className="md:hidden h-16 bg-white border-b sticky top-0 z-40 px-4 flex items-center justify-between shadow-sm">
-				<span className="font-bold text-xl text-rose-500">
-					{profile?.companyName || "DermoApp"}
+				<span className="font-bold text-xl text-rose-500 uppercase tracking-tighter">
+					{profile?.companyName || "DermoManager"}
 				</span>
-				<button onClick={() => setShowLogout(true)}>
-					<LogOut size={16} className="text-gray-400" />
+				<button onClick={() => setShowLogout(true)} className="p-2">
+					<LogOut size={18} className="text-gray-400" />
 				</button>
 			</div>
 
