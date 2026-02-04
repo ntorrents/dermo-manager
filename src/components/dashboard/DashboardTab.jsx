@@ -10,12 +10,11 @@ import {
 	BarChart3,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
-import { DailyBarChart } from "./DailyBarChart"; // <--- 1. IMPORTAMOS LA NUEVA GRÁFICA
+import { DailyBarChart } from "./DailyBarChart";
 
-// 2. AÑADIMOS 'treatments' A LAS PROPS
 export const DashboardTab = ({
 	user,
-	entries,
+	entries = [],
 	inventory = [],
 	treatments = [],
 	currentMonth,
@@ -24,27 +23,29 @@ export const DashboardTab = ({
 }) => {
 	// --- LÓGICA DE FECHAS ---
 	const currentData = useMemo(() => {
-		return entries.filter((e) => e.date.startsWith(currentMonth));
+		// Filtramos por texto YYYY-MM
+		return entries.filter((e) => e.date && e.date.startsWith(currentMonth));
 	}, [entries, currentMonth]);
 
 	const previousMonth = useMemo(() => {
+		if (!currentMonth) return "";
 		const date = new Date(currentMonth + "-01");
 		date.setMonth(date.getMonth() - 1);
 		return date.toISOString().slice(0, 7);
 	}, [currentMonth]);
 
 	const previousData = useMemo(() => {
-		return entries.filter((e) => e.date.startsWith(previousMonth));
+		return entries.filter((e) => e.date && e.date.startsWith(previousMonth));
 	}, [entries, previousMonth]);
 
-	// --- CÁLCULOS FINANCIEROS ---
+	// --- CÁLCULOS FINANCIEROS BLINDADOS ---
 	const calculateStats = (data) => {
 		const income = data
 			.filter((e) => e.type === "income")
-			.reduce((a, b) => a + b.amount, 0);
+			.reduce((a, b) => a + Number(b.amount || 0), 0); // Convertimos a número
 		const expense = data
 			.filter((e) => e.type === "expense")
-			.reduce((a, b) => a + b.amount, 0);
+			.reduce((a, b) => a + Number(b.amount || 0), 0); // Convertimos a número
 		return { income, expense, net: income - expense };
 	};
 
@@ -56,26 +57,23 @@ export const DashboardTab = ({
 			: ((currentStats.net - prevStats.net) / prevStats.net) * 100;
 	const isGrowing = growth >= 0;
 
-	// --- 3. LÓGICA TOP TRATAMIENTOS (FILTRADO MEJORADO) ---
+	// --- LÓGICA TOP TRATAMIENTOS ---
 	const topTreatments = useMemo(() => {
-		// A. Creamos un Set con los nombres oficiales de tus tratamientos (en minúsculas para comparar)
 		const officialTreatments = new Set(
-			treatments.map((t) => t.name.toLowerCase()),
+			treatments.map((t) => t.name.toLowerCase())
 		);
 
 		const ranking = {};
 
 		currentData
-			.filter((e) => e.type === "income")
+			.filter((e) => e.type === "income" && e.description)
 			.forEach((e) => {
-				// Limpiamos el nombre: "Botox (Pepito)" -> "Botox"
 				const rawName = e.description.split("(")[0].trim();
 
-				// B. EL FILTRO CLAVE: Solo contamos si el nombre está en tu catálogo oficial
 				if (officialTreatments.has(rawName.toLowerCase())) {
 					if (!ranking[rawName]) ranking[rawName] = { count: 0, amount: 0 };
 					ranking[rawName].count += 1;
-					ranking[rawName].amount += e.amount;
+					ranking[rawName].amount += Number(e.amount || 0);
 				}
 			});
 
@@ -83,10 +81,12 @@ export const DashboardTab = ({
 			.map(([name, data]) => ({ name, ...data }))
 			.sort((a, b) => b.amount - a.amount)
 			.slice(0, 5);
-	}, [currentData, treatments]); // Se recalcula si cambian los tratamientos
+	}, [currentData, treatments]);
 
-	// --- LÓGICA ALERTAS (Stock Bajo) ---
-	const lowStockItems = inventory.filter((i) => i.stock <= (i.minStock || 5));
+	// --- ALERTAS ---
+	const lowStockItems = inventory.filter(
+		(i) => Number(i.stock) <= Number(i.min_stock || 5)
+	);
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
@@ -102,7 +102,7 @@ export const DashboardTab = ({
 					type="month"
 					value={currentMonth}
 					onChange={(e) => setCurrentMonth(e.target.value)}
-					className="bg-white border border-gray-200 p-2 rounded-xl text-gray-600 font-medium shadow-sm outline-none focus:ring-2 ring-rose-100"
+					className="bg-white border border-gray-200 p-2 rounded-xl text-gray-600 font-medium shadow-sm outline-none focus:ring-2 ring-rose-100 cursor-pointer"
 				/>
 			</div>
 
@@ -136,9 +136,8 @@ export const DashboardTab = ({
 				</div>
 			)}
 
-			{/* KPIS PRINCIPALES */}
+			{/* KPIS */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-				{/* Beneficio Neto */}
 				<div className="md:col-span-1 bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6 rounded-3xl shadow-xl flex flex-col justify-between relative overflow-hidden">
 					<div className="absolute top-0 right-0 w-32 h-32 bg-rose-500 rounded-full blur-[60px] opacity-20 -mr-10 -mt-10 pointer-events-none"></div>
 					<div>
@@ -151,7 +150,11 @@ export const DashboardTab = ({
 					</div>
 					<div className="mt-8">
 						<div
-							className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${isGrowing ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+							className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
+								isGrowing
+									? "bg-green-500/20 text-green-400"
+									: "bg-red-500/20 text-red-400"
+							}`}>
 							{isGrowing ? (
 								<ArrowUpRight size={16} />
 							) : (
@@ -165,7 +168,6 @@ export const DashboardTab = ({
 					</div>
 				</div>
 
-				{/* Ingresos vs Gastos */}
 				<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center gap-6">
 					<div>
 						<div className="flex justify-between items-center mb-1">
@@ -196,13 +198,12 @@ export const DashboardTab = ({
 					</div>
 				</div>
 
-				{/* Ticket Medio */}
 				<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center gap-4">
 					<div className="flex items-center gap-4">
 						<div className="bg-blue-100 text-blue-600 w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg">
 							{formatCurrency(
 								currentStats.income /
-									(currentData.filter((e) => e.type === "income").length || 1),
+									(currentData.filter((e) => e.type === "income").length || 1)
 							).replace("€", "")}
 						</div>
 						<div>
@@ -213,9 +214,8 @@ export const DashboardTab = ({
 				</div>
 			</div>
 
-			{/* GRÁFICO DIARIO + TOP TRATAMIENTOS */}
+			{/* GRÁFICAS */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-				{/* 4. AQUÍ ESTÁ LA NUEVA GRÁFICA DE BARRAS */}
 				<div className="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
 					<h3 className="font-bold text-lg text-gray-800 mb-6 flex items-center gap-2">
 						<BarChart3 className="text-rose-500" size={20} /> Actividad Diaria
@@ -225,12 +225,10 @@ export const DashboardTab = ({
 					</div>
 				</div>
 
-				{/* Ranking Filtrado */}
 				<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
 					<h3 className="font-bold text-lg text-gray-800 mb-4 flex items-center gap-2">
 						<Award className="text-yellow-500" size={20} /> Top Tratamientos
 					</h3>
-
 					{topTreatments.length > 0 ? (
 						<div className="space-y-4">
 							{topTreatments.map((t, index) => (
@@ -243,10 +241,10 @@ export const DashboardTab = ({
 												index === 0
 													? "bg-yellow-100 text-yellow-700"
 													: index === 1
-														? "bg-gray-100 text-gray-600"
-														: index === 2
-															? "bg-orange-100 text-orange-700"
-															: "bg-rose-50 text-rose-400"
+													? "bg-gray-100 text-gray-600"
+													: index === 2
+													? "bg-orange-100 text-orange-700"
+													: "bg-rose-50 text-rose-400"
 											}`}>
 											#{index + 1}
 										</div>
@@ -268,13 +266,7 @@ export const DashboardTab = ({
 					) : (
 						<div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-50">
 							<Package size={40} className="mb-2" />
-							<p className="text-sm text-center">
-								No hay tratamientos registrados
-								<br />
-								<span className="text-xs">
-									(O los ingresos no coinciden con el catálogo)
-								</span>
-							</p>
+							<p className="text-sm text-center">Sin datos suficientes</p>
 						</div>
 					)}
 				</div>
