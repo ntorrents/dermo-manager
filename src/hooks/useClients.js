@@ -12,19 +12,20 @@ export const useClients = (user) => {
 			return;
 		}
 
-		// Función para obtener clientes de Supabase
 		const fetchClients = async () => {
 			try {
 				setLoading(true);
+				// CORREGIDO: user.id
 				const { data, error } = await supabase
 					.from("clients")
 					.select("*")
+					.eq("user_id", user.id)
 					.order("name", { ascending: true });
 
 				if (error) throw error;
 				setClients(data || []);
-			} catch (error) {
-				console.error("Error cargando clientes:", error.message);
+			} catch (err) {
+				console.error("Error cargando clientes:", err.message);
 			} finally {
 				setLoading(false);
 			}
@@ -32,19 +33,22 @@ export const useClients = (user) => {
 
 		fetchClients();
 
-		// Suscripción en tiempo real (Opcional, pero muy pro)
-		const subscription = supabase
-			.channel("public:clients")
+		// CORREGIDO: Filtro de realtime con user.id
+		const channel = supabase
+			.channel("clients-realtime")
 			.on(
 				"postgres_changes",
-				{ event: "*", schema: "public", table: "clients" },
+				{
+					event: "*",
+					schema: "public",
+					table: "clients",
+					filter: `user_id=eq.${user.id}`,
+				},
 				fetchClients
 			)
 			.subscribe();
 
-		return () => {
-			supabase.removeChannel(subscription);
-		};
+		return () => supabase.removeChannel(channel);
 	}, [user]);
 
 	return { clients, loading };

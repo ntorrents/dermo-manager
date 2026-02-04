@@ -91,9 +91,10 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 				if (error) throw error;
 				showToast("Material actualizado");
 			} else {
+				// CORREGIDO: user.id
 				const { error } = await supabase
 					.from("inventory")
-					.insert([{ ...payload, user_id: user.uid }]);
+					.insert([{ ...payload, user_id: user.id }]);
 				if (error) throw error;
 				showToast("Material creado");
 			}
@@ -137,10 +138,11 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 
 			if (error) throw error;
 
-			// Opcional: Registrar el gasto en finanzas
+			// Registrar el gasto en finanzas
+			// CORREGIDO: user.id
 			await supabase.from("finance_entries").insert([
 				{
-					user_id: user.uid,
+					user_id: user.id, // Antes user.uid
 					date: new Date().toISOString().split("T")[0],
 					type: "expense",
 					category: "Material",
@@ -279,7 +281,7 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 				</table>
 			</div>
 
-			{/* --- MODAL 1: NUEVO MATERIAL (Full Height) --- */}
+			{/* --- MODAL 1: NUEVO MATERIAL --- */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-50 flex justify-center items-start p-4">
 					<div
@@ -365,7 +367,7 @@ export const InventoryTab = ({ user, inventory = [], showToast }) => {
 				</div>
 			)}
 
-			{/* --- MODAL 2: REPONER STOCK (Estilo image_5e3e53.png) --- */}
+			{/* --- MODAL 2: REPONER STOCK --- */}
 			{isRestockModalOpen && (
 				<div className="fixed inset-0 z-[60] mt-[100px] flex items-center justify-center p-4">
 					<div

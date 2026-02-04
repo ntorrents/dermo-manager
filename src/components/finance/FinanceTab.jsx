@@ -52,7 +52,8 @@ export const FinanceTab = ({
 			const { data, error } = await supabase
 				.from("recurring_config")
 				.select("*")
-				.eq("user_id", user.uid);
+				// CORREGIDO: user.id en lugar de user.uid
+				.eq("user_id", user.id);
 
 			if (error) throw error;
 			setRecurringExpenses(data || []);
@@ -94,7 +95,7 @@ export const FinanceTab = ({
 		.reduce((acc, curr) => acc + Number(curr.amount), 0);
 	const netProfit = totalIncome - totalExpense;
 
-	// --- 3. LÓGICA DE ESTADO DE PAGOS (FOTO 1) ---
+	// --- 3. LÓGICA DE ESTADO DE PAGOS ---
 	const getFixedStatus = (expense) => {
 		const found = entries
 			.filter((e) => e.date.startsWith(currentMonth))
@@ -129,7 +130,7 @@ export const FinanceTab = ({
 				{
 					...formData,
 					amount: Number(formData.amount),
-					user_id: user.uid,
+					user_id: user.id, // CORREGIDO: user.id
 				},
 			]);
 			if (error) throw error;
@@ -150,7 +151,7 @@ export const FinanceTab = ({
 
 				const { error } = await supabase.from("finance_entries").insert([
 					{
-						user_id: user.uid,
+						user_id: user.id, // CORREGIDO: user.id
 						type: "expense",
 						amount: Number(expense.amount),
 						category: "Fijo",
@@ -166,16 +167,27 @@ export const FinanceTab = ({
 		}
 	};
 
+	const handleDelete = async (id) => {
+		if (confirm("¿Eliminar movimiento?")) {
+			const { error } = await supabase
+				.from("finance_entries")
+				.delete()
+				.eq("id", id);
+			if (error) showToast("Error al eliminar", "error");
+			else showToast("Eliminado");
+		}
+	};
+
 	const handleSaveConfig = async (e) => {
 		e.preventDefault();
 		try {
-			// Sincronización con Supabase: Borramos y recreamos
-			await supabase.from("recurring_config").delete().eq("user_id", user.uid);
+			// Sincronización con Supabase: Borramos y recreamos para el usuario actual
+			await supabase.from("recurring_config").delete().eq("user_id", user.id); // CORREGIDO: user.id
 
 			const toInsert = recurringExpenses
 				.filter((exp) => exp.category && exp.amount > 0)
 				.map((exp) => ({
-					user_id: user.uid,
+					user_id: user.id, // CORREGIDO: user.id
 					category: exp.category,
 					amount: Number(exp.amount),
 				}));
@@ -272,9 +284,16 @@ export const FinanceTab = ({
 												{entry.date}
 											</p>
 										</div>
-										<span className="font-black text-emerald-500">
-											+{formatCurrency(entry.amount)}
-										</span>
+										<div className="flex items-center gap-3">
+											<span className="font-black text-emerald-500">
+												+{formatCurrency(entry.amount)}
+											</span>
+											<button
+												onClick={() => handleDelete(entry.id)}
+												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
+												<Trash2 size={14} />
+											</button>
+										</div>
 									</div>
 								))
 						) : (
@@ -317,9 +336,16 @@ export const FinanceTab = ({
 												<span className="text-rose-400">{entry.category}</span>
 											</p>
 										</div>
-										<span className="font-black text-rose-500">
-											-{formatCurrency(entry.amount)}
-										</span>
+										<div className="flex items-center gap-3">
+											<span className="font-black text-rose-500">
+												-{formatCurrency(entry.amount)}
+											</span>
+											<button
+												onClick={() => handleDelete(entry.id)}
+												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
+												<Trash2 size={14} />
+											</button>
+										</div>
 									</div>
 								))
 						) : (
@@ -330,7 +356,7 @@ export const FinanceTab = ({
 					</div>
 				</div>
 
-				{/* COLUMNA 3: CONTROL DE FIJOS (FOTO 1) */}
+				{/* COLUMNA 3: CONTROL DE FIJOS */}
 				<div className="space-y-4">
 					<div className="flex justify-between items-center px-4">
 						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest">
@@ -353,7 +379,11 @@ export const FinanceTab = ({
 							</span>
 						</div>
 
-						{recurringExpenses.length > 0 ? (
+						{loadingConfig ? (
+							<div className="flex justify-center py-4 text-rose-500">
+								<Loader2 className="animate-spin" />
+							</div>
+						) : recurringExpenses.length > 0 ? (
 							recurringExpenses.map((exp, idx) => {
 								const status = getFixedStatus(exp);
 								return (
@@ -401,14 +431,14 @@ export const FinanceTab = ({
 				</div>
 			</div>
 
-			{/* MODAL 1: NUEVO MOVIMIENTO (Full Height) */}
+			{/* MODAL 1: NUEVO MOVIMIENTO */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-[9999] flex justify-center items-start p-4">
 					<div
 						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
 						onClick={() => setIsModalOpen(false)}
 					/>
-					<div className="relative bg-white w-full max-w-md rounded-t-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-[0px] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
+					<div className="relative bg-white w-full max-w-md rounded-t-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-[100px] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
 						<div className="p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
 							<h3
 								className={`text-2xl font-black uppercase italic tracking-tighter ${
@@ -516,14 +546,14 @@ export const FinanceTab = ({
 				</div>
 			)}
 
-			{/* MODAL 2: CONFIGURACIÓN (FOTO 2) */}
+			{/* MODAL 2: CONFIGURACIÓN */}
 			{isConfigOpen && (
 				<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
 					<div
 						className="fixed inset-0 bg-black/60 backdrop-blur-sm"
 						onClick={() => setIsConfigOpen(false)}
 					/>
-					<div className="relative bg-white w-full max-w-md rounded-t-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-[150px] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
+					<div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
 						<div className="p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
 							<div>
 								<h3 className="text-2xl font-black text-gray-800 tracking-tighter italic">

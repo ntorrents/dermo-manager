@@ -1,28 +1,50 @@
-// /Users/nilto/Documents/GitHub/DermoManager/src/context/AuthContext.jsx
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../services/firebase";
+import { supabase } from "../services/supabase";
 
 const AuthContext = createContext();
 
-// eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+	return useContext(AuthContext);
+};
 
 export const AuthProvider = ({ children }) => {
 	const [user, setUser] = useState(null);
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
-		const unsubscribe = onAuthStateChanged(auth, (u) => {
-			setUser(u);
+		// 1. Verificar sesión activa al iniciar
+		const checkSession = async () => {
+			try {
+				const {
+					data: { session },
+				} = await supabase.auth.getSession();
+				setUser(session?.user ?? null);
+			} catch (error) {
+				console.error("Error verificando sesión:", error);
+			} finally {
+				setLoading(false);
+			}
+		};
+
+		checkSession();
+
+		// 2. Escuchar cambios en la autenticación (Login, Logout, Auto-refresh)
+		const {
+			data: { subscription },
+		} = supabase.auth.onAuthStateChange((_event, session) => {
+			setUser(session?.user ?? null);
 			setLoading(false);
 		});
-		return unsubscribe;
+
+		return () => {
+			subscription?.unsubscribe();
+		};
 	}, []);
 
-	return (
-		<AuthContext.Provider value={{ user, loading }}>
-			{!loading && children}
-		</AuthContext.Provider>
-	);
+	const value = {
+		user,
+		loading,
+	};
+
+	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

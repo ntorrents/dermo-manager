@@ -1,95 +1,94 @@
-// /Users/nilto/Documents/GitHub/DermoManager/src/components/auth/LoginScreen.jsx
 import React, { useState } from "react";
-import { Mail, Lock, Loader2 } from "lucide-react";
-import {
-	loginWithEmail,
-	registerWithEmail,
-	loginWithGoogle,
-} from "../../services/auth";
+import { login } from "../../services/auth";
+import { Loader2, Lock, Mail } from "lucide-react";
 
 export const LoginScreen = () => {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState("");
-	const [isRegistering, setIsRegistering] = useState(false);
 
-	const handleAuth = async (e) => {
+	const handleSubmit = async (e) => {
 		e.preventDefault();
 		setLoading(true);
 		setError("");
+
 		try {
-			if (isRegistering) await registerWithEmail(email, password);
-			else await loginWithEmail(email, password);
-		} catch (e) {
-			setError(e.message);
+			await login(email, password);
+			// No hace falta redirigir manual, el AuthContext detectará el cambio
+		} catch (err) {
+			console.error(err);
+			setError("Credenciales incorrectas o error de conexión.");
 		} finally {
 			setLoading(false);
 		}
 	};
 
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-rose-50 p-4">
-			<div className="bg-white w-full max-w-md p-8 rounded-3xl shadow-xl border border-rose-100">
+		<div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+			<div className="bg-white p-8 rounded-[2rem] shadow-xl w-full max-w-md border border-gray-100 animate-in fade-in slide-in-from-bottom-4">
 				<div className="text-center mb-8">
-					<h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-purple-600">
-						DermoApp
+					<h1 className="text-3xl font-black text-gray-800 tracking-tight">
+						Bienvenido
 					</h1>
-					<p className="text-gray-400 text-sm">
-						Gestión inteligente para esteticistas
+					<p className="text-gray-400 font-medium">
+						Inicia sesión en DermoManager
 					</p>
 				</div>
-				<button
-					onClick={loginWithGoogle}
-					className="w-full mb-4 py-3 rounded-xl border border-gray-200 flex justify-center items-center gap-2 hover:bg-gray-50 font-medium text-gray-700">
-					<span className="text-lg">G</span> Continuar con Google
-				</button>
-				<div className="relative flex py-2 items-center">
-					<div className="flex-grow border-t"></div>
-					<span className="flex-shrink-0 mx-4 text-gray-400 text-xs">
-						O usa tu email
-					</span>
-					<div className="flex-grow border-t"></div>
-				</div>
-				<form onSubmit={handleAuth} className="space-y-4 mt-4">
-					<div className="relative">
-						<Mail className="absolute left-3 top-3 text-gray-400" size={18} />
-						<input
-							type="email"
-							placeholder="Email"
-							className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 outline-none focus:border-rose-500"
-							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							required
-						/>
+
+				{error && (
+					<div className="bg-rose-50 text-rose-500 p-4 rounded-xl mb-6 text-sm font-bold text-center border border-rose-100">
+						{error}
 					</div>
-					<div className="relative">
-						<Lock className="absolute left-3 top-3 text-gray-400" size={18} />
-						<input
-							type="password"
-							placeholder="Contraseña"
-							className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 outline-none focus:border-rose-500"
-							value={password}
-							onChange={(e) => setPassword(e.target.value)}
-							required
-						/>
+				)}
+
+				<form onSubmit={handleSubmit} className="space-y-6">
+					<div className="space-y-1">
+						<label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+							Email
+						</label>
+						<div className="relative">
+							<Mail
+								className="absolute left-4 top-3.5 text-gray-400"
+								size={20}
+							/>
+							<input
+								type="email"
+								required
+								className="w-full pl-12 p-3.5 bg-gray-50 border-2 border-transparent focus:border-rose-100 focus:bg-white rounded-2xl outline-none font-bold text-gray-700 transition-all"
+								placeholder="usuario@ejemplo.com"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+							/>
+						</div>
 					</div>
-					{error && <p className="text-red-500 text-xs">{error}</p>}
-					<button className="w-full py-3 bg-rose-500 text-white rounded-xl font-bold hover:bg-rose-600">
-						{loading ? (
-							<Loader2 className="animate-spin mx-auto" />
-						) : isRegistering ? (
-							"Crear Cuenta"
-						) : (
-							"Entrar"
-						)}
+
+					<div className="space-y-1">
+						<label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+							Contraseña
+						</label>
+						<div className="relative">
+							<Lock
+								className="absolute left-4 top-3.5 text-gray-400"
+								size={20}
+							/>
+							<input
+								type="password"
+								required
+								className="w-full pl-12 p-3.5 bg-gray-50 border-2 border-transparent focus:border-rose-100 focus:bg-white rounded-2xl outline-none font-bold text-gray-700 transition-all"
+								placeholder="••••••••"
+								value={password}
+								onChange={(e) => setPassword(e.target.value)}
+							/>
+						</div>
+					</div>
+
+					<button
+						disabled={loading}
+						className="w-full bg-[#1e293b] text-white font-black py-4 rounded-2xl shadow-lg hover:bg-black transition-all flex justify-center items-center gap-2 mt-4">
+						{loading ? <Loader2 className="animate-spin" /> : "Entrar"}
 					</button>
 				</form>
-				<button
-					onClick={() => setIsRegistering(!isRegistering)}
-					className="mt-4 text-sm text-rose-500 hover:underline w-full text-center">
-					{isRegistering ? "¿Ya tienes cuenta?" : "Crear cuenta nueva"}
-				</button>
 			</div>
 		</div>
 	);

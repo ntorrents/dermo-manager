@@ -1,25 +1,17 @@
 import React, { useState } from "react";
 import { Loader2, LogOut } from "lucide-react";
-
-// Contexto y Autenticación
 import { useAuth } from "./context/AuthContext";
 import { logout } from "./services/auth";
-import { supabase } from "./services/supabase"; // Importación esencial corregida
-
-// Hooks de datos (Migrados a Supabase)
+import { supabase } from "./services/supabase";
 import { useData } from "./hooks/useData";
 import { useProfile } from "./hooks/useProfile";
 import { useClients } from "./hooks/useClients";
-
-// UI Components
 import { Toast } from "./components/ui/Toast";
 import { ConfirmModal } from "./components/ui/ConfirmModal";
 import { SessionModal } from "./components/ui/SessionModal";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { Sidebar } from "./components/layout/Sidebar";
 import { MobileNav } from "./components/layout/MobileNav";
-
-// Tabs
 import { DashboardTab } from "./components/dashboard/DashboardTab";
 import { TreatmentsTab } from "./components/treatments/TreatmentsTab";
 import { InventoryTab } from "./components/inventory/InventoryTab";
@@ -29,8 +21,6 @@ import { ClientsTab } from "./components/clients/ClientsTab";
 
 const DermoManager = () => {
 	const { user, loading: authLoading } = useAuth();
-
-	// Hooks de datos
 	const {
 		inventory,
 		treatments,
@@ -52,12 +42,10 @@ const DermoManager = () => {
 	const showToastMsg = (msg, type = "success") =>
 		setToast({ message: msg, type });
 
-	// --- LÓGICA DE SESIÓN (SUPABASE TRANSACTIONAL LOGIC) ---
 	const handleSession = async (treatment, clientData) => {
-		// 1. Validar Stock localmente antes de intentar la operación
 		const missing = treatment.recipe?.find((r) => {
 			const item = inventory.find((i) => i.id === r.materialId);
-			return !item || item.stock < r.quantity;
+			return !item || Number(item.stock) < Number(r.quantity);
 		});
 
 		if (missing) {
@@ -66,7 +54,7 @@ const DermoManager = () => {
 		}
 
 		try {
-			// 2. Descontar Stock en Supabase
+			// 1. Descontar Stock
 			if (treatment.recipe && treatment.recipe.length > 0) {
 				for (const r of treatment.recipe) {
 					const item = inventory.find((i) => i.id === r.materialId);
@@ -80,7 +68,7 @@ const DermoManager = () => {
 				}
 			}
 
-			// 3. Calcular Coste basado en el inventario actual
+			// 2. Calcular Coste
 			const cost =
 				treatment.recipe?.reduce((total, r) => {
 					const item = inventory.find((m) => m.id === r.materialId);
@@ -94,12 +82,12 @@ const DermoManager = () => {
 				? `${treatment.name} (${clientData.name} ${clientData.surname || ""})`
 				: `${treatment.name} (${clientData.name})`;
 
-			// 4. Registrar Ingreso en Supabase (finance_entries)
+			// 3. Registrar Ingreso (OJO: user.id aquí)
 			const { error: finError } = await supabase
 				.from("finance_entries")
 				.insert([
 					{
-						user_id: user.uid, // Mantenemos el ID de Firebase para el campo user_id (TEXT)
+						user_id: user.id, // CORREGIDO: user.id
 						date: new Date().toISOString().split("T")[0],
 						type: "income",
 						category: "Servicio",
@@ -112,13 +100,13 @@ const DermoManager = () => {
 
 			if (finError) throw finError;
 
-			// 5. Registrar Gasto Automático si hay coste asociado
+			// 4. Registrar Gasto Automático
 			if (cost > 0) {
 				const { error: expError } = await supabase
 					.from("finance_entries")
 					.insert([
 						{
-							user_id: user.uid,
+							user_id: user.id, // CORREGIDO: user.id
 							date: new Date().toISOString().split("T")[0],
 							type: "expense",
 							category: "Material",
@@ -138,7 +126,6 @@ const DermoManager = () => {
 		}
 	};
 
-	// --- ESTADOS DE CARGA ---
 	if (authLoading || (user && dataLoading))
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-rose-50">
@@ -162,11 +149,10 @@ const DermoManager = () => {
 					onClose={() => setToast(null)}
 				/>
 			)}
-
 			<ConfirmModal
 				isOpen={showLogout}
 				title="Cerrar Sesión"
-				message="¿Estás seguro de que quieres salir del gestor?"
+				message="¿Estás seguro?"
 				onCancel={() => setShowLogout(false)}
 				onConfirm={() => {
 					logout();
@@ -174,8 +160,6 @@ const DermoManager = () => {
 				}}
 				isDestructive
 			/>
-
-			{/* Modal de Registro de Sesión */}
 			<SessionModal
 				isOpen={!!selectedTreatment}
 				treatment={selectedTreatment}
@@ -183,24 +167,20 @@ const DermoManager = () => {
 				onClose={() => setSelectedTreatment(null)}
 				onConfirm={handleSession}
 			/>
-
 			<Sidebar
 				activeTab={activeTab}
 				setActiveTab={setActiveTab}
 				onLogout={() => setShowLogout(true)}
-				companyName={profile?.companyName}
+				companyName={profile?.company_name}
 			/>
-
-			{/* Header Móvil */}
 			<div className="md:hidden h-16 bg-white border-b sticky top-0 z-40 px-4 flex items-center justify-between shadow-sm">
 				<span className="font-bold text-xl text-rose-500 uppercase tracking-tighter">
-					{profile?.companyName || "DermoManager"}
+					{profile?.company_name || "DermoManager"}
 				</span>
 				<button onClick={() => setShowLogout(true)} className="p-2">
 					<LogOut size={18} className="text-gray-400" />
 				</button>
 			</div>
-
 			<main className="md:pl-64 p-4 md:p-8 max-w-6xl mx-auto space-y-6">
 				{activeTab === "dashboard" && (
 					<DashboardTab
@@ -210,16 +190,12 @@ const DermoManager = () => {
 						treatments={treatments}
 						currentMonth={currentMonth}
 						setCurrentMonth={setCurrentMonth}
-						userName={
-							profile?.name ? `${profile.name} ${profile.surname || ""}` : null
-						}
+						userName={profile?.name}
 					/>
 				)}
-
 				{activeTab === "clients" && (
 					<ClientsTab user={user} showToast={showToastMsg} profile={profile} />
 				)}
-
 				{activeTab === "treatments" && (
 					<TreatmentsTab
 						user={user}
@@ -229,7 +205,6 @@ const DermoManager = () => {
 						onSelectTreatment={setSelectedTreatment}
 					/>
 				)}
-
 				{activeTab === "inventory" && (
 					<InventoryTab
 						user={user}
@@ -237,7 +212,6 @@ const DermoManager = () => {
 						showToast={showToastMsg}
 					/>
 				)}
-
 				{activeTab === "finance" && (
 					<FinanceTab
 						user={user}
@@ -248,15 +222,12 @@ const DermoManager = () => {
 						showToast={showToastMsg}
 					/>
 				)}
-
 				{activeTab === "settings" && (
 					<SettingsTab user={user} profile={profile} showToast={showToastMsg} />
 				)}
 			</main>
-
 			<MobileNav activeTab={activeTab} setActiveTab={setActiveTab} />
 		</div>
 	);
 };
-
 export default DermoManager;

@@ -10,19 +10,17 @@ import {
 	FileText,
 	MapPin,
 	CreditCard,
+	LogOut,
 } from "lucide-react";
-import { updateUserPassword, reauthenticate } from "../../services/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { db } from "../../services/firebase";
+import { supabase } from "../../services/supabase";
+// ELIMINADO: reauthenticate (esto causaba el error 500)
+import { updateUserPassword, logout } from "../../services/auth";
 
 export const SettingsTab = ({ user, profile, showToast }) => {
-	// --- ESTADOS ---
 	const [formData, setFormData] = useState({
-		// Datos Personales
 		name: "",
 		surname: "",
 		mobile: "",
-		// Datos Fiscales
 		companyName: "",
 		nif: "",
 		collegiateNumber: "",
@@ -30,60 +28,58 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 		city: "",
 	});
 
-	// Estados Contraseña
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
-
-	// Loaders y Flags
 	const [loadingProfile, setLoadingProfile] = useState(false);
 	const [loadingPass, setLoadingPass] = useState(false);
 	const [isGoogleUser, setIsGoogleUser] = useState(false);
 
-	// --- EFECTOS ---
-
-	// 1. Detectar usuario de Google
 	useEffect(() => {
 		if (user) {
-			const isGoogle = user.providerData.some(
-				(p) => p.providerId === "google.com",
-			);
+			const isGoogle = user.app_metadata?.provider === "google";
 			setIsGoogleUser(isGoogle);
 		}
 	}, [user]);
 
-	// 2. Cargar Perfil
 	useEffect(() => {
 		if (profile) {
 			setFormData({
 				name: profile.name || "",
 				surname: profile.surname || "",
 				mobile: profile.mobile || "",
-				companyName: profile.companyName || "",
+				companyName: profile.company_name || "",
 				nif: profile.nif || "",
-				collegiateNumber: profile.collegiateNumber || "",
+				collegiateNumber: profile.collegiate_number || "",
 				address: profile.address || "",
 				city: profile.city || "",
 			});
 		}
 	}, [profile]);
 
-	// --- MANEJADORES ---
-
 	const handleUpdateProfile = async () => {
 		setLoadingProfile(true);
 		try {
-			await setDoc(
-				doc(db, `users/${user.uid}/settings/profile`),
-				{
-					...formData,
-					id: "profile",
-				},
-				{ merge: true },
-			);
+			const updates = {
+				id: user.id, // CORREGIDO: user.id (UUID nativo)
+				name: formData.name,
+				surname: formData.surname,
+				mobile: formData.mobile,
+				company_name: formData.companyName,
+				nif: formData.nif,
+				collegiate_number: formData.collegiateNumber,
+				address: formData.address,
+				city: formData.city,
+				email: user.email,
+				updated_at: new Date(),
+			};
+
+			const { error } = await supabase.from("profiles").upsert(updates);
+
+			if (error) throw error;
 			showToast("Datos guardados correctamente");
 		} catch (error) {
-			console.error(error);
+			console.error("Error saving profile:", error);
 			showToast("Error al guardar datos", "error");
 		} finally {
 			setLoadingProfile(false);
@@ -91,7 +87,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 	};
 
 	const handleUpdatePassword = async () => {
-		if (!currentPassword || !password || !confirmPassword)
+		if (!password || !confirmPassword)
 			return showToast("Rellena todos los campos", "error");
 		if (password !== confirmPassword)
 			return showToast("Las contraseñas no coinciden", "error");
@@ -99,14 +95,14 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 
 		setLoadingPass(true);
 		try {
-			await reauthenticate(user, currentPassword);
-			await updateUserPassword(user, password);
+			await updateUserPassword(password);
 			showToast("Contraseña actualizada");
 			setCurrentPassword("");
 			setPassword("");
 			setConfirmPassword("");
 		} catch (e) {
-			showToast("Contraseña actual incorrecta", "error");
+			console.error(e);
+			showToast("Error al actualizar contraseña", "error");
 		} finally {
 			setLoadingPass(false);
 		}
@@ -118,7 +114,6 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 				<h2 className="text-2xl font-bold text-gray-800">Configuración</h2>
 			</div>
 
-			{/* TARJETA 1: DATOS DE EMPRESA */}
 			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
 				<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
 					<Building2 size={20} className="text-rose-500" /> Datos de Facturación
@@ -144,7 +139,6 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 							/>
 						</div>
 					</div>
-
 					<div>
 						<label className="text-xs font-bold text-gray-500 uppercase">
 							NIF / CIF
@@ -182,7 +176,6 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 							/>
 						</div>
 					</div>
-
 					<div className="md:col-span-2">
 						<label className="text-xs font-bold text-gray-500 uppercase">
 							Dirección Fiscal
@@ -234,7 +227,6 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 					</div>
 				</div>
 
-				{/* Sub-sección Contacto */}
 				<div className="mt-6 pt-6 border-t border-gray-100">
 					<h4 className="text-xs font-bold text-gray-500 uppercase mb-3">
 						Persona de Contacto
@@ -276,31 +268,18 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 							<Loader2 className="animate-spin" size={16} />
 						) : (
 							<Save size={16} />
-						)}
+						)}{" "}
 						Guardar Datos
 					</button>
 				</div>
 			</div>
 
-			{/* TARJETA 2: SEGURIDAD */}
 			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
 				<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
 					<Lock size={20} className="text-rose-500" /> Seguridad
 				</h3>
-
 				{!isGoogleUser ? (
 					<div className="space-y-4 max-w-md">
-						<div>
-							<label className="text-xs font-bold text-gray-500 uppercase">
-								Contraseña Actual
-							</label>
-							<input
-								type="password"
-								value={currentPassword}
-								onChange={(e) => setCurrentPassword(e.target.value)}
-								className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none bg-gray-50"
-							/>
-						</div>
 						<div className="grid grid-cols-2 gap-4">
 							<div>
 								<label className="text-xs font-bold text-gray-500 uppercase">
@@ -351,6 +330,14 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 						</div>
 					</div>
 				)}
+			</div>
+
+			<div className="text-center">
+				<button
+					onClick={logout}
+					className="text-rose-500 font-bold flex items-center gap-2 mx-auto hover:bg-rose-50 px-6 py-3 rounded-xl transition-colors">
+					<LogOut size={18} /> Cerrar Sesión
+				</button>
 			</div>
 		</div>
 	);

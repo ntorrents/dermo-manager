@@ -1,35 +1,34 @@
-// /Users/nilto/Documents/GitHub/DermoManager/src/services/auth.js
-import {
-	signInWithEmailAndPassword,
-	createUserWithEmailAndPassword,
-	signOut,
-	GoogleAuthProvider,
-	signInWithPopup,
-	updateProfile,
-	updatePassword,
-	EmailAuthProvider, // Importación añadida
-	reauthenticateWithCredential, // Importación añadida
-} from "firebase/auth";
-import { auth } from "./firebase";
+import { supabase } from "./supabase";
 
-export const loginWithEmail = (email, password) =>
-	signInWithEmailAndPassword(auth, email, password);
+// Iniciar sesión con Email y Contraseña
+export const login = async (email, password) => {
+	const { data, error } = await supabase.auth.signInWithPassword({
+		email,
+		password,
+	});
+	if (error) throw error;
+	return data.user;
+};
 
-export const registerWithEmail = (email, password) =>
-	createUserWithEmailAndPassword(auth, email, password);
+// Cerrar sesión
+export const logout = async () => {
+	const { error } = await supabase.auth.signOut();
+	if (error) throw error;
+};
 
-export const loginWithGoogle = () =>
-	signInWithPopup(auth, new GoogleAuthProvider());
+// Actualizar contraseña (mucho más simple que en Firebase)
+export const updateUserPassword = async (newPassword) => {
+	const { data, error } = await supabase.auth.updateUser({
+		password: newPassword,
+	});
+	if (error) throw error;
+	return data;
+};
 
-export const logout = () => signOut(auth);
-
-export const updateUserProfile = (user, data) => updateProfile(user, data);
-
-export const updateUserPassword = (user, password) =>
-	updatePassword(user, password);
-
-// Nueva función para re-autenticar al usuario antes de cambios sensibles
-export const reauthenticate = async (user, currentPassword) => {
-	const credential = EmailAuthProvider.credential(user.email, currentPassword);
-	return await reauthenticateWithCredential(user, credential);
+// Función auxiliar para obtener usuario actual
+export const getCurrentUser = async () => {
+	const {
+		data: { user },
+	} = await supabase.auth.getUser();
+	return user;
 };

@@ -74,9 +74,10 @@ export const TreatmentsTab = ({
 				if (error) throw error;
 				showToast("Tratamiento actualizado");
 			} else {
+				// CORREGIDO: user.id
 				const { error } = await supabase
 					.from("treatments")
-					.insert([{ ...payload, user_id: user.uid }]);
+					.insert([{ ...payload, user_id: user.id }]);
 				if (error) throw error;
 				showToast("Tratamiento creado");
 			}
@@ -119,7 +120,7 @@ export const TreatmentsTab = ({
 				</button>
 			</div>
 
-			{/* Grid de Tarjetas (Mejorado de image_5e5100.png) */}
+			{/* Grid de Tarjetas */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 				{treatments.map((t) => {
 					const materialCost = calculateCost(t.recipe);
@@ -167,7 +168,7 @@ export const TreatmentsTab = ({
 								</span>
 							</div>
 
-							{/* Desglose de Rentabilidad (image_5e5100.png style) */}
+							{/* Desglose de Rentabilidad */}
 							<div className="bg-gray-50 rounded-2xl p-4 space-y-2 mb-6">
 								<div className="flex justify-between text-sm font-bold">
 									<span className="text-gray-400">Coste Material</span>
@@ -193,7 +194,7 @@ export const TreatmentsTab = ({
 				})}
 			</div>
 
-			{/* --- MODAL: NUEVO TRATAMIENTO (Full Height consistente) --- */}
+			{/* --- MODAL: NUEVO TRATAMIENTO --- */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-50 flex justify-center items-start p-4">
 					<div

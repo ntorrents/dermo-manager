@@ -1,4 +1,3 @@
-// src/components/clients/ClientsTab.jsx
 import React, { useState } from "react";
 import {
 	Search,
@@ -82,6 +81,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 		email: "",
 		address: "",
 		notes: "",
+		dni: "", // Aseguramos que existe el campo dni
 	});
 
 	const filteredClients = clients.filter(
@@ -101,6 +101,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 				email: client.email || "",
 				address: client.address || "",
 				notes: client.notes || "",
+				dni: client.dni || "",
 			});
 			setModalTab("history");
 		} else {
@@ -112,6 +113,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 				email: "",
 				address: "",
 				notes: "",
+				dni: "",
 			});
 			setModalTab("details");
 		}
@@ -122,22 +124,29 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 		e.preventDefault();
 		try {
 			if (!formData.name) return showToast("El nombre es obligatorio", "error");
+
+			// CORRECCIÓN CLAVE: user.id en lugar de user.uid
+			const payload = {
+				...formData,
+				user_id: user.id,
+			};
+
 			if (editingClient) {
+				// Al editar no es estrictamente necesario reenviar user_id, pero no daña
 				const { error } = await supabase
 					.from("clients")
-					.update({ ...formData })
+					.update(formData) // Actualizamos solo los datos del form
 					.eq("id", editingClient.id);
 				if (error) throw error;
 				showToast("Cliente actualizado");
 			} else {
-				const { error } = await supabase
-					.from("clients")
-					.insert([{ ...formData, user_id: user.uid }]);
+				const { error } = await supabase.from("clients").insert([payload]); // Aquí usamos el payload con user.id correcto
 				if (error) throw error;
 				showToast("Cliente creado");
 			}
 			setIsModalOpen(false);
 		} catch (error) {
+			console.error(error); // Para ver el error real en consola si ocurre
 			showToast("Error al guardar", "error");
 		}
 	};
@@ -201,6 +210,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 									<button
 										onClick={(e) => {
 											e.stopPropagation();
+											// Lógica de borrado pendiente, se puede añadir aquí
 										}}
 										className="p-2 text-gray-300 hover:text-red-500">
 										<Trash2 size={16} />
@@ -212,7 +222,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 				</table>
 			</div>
 
-			{/* --- MODAL AJUSTADO PARA PANTALLA COMPLETA HACIA ABAJO --- */}
+			{/* --- MODAL --- */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-50 flex justify-center items-start p-4">
 					<div
@@ -220,9 +230,6 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 						onClick={() => setIsModalOpen(false)}
 					/>
 
-					{/* mt-[100px]: Margen superior fijo.
-					  h-[calc(100vh-120px)]: Ocupa el resto de la pantalla (100vh) menos el margen y un poco de espacio abajo.
-					*/}
 					<div className="relative bg-white w-full max-w-lg rounded-t-2xl shadow-2xl flex flex-col h-[calc(100vh-120px)] mt-[0px] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
 						{/* Cabecera */}
 						<div className="border-b bg-gray-50 shrink-0 p-4 flex justify-between items-center">
@@ -262,7 +269,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 							</div>
 						)}
 
-						{/* Cuerpo: 'flex-1' hace que este div crezca hasta ocupar el fondo del modal */}
+						{/* Cuerpo */}
 						<div className="overflow-y-auto p-6 flex-1 bg-white custom-scrollbar">
 							{modalTab === "history" && editingClient && (
 								<ClientHistoryList
@@ -329,6 +336,20 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 											/>
 										</div>
 									</div>
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+										<div>
+											<label className="text-xs font-bold text-gray-500 uppercase mb-1 block">
+												DNI
+											</label>
+											<input
+												className="w-full p-2.5 border rounded-xl outline-none focus:border-rose-500"
+												value={formData.dni}
+												onChange={(e) =>
+													setFormData({ ...formData, dni: e.target.value })
+												}
+											/>
+										</div>
+									</div>
 									<div>
 										<label className="text-xs font-bold text-gray-500 uppercase mb-1 block">
 											Dirección
@@ -354,7 +375,6 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 										/>
 									</div>
 
-									{/* Empujamos el botón al final del espacio disponible */}
 									<div className="mt-auto pt-6">
 										<button className="w-full bg-rose-500 text-white font-bold py-3 rounded-xl hover:bg-rose-600 shadow-md transition-all">
 											Guardar Ficha

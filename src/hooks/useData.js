@@ -18,23 +18,23 @@ export const useData = (user) => {
 
 		const fetchAllData = async () => {
 			try {
-				// Dentro de fetchAllData en useData.js
+				// CORREGIDO: Usamos user.id en todos los filtros
 				const [inv, treat, rec, fin] = await Promise.all([
 					supabase
 						.from("inventory")
 						.select("*")
-						.eq("user_id", user.uid)
+						.eq("user_id", user.id)
 						.order("name"),
 					supabase
 						.from("treatments")
 						.select("*")
-						.eq("user_id", user.uid)
+						.eq("user_id", user.id)
 						.order("name"),
-					supabase.from("recurring_config").select("*").eq("user_id", user.uid),
+					supabase.from("recurring_config").select("*").eq("user_id", user.id),
 					supabase
 						.from("finance_entries")
 						.select("*")
-						.eq("user_id", user.uid)
+						.eq("user_id", user.id)
 						.order("date", { ascending: false }),
 				]);
 
@@ -52,8 +52,9 @@ export const useData = (user) => {
 		};
 
 		fetchAllData();
+		// Suscripción simple para recargar si hay cambios
 		const channel = supabase
-			.channel("db-changes")
+			.channel("global-db-changes")
 			.on("postgres_changes", { event: "*", schema: "public" }, fetchAllData)
 			.subscribe();
 		return () => supabase.removeChannel(channel);
