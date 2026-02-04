@@ -5,7 +5,6 @@ import {
 	Plus,
 	User,
 	Phone,
-	Mail,
 	Pencil,
 	Trash2,
 	X,
@@ -14,17 +13,16 @@ import {
 	Activity,
 	Download,
 } from "lucide-react";
-import {
-	addDocument,
-	updateDocument,
-	deleteDocument,
-} from "../../services/firestore";
+
+// Sustituimos Firestore por Supabase
+import { supabase } from "../../services/supabase";
 import { useClients } from "../../hooks/useClients";
 import { useClientHistory } from "../../hooks/useClientHistory";
 import { generateInvoice } from "../../utils/invoiceGenerator";
 
 // --- Subcomponente: Lista de Historial dentro del Modal ---
 const ClientHistoryList = ({ user, client, profile }) => {
+	// Nota: Asegúrate de migrar también useClientHistory a Supabase más adelante
 	const { history, loading } = useClientHistory(user, client.id);
 
 	if (loading)
@@ -65,7 +63,6 @@ const ClientHistoryList = ({ user, client, profile }) => {
 						</div>
 					</div>
 
-					{/* Botón de Generar Factura */}
 					<button
 						onClick={() => generateInvoice(entry, client, profile)}
 						className="text-xs font-bold text-rose-500 bg-rose-50 px-3 py-2 rounded-lg hover:bg-rose-100 flex items-center gap-2 transition-colors"
@@ -99,13 +96,20 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 		(c) =>
 			c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 			c.surname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			c.phone?.includes(searchTerm),
+			c.phone?.includes(searchTerm)
 	);
 
 	const openModal = (client = null) => {
 		if (client) {
 			setEditingClient(client);
-			setFormData(client);
+			setFormData({
+				name: client.name || "",
+				surname: client.surname || "",
+				phone: client.phone || "",
+				email: client.email || "",
+				address: client.address || "",
+				notes: client.notes || "",
+			});
 			setModalTab("history");
 		} else {
 			setEditingClient(null);
@@ -128,26 +132,51 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 			if (!formData.name) return showToast("El nombre es obligatorio", "error");
 
 			if (editingClient) {
-				await updateDocument(user.uid, "clients", editingClient.id, formData);
+				// Lógica UPDATE en Supabase
+				const { error } = await supabase
+					.from("clients")
+					.update({
+						name: formData.name,
+						surname: formData.surname,
+						phone: formData.phone,
+						email: formData.email,
+						address: formData.address,
+						notes: formData.notes,
+					})
+					.eq("id", editingClient.id);
+
+				if (error) throw error;
 				showToast("Cliente actualizado");
 			} else {
-				await addDocument(user.uid, "clients", {
-					...formData,
-					createdAt: new Date().toISOString(),
-				});
+				// Lógica INSERT en Supabase
+				const { error } = await supabase.from("clients").insert([
+					{
+						...formData,
+						user_id: user.uid || user.id, // Usamos el ID del usuario actual
+					},
+				]);
+
+				if (error) throw error;
 				showToast("Cliente creado correctamente");
 			}
 			setIsModalOpen(false);
 		} catch (error) {
-			console.error(error);
+			console.error("Error saving client:", error.message);
 			showToast("Error al guardar", "error");
 		}
 	};
 
 	const handleDelete = async (id) => {
 		if (confirm("¿Seguro que quieres eliminar este cliente?")) {
-			await deleteDocument(user.uid, "clients", id);
-			showToast("Cliente eliminado");
+			try {
+				const { error } = await supabase.from("clients").delete().eq("id", id);
+
+				if (error) throw error;
+				showToast("Cliente eliminado");
+			} catch (error) {
+				console.error("Error deleting client:", error.message);
+				showToast("No se pudo eliminar el cliente", "error");
+			}
 		}
 	};
 
@@ -197,8 +226,8 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 								onClick={() => openModal(client)}>
 								<td className="p-4">
 									<div className="flex items-center gap-3">
-										<div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 font-bold">
-											{client.name[0]}
+										<div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 font-bold uppercase">
+											{client.name?.[0]}
 											{client.surname?.[0]}
 										</div>
 										<div>
@@ -228,7 +257,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 										onClick={(e) => e.stopPropagation()}>
 										<button
 											onClick={() => handleDelete(client.id)}
-											className="p-2 text-gray-300 hover:text-red-500">
+											className="p-2 text-gray-300 hover:text-red-500 transition-colors">
 											<Trash2 size={16} />
 										</button>
 									</div>
@@ -246,20 +275,16 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 				</table>
 			</div>
 
-			{/* Modal de Edición/Creación - CENTRADO AUTOMÁTICO */}
+			{/* Modal de Edición/Creación */}
 			{isModalOpen && (
-				// 1. Contenedor padre con 'items-center' (centrado vertical)
 				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-					{/* Backdrop */}
 					<div
 						className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
 						onClick={() => setIsModalOpen(false)}
 					/>
 
-					{/* 2. Tarjeta con 'max-h-[90vh]' para evitar que se salga de pantalla */}
-					{/* Quitamos mt-24/md:mt-32 porque items-center ya lo centra */}
-					<div className="relative bg-white w-full max-w-lg mt-40 md:mt-90 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-						{/* Cabecera (Fija) */}
+					<div className="relative bg-white w-full max-w-lg rounded-2xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+						{/* Cabecera */}
 						<div className="border-b bg-gray-50 rounded-t-2xl shrink-0">
 							<div className="p-4 flex justify-between items-center">
 								<h3 className="font-bold text-lg text-gray-800">
@@ -274,19 +299,26 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 								</button>
 							</div>
 
-							{/* Tabs */}
 							{editingClient && (
 								<div className="flex px-4 gap-4">
 									<button
 										onClick={() => setModalTab("history")}
-										className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === "history" ? "border-rose-500 text-rose-600" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
+										className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
+											modalTab === "history"
+												? "border-rose-500 text-rose-600"
+												: "border-transparent text-gray-400 hover:text-gray-600"
+										}`}>
 										<div className="flex items-center gap-2">
 											<Activity size={16} /> Historial
 										</div>
 									</button>
 									<button
 										onClick={() => setModalTab("details")}
-										className={`pb-3 text-sm font-bold border-b-2 transition-colors ${modalTab === "details" ? "border-rose-500 text-rose-600" : "border-transparent text-gray-400 hover:text-gray-600"}`}>
+										className={`pb-3 text-sm font-bold border-b-2 transition-colors ${
+											modalTab === "details"
+												? "border-rose-500 text-rose-600"
+												: "border-transparent text-gray-400 hover:text-gray-600"
+										}`}>
 										<div className="flex items-center gap-2">
 											<User size={16} /> Datos Personales
 										</div>
@@ -295,7 +327,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 							)}
 						</div>
 
-						{/* 3. Cuerpo con SCROLL (overflow-y-auto) */}
+						{/* Cuerpo con Scroll */}
 						<div className="overflow-y-auto p-6 custom-scrollbar">
 							{modalTab === "history" && editingClient && (
 								<ClientHistoryList
@@ -316,7 +348,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 											</label>
 											<input
 												required
-												className="w-full p-2.5 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
+												className="w-full p-2.5 border border-gray-200 rounded-xl focus:border-rose-500 outline-none transition-all"
 												value={formData.name}
 												onChange={(e) =>
 													setFormData({ ...formData, name: e.target.value })
@@ -328,7 +360,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 												Apellidos
 											</label>
 											<input
-												className="w-full p-2.5 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
+												className="w-full p-2.5 border border-gray-200 rounded-xl focus:border-rose-500 outline-none transition-all"
 												value={formData.surname}
 												onChange={(e) =>
 													setFormData({ ...formData, surname: e.target.value })
@@ -343,7 +375,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 											</label>
 											<input
 												type="tel"
-												className="w-full p-2.5 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
+												className="w-full p-2.5 border border-gray-200 rounded-xl focus:border-rose-500 outline-none transition-all"
 												value={formData.phone}
 												onChange={(e) =>
 													setFormData({ ...formData, phone: e.target.value })
@@ -356,7 +388,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 											</label>
 											<input
 												type="email"
-												className="w-full p-2.5 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
+												className="w-full p-2.5 border border-gray-200 rounded-xl focus:border-rose-500 outline-none transition-all"
 												value={formData.email}
 												onChange={(e) =>
 													setFormData({ ...formData, email: e.target.value })
@@ -369,7 +401,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 											Dirección
 										</label>
 										<input
-											className="w-full p-2.5 border border-gray-200 rounded-xl focus:border-rose-500 outline-none"
+											className="w-full p-2.5 border border-gray-200 rounded-xl focus:border-rose-500 outline-none transition-all"
 											placeholder="Para facturas..."
 											value={formData.address}
 											onChange={(e) =>
@@ -382,7 +414,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 											Notas Médicas
 										</label>
 										<textarea
-											className="w-full p-3 border border-gray-200 rounded-xl h-24 resize-none focus:border-rose-500 outline-none"
+											className="w-full p-3 border border-gray-200 rounded-xl h-24 resize-none focus:border-rose-500 outline-none transition-all"
 											placeholder="Alergias..."
 											value={formData.notes}
 											onChange={(e) =>
@@ -390,7 +422,7 @@ export const ClientsTab = ({ user, showToast, profile }) => {
 											}></textarea>
 									</div>
 									<div className="pt-2">
-										<button className="w-full bg-rose-500 text-white font-bold py-3 rounded-xl hover:bg-rose-600 shadow-sm">
+										<button className="w-full bg-rose-500 text-white font-bold py-3 rounded-xl hover:bg-rose-600 shadow-md transition-all">
 											Guardar Ficha
 										</button>
 									</div>
