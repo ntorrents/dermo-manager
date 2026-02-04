@@ -18,13 +18,23 @@ export const useData = (user) => {
 
 		const fetchAllData = async () => {
 			try {
+				// Dentro de fetchAllData en useData.js
 				const [inv, treat, rec, fin] = await Promise.all([
-					supabase.from("inventory").select("*").order("name"),
-					supabase.from("treatments").select("*").order("name"),
-					supabase.from("recurring_config").select("*"),
+					supabase
+						.from("inventory")
+						.select("*")
+						.eq("user_id", user.uid)
+						.order("name"),
+					supabase
+						.from("treatments")
+						.select("*")
+						.eq("user_id", user.uid)
+						.order("name"),
+					supabase.from("recurring_config").select("*").eq("user_id", user.uid),
 					supabase
 						.from("finance_entries")
 						.select("*")
+						.eq("user_id", user.uid)
 						.order("date", { ascending: false }),
 				]);
 
