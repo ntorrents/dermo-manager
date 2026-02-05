@@ -342,14 +342,18 @@ export const ClientsTab = ({
 											</div>
 											<div className="flex items-center gap-3">
 												<button
-													onClick={() =>
-														generateInvoice(
-															session,
-															selectedClient,
-															profile,
-															profile?.logo_url
-														)
-													}
+													onClick={async () => {
+														try {
+															await generateInvoice(
+																session,
+																selectedClient,
+																profile,
+																profile?.logo_url
+															);
+														} catch (err) {
+															showToast("Error al generar factura", "error");
+														}
+													}}
 													className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
 													title="Generar factura">
 													<FileDown size={18} />

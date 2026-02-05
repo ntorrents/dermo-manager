@@ -173,6 +173,7 @@ export const FinanceTab = ({
 				base_amount: taxCalc.base_amount,
 				user_id: user.id,
 			};
+			// tax_rate, base_amount y tax_amount se recalculan en creación Y edición
 
 			if (editingEntry) {
 				const { error } = await supabase

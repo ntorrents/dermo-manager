@@ -2,21 +2,56 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatCurrency } from "./format";
 
-export const generateInvoice = (entry, client, profile, logoUrl = null) => {
+/**
+ * Carga una imagen desde URL y la convierte a Base64 para jsPDF.
+ * Evita problemas de CORS cargando vía Image + Canvas.
+ */
+const loadImageAsBase64 = (url) => {
+	return new Promise((resolve, reject) => {
+		const img = new Image();
+		img.crossOrigin = "anonymous";
+		img.onload = () => {
+			const canvas = document.createElement("canvas");
+			canvas.width = img.naturalWidth;
+			canvas.height = img.naturalHeight;
+			const ctx = canvas.getContext("2d");
+			ctx.drawImage(img, 0, 0);
+			try {
+				resolve(canvas.toDataURL("image/png"));
+			} catch (e) {
+				reject(e);
+			}
+		};
+		img.onerror = () => reject(new Error("Error al cargar imagen"));
+		img.src = url;
+	});
+};
+
+export const generateInvoice = async (entry, client, profile, logoUrl = null) => {
+	let logoDataUrl = null;
+	const logo = logoUrl || profile?.logo_url;
+	if (logo && typeof logo === "string" && logo.startsWith("http")) {
+		try {
+			logoDataUrl = await loadImageAsBase64(logo);
+		} catch {
+			// Si falla (CORS, URL inválida, etc.), continuamos sin logo
+		}
+	}
+
 	const doc = new jsPDF();
 	const pageWidth = doc.internal.pageSize.width;
-	const logo = logoUrl || profile?.logo_url;
 
 	// --- 1. CABECERA (Logo + Datos Fiscales Emisor) ---
 	let y = 22;
+	let hasLogo = false;
 
-	// Logo (si existe): esquina superior izquierda
-	if (logo && typeof logo === "string" && logo.startsWith("http")) {
+	if (logoDataUrl) {
 		try {
-			doc.addImage(logo, "PNG", 14, 10, 35, 20);
-			y = 38; // Bajamos para que el texto no solape el logo
+			doc.addImage(logoDataUrl, "PNG", 14, 10, 35, 20);
+			y = 38;
+			hasLogo = true;
 		} catch {
-			// Si falla la carga de imagen, continuamos sin logo
+			// Si addImage falla, continuamos sin logo
 		}
 	}
 
@@ -71,8 +106,7 @@ export const generateInvoice = (entry, client, profile, logoUrl = null) => {
 	}
 
 	// --- 2. DATOS DE LA FACTURA (Derecha Superior) ---
-	// Posición "FACTURA" ajustada para no solapar con logo (si hay logo, bajamos)
-	let yRight = logo ? 38 : 22;
+	let yRight = hasLogo ? 38 : 22;
 	const rightColX = pageWidth - 14;
 
 	const invoiceNum = `F-${entry.date.replace(/-/g, "")}-${entry.id.slice(0, 4).toUpperCase()}`;
