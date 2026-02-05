@@ -2,18 +2,28 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatCurrency } from "./format";
 
-export const generateInvoice = (entry, client, profile) => {
+export const generateInvoice = (entry, client, profile, logoUrl = null) => {
 	const doc = new jsPDF();
 	const pageWidth = doc.internal.pageSize.width;
+	const logo = logoUrl || profile?.logo_url;
 
-	// --- 1. CABECERA (Datos Fiscales Emisor) ---
-	// Usamos una variable 'y' que irá bajando para que no se solapen los textos
+	// --- 1. CABECERA (Logo + Datos Fiscales Emisor) ---
 	let y = 22;
 
-	// Nombre Comercial (Grande y Rosa)
+	// Logo (si existe): esquina superior izquierda
+	if (logo && typeof logo === "string" && logo.startsWith("http")) {
+		try {
+			doc.addImage(logo, "PNG", 14, 10, 35, 20);
+			y = 38; // Bajamos para que el texto no solape el logo
+		} catch {
+			// Si falla la carga de imagen, continuamos sin logo
+		}
+	}
+
+	// Nombre Comercial (Grande y Rosa) - ajustado para no solapar con logo
 	doc.setFontSize(18);
 	doc.setTextColor(225, 29, 72); // Rose-600
-	doc.text(profile?.companyName || "DermoApp", 14, y);
+	doc.text(profile?.company_name || profile?.companyName || "DermoApp", 14, y);
 	y += 8; // Bajamos 8 puntos
 
 	// Datos Fiscales (Pequeño y Gris Oscuro)
@@ -48,8 +58,9 @@ export const generateInvoice = (entry, client, profile) => {
 	}
 
 	// Nº Colegiado (Si existe)
-	if (profile?.collegiateNumber) {
-		doc.text(`Nº Col: ${profile.collegiateNumber}`, 14, y);
+	const collegiate = profile?.collegiate_number || profile?.collegiateNumber;
+	if (collegiate) {
+		doc.text(`Nº Col: ${collegiate}`, 14, y);
 		y += 5;
 	}
 
@@ -60,8 +71,8 @@ export const generateInvoice = (entry, client, profile) => {
 	}
 
 	// --- 2. DATOS DE LA FACTURA (Derecha Superior) ---
-	// La parte derecha siempre empieza arriba, independientemente de la izquierda
-	let yRight = 22;
+	// Posición "FACTURA" ajustada para no solapar con logo (si hay logo, bajamos)
+	let yRight = logo ? 38 : 22;
 	const rightColX = pageWidth - 14;
 
 	const invoiceNum = `F-${entry.date.replace(/-/g, "")}-${entry.id.slice(0, 4).toUpperCase()}`;

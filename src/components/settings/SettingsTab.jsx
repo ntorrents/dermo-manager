@@ -27,6 +27,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 		collegiateNumber: "",
 		address: "",
 		city: "",
+		logo_url: "",
 	});
 
 	// Estados para seguridad
@@ -63,6 +64,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 				collegiateNumber: profile.collegiate_number || "",
 				address: profile.address || "",
 				city: profile.city || "",
+				logo_url: profile.logo_url || "",
 			});
 		}
 	}, [profile]);
@@ -80,6 +82,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 				collegiate_number: formData.collegiateNumber,
 				address: formData.address,
 				city: formData.city,
+				logo_url: formData.logo_url || null,
 				email: user.email,
 				updated_at: new Date(),
 			};
@@ -153,6 +156,33 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 				</h3>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div className="md:col-span-2">
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							URL del Logo
+						</label>
+						<div className="flex gap-4 items-start mt-1">
+							<input
+								className="flex-1 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
+								value={formData.logo_url}
+								onChange={(e) =>
+									setFormData({ ...formData, logo_url: e.target.value })
+								}
+								placeholder="https://..."
+							/>
+							{formData.logo_url && (
+								<div className="shrink-0 w-16 h-16 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+									<img
+										src={formData.logo_url}
+										alt="Logo"
+										className="w-full h-full object-contain"
+										onError={(e) => {
+											e.target.style.display = "none";
+										}}
+									/>
+								</div>
+							)}
+						</div>
+					</div>
 					<div className="md:col-span-2">
 						<label className="text-xs font-bold text-gray-500 uppercase">
 							Nombre Comercial

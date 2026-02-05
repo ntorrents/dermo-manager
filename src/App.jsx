@@ -18,6 +18,7 @@ import { InventoryTab } from "./components/inventory/InventoryTab";
 import { FinanceTab } from "./components/finance/FinanceTab";
 import { SettingsTab } from "./components/settings/SettingsTab";
 import { ClientsTab } from "./components/clients/ClientsTab";
+import { TaxesTab } from "./components/taxes/TaxesTab";
 
 const DermoManager = () => {
 	const { user, loading: authLoading } = useAuth();
@@ -256,6 +257,9 @@ const DermoManager = () => {
 						showToast={showToastMsg}
 						onRefresh={refreshData}
 					/>
+				)}
+				{activeTab === "taxes" && (
+					<TaxesTab entries={entries} />
 				)}
 				{activeTab === "settings" && (
 					<SettingsTab user={user} profile={profile} showToast={showToastMsg} />

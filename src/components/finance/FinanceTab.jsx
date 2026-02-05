@@ -55,11 +55,22 @@ export const FinanceTab = ({
 	const [formData, setFormData] = useState({
 		type: "expense",
 		amount: "",
+		tax_rate: 0,
 		category: "General",
 		description: "",
 		date: new Date().toISOString().split("T")[0],
 		notes: "",
 	});
+
+	// Cálculo automático: Base Imponible y Cuota IVA (amount = TOTAL)
+	const taxCalc = useMemo(() => {
+		const amount = Number(formData.amount) || 0;
+		const rate = Number(formData.tax_rate) || 0;
+		if (amount <= 0) return { base_amount: 0, tax_amount: 0 };
+		const base_amount = Math.round((amount / (1 + rate / 100)) * 100) / 100;
+		const tax_amount = Math.round((amount - base_amount) * 100) / 100;
+		return { base_amount, tax_amount };
+	}, [formData.amount, formData.tax_rate]);
 
 	const fetchConfig = async () => {
 		try {
@@ -129,6 +140,7 @@ export const FinanceTab = ({
 			setFormData({
 				type: entry.type,
 				amount: entry.amount,
+				tax_rate: entry.tax_rate ?? 0,
 				category: entry.category,
 				description: entry.description,
 				date: entry.date,
@@ -139,6 +151,7 @@ export const FinanceTab = ({
 			setFormData({
 				type,
 				amount: "",
+				tax_rate: 0,
 				category: type === "income" ? "Servicio" : "Material",
 				description: "",
 				date: new Date().toISOString().split("T")[0],
@@ -151,9 +164,13 @@ export const FinanceTab = ({
 	const handleSaveEntry = async (e) => {
 		e.preventDefault();
 		try {
+			const taxRate = Number(formData.tax_rate) || 0;
 			const payload = {
 				...formData,
 				amount: Number(formData.amount),
+				tax_rate: taxRate,
+				tax_amount: taxCalc.tax_amount,
+				base_amount: taxCalc.base_amount,
 				user_id: user.id,
 			};
 
@@ -671,7 +688,7 @@ export const FinanceTab = ({
 							<div className="flex gap-4">
 								<div className="flex-1">
 									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-										Importe (€)
+										Importe Total (€)
 									</label>
 									<input
 										required
@@ -686,18 +703,39 @@ export const FinanceTab = ({
 								</div>
 								<div className="flex-1">
 									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-										Fecha
+										IVA (%)
 									</label>
-									<input
-										required
-										type="date"
-										className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm"
-										value={formData.date}
+									<select
+										className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+										value={formData.tax_rate}
 										onChange={(e) =>
-											setFormData({ ...formData, date: e.target.value })
-										}
-									/>
+											setFormData({ ...formData, tax_rate: Number(e.target.value) })
+										}>
+										<option value={0}>0%</option>
+										<option value={4}>4%</option>
+										<option value={10}>10%</option>
+										<option value={21}>21%</option>
+									</select>
 								</div>
+							</div>
+							{(formData.tax_rate > 0 && formData.amount) && (
+								<div className="text-xs font-bold text-gray-500 bg-gray-50 p-3 rounded-xl">
+									Base: {formatCurrency(taxCalc.base_amount)} | Cuota IVA: {formatCurrency(taxCalc.tax_amount)}
+								</div>
+							)}
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									Fecha
+								</label>
+								<input
+									required
+									type="date"
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm"
+									value={formData.date}
+									onChange={(e) =>
+										setFormData({ ...formData, date: e.target.value })
+									}
+								/>
 							</div>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">

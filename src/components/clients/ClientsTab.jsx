@@ -15,10 +15,12 @@ import {
 	Clock,
 	Check,
 	ExternalLink,
+	FileDown,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useClientHistory } from "../../hooks/useClientHistory";
 import { formatCurrency } from "../../utils/format";
+import { generateInvoice } from "../../utils/invoiceGenerator";
 import { ConfirmModal } from "../ui/ConfirmModal";
 
 export const ClientsTab = ({
@@ -338,13 +340,28 @@ export const ClientsTab = ({
 													</p>
 												</div>
 											</div>
-											<div className="text-right">
-												<span className="block font-black text-gray-800 text-lg xl:text-xl">
-													{formatCurrency(session.amount)}
-												</span>
-												<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
-													Pagado
-												</span>
+											<div className="flex items-center gap-3">
+												<button
+													onClick={() =>
+														generateInvoice(
+															session,
+															selectedClient,
+															profile,
+															profile?.logo_url
+														)
+													}
+													className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
+													title="Generar factura">
+													<FileDown size={18} />
+												</button>
+												<div className="text-right">
+													<span className="block font-black text-gray-800 text-lg xl:text-xl">
+														{formatCurrency(session.amount)}
+													</span>
+													<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
+														Pagado
+													</span>
+												</div>
 											</div>
 										</div>
 									))}

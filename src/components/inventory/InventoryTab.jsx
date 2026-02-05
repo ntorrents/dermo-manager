@@ -8,7 +8,6 @@ import {
 	Loader2,
 	AlertTriangle,
 	X,
-	RotateCcw,
 	Info,
 	MoreVertical,
 } from "lucide-react";
@@ -30,6 +29,7 @@ export const InventoryTab = ({
 	const [restockData, setRestockData] = useState({
 		quantity: "",
 		totalCost: "",
+		taxRate: 21,
 	});
 
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -41,6 +41,7 @@ export const InventoryTab = ({
 		stock: "",
 		unit: "uds",
 		totalCost: "",
+		tax_rate: 21,
 		min_stock: "5",
 	});
 
@@ -64,6 +65,7 @@ export const InventoryTab = ({
 				stock: item.stock,
 				unit: item.unit || "uds",
 				totalCost: calculatedTotal,
+				tax_rate: 21,
 				min_stock: item.min_stock,
 			});
 		} else {
@@ -73,6 +75,7 @@ export const InventoryTab = ({
 				stock: "",
 				unit: "uds",
 				totalCost: "",
+				tax_rate: 21,
 				min_stock: "5",
 			});
 		}
@@ -118,16 +121,25 @@ export const InventoryTab = ({
 					.insert([payload]);
 				if (invError) throw invError;
 
-				// 2. Insertar en Finanzas (EL CAMBIO IMPORTANTE)
+				// 2. Insertar en Finanzas (con IVA calculado)
+				const taxRate =
+					formData.tax_rate != null ? Number(formData.tax_rate) : 21;
+				const baseAmount =
+					Math.round((totalCostNum / (1 + taxRate / 100)) * 100) / 100;
+				const taxAmount = Math.round((totalCostNum - baseAmount) * 100) / 100;
+
 				const { error: finError } = await supabase
 					.from("finance_entries")
 					.insert([
 						{
 							user_id: user.id,
-							type: "expense", // Gasto
+							type: "expense",
 							category: "Material",
 							description: `Compra Stock Inicial: ${formData.name}`,
-							amount: totalCostNum, // El coste total que pusiste en el formulario
+							amount: totalCostNum,
+							tax_rate: taxRate,
+							base_amount: baseAmount,
+							tax_amount: taxAmount,
 							date: new Date().toISOString().split("T")[0],
 						},
 					]);
@@ -147,7 +159,7 @@ export const InventoryTab = ({
 
 	const openRestockModal = (item) => {
 		setRestockItem(item);
-		setRestockData({ quantity: "", totalCost: "" });
+		setRestockData({ quantity: "", totalCost: "", taxRate: 21 });
 		setIsRestockModalOpen(true);
 	};
 
@@ -172,6 +184,11 @@ export const InventoryTab = ({
 				.eq("id", restockItem.id);
 			if (error) throw error;
 
+			const taxRate = restockData.taxRate != null ? Number(restockData.taxRate) : 21;
+			const baseAmount =
+				Math.round((purchaseCost / (1 + taxRate / 100)) * 100) / 100;
+			const taxAmount = Math.round((purchaseCost - baseAmount) * 100) / 100;
+
 			await supabase.from("finance_entries").insert([
 				{
 					user_id: user.id,
@@ -180,6 +197,9 @@ export const InventoryTab = ({
 					category: "Material",
 					description: `Reposición: ${restockItem.name} (${qtyBought} ${restockItem.unit})`,
 					amount: purchaseCost,
+					tax_rate: taxRate,
+					base_amount: baseAmount,
+					tax_amount: taxAmount,
 				},
 			]);
 
@@ -309,7 +329,7 @@ export const InventoryTab = ({
 							<button
 								onClick={() => openRestockModal(item)}
 								className="bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-200 transition-colors">
-								<RotateCcw size={14} /> Reponer
+								<Plus size={14} /> Reponer
 							</button>
 						</div>
 					</div>
@@ -367,7 +387,7 @@ export const InventoryTab = ({
 											onClick={() => openRestockModal(item)}
 											className="p-2.5 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-500 hover:text-white transition-all shadow-sm"
 											title="Reponer Stock">
-											<RotateCcw size={18} />
+											<Plus size={18} />
 										</button>
 										<button
 											onClick={() => openModal(item)}
@@ -474,7 +494,25 @@ export const InventoryTab = ({
 											</p>
 										)}
 									</div>
-									<div>
+									{!editingItem && (
+										<div>
+											<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+												IVA (%)
+											</label>
+											<select
+												className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold appearance-none cursor-pointer"
+												value={formData.tax_rate}
+												onChange={(e) =>
+													setFormData({ ...formData, tax_rate: Number(e.target.value) })
+												}>
+												<option value={0}>0%</option>
+												<option value={4}>4%</option>
+												<option value={10}>10%</option>
+												<option value={21}>21%</option>
+											</select>
+										</div>
+									)}
+									<div className={!editingItem ? "col-span-2" : ""}>
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
 											Aviso Mínimo
 										</label>
@@ -532,24 +570,45 @@ export const InventoryTab = ({
 									}
 								/>
 							</div>
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-									Coste Total (€)
-								</label>
-								<input
-									type="number"
-									step="0.01"
-									required
-									placeholder="0.00"
-									className="w-full p-4 bg-gray-50 rounded-2xl font-bold text-xl outline-none"
-									value={restockData.totalCost}
-									onChange={(e) =>
-										setRestockData({
-											...restockData,
-											totalCost: e.target.value,
-										})
-									}
-								/>
+							<div className="grid grid-cols-2 gap-4">
+								<div>
+									<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+										Coste Total (€)
+									</label>
+									<input
+										type="number"
+										step="0.01"
+										required
+										placeholder="0.00"
+										className="w-full p-4 bg-gray-50 rounded-2xl font-bold text-xl outline-none"
+										value={restockData.totalCost}
+										onChange={(e) =>
+											setRestockData({
+												...restockData,
+												totalCost: e.target.value,
+											})
+										}
+									/>
+								</div>
+								<div>
+									<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+										IVA (%)
+									</label>
+									<select
+										className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none appearance-none cursor-pointer"
+										value={restockData.taxRate}
+										onChange={(e) =>
+											setRestockData({
+												...restockData,
+												taxRate: Number(e.target.value),
+											})
+										}>
+										<option value={0}>0%</option>
+										<option value={4}>4%</option>
+										<option value={10}>10%</option>
+										<option value={21}>21%</option>
+									</select>
+								</div>
 							</div>
 							<button
 								disabled={loading}

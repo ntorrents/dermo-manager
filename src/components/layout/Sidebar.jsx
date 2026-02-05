@@ -7,6 +7,7 @@ import {
 	LogOut,
 	Settings,
 	Users,
+	Landmark,
 } from "lucide-react";
 
 export const Sidebar = ({ activeTab, setActiveTab, onLogout, companyName }) => (
@@ -24,6 +25,7 @@ export const Sidebar = ({ activeTab, setActiveTab, onLogout, companyName }) => (
 				{ id: "treatments", l: "Tratamientos", i: Syringe },
 				{ id: "inventory", l: "Stock", i: Package },
 				{ id: "finance", l: "Finanzas", i: DollarSign },
+				{ id: "taxes", l: "Fiscalidad", i: Landmark },
 				{ id: "settings", l: "Configuración", i: Settings },
 			].map((t) => (
 				<button
