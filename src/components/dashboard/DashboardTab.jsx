@@ -8,8 +8,10 @@ import {
 	ArrowUpRight,
 	ArrowDownRight,
 	BarChart3,
+	Calendar,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
+import { filterByDate, getDateLabel } from "../../utils/dateUtils"; // IMPORTANTE
 import { DailyBarChart } from "./DailyBarChart";
 
 export const DashboardTab = ({
@@ -17,44 +19,49 @@ export const DashboardTab = ({
 	entries = [],
 	inventory = [],
 	treatments = [],
-	currentMonth,
-	setCurrentMonth,
+	currentDate,
+	setCurrentDate,
+	viewMode,
+	setViewMode,
 	userName,
 }) => {
-	// --- LÓGICA DE FECHAS ---
+	// --- LÓGICA DE FECHAS CENTRALIZADA ---
 	const currentData = useMemo(() => {
-		// Filtramos por texto YYYY-MM
-		return entries.filter((e) => e.date && e.date.startsWith(currentMonth));
-	}, [entries, currentMonth]);
+		return filterByDate(entries, "date", viewMode, currentDate);
+	}, [entries, currentDate, viewMode]);
 
+	// Nota: La comparativa "vs mes pasado" solo la mostramos si estamos en modo mensual
+	// para evitar complejidad de cálculo de "trimestre anterior"
 	const previousMonth = useMemo(() => {
-		if (!currentMonth) return "";
-		const date = new Date(currentMonth + "-01");
+		if (viewMode !== "month" || !currentDate) return "";
+		const date = new Date(currentDate + "-01");
 		date.setMonth(date.getMonth() - 1);
 		return date.toISOString().slice(0, 7);
-	}, [currentMonth]);
+	}, [currentDate, viewMode]);
 
 	const previousData = useMemo(() => {
+		if (viewMode !== "month") return [];
 		return entries.filter((e) => e.date && e.date.startsWith(previousMonth));
-	}, [entries, previousMonth]);
+	}, [entries, previousMonth, viewMode]);
 
 	// --- CÁLCULOS FINANCIEROS BLINDADOS ---
 	const calculateStats = (data) => {
 		const income = data
 			.filter((e) => e.type === "income")
-			.reduce((a, b) => a + Number(b.amount || 0), 0); // Convertimos a número
+			.reduce((a, b) => a + Number(b.amount || 0), 0);
 		const expense = data
 			.filter((e) => e.type === "expense")
-			.reduce((a, b) => a + Number(b.amount || 0), 0); // Convertimos a número
+			.reduce((a, b) => a + Number(b.amount || 0), 0);
 		return { income, expense, net: income - expense };
 	};
 
 	const currentStats = calculateStats(currentData);
 	const prevStats = calculateStats(previousData);
-	const growth =
-		prevStats.net === 0
-			? 0
-			: ((currentStats.net - prevStats.net) / prevStats.net) * 100;
+
+	let growth = 0;
+	if (prevStats.net !== 0) {
+		growth = ((currentStats.net - prevStats.net) / prevStats.net) * 100;
+	}
 	const isGrowing = growth >= 0;
 
 	// --- LÓGICA TOP TRATAMIENTOS ---
@@ -96,14 +103,38 @@ export const DashboardTab = ({
 					<h2 className="text-2xl font-bold text-gray-800">
 						Hola, <span className="text-rose-500">{userName || "Nil"}</span> 👋
 					</h2>
-					<p className="text-gray-400 text-sm">Resumen de actividad.</p>
+					<p className="text-gray-400 text-sm">
+						Resumen de{" "}
+						<span className="font-bold text-gray-600">
+							{getDateLabel(currentDate, viewMode)}
+						</span>
+					</p>
 				</div>
-				<input
-					type="month"
-					value={currentMonth}
-					onChange={(e) => setCurrentMonth(e.target.value)}
-					className="bg-white border border-gray-200 p-2 rounded-xl text-gray-600 font-medium shadow-sm outline-none focus:ring-2 ring-rose-100 cursor-pointer"
-				/>
+
+				{/* SELECTOR DE FECHAS */}
+				<div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100 gap-2 items-center">
+					<div className="relative">
+						<Calendar
+							className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+							size={16}
+						/>
+						<input
+							type="month"
+							value={currentDate}
+							onChange={(e) => setCurrentDate(e.target.value)}
+							className="pl-9 pr-2 py-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none hover:bg-gray-100 transition-colors cursor-pointer border-none"
+						/>
+					</div>
+					<div className="h-6 w-px bg-gray-200"></div>
+					<select
+						value={viewMode}
+						onChange={(e) => setViewMode(e.target.value)}
+						className="py-2 pl-2 pr-8 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none hover:bg-gray-100 transition-colors appearance-none cursor-pointer border-none">
+						<option value="month">Mensual</option>
+						<option value="quarter">Trimestral</option>
+						<option value="year">Anual</option>
+					</select>
+				</div>
 			</div>
 
 			{/* ALERTAS */}
@@ -149,22 +180,24 @@ export const DashboardTab = ({
 						</h3>
 					</div>
 					<div className="mt-8">
-						<div
-							className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
-								isGrowing
-									? "bg-green-500/20 text-green-400"
-									: "bg-red-500/20 text-red-400"
-							}`}>
-							{isGrowing ? (
-								<ArrowUpRight size={16} />
-							) : (
-								<ArrowDownRight size={16} />
-							)}
-							<span>{Math.abs(growth).toFixed(1)}%</span>
-							<span className="text-gray-400 font-normal ml-1">
-								vs mes pasado
-							</span>
-						</div>
+						{viewMode === "month" && prevStats.net !== 0 && (
+							<div
+								className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
+									isGrowing
+										? "bg-green-500/20 text-green-400"
+										: "bg-red-500/20 text-red-400"
+								}`}>
+								{isGrowing ? (
+									<ArrowUpRight size={16} />
+								) : (
+									<ArrowDownRight size={16} />
+								)}
+								<span>{Math.abs(growth).toFixed(1)}%</span>
+								<span className="text-gray-400 font-normal ml-1">
+									vs mes pasado
+								</span>
+							</div>
+						)}
 					</div>
 				</div>
 
@@ -218,10 +251,11 @@ export const DashboardTab = ({
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<div className="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
 					<h3 className="font-bold text-lg text-gray-800 mb-6 flex items-center gap-2">
-						<BarChart3 className="text-rose-500" size={20} /> Actividad Diaria
+						<BarChart3 className="text-rose-500" size={20} /> Actividad{" "}
+						{viewMode === "month" ? "Diaria" : "Periodo"}
 					</h3>
 					<div className="h-64">
-						<DailyBarChart data={currentData} currentMonth={currentMonth} />
+						<DailyBarChart data={currentData} currentMonth={currentDate} />
 					</div>
 				</div>
 

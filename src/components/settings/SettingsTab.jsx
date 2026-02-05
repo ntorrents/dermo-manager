@@ -11,9 +11,10 @@ import {
 	MapPin,
 	CreditCard,
 	LogOut,
+	Mail,
+	CheckCircle2,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
-// ELIMINADO: reauthenticate (esto causaba el error 500)
 import { updateUserPassword, logout } from "../../services/auth";
 
 export const SettingsTab = ({ user, profile, showToast }) => {
@@ -28,17 +29,26 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 		city: "",
 	});
 
-	const [currentPassword, setCurrentPassword] = useState("");
+	// Estados para seguridad
+	const [email, setEmail] = useState("");
+	const [newEmail, setNewEmail] = useState("");
+
+	// Cambio de contraseña
+	const [currentPassword, setCurrentPassword] = useState(""); // Necesario para validar cambios sensibles
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
+
 	const [loadingProfile, setLoadingProfile] = useState(false);
 	const [loadingPass, setLoadingPass] = useState(false);
+	const [loadingEmail, setLoadingEmail] = useState(false);
+
 	const [isGoogleUser, setIsGoogleUser] = useState(false);
 
 	useEffect(() => {
 		if (user) {
 			const isGoogle = user.app_metadata?.provider === "google";
 			setIsGoogleUser(isGoogle);
+			setEmail(user.email);
 		}
 	}, [user]);
 
@@ -61,7 +71,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 		setLoadingProfile(true);
 		try {
 			const updates = {
-				id: user.id, // CORREGIDO: user.id (UUID nativo)
+				id: user.id,
 				name: formData.name,
 				surname: formData.surname,
 				mobile: formData.mobile,
@@ -86,6 +96,23 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 		}
 	};
 
+	const handleUpdateEmail = async () => {
+		if (!newEmail || newEmail === email) return;
+
+		setLoadingEmail(true);
+		try {
+			const { error } = await supabase.auth.updateUser({ email: newEmail });
+			if (error) throw error;
+			showToast("Revisa tu nuevo correo para confirmar el cambio");
+			setNewEmail("");
+		} catch (error) {
+			console.error(error);
+			showToast("Error al actualizar email", "error");
+		} finally {
+			setLoadingEmail(false);
+		}
+	};
+
 	const handleUpdatePassword = async () => {
 		if (!password || !confirmPassword)
 			return showToast("Rellena todos los campos", "error");
@@ -93,10 +120,15 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 			return showToast("Las contraseñas no coinciden", "error");
 		if (password.length < 6) return showToast("Mínimo 6 caracteres", "error");
 
+		// Nota: Supabase permite cambiar la password sin la antigua si la sesión está activa,
+		// pero por seguridad en el frontend a veces se pide re-autenticar.
+		// Dado que no tenemos un endpoint fácil de "verificar password antigua" sin hacer logout,
+		// confiaremos en la sesión activa actual.
+
 		setLoadingPass(true);
 		try {
 			await updateUserPassword(password);
-			showToast("Contraseña actualizada");
+			showToast("Contraseña actualizada correctamente");
 			setCurrentPassword("");
 			setPassword("");
 			setConfirmPassword("");
@@ -114,6 +146,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 				<h2 className="text-2xl font-bold text-gray-800">Configuración</h2>
 			</div>
 
+			{/* SECCIÓN 1: DATOS FACTURACIÓN (Igual que antes) */}
 			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
 				<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
 					<Building2 size={20} className="text-rose-500" /> Datos de Facturación
@@ -274,68 +307,134 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 				</div>
 			</div>
 
+			{/* SECCIÓN 2: SEGURIDAD (Diferenciada Google vs Email) */}
 			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
 				<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-					<Lock size={20} className="text-rose-500" /> Seguridad
+					<Lock size={20} className="text-rose-500" /> Cuenta y Seguridad
 				</h3>
-				{!isGoogleUser ? (
-					<div className="space-y-4 max-w-md">
-						<div className="grid grid-cols-2 gap-4">
-							<div>
-								<label className="text-xs font-bold text-gray-500 uppercase">
-									Nueva
-								</label>
-								<input
-									type="password"
-									value={password}
-									onChange={(e) => setPassword(e.target.value)}
-									className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none"
-								/>
-							</div>
-							<div>
-								<label className="text-xs font-bold text-gray-500 uppercase">
-									Repetir
-								</label>
-								<input
-									type="password"
-									value={confirmPassword}
-									onChange={(e) => setConfirmPassword(e.target.value)}
-									className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none"
-								/>
-							</div>
-						</div>
-						<div className="flex justify-end pt-2">
-							<button
-								onClick={handleUpdatePassword}
-								disabled={loadingPass}
-								className="bg-rose-50 text-rose-600 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-100 flex items-center gap-2">
-								{loadingPass ? (
-									<Loader2 className="animate-spin" size={16} />
-								) : (
-									<ShieldAlert size={16} />
-								)}{" "}
-								Actualizar
-							</button>
+
+				{isGoogleUser ? (
+					// BANNER PARA USUARIOS DE GOOGLE
+					<div className="p-4 bg-blue-50 text-blue-800 rounded-xl text-sm border border-blue-100 flex items-start gap-3">
+						<ShieldAlert size={20} className="shrink-0 mt-0.5" />
+						<div>
+							<p className="font-bold">Cuenta vinculada a Google Workspace</p>
+							<p className="opacity-80 mt-1">
+								Has iniciado sesión con <strong>{email}</strong>. Para cambiar
+								tu contraseña o correo electrónico, debes hacerlo directamente
+								desde tu cuenta de Google.
+							</p>
 						</div>
 					</div>
 				) : (
-					<div className="p-4 bg-blue-50 text-blue-800 rounded-xl text-sm border border-blue-100 flex items-center gap-3">
-						<ShieldAlert size={20} />
-						<div>
-							<p className="font-bold">Cuenta vinculada a Google</p>
-							<p className="opacity-80">
-								La gestión de tu contraseña se realiza directamente a través de
-								Google.
-							</p>
+					// FORMULARIO PARA USUARIOS DE EMAIL
+					<div className="space-y-6 max-w-lg">
+						{/* Cambio de Email */}
+						<div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+							<label className="text-xs font-bold text-gray-500 uppercase block mb-2">
+								Correo Electrónico Actual
+							</label>
+							<div className="flex gap-2">
+								<div className="relative flex-1">
+									<Mail
+										className="absolute left-3 top-3 text-gray-400"
+										size={18}
+									/>
+									<input
+										disabled
+										className="w-full pl-10 p-3 bg-gray-200 text-gray-500 rounded-xl border-transparent"
+										value={email}
+									/>
+								</div>
+							</div>
+
+							<div className="mt-4">
+								<label className="text-xs font-bold text-gray-500 uppercase block mb-2">
+									Cambiar Correo Electrónico
+								</label>
+								<div className="flex gap-2">
+									<input
+										className="flex-1 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
+										placeholder="nuevo@email.com"
+										value={newEmail}
+										onChange={(e) => setNewEmail(e.target.value)}
+									/>
+									<button
+										onClick={handleUpdateEmail}
+										disabled={loadingEmail || !newEmail || newEmail === email}
+										className="bg-gray-900 text-white px-4 rounded-xl font-bold text-sm hover:bg-black disabled:opacity-50 transition-colors">
+										{loadingEmail ? (
+											<Loader2 className="animate-spin" size={16} />
+										) : (
+											"Actualizar"
+										)}
+									</button>
+								</div>
+								<p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
+									<CheckCircle2 size={10} /> Te enviaremos un email de
+									confirmación al nuevo correo.
+								</p>
+							</div>
+						</div>
+
+						{/* Cambio de Contraseña */}
+						<div className="border-t border-gray-100 pt-6">
+							<h4 className="text-sm font-bold text-gray-700 mb-4">
+								Cambiar Contraseña
+							</h4>
+
+							{/* Nota: Supabase Auth gestiona la seguridad de la sesión actual. 
+								Si quisiéramos validar la 'pass antigua' explícitamente, tendríamos que re-autenticar, 
+								pero es complejo en el cliente. La práctica estándar aquí es confiar en la sesión activa. */}
+
+							<div className="grid grid-cols-2 gap-4">
+								<div className="col-span-2">
+									<label className="text-xs font-bold text-gray-500 uppercase">
+										Nueva Contraseña
+									</label>
+									<input
+										type="password"
+										value={password}
+										onChange={(e) => setPassword(e.target.value)}
+										className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
+										placeholder="Mínimo 6 caracteres"
+									/>
+								</div>
+								<div className="col-span-2">
+									<label className="text-xs font-bold text-gray-500 uppercase">
+										Repetir Nueva Contraseña
+									</label>
+									<input
+										type="password"
+										value={confirmPassword}
+										onChange={(e) => setConfirmPassword(e.target.value)}
+										className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
+										placeholder="Repite la contraseña"
+									/>
+								</div>
+							</div>
+							<div className="flex justify-end pt-4">
+								<button
+									onClick={handleUpdatePassword}
+									disabled={loadingPass || !password}
+									className="bg-rose-50 text-rose-600 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-100 flex items-center gap-2 transition-colors">
+									{loadingPass ? (
+										<Loader2 className="animate-spin" size={16} />
+									) : (
+										<ShieldAlert size={16} />
+									)}{" "}
+									Actualizar Contraseña
+								</button>
+							</div>
 						</div>
 					</div>
 				)}
 			</div>
 
-			<div className="text-center">
+			<div className="text-center pt-8">
 				<button
 					onClick={logout}
-					className="text-rose-500 font-bold flex items-center gap-2 mx-auto hover:bg-rose-50 px-6 py-3 rounded-xl transition-colors">
+					className="text-rose-500 font-bold flex items-center gap-2 mx-auto hover:bg-rose-50 px-8 py-3 rounded-xl transition-colors border border-transparent hover:border-rose-100">
 					<LogOut size={18} /> Cerrar Sesión
 				</button>
 			</div>

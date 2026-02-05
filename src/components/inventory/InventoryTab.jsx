@@ -9,7 +9,6 @@ import {
 	AlertTriangle,
 	X,
 	RotateCcw,
-	Save,
 	Info,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
@@ -23,18 +22,23 @@ export const InventoryTab = ({
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState(null);
+
+	// Estado para Reposición
 	const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
 	const [restockItem, setRestockItem] = useState(null);
 	const [restockData, setRestockData] = useState({
 		quantity: "",
 		totalCost: "",
 	});
+
 	const [loading, setLoading] = useState(false);
+
+	// MODIFICADO: Ahora usamos 'totalCost' en lugar de unit_cost directo
 	const [formData, setFormData] = useState({
 		name: "",
 		stock: "",
 		unit: "uds",
-		unit_cost: "",
+		totalCost: "",
 		min_stock: "5",
 	});
 
@@ -47,14 +51,20 @@ export const InventoryTab = ({
 		inventory?.filter((item) => Number(item.stock) <= Number(item.min_stock))
 			.length || 0;
 
+	// MODIFICADO: Al abrir, calculamos el total si estamos editando
 	const openModal = (item = null) => {
 		if (item) {
 			setEditingItem(item);
+			// Calculamos el valor total actual para mostrarlo
+			const calculatedTotal = (
+				Number(item.stock) * Number(item.unit_cost)
+			).toFixed(2);
+
 			setFormData({
 				name: item.name,
 				stock: item.stock,
 				unit: item.unit || "uds",
-				unit_cost: item.unit_cost,
+				totalCost: calculatedTotal, // Mostramos el total
 				min_stock: item.min_stock,
 			});
 		} else {
@@ -63,22 +73,31 @@ export const InventoryTab = ({
 				name: "",
 				stock: "",
 				unit: "uds",
-				unit_cost: "",
+				totalCost: "",
 				min_stock: "5",
 			});
 		}
 		setIsModalOpen(true);
 	};
 
+	// MODIFICADO: Al guardar, dividimos Total / Stock para sacar el unitario
 	const handleSave = async (e) => {
 		e.preventDefault();
 		setLoading(true);
 		try {
+			const stockNum = Number(formData.stock);
+			const totalCostNum = Number(formData.totalCost);
+
+			if (stockNum <= 0) throw new Error("El stock debe ser mayor a 0");
+
+			// Cálculo del coste unitario
+			const calculatedUnitCost = totalCostNum / stockNum;
+
 			const payload = {
 				name: formData.name,
-				stock: Number(formData.stock),
+				stock: stockNum,
 				unit: formData.unit,
-				unit_cost: Number(formData.unit_cost),
+				unit_cost: calculatedUnitCost, // Guardamos el unitario calculado
 				min_stock: Number(formData.min_stock),
 			};
 
@@ -99,7 +118,7 @@ export const InventoryTab = ({
 			setIsModalOpen(false);
 			if (onRefresh) await onRefresh();
 		} catch (error) {
-			showToast("Error al guardar", error);
+			showToast("Error al guardar: " + error.message, "error");
 		} finally {
 			setLoading(false);
 		}
@@ -119,7 +138,10 @@ export const InventoryTab = ({
 			const purchaseCost = Number(restockData.totalCost);
 			const currentStock = Number(restockItem.stock);
 			const currentUnitCost = Number(restockItem.unit_cost);
+
 			const newStock = currentStock + qtyBought;
+
+			// Fórmula de Precio Medio Ponderado
 			const newUnitCost =
 				(currentStock * currentUnitCost + purchaseCost) / newStock;
 
@@ -127,7 +149,7 @@ export const InventoryTab = ({
 				.from("inventory")
 				.update({
 					stock: newStock,
-					unit_cost: parseFloat(newUnitCost.toFixed(2)),
+					unit_cost: parseFloat(newUnitCost.toFixed(4)), // Más precisión
 				})
 				.eq("id", restockItem.id);
 
@@ -148,7 +170,7 @@ export const InventoryTab = ({
 			setIsRestockModalOpen(false);
 			if (onRefresh) await onRefresh();
 		} catch (error) {
-			showToast("Error al reponer stock", error);
+			showToast("Error al reponer stock", "error");
 		} finally {
 			setLoading(false);
 		}
@@ -237,7 +259,7 @@ export const InventoryTab = ({
 								</td>
 								<td className="p-6 text-center">
 									<span className="font-bold text-gray-600 text-lg">
-										{item.unit_cost} €
+										{Number(item.unit_cost).toFixed(2)} €
 									</span>
 								</td>
 								<td className="p-6 text-right">
@@ -273,7 +295,8 @@ export const InventoryTab = ({
 					</tbody>
 				</table>
 			</div>
-			{/* ... (Modales Nuevo Material y Reponer Stock, asegúrate de mantener el contenido interior igual, solo cambia el handleSave/handleRestock que ya puse arriba) */}
+
+			{/* MODAL CREAR/EDITAR MATERIAL */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-50 flex justify-center items-start p-4">
 					<div
@@ -295,6 +318,7 @@ export const InventoryTab = ({
 							<form
 								onSubmit={handleSave}
 								className="space-y-6 flex flex-col min-h-full">
+								{/* NOMBRE */}
 								<div>
 									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
 										Nombre
@@ -308,46 +332,83 @@ export const InventoryTab = ({
 										}
 									/>
 								</div>
+
+								{/* STOCK Y UNIDAD */}
 								<div className="grid grid-cols-2 gap-4">
-									<input
-										type="number"
-										placeholder="Stock"
-										className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
-										value={formData.stock}
-										onChange={(e) =>
-											setFormData({ ...formData, stock: e.target.value })
-										}
-									/>
-									<input
-										placeholder="Unidad"
-										className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
-										value={formData.unit}
-										onChange={(e) =>
-											setFormData({ ...formData, unit: e.target.value })
-										}
-									/>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+											Stock Total
+										</label>
+										<input
+											type="number"
+											placeholder="Ej: 50"
+											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
+											value={formData.stock}
+											onChange={(e) =>
+												setFormData({ ...formData, stock: e.target.value })
+											}
+										/>
+									</div>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+											Unidad
+										</label>
+										<input
+											placeholder="Ej: dosis"
+											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
+											value={formData.unit}
+											onChange={(e) =>
+												setFormData({ ...formData, unit: e.target.value })
+											}
+										/>
+									</div>
 								</div>
+
+								{/* COSTE TOTAL Y MINIMO */}
 								<div className="grid grid-cols-2 gap-4">
-									<input
-										type="number"
-										step="0.01"
-										placeholder="Coste Unit."
-										className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
-										value={formData.unit_cost}
-										onChange={(e) =>
-											setFormData({ ...formData, unit_cost: e.target.value })
-										}
-									/>
-									<input
-										type="number"
-										placeholder="Mínimo"
-										className="w-full p-4 bg-rose-50 text-rose-600 rounded-2xl outline-none font-bold"
-										value={formData.min_stock}
-										onChange={(e) =>
-											setFormData({ ...formData, min_stock: e.target.value })
-										}
-									/>
+									<div>
+										<label className="text-[11px] font-black text-rose-500 uppercase tracking-widest mb-2 block">
+											Coste Total (€)
+										</label>
+										<input
+											type="number"
+											step="0.01"
+											placeholder="Factura"
+											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
+											value={formData.totalCost}
+											onChange={(e) =>
+												setFormData({ ...formData, totalCost: e.target.value })
+											}
+										/>
+									</div>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+											Aviso Mínimo
+										</label>
+										<input
+											type="number"
+											placeholder="Mínimo"
+											className="w-full p-4 bg-rose-50 text-rose-600 rounded-2xl outline-none font-bold"
+											value={formData.min_stock}
+											onChange={(e) =>
+												setFormData({ ...formData, min_stock: e.target.value })
+											}
+										/>
+									</div>
 								</div>
+
+								{/* FEEDBACK VISUAL DE CÁLCULO */}
+								{formData.stock > 0 && formData.totalCost > 0 && (
+									<div className="p-4 bg-emerald-50 rounded-2xl flex items-center justify-between">
+										<span className="text-xs font-bold text-emerald-600 uppercase">
+											Coste por {formData.unit}:
+										</span>
+										<span className="text-lg font-black text-emerald-700">
+											{(formData.totalCost / formData.stock).toFixed(2)} €
+										</span>
+									</div>
+								)}
+
 								<div className="mt-auto pt-8">
 									<button className="w-full bg-[#f43f5e] text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg">
 										Guardar Material
@@ -358,6 +419,8 @@ export const InventoryTab = ({
 					</div>
 				</div>
 			)}
+
+			{/* MODAL REPONER STOCK (Mantenido igual) */}
 			{isRestockModalOpen && (
 				<div className="fixed inset-0 z-[60] mt-[100px] flex items-center justify-center p-4">
 					<div

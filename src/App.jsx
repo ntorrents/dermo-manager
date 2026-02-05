@@ -35,9 +35,14 @@ const DermoManager = () => {
 	const { clients, refreshClients } = useClients(user);
 
 	const [activeTab, setActiveTab] = useState("dashboard");
-	const [currentMonth, setCurrentMonth] = useState(
-		new Date().toISOString().slice(0, 7)
+
+	// --- ESTADO ELEVADO (GLOBAL) ---
+	const [viewMode, setViewMode] = useState("month"); // 'month', 'quarter', 'year'
+	const [currentDate, setCurrentDate] = useState(
+		new Date().toISOString().slice(0, 7) // "YYYY-MM"
 	);
+	// -------------------------------
+
 	const [toast, setToast] = useState(null);
 	const [showLogout, setShowLogout] = useState(false);
 	const [selectedTreatment, setSelectedTreatment] = useState(null);
@@ -151,7 +156,7 @@ const DermoManager = () => {
 				isOpen={!!selectedTreatment}
 				treatment={selectedTreatment}
 				clients={clients}
-				inventory={inventory} // <--- ¡AQUÍ ESTÁ EL CAMBIO IMPORTANTE!
+				inventory={inventory}
 				onClose={() => setSelectedTreatment(null)}
 				onConfirm={handleSession}
 			/>
@@ -176,8 +181,11 @@ const DermoManager = () => {
 						entries={entries}
 						inventory={inventory}
 						treatments={treatments}
-						currentMonth={currentMonth}
-						setCurrentMonth={setCurrentMonth}
+						// Props Globales
+						currentDate={currentDate}
+						setCurrentDate={setCurrentDate}
+						viewMode={viewMode}
+						setViewMode={setViewMode}
 						userName={profile?.name}
 					/>
 				)}
@@ -213,8 +221,11 @@ const DermoManager = () => {
 						user={user}
 						entries={entries}
 						recurringConfig={recurringConfig}
-						currentMonth={currentMonth}
-						setCurrentMonth={setCurrentMonth}
+						// Props Globales
+						currentDate={currentDate}
+						setCurrentDate={setCurrentDate}
+						viewMode={viewMode}
+						setViewMode={setViewMode}
 						showToast={showToastMsg}
 						onRefresh={refreshData}
 					/>

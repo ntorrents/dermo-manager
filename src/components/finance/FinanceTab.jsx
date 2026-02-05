@@ -14,31 +14,43 @@ import {
 	ArrowRight,
 	Loader2,
 	Calendar,
+	Edit2,
+	FileText,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { formatCurrency, formatDate } from "../../utils/format";
 import { exportToCSV } from "../../utils/export";
+import { filterByDate, getDateLabel } from "../../utils/dateUtils"; // IMPORTANTE
 
 export const FinanceTab = ({
 	user,
 	entries = [],
-	currentMonth,
-	setCurrentMonth,
+	currentDate,
+	setCurrentDate,
+	viewMode,
+	setViewMode,
 	showToast,
-	onRefresh, // Nuevo prop
+	onRefresh,
 }) => {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isConfigOpen, setIsConfigOpen] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
-	const [viewMode, setViewMode] = useState("month");
+
+	// Eliminamos viewMode local porque ahora viene de props
+
 	const [recurringExpenses, setRecurringExpenses] = useState([]);
 	const [loadingConfig, setLoadingConfig] = useState(true);
+
+	// Estado para Edición
+	const [editingEntry, setEditingEntry] = useState(null);
+
 	const [formData, setFormData] = useState({
 		type: "expense",
 		amount: "",
 		category: "General",
 		description: "",
 		date: new Date().toISOString().split("T")[0],
+		notes: "", // Campo Notas
 	});
 
 	const fetchConfig = async () => {
@@ -61,22 +73,18 @@ export const FinanceTab = ({
 		if (user) fetchConfig();
 	}, [user]);
 
+	// LÓGICA FILTRADO GLOBAL
 	const filteredEntries = useMemo(() => {
-		let data = entries;
-		if (viewMode === "month") {
-			data = data.filter((e) => e.date.startsWith(currentMonth));
-		} else if (viewMode === "year") {
-			const year = currentMonth.split("-")[0];
-			data = data.filter((e) => e.date.startsWith(year));
-		}
-		return data
+		const dateFiltered = filterByDate(entries, "date", viewMode, currentDate);
+
+		return dateFiltered
 			.filter(
 				(e) =>
 					e.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 					e.category?.toLowerCase().includes(searchTerm.toLowerCase())
 			)
 			.sort((a, b) => new Date(b.date) - new Date(a.date));
-	}, [entries, currentMonth, searchTerm, viewMode]);
+	}, [entries, currentDate, searchTerm, viewMode]);
 
 	const totalIncome = filteredEntries
 		.filter((e) => e.type === "income")
@@ -87,8 +95,9 @@ export const FinanceTab = ({
 	const netProfit = totalIncome - totalExpense;
 
 	const getFixedStatus = (expense) => {
+		// Buscamos si se pagó en el mes actual (incluso si la vista es anual, el estatus es del mes seleccionado)
 		const found = entries
-			.filter((e) => e.date.startsWith(currentMonth))
+			.filter((e) => e.date.startsWith(currentDate))
 			.find(
 				(e) =>
 					e.category === "Fijo" &&
@@ -97,36 +106,62 @@ export const FinanceTab = ({
 		return found ? { paid: true, date: found.date } : { paid: false };
 	};
 
-	const openEntryModal = (type) => {
-		setFormData({
-			type,
-			amount: "",
-			category: type === "income" ? "Servicio" : "Material",
-			description: "",
-			date:
-				currentMonth === new Date().toISOString().slice(0, 7)
-					? new Date().toISOString().split("T")[0]
-					: `${currentMonth}-01`,
-		});
+	// Acepta un entry opcional para editar
+	const openEntryModal = (type, entry = null) => {
+		if (entry) {
+			setEditingEntry(entry);
+			setFormData({
+				type: entry.type,
+				amount: entry.amount,
+				category: entry.category,
+				description: entry.description,
+				date: entry.date,
+				notes: entry.notes || "",
+			});
+		} else {
+			setEditingEntry(null);
+			setFormData({
+				type,
+				amount: "",
+				category: type === "income" ? "Servicio" : "Material",
+				description: "",
+				date: new Date().toISOString().split("T")[0],
+				notes: "",
+			});
+		}
 		setIsModalOpen(true);
 	};
 
 	const handleSaveEntry = async (e) => {
 		e.preventDefault();
 		try {
-			const { error } = await supabase.from("finance_entries").insert([
-				{
-					...formData,
-					amount: Number(formData.amount),
-					user_id: user.id,
-				},
-			]);
-			if (error) throw error;
-			showToast("Movimiento registrado");
+			const payload = {
+				...formData,
+				amount: Number(formData.amount),
+				user_id: user.id,
+			};
+
+			if (editingEntry) {
+				// ACTUALIZAR
+				const { error } = await supabase
+					.from("finance_entries")
+					.update(payload)
+					.eq("id", editingEntry.id);
+				if (error) throw error;
+				showToast("Movimiento actualizado");
+			} else {
+				// CREAR
+				const { error } = await supabase
+					.from("finance_entries")
+					.insert([payload]);
+				if (error) throw error;
+				showToast("Movimiento registrado");
+			}
+
 			setIsModalOpen(false);
 			if (onRefresh) await onRefresh();
 		} catch (error) {
-			showToast("Error al guardar", error);
+			showToast("Error al guardar", "error");
 		}
 	};
 
@@ -134,9 +169,9 @@ export const FinanceTab = ({
 		if (confirm(`¿Confirmar pago de ${expense.category}?`)) {
 			try {
 				const selectedDate =
-					currentMonth === new Date().toISOString().slice(0, 7)
+					currentDate === new Date().toISOString().slice(0, 7)
 						? new Date().toISOString().split("T")[0]
-						: `${currentMonth}-01`;
+						: `${currentDate}-01`;
 				const { error } = await supabase.from("finance_entries").insert([
 					{
 						user_id: user.id,
@@ -145,6 +180,7 @@ export const FinanceTab = ({
 						category: "Fijo",
 						description: expense.category,
 						date: selectedDate,
+						notes: "Pago recurrente automático",
 					},
 				]);
 				if (error) throw error;
@@ -189,8 +225,7 @@ export const FinanceTab = ({
 			}
 			showToast("Configuración guardada");
 			setIsConfigOpen(false);
-			fetchConfig(); // Recarga la config local
-			// No hace falta onRefresh global porque esto no afecta a los números del dashboard hasta que se paguen
+			fetchConfig();
 		} catch (error) {
 			showToast("Error al configurar", error);
 		}
@@ -201,7 +236,7 @@ export const FinanceTab = ({
 			<div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
 				<div>
 					<p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">
-						Balance {viewMode === "month" ? "Mensual" : "Anual"}
+						Balance {getDateLabel(currentDate, viewMode)}
 					</p>
 					<h2
 						className={`text-4xl font-black tracking-tighter ${
@@ -218,21 +253,22 @@ export const FinanceTab = ({
 						/>
 						<input
 							type="month"
-							value={currentMonth}
-							onChange={(e) => setCurrentMonth(e.target.value)}
+							value={currentDate}
+							onChange={(e) => setCurrentDate(e.target.value)}
 							className="pl-9 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none cursor-pointer"
 						/>
 					</div>
 					<select
 						value={viewMode}
 						onChange={(e) => setViewMode(e.target.value)}
-						className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none">
-						<option value="month">Mes</option>
-						<option value="year">Año</option>
+						className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none cursor-pointer">
+						<option value="month">Mensual</option>
+						<option value="quarter">Trimestral</option>
+						<option value="year">Anual</option>
 					</select>
 					<button
 						onClick={() =>
-							exportToCSV(filteredEntries, `Finanzas_${currentMonth}.csv`)
+							exportToCSV(filteredEntries, `Finanzas_${currentDate}.csv`)
 						}
 						className="bg-emerald-50 text-emerald-700 p-2.5 rounded-xl border border-emerald-100 transition-colors hover:bg-emerald-100">
 						<FileSpreadsheet size={20} />
@@ -271,11 +307,21 @@ export const FinanceTab = ({
 											<p className="text-[10px] text-gray-400 font-bold uppercase">
 												{entry.date}
 											</p>
+											{entry.notes && (
+												<p className="text-[10px] text-gray-400 italic mt-0.5 flex items-center gap-1">
+													<FileText size={8} /> {entry.notes}
+												</p>
+											)}
 										</div>
-										<div className="flex items-center gap-3">
-											<span className="font-black text-emerald-500">
+										<div className="flex items-center gap-2">
+											<span className="font-black text-emerald-500 mr-1">
 												+{formatCurrency(entry.amount)}
 											</span>
+											<button
+												onClick={() => openEntryModal("income", entry)}
+												className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+												<Edit2 size={14} />
+											</button>
 											<button
 												onClick={() => handleDelete(entry.id)}
 												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -323,11 +369,21 @@ export const FinanceTab = ({
 												{entry.date} •{" "}
 												<span className="text-rose-400">{entry.category}</span>
 											</p>
+											{entry.notes && (
+												<p className="text-[10px] text-gray-400 italic mt-0.5 flex items-center gap-1">
+													<FileText size={8} /> {entry.notes}
+												</p>
+											)}
 										</div>
-										<div className="flex items-center gap-3">
-											<span className="font-black text-rose-500">
+										<div className="flex items-center gap-2">
+											<span className="font-black text-rose-500 mr-1">
 												-{formatCurrency(entry.amount)}
 											</span>
+											<button
+												onClick={() => openEntryModal("expense", entry)}
+												className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+												<Edit2 size={14} />
+											</button>
 											<button
 												onClick={() => handleDelete(entry.id)}
 												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -344,7 +400,7 @@ export const FinanceTab = ({
 					</div>
 				</div>
 
-				{/* COLUMNA 3: CONTROL DE FIJOS */}
+				{/* COLUMNA 3: CONTROL DE FIJOS (Se queda igual) */}
 				<div className="space-y-4">
 					<div className="flex justify-between items-center px-4">
 						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest">
@@ -418,14 +474,15 @@ export const FinanceTab = ({
 					</div>
 				</div>
 			</div>
-			{/* Modales (se mantienen igual, solo cambia handleSaveEntry y handleSaveConfig que ya puse arriba) */}
+
+			{/* Modal Crear/Editar Movimiento */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-[9999] flex justify-center items-start p-4">
 					<div
 						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
 						onClick={() => setIsModalOpen(false)}
 					/>
-					<div className="relative bg-white w-full max-w-md rounded-t-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-[100px] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
+					<div className="relative bg-white w-full max-w-md rounded-t-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-[0px] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
 						<div className="p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
 							<h3
 								className={`text-2xl font-black uppercase italic tracking-tighter ${
@@ -433,7 +490,9 @@ export const FinanceTab = ({
 										? "text-emerald-500"
 										: "text-rose-500"
 								}`}>
-								{formData.type === "income"
+								{editingEntry
+									? "Editar Movimiento"
+									: formData.type === "income"
 									? "Registrar Ingreso"
 									: "Registrar Gasto"}
 							</h3>
@@ -518,6 +577,23 @@ export const FinanceTab = ({
 									)}
 								</select>
 							</div>
+
+							{/* CAMPO NOTAS AÑADIDO */}
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+									Notas Adicionales
+								</label>
+								<textarea
+									rows="2"
+									placeholder="Detalles extra..."
+									className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-gray-800 resize-none"
+									value={formData.notes}
+									onChange={(e) =>
+										setFormData({ ...formData, notes: e.target.value })
+									}
+								/>
+							</div>
+
 							<div className="mt-auto pt-8">
 								<button
 									className={`w-full text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg transition-all ${
@@ -525,13 +601,14 @@ export const FinanceTab = ({
 											? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-100"
 											: "bg-rose-500 hover:bg-rose-600 shadow-rose-100"
 									}`}>
-									Confirmar Movimiento
+									{editingEntry ? "Guardar Cambios" : "Confirmar Movimiento"}
 								</button>
 							</div>
 						</form>
 					</div>
 				</div>
 			)}
+			{/* Modal Configuración Fijos (Se queda igual) */}
 			{isConfigOpen && (
 				<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
 					<div
