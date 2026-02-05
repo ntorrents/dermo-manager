@@ -85,8 +85,12 @@ export const InventoryTab = ({
 		try {
 			const stockNum = Number(formData.stock);
 			const totalCostNum = Number(formData.totalCost);
+
 			if (stockNum <= 0) throw new Error("El stock debe ser mayor a 0");
+
+			// Calcular coste unitario
 			const calculatedUnitCost = totalCostNum / stockNum;
+
 			const payload = {
 				name: formData.name,
 				stock: stockNum,
@@ -97,6 +101,8 @@ export const InventoryTab = ({
 			};
 
 			if (editingItem) {
+				// MODO EDICIÓN: Solo actualizamos la ficha del material
+				// (No generamos gasto financiero porque asumimos que es una corrección de datos)
 				const { error } = await supabase
 					.from("inventory")
 					.update(payload)
@@ -104,13 +110,35 @@ export const InventoryTab = ({
 				if (error) throw error;
 				showToast("Material actualizado");
 			} else {
-				const { error } = await supabase.from("inventory").insert([payload]);
-				if (error) throw error;
-				showToast("Material creado");
+				// MODO CREACIÓN: Nuevo material -> Generar Gasto
+
+				// 1. Insertar en Inventario
+				const { error: invError } = await supabase
+					.from("inventory")
+					.insert([payload]);
+				if (invError) throw invError;
+
+				// 2. Insertar en Finanzas (EL CAMBIO IMPORTANTE)
+				const { error: finError } = await supabase
+					.from("finance_entries")
+					.insert([
+						{
+							user_id: user.id,
+							type: "expense", // Gasto
+							category: "Material",
+							description: `Compra Stock Inicial: ${formData.name}`,
+							amount: totalCostNum, // El coste total que pusiste en el formulario
+							date: new Date().toISOString().split("T")[0],
+						},
+					]);
+				if (finError) throw finError;
+
+				showToast("Material creado y gasto registrado");
 			}
 			setIsModalOpen(false);
 			await onRefresh();
 		} catch (error) {
+			console.error(error);
 			showToast("Error: " + error.message, "error");
 		} finally {
 			setLoading(false);

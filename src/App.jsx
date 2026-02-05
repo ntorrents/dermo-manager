@@ -50,7 +50,8 @@ const DermoManager = () => {
 	const showToastMsg = (msg, type = "success") =>
 		setToast({ message: msg, type });
 
-	const handleSession = async (treatment, clientData, finalPrice) => {
+	// ACTUALIZADO: Acepta 'date' como cuarto argumento
+	const handleSession = async (treatment, clientData, finalPrice, date) => {
 		const missing = treatment.recipe?.find((r) => {
 			const item = inventory.find((i) => i.id === r.materialId);
 			return !item || Number(item.stock) < Number(r.quantity);
@@ -90,13 +91,13 @@ const DermoManager = () => {
 				? `${treatment.name} (${clientData.name} ${clientData.surname || ""})`
 				: `${treatment.name} (${clientData.name})`;
 
-			// 3. Registrar Ingreso (con precio final)
+			// 3. Registrar Ingreso (con precio final y fecha seleccionada)
 			const { error: finError } = await supabase
 				.from("finance_entries")
 				.insert([
 					{
 						user_id: user.id,
-						date: new Date().toISOString().split("T")[0],
+						date: date, // <--- AHORA USA LA FECHA DEL MODAL
 						type: "income",
 						category: "Servicio",
 						description: displayName,
@@ -108,7 +109,7 @@ const DermoManager = () => {
 
 			if (finError) throw finError;
 
-			showToastMsg("Sesión registrada correctamente");
+			showToastMsg(`Sesión registrada el ${date}`);
 			setSelectedTreatment(null);
 
 			await refreshData();

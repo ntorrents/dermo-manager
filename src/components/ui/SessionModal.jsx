@@ -12,12 +12,18 @@ export const SessionModal = ({
 	const [selectedClient, setSelectedClient] = useState(null);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [finalPrice, setFinalPrice] = useState("");
+	// NUEVO: Estado para la fecha
+	const [selectedDate, setSelectedDate] = useState(
+		new Date().toISOString().split("T")[0]
+	);
 
 	useEffect(() => {
 		if (isOpen && treatment) {
 			setFinalPrice(treatment.price);
 			setSelectedClient(null);
 			setSearchTerm("");
+			// Reseteamos la fecha a HOY cada vez que se abre
+			setSelectedDate(new Date().toISOString().split("T")[0]);
 		}
 	}, [isOpen, treatment]);
 
@@ -29,7 +35,8 @@ export const SessionModal = ({
 
 	const handleConfirm = () => {
 		if (!selectedClient) return;
-		onConfirm(treatment, selectedClient, Number(finalPrice));
+		// AHORA enviamos también selectedDate
+		onConfirm(treatment, selectedClient, Number(finalPrice), selectedDate);
 	};
 
 	return (
@@ -129,30 +136,44 @@ export const SessionModal = ({
 						)}
 					</div>
 
-					{/* 2. PRECIO */}
-					<div className="space-y-3">
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-							<Tag size={14} /> Precio a Cobrar (€)
-						</label>
-						<div className="relative">
-							<Euro
-								className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-								size={20}
-							/>
+					{/* 2. FECHA Y PRECIO (Grid de 2 columnas) */}
+					<div className="grid grid-cols-2 gap-4">
+						{/* FECHA (NUEVO) */}
+						<div className="space-y-3">
+							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+								<Calendar size={14} /> Fecha
+							</label>
 							<input
-								type="number"
-								step="0.01"
-								className="w-full pl-12 p-4 bg-gray-50 border-2 border-transparent focus:border-emerald-100 focus:bg-white rounded-2xl outline-none font-black text-2xl text-gray-800 transition-all"
-								value={finalPrice}
-								onChange={(e) => setFinalPrice(e.target.value)}
+								type="date"
+								required
+								value={selectedDate}
+								onChange={(e) => setSelectedDate(e.target.value)}
+								className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-rose-100 focus:bg-white rounded-2xl outline-none font-bold text-gray-800 transition-all text-sm"
 							/>
 						</div>
-						<p className="text-[10px] text-gray-400 font-bold pl-1">
-							* Puedes modificar este precio si aplicas un descuento.
-						</p>
+
+						{/* PRECIO */}
+						<div className="space-y-3">
+							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+								<Tag size={14} /> Precio (€)
+							</label>
+							<div className="relative">
+								<Euro
+									className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+									size={18}
+								/>
+								<input
+									type="number"
+									step="0.01"
+									className="w-full pl-10 p-4 bg-gray-50 border-2 border-transparent focus:border-emerald-100 focus:bg-white rounded-2xl outline-none font-black text-xl text-gray-800 transition-all"
+									value={finalPrice}
+									onChange={(e) => setFinalPrice(e.target.value)}
+								/>
+							</div>
+						</div>
 					</div>
 
-					{/* 3. RESUMEN MATERIALES (CORREGIDO) */}
+					{/* 3. RESUMEN MATERIALES */}
 					{treatment.recipe?.length > 0 && (
 						<div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
 							<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
@@ -160,7 +181,6 @@ export const SessionModal = ({
 							</p>
 							<div className="space-y-2">
 								{treatment.recipe.map((item, idx) => {
-									// BUSCAMOS EL NOMBRE REAL EN EL INVENTARIO
 									const materialName =
 										inventory?.find((i) => i.id === item.materialId)?.name ||
 										"Material desconocido";
