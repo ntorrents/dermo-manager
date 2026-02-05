@@ -20,7 +20,8 @@ import {
 import { supabase } from "../../services/supabase";
 import { formatCurrency, formatDate } from "../../utils/format";
 import { exportToCSV } from "../../utils/export";
-import { filterByDate, getDateLabel } from "../../utils/dateUtils"; // IMPORTANTE
+import { filterByDate, getDateLabel } from "../../utils/dateUtils";
+import { ConfirmModal } from "../ui/ConfirmModal"; // IMPORTANTE
 
 export const FinanceTab = ({
 	user,
@@ -36,13 +37,20 @@ export const FinanceTab = ({
 	const [isConfigOpen, setIsConfigOpen] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
 
-	// Eliminamos viewMode local porque ahora viene de props
-
 	const [recurringExpenses, setRecurringExpenses] = useState([]);
 	const [loadingConfig, setLoadingConfig] = useState(true);
 
 	// Estado para Edición
 	const [editingEntry, setEditingEntry] = useState(null);
+
+	// ESTADOS PARA CONFIRMACIONES
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+	const [itemToDelete, setItemToDelete] = useState(null);
+	const [showPayModal, setShowPayModal] = useState(false);
+	const [itemToPay, setItemToPay] = useState(null);
+
+	// NUEVO: Filtro para la vista móvil (Gasto por defecto)
+	const [typeFilter, setTypeFilter] = useState("expense");
 
 	const [formData, setFormData] = useState({
 		type: "expense",
@@ -50,7 +58,7 @@ export const FinanceTab = ({
 		category: "General",
 		description: "",
 		date: new Date().toISOString().split("T")[0],
-		notes: "", // Campo Notas
+		notes: "",
 	});
 
 	const fetchConfig = async () => {
@@ -73,29 +81,38 @@ export const FinanceTab = ({
 		if (user) fetchConfig();
 	}, [user]);
 
-	// LÓGICA FILTRADO GLOBAL
-	const filteredEntries = useMemo(() => {
-		const dateFiltered = filterByDate(entries, "date", viewMode, currentDate);
+	// Entradas filtradas solo por fecha para cálculos globales
+	const periodEntries = useMemo(() => {
+		return filterByDate(entries, "date", viewMode, currentDate);
+	}, [entries, currentDate, viewMode]);
 
-		return dateFiltered
+	// Entradas filtradas para la lista (incluye búsqueda y el filtro de tipo móvil)
+	const filteredEntries = useMemo(() => {
+		let data = periodEntries;
+
+		if (typeFilter !== "all") {
+			data = data.filter((e) => e.type === typeFilter);
+		}
+
+		return data
 			.filter(
 				(e) =>
 					e.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 					e.category?.toLowerCase().includes(searchTerm.toLowerCase())
 			)
 			.sort((a, b) => new Date(b.date) - new Date(a.date));
-	}, [entries, currentDate, searchTerm, viewMode]);
+	}, [periodEntries, searchTerm, typeFilter]);
 
-	const totalIncome = filteredEntries
+	// Cálculos basados en el periodo total
+	const totalIncome = periodEntries
 		.filter((e) => e.type === "income")
 		.reduce((acc, curr) => acc + Number(curr.amount), 0);
-	const totalExpense = filteredEntries
+	const totalExpense = periodEntries
 		.filter((e) => e.type === "expense")
 		.reduce((acc, curr) => acc + Number(curr.amount), 0);
 	const netProfit = totalIncome - totalExpense;
 
 	const getFixedStatus = (expense) => {
-		// Buscamos si se pagó en el mes actual (incluso si la vista es anual, el estatus es del mes seleccionado)
 		const found = entries
 			.filter((e) => e.date.startsWith(currentDate))
 			.find(
@@ -106,7 +123,6 @@ export const FinanceTab = ({
 		return found ? { paid: true, date: found.date } : { paid: false };
 	};
 
-	// Acepta un entry opcional para editar
 	const openEntryModal = (type, entry = null) => {
 		if (entry) {
 			setEditingEntry(entry);
@@ -142,7 +158,6 @@ export const FinanceTab = ({
 			};
 
 			if (editingEntry) {
-				// ACTUALIZAR
 				const { error } = await supabase
 					.from("finance_entries")
 					.update(payload)
@@ -150,7 +165,6 @@ export const FinanceTab = ({
 				if (error) throw error;
 				showToast("Movimiento actualizado");
 			} else {
-				// CREAR
 				const { error } = await supabase
 					.from("finance_entries")
 					.insert([payload]);
@@ -165,44 +179,60 @@ export const FinanceTab = ({
 		}
 	};
 
-	const payFixedExpense = async (expense) => {
-		if (confirm(`¿Confirmar pago de ${expense.category}?`)) {
-			try {
-				const selectedDate =
-					currentDate === new Date().toISOString().slice(0, 7)
-						? new Date().toISOString().split("T")[0]
-						: `${currentDate}-01`;
-				const { error } = await supabase.from("finance_entries").insert([
-					{
-						user_id: user.id,
-						type: "expense",
-						amount: Number(expense.amount),
-						category: "Fijo",
-						description: expense.category,
-						date: selectedDate,
-						notes: "Pago recurrente automático",
-					},
-				]);
-				if (error) throw error;
-				showToast(`Pago de ${expense.category} registrado ✅`);
-				if (onRefresh) await onRefresh();
-			} catch (error) {
-				showToast("Error al registrar pago", error);
-			}
+	const handlePayClick = (expense) => {
+		setItemToPay(expense);
+		setShowPayModal(true);
+	};
+
+	const confirmPay = async () => {
+		if (!itemToPay) return;
+		try {
+			const selectedDate =
+				currentDate === new Date().toISOString().slice(0, 7)
+					? new Date().toISOString().split("T")[0]
+					: `${currentDate}-01`;
+			const { error } = await supabase.from("finance_entries").insert([
+				{
+					user_id: user.id,
+					type: "expense",
+					amount: Number(itemToPay.amount),
+					category: "Fijo",
+					description: itemToPay.category,
+					date: selectedDate,
+					notes: "Pago recurrente automático",
+				},
+			]);
+			if (error) throw error;
+			showToast(`Pago de ${itemToPay.category} registrado ✅`);
+			if (onRefresh) await onRefresh();
+		} catch (error) {
+			showToast("Error al registrar pago", error);
+		} finally {
+			setShowPayModal(false);
+			setItemToPay(null);
 		}
 	};
 
-	const handleDelete = async (id) => {
-		if (confirm("¿Eliminar movimiento?")) {
+	const handleDeleteClick = (id) => {
+		setItemToDelete(id);
+		setShowDeleteModal(true);
+	};
+
+	const confirmDelete = async () => {
+		if (!itemToDelete) return;
+		try {
 			const { error } = await supabase
 				.from("finance_entries")
 				.delete()
-				.eq("id", id);
-			if (error) showToast("Error al eliminar", "error");
-			else {
-				showToast("Eliminado");
-				if (onRefresh) await onRefresh();
-			}
+				.eq("id", itemToDelete);
+			if (error) throw error;
+			showToast("Eliminado");
+			if (onRefresh) await onRefresh();
+		} catch (e) {
+			console.error(e);
+		} finally {
+			setShowDeleteModal(false);
+			setItemToDelete(null);
 		}
 	};
 
@@ -232,8 +262,29 @@ export const FinanceTab = ({
 	};
 
 	return (
-		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
-			<div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+		<div className="space-y-6 animate-in fade-in pb-20 xl:pb-0">
+			{/* MODALES DE CONFIRMACIÓN */}
+			<ConfirmModal
+				isOpen={showDeleteModal}
+				title="Eliminar Movimiento"
+				message="¿Estás seguro de que quieres eliminar este registro? Esto afectará a tus estadísticas."
+				onConfirm={confirmDelete}
+				onCancel={() => setShowDeleteModal(false)}
+				isDestructive={true}
+			/>
+
+			<ConfirmModal
+				isOpen={showPayModal}
+				title="Confirmar Pago Recurrente"
+				message={`¿Quieres registrar el pago de ${
+					itemToPay?.category
+				} por ${formatCurrency(itemToPay?.amount)}?`}
+				onConfirm={confirmPay}
+				onCancel={() => setShowPayModal(false)}
+			/>
+
+			{/* HEADER: BALANCE Y SELECTORES */}
+			<div className="flex flex-col xl:flex-row gap-4 justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
 				<div>
 					<p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">
 						Balance {getDateLabel(currentDate, viewMode)}
@@ -245,7 +296,7 @@ export const FinanceTab = ({
 						{formatCurrency(netProfit)}
 					</h2>
 				</div>
-				<div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+				<div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
 					<div className="relative">
 						<Calendar
 							className="absolute left-3 top-2.5 text-gray-400"
@@ -268,7 +319,7 @@ export const FinanceTab = ({
 					</select>
 					<button
 						onClick={() =>
-							exportToCSV(filteredEntries, `Finanzas_${currentDate}.csv`)
+							exportToCSV(periodEntries, `Finanzas_${currentDate}.csv`)
 						}
 						className="bg-emerald-50 text-emerald-700 p-2.5 rounded-xl border border-emerald-100 transition-colors hover:bg-emerald-100">
 						<FileSpreadsheet size={20} />
@@ -276,7 +327,154 @@ export const FinanceTab = ({
 				</div>
 			</div>
 
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+			{/* BOTONES DE ACCIÓN RÁPIDA (Siempre arriba) */}
+			<div className="grid grid-cols-2 gap-3 xl:gap-6">
+				<button
+					onClick={() => openEntryModal("income")}
+					className="py-4 xl:py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
+					<Plus size={22} />{" "}
+					<span className="uppercase tracking-widest text-sm">Ingreso</span>
+				</button>
+				<button
+					onClick={() => openEntryModal("expense")}
+					className="py-4 xl:py-5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-black shadow-lg shadow-rose-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
+					<Plus size={22} />{" "}
+					<span className="uppercase tracking-widest text-sm">Gasto</span>
+				</button>
+			</div>
+
+			{/* --- VISTA MÓVIL/TABLET (Tabs y Lista Unificada) --- */}
+			<div className="xl:hidden space-y-4">
+				{/* Pestañas de Filtro */}
+				<div className="flex bg-gray-100 p-1 rounded-xl">
+					{["all", "income", "expense"].map((type) => (
+						<button
+							key={type}
+							onClick={() => setTypeFilter(type)}
+							className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+								typeFilter === type
+									? "bg-white text-gray-800 shadow-sm"
+									: "text-gray-400"
+							}`}>
+							{type === "all"
+								? "Todo"
+								: type === "income"
+								? "Ingresos"
+								: "Gastos"}
+						</button>
+					))}
+				</div>
+
+				{/* Buscador Móvil */}
+				<div className="relative">
+					<Search className="absolute left-3 top-3 text-gray-400" size={18} />
+					<input
+						placeholder="Buscar en la lista..."
+						className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl outline-none"
+						value={searchTerm}
+						onChange={(e) => setSearchTerm(e.target.value)}
+					/>
+				</div>
+
+				{/* Lista Móvil Unificada */}
+				<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+					{filteredEntries.length > 0 ? (
+						filteredEntries.map((entry) => (
+							<div
+								key={entry.id}
+								className="p-4 border-b last:border-0 hover:bg-gray-50 transition-colors flex justify-between items-center group">
+								<div>
+									<p className="font-bold text-gray-800 text-sm">
+										{entry.description}
+									</p>
+									<p className="text-[10px] text-gray-400 font-bold uppercase">
+										{entry.date} • {entry.category}
+									</p>
+									{entry.notes && (
+										<p className="text-[10px] text-gray-400 italic mt-1 flex items-center gap-1">
+											<FileText size={10} /> {entry.notes}
+										</p>
+									)}
+								</div>
+								<div className="flex items-center gap-2">
+									<span
+										className={`font-black text-sm ${
+											entry.type === "income"
+												? "text-emerald-500"
+												: "text-rose-500"
+										}`}>
+										{entry.type === "income" ? "+" : "-"}
+										{formatCurrency(entry.amount)}
+									</span>
+									<button
+										onClick={() => openEntryModal(null, entry)}
+										className="text-gray-300 p-1">
+										<Edit2 size={14} />
+									</button>
+									<button
+										onClick={() => handleDeleteClick(entry.id)}
+										className="text-gray-300 p-1">
+										<Trash2 size={14} />
+									</button>
+								</div>
+							</div>
+						))
+					) : (
+						<div className="p-10 text-center text-gray-300 font-bold uppercase text-xs">
+							Sin movimientos
+						</div>
+					)}
+				</div>
+
+				{/* Gastos Fijos (Siempre visibles al final en móvil) */}
+				<div className="space-y-4 pt-4">
+					<div className="flex justify-between items-center px-4">
+						<h3 className="text-xs font-black text-gray-700 uppercase tracking-widest">
+							Gastos Fijos
+						</h3>
+						<button
+							onClick={() => setIsConfigOpen(true)}
+							className="text-[10px] font-black text-gray-400 hover:text-rose-500 uppercase italic flex items-center gap-1">
+							<Settings size={12} /> Configurar
+						</button>
+					</div>
+					<div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-3">
+						{recurringExpenses.map((exp, idx) => {
+							const status = getFixedStatus(exp);
+							return (
+								<div
+									key={idx}
+									className={`flex justify-between items-center p-4 rounded-2xl border transition-all ${
+										status.paid
+											? "bg-emerald-50 border-emerald-100"
+											: "bg-white border-gray-100"
+									}`}>
+									<div>
+										<p className="font-bold text-gray-800 text-xs">
+											{exp.category}
+										</p>
+										<p className="text-[10px] text-gray-400 font-bold">
+											{formatCurrency(exp.amount)}
+										</p>
+									</div>
+									{status.paid ? (
+										<CheckCircle2 size={20} className="text-emerald-500" />
+									) : (
+										<button
+											onClick={() => handlePayClick(exp)}
+											className="bg-rose-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase">
+											Pagar
+										</button>
+									)}
+								</div>
+							);
+						})}
+					</div>
+				</div>
+			</div>
+
+			{/* --- VISTA WEB (3 Columnas Originales) --- */}
+			<div className="hidden xl:grid grid-cols-3 gap-6">
 				{/* COLUMNA 1: INGRESOS */}
 				<div className="space-y-4">
 					<div className="flex justify-between items-center px-4">
@@ -287,19 +485,14 @@ export const FinanceTab = ({
 							{formatCurrency(totalIncome)}
 						</span>
 					</div>
-					<button
-						onClick={() => openEntryModal("income")}
-						className="w-full py-4 border-2 border-dashed border-emerald-100 bg-emerald-50/30 text-emerald-600 rounded-2xl font-black hover:bg-emerald-50 transition-all flex justify-center items-center gap-2">
-						<Plus size={18} /> Añadir Ingreso
-					</button>
 					<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden min-h-[300px]">
-						{filteredEntries.filter((e) => e.type === "income").length > 0 ? (
-							filteredEntries
+						{periodEntries.filter((e) => e.type === "income").length > 0 ? (
+							periodEntries
 								.filter((e) => e.type === "income")
 								.map((entry) => (
 									<div
 										key={entry.id}
-										className="p-4 hover:bg-gray-50 flex justify-between items-center border-b border-gray-50 last:border-0 group transition-colors">
+										className="p-4 hover:bg-gray-50 flex justify-between items-center border-b last:border-0 group transition-colors">
 										<div>
 											<p className="font-bold text-gray-800 text-sm">
 												{entry.description}
@@ -307,11 +500,6 @@ export const FinanceTab = ({
 											<p className="text-[10px] text-gray-400 font-bold uppercase">
 												{entry.date}
 											</p>
-											{entry.notes && (
-												<p className="text-[10px] text-gray-400 italic mt-0.5 flex items-center gap-1">
-													<FileText size={8} /> {entry.notes}
-												</p>
-											)}
 										</div>
 										<div className="flex items-center gap-2">
 											<span className="font-black text-emerald-500 mr-1">
@@ -323,7 +511,7 @@ export const FinanceTab = ({
 												<Edit2 size={14} />
 											</button>
 											<button
-												onClick={() => handleDelete(entry.id)}
+												onClick={() => handleDeleteClick(entry.id)}
 												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
 												<Trash2 size={14} />
 											</button>
@@ -348,19 +536,14 @@ export const FinanceTab = ({
 							{formatCurrency(totalExpense)}
 						</span>
 					</div>
-					<button
-						onClick={() => openEntryModal("expense")}
-						className="w-full py-4 border-2 border-dashed border-rose-100 bg-rose-50/30 text-rose-600 rounded-2xl font-black hover:bg-rose-50 transition-all flex justify-center items-center gap-2">
-						<Plus size={18} /> Añadir Gasto
-					</button>
 					<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden min-h-[300px]">
-						{filteredEntries.filter((e) => e.type === "expense").length > 0 ? (
-							filteredEntries
+						{periodEntries.filter((e) => e.type === "expense").length > 0 ? (
+							periodEntries
 								.filter((e) => e.type === "expense")
 								.map((entry) => (
 									<div
 										key={entry.id}
-										className="p-4 hover:bg-gray-50 flex justify-between items-center border-b border-gray-50 last:border-0 group transition-colors">
+										className="p-4 hover:bg-gray-50 flex justify-between items-center border-b last:border-0 group transition-colors">
 										<div>
 											<p className="font-bold text-gray-800 text-sm">
 												{entry.description}
@@ -369,11 +552,6 @@ export const FinanceTab = ({
 												{entry.date} •{" "}
 												<span className="text-rose-400">{entry.category}</span>
 											</p>
-											{entry.notes && (
-												<p className="text-[10px] text-gray-400 italic mt-0.5 flex items-center gap-1">
-													<FileText size={8} /> {entry.notes}
-												</p>
-											)}
 										</div>
 										<div className="flex items-center gap-2">
 											<span className="font-black text-rose-500 mr-1">
@@ -385,7 +563,7 @@ export const FinanceTab = ({
 												<Edit2 size={14} />
 											</button>
 											<button
-												onClick={() => handleDelete(entry.id)}
+												onClick={() => handleDeleteClick(entry.id)}
 												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
 												<Trash2 size={14} />
 											</button>
@@ -400,7 +578,7 @@ export const FinanceTab = ({
 					</div>
 				</div>
 
-				{/* COLUMNA 3: CONTROL DE FIJOS (Se queda igual) */}
+				{/* COLUMNA 3: CONTROL DE FIJOS */}
 				<div className="space-y-4">
 					<div className="flex justify-between items-center px-4">
 						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest">
@@ -412,80 +590,52 @@ export const FinanceTab = ({
 							<Settings size={14} /> Configurar
 						</button>
 					</div>
-
 					<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 space-y-3">
-						<div className="flex items-center gap-4 text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">
-							<span className="flex items-center gap-1 text-emerald-500">
-								<CheckCircle2 size={12} /> Pagado
-							</span>
-							<span className="flex items-center gap-1 text-rose-500">
-								<ArrowRight size={12} /> Pendiente
-							</span>
-						</div>
-
-						{loadingConfig ? (
-							<div className="flex justify-center py-4 text-rose-500">
-								<Loader2 className="animate-spin" />
-							</div>
-						) : recurringExpenses.length > 0 ? (
-							recurringExpenses.map((exp, idx) => {
-								const status = getFixedStatus(exp);
-								return (
-									<div
-										key={idx}
-										className={`flex justify-between items-center p-4 rounded-2xl border transition-all ${
-											status.paid
-												? "bg-emerald-50/30 border-emerald-100 shadow-none"
-												: "bg-white border-gray-100 shadow-sm hover:border-rose-100"
-										}`}>
-										<div>
-											<p className="font-black text-gray-800 text-sm leading-tight">
-												{exp.category}
-											</p>
-											<p className="text-xs text-gray-400 font-bold">
-												{formatCurrency(exp.amount)}
-											</p>
-											{status.paid && (
-												<p className="text-[10px] text-emerald-600 font-black uppercase mt-1">
-													Registrado
-												</p>
-											)}
-										</div>
-										{status.paid ? (
-											<CheckCircle2 size={22} className="text-emerald-500" />
-										) : (
-											<button
-												onClick={() => payFixedExpense(exp)}
-												className="bg-[#f43f5e] hover:bg-rose-600 text-white px-5 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md transition-all active:scale-95">
-												Pagar
-											</button>
-										)}
+						{recurringExpenses.map((exp, idx) => {
+							const status = getFixedStatus(exp);
+							return (
+								<div
+									key={idx}
+									className={`flex justify-between items-center p-4 rounded-2xl border transition-all ${
+										status.paid
+											? "bg-emerald-50/30 border-emerald-100 shadow-none"
+											: "bg-white border-gray-100 shadow-sm hover:border-rose-100"
+									}`}>
+									<div>
+										<p className="font-black text-gray-800 text-sm leading-tight">
+											{exp.category}
+										</p>
+										<p className="text-xs text-gray-400 font-bold">
+											{formatCurrency(exp.amount)}
+										</p>
 									</div>
-								);
-							})
-						) : (
-							<div className="p-10 text-center border-2 border-dashed border-gray-50 rounded-[2rem] flex flex-col items-center gap-2">
-								<AlertCircle className="text-gray-200" size={32} />
-								<p className="text-[10px] font-black text-gray-300 uppercase tracking-widest leading-tight">
-									Configura tus gastos fijos para controlarlos aquí
-								</p>
-							</div>
-						)}
+									{status.paid ? (
+										<CheckCircle2 size={22} className="text-emerald-500" />
+									) : (
+										<button
+											onClick={() => handlePayClick(exp)}
+											className="bg-[#f43f5e] hover:bg-rose-600 text-white px-5 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md transition-all active:scale-95">
+											Pagar
+										</button>
+									)}
+								</div>
+							);
+						})}
 					</div>
 				</div>
 			</div>
 
-			{/* Modal Crear/Editar Movimiento */}
+			{/* MODAL CREAR MOVIMIENTO (Actualizado con Labels) */}
 			{isModalOpen && (
 				<div className="fixed inset-0 z-[9999] flex justify-center items-start p-4">
 					<div
 						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
 						onClick={() => setIsModalOpen(false)}
 					/>
-					<div className="relative bg-white w-full max-w-md rounded-t-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-[0px] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
-						<div className="p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
+					<div className="relative bg-white w-full max-w-md rounded-t-2xl xl:rounded-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-auto xl:mt-20 overflow-hidden animate-in slide-in-from-top-4">
+						<div className="p-6 border-b bg-gray-50 flex justify-between items-center">
 							<h3
-								className={`text-2xl font-black uppercase italic tracking-tighter ${
+								className={`text-xl font-black uppercase italic ${
 									formData.type === "income"
 										? "text-emerald-500"
 										: "text-rose-500"
@@ -498,52 +648,50 @@ export const FinanceTab = ({
 							</h3>
 							<button
 								onClick={() => setIsModalOpen(false)}
-								className="text-gray-400 hover:text-gray-600">
+								className="text-gray-400">
 								<X size={24} />
 							</button>
 						</div>
 						<form
 							onSubmit={handleSaveEntry}
-							className="p-8 space-y-6 flex-1 overflow-y-auto bg-white custom-scrollbar">
+							className="p-6 space-y-5 overflow-y-auto">
 							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
-									Concepto / Descripción
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									Descripción
 								</label>
 								<input
 									required
-									className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-gray-800"
-									placeholder="Ej. Sesión Dermapen..."
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-gray-200 outline-none"
 									value={formData.description}
 									onChange={(e) =>
 										setFormData({ ...formData, description: e.target.value })
 									}
 								/>
 							</div>
-							<div className="grid grid-cols-2 gap-4">
-								<div>
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+							<div className="flex gap-4">
+								<div className="flex-1">
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 										Importe (€)
 									</label>
 									<input
 										required
 										type="number"
 										step="0.01"
-										className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-black text-xl"
-										placeholder="0.00"
+										className="w-full p-4 bg-gray-50 rounded-xl font-black text-rose-500 text-xl"
 										value={formData.amount}
 										onChange={(e) =>
 											setFormData({ ...formData, amount: e.target.value })
 										}
 									/>
 								</div>
-								<div>
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+								<div className="flex-1">
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 										Fecha
 									</label>
 									<input
-										type="date"
 										required
-										className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-sm"
+										type="date"
+										className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm"
 										value={formData.date}
 										onChange={(e) =>
 											setFormData({ ...formData, date: e.target.value })
@@ -552,63 +700,57 @@ export const FinanceTab = ({
 								</div>
 							</div>
 							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 									Categoría
 								</label>
 								<select
-									className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
+									className="w-full p-4 bg-gray-50 rounded-2xl font-bold"
 									value={formData.category}
 									onChange={(e) =>
 										setFormData({ ...formData, category: e.target.value })
 									}>
 									{formData.type === "income" ? (
 										<>
-											{" "}
-											<option>Servicio</option> <option>Producto</option>{" "}
-											<option>Otros</option>{" "}
+											<option>Servicio</option>
+											<option>Producto</option>
+											<option>Otros</option>
 										</>
 									) : (
 										<>
-											{" "}
-											<option>Material</option> <option>Alquiler</option>{" "}
-											<option>Marketing</option> <option>Suministros</option>{" "}
-											<option>Otros</option>{" "}
+											<option>Material</option>
+											<option>Alquiler</option>
+											<option>Marketing</option>
+											<option>Suministros</option>
+											<option>Otros</option>
 										</>
 									)}
 								</select>
 							</div>
-
-							{/* CAMPO NOTAS AÑADIDO */}
 							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
-									Notas Adicionales
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									Notas
 								</label>
 								<textarea
 									rows="2"
-									placeholder="Detalles extra..."
-									className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-gray-800 resize-none"
+									className="w-full p-4 bg-gray-50 rounded-2xl font-bold resize-none"
 									value={formData.notes}
 									onChange={(e) =>
 										setFormData({ ...formData, notes: e.target.value })
 									}
 								/>
 							</div>
-
-							<div className="mt-auto pt-8">
-								<button
-									className={`w-full text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg transition-all ${
-										formData.type === "income"
-											? "bg-emerald-500 hover:bg-emerald-600 shadow-emerald-100"
-											: "bg-rose-500 hover:bg-rose-600 shadow-rose-100"
-									}`}>
-									{editingEntry ? "Guardar Cambios" : "Confirmar Movimiento"}
-								</button>
-							</div>
+							<button
+								className={`w-full py-4 rounded-xl font-black text-white shadow-lg ${
+									formData.type === "income" ? "bg-emerald-500" : "bg-rose-500"
+								}`}>
+								Guardar
+							</button>
 						</form>
 					</div>
 				</div>
 			)}
-			{/* Modal Configuración Fijos (Se queda igual) */}
+
+			{/* MODAL CONFIGURACIÓN (Sin cambios) */}
 			{isConfigOpen && (
 				<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
 					<div
@@ -616,14 +758,11 @@ export const FinanceTab = ({
 						onClick={() => setIsConfigOpen(false)}
 					/>
 					<div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
-						<div className="p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
+						<div className="p-8 border-b bg-gray-50 flex justify-between items-center">
 							<div>
 								<h3 className="text-2xl font-black text-gray-800 tracking-tighter italic">
-									Gastos Fijos Mensuales
+									Gastos Fijos
 								</h3>
-								<p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-									Importes que se repiten cada mes
-								</p>
 							</div>
 							<button onClick={() => setIsConfigOpen(false)}>
 								<X size={24} className="text-gray-300" />
@@ -648,12 +787,12 @@ export const FinanceTab = ({
 											<X size={14} />
 										</button>
 										<div>
-											<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block tracking-widest">
+											<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
 												Concepto
 											</label>
 											<input
 												required
-												className="w-full p-3 bg-white border border-gray-100 rounded-xl font-bold text-sm outline-none focus:border-rose-200"
+												className="w-full p-3 bg-white border border-gray-100 rounded-xl font-bold text-sm"
 												value={exp.category}
 												onChange={(e) => {
 													const newExps = [...recurringExpenses];
@@ -663,14 +802,14 @@ export const FinanceTab = ({
 											/>
 										</div>
 										<div>
-											<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block tracking-widest">
-												Importe Mensual (€)
+											<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
+												Importe (€)
 											</label>
 											<input
 												type="number"
 												step="0.01"
 												required
-												className="w-full p-3 bg-white border border-gray-100 rounded-xl font-black text-lg outline-none focus:border-rose-200"
+												className="w-full p-3 bg-white border border-gray-100 rounded-xl font-black text-lg"
 												value={exp.amount}
 												onChange={(e) => {
 													const newExps = [...recurringExpenses];
@@ -690,11 +829,11 @@ export const FinanceTab = ({
 										])
 									}
 									className="w-full py-3 border-2 border-dashed border-gray-100 text-gray-400 rounded-2xl font-black text-[10px] uppercase hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
-									<Plus size={14} /> Añadir concepto personalizado
+									<Plus size={14} /> Añadir concepto
 								</button>
 							</div>
-							<button className="w-full bg-[#1e293b] text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg hover:bg-black transition-all shadow-slate-200 mt-4">
-								Guardar Configuración
+							<button className="w-full bg-[#1e293b] text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg mt-4">
+								Guardar
 							</button>
 						</form>
 					</div>

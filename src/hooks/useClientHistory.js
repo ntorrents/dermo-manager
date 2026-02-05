@@ -1,65 +1,45 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../services/supabase";
 
-export const useClientHistory = (user, clientId) => {
+/**
+ * Hook para obtener el historial de tratamientos de un cliente.
+ * Solo necesita el ID del cliente.
+ */
+export const useClientHistory = (clientId) => {
 	const [history, setHistory] = useState([]);
-	const [loading, setLoading] = useState(true);
+	const [loading, setLoading] = useState(false);
 
 	useEffect(() => {
-		// Si no hay usuario o no se ha seleccionado un cliente, no buscamos nada
-		if (!user || !clientId) {
+		// Si no hay ID de cliente seleccionado, limpiamos el historial y salimos
+		if (!clientId) {
 			setHistory([]);
 			setLoading(false);
 			return;
 		}
 
 		const fetchHistory = async () => {
+			setLoading(true);
 			try {
-				setLoading(true);
-
-				// Consultamos la tabla de finanzas filtrando por el cliente
-				// Solo buscamos los 'income' (ingresos), que representan las sesiones realizadas
+				// Consultamos la tabla de finanzas filtrando por el client_id
+				// Buscamos solo 'income' que son los servicios realizados
 				const { data, error } = await supabase
 					.from("finance_entries")
 					.select("*")
 					.eq("client_id", clientId)
 					.eq("type", "income")
-					.order("date", { ascending: false }); // El tratamiento más reciente primero
+					.order("date", { ascending: false });
 
 				if (error) throw error;
-
 				setHistory(data || []);
 			} catch (error) {
-				console.error(
-					"Error cargando el historial del cliente:",
-					error.message
-				);
+				console.error("Error cargando historial:", error.message);
 			} finally {
 				setLoading(false);
 			}
 		};
 
 		fetchHistory();
-
-		// Suscripción opcional para actualizar el historial en tiempo real si se añade una sesión
-		const subscription = supabase
-			.channel(`history-${clientId}`)
-			.on(
-				"postgres_changes",
-				{
-					event: "*",
-					schema: "public",
-					table: "finance_entries",
-					filter: `client_id=eq.${clientId}`,
-				},
-				fetchHistory
-			)
-			.subscribe();
-
-		return () => {
-			supabase.removeChannel(subscription);
-		};
-	}, [user, clientId]);
+	}, [clientId]); // Solo se vuelve a ejecutar si cambia el ID del cliente
 
 	return { history, loading };
 };

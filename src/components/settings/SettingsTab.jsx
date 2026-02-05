@@ -352,9 +352,11 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 								<label className="text-xs font-bold text-gray-500 uppercase block mb-2">
 									Cambiar Correo Electrónico
 								</label>
-								<div className="flex gap-2">
+								<div className="flex flex-col sm:flex-row gap-2">
+									{" "}
+									{/* CAMBIO AQUI: flex-col por defecto, row en sm */}
 									<input
-										className="flex-1 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
+										className="flex-1 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500 w-full"
 										placeholder="nuevo@email.com"
 										value={newEmail}
 										onChange={(e) => setNewEmail(e.target.value)}
@@ -362,9 +364,9 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 									<button
 										onClick={handleUpdateEmail}
 										disabled={loadingEmail || !newEmail || newEmail === email}
-										className="bg-gray-900 text-white px-4 rounded-xl font-bold text-sm hover:bg-black disabled:opacity-50 transition-colors">
+										className="bg-gray-900 text-white px-4 py-3 sm:py-0 rounded-xl font-bold text-sm hover:bg-black disabled:opacity-50 transition-colors w-full sm:w-auto">
 										{loadingEmail ? (
-											<Loader2 className="animate-spin" size={16} />
+											<Loader2 className="animate-spin mx-auto" size={16} />
 										) : (
 											"Actualizar"
 										)}
@@ -372,7 +374,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 								</div>
 								<p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
 									<CheckCircle2 size={10} /> Te enviaremos un email de
-									confirmación al nuevo correo.
+									confirmación.
 								</p>
 							</div>
 						</div>

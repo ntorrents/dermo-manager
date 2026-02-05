@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 export const Sidebar = ({ activeTab, setActiveTab, onLogout, companyName }) => (
-	<div className="hidden md:fixed md:inset-y-0 md:left-0 md:flex md:w-64 md:flex-col md:bg-white md:border-r z-20">
+	<div className="hidden xl:flex flex-col w-64 bg-white border-r border-gray-100 h-screen fixed left-0 top-0 z-50">
 		<div className="h-20 flex items-center justify-center border-b">
 			<h1 className="text-2xl font-bold text-rose-500">
 				{companyName || "DermoApp"}

@@ -10,8 +10,10 @@ import {
 	X,
 	RotateCcw,
 	Info,
+	MoreVertical,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
+import { ConfirmModal } from "../ui/ConfirmModal";
 
 export const InventoryTab = ({
 	user,
@@ -23,7 +25,6 @@ export const InventoryTab = ({
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState(null);
 
-	// Estado para Reposición
 	const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
 	const [restockItem, setRestockItem] = useState(null);
 	const [restockData, setRestockData] = useState({
@@ -31,9 +32,10 @@ export const InventoryTab = ({
 		totalCost: "",
 	});
 
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+	const [itemToDelete, setItemToDelete] = useState(null);
 	const [loading, setLoading] = useState(false);
 
-	// MODIFICADO: Ahora usamos 'totalCost' en lugar de unit_cost directo
 	const [formData, setFormData] = useState({
 		name: "",
 		stock: "",
@@ -51,20 +53,17 @@ export const InventoryTab = ({
 		inventory?.filter((item) => Number(item.stock) <= Number(item.min_stock))
 			.length || 0;
 
-	// MODIFICADO: Al abrir, calculamos el total si estamos editando
 	const openModal = (item = null) => {
 		if (item) {
 			setEditingItem(item);
-			// Calculamos el valor total actual para mostrarlo
 			const calculatedTotal = (
 				Number(item.stock) * Number(item.unit_cost)
 			).toFixed(2);
-
 			setFormData({
 				name: item.name,
 				stock: item.stock,
 				unit: item.unit || "uds",
-				totalCost: calculatedTotal, // Mostramos el total
+				totalCost: calculatedTotal,
 				min_stock: item.min_stock,
 			});
 		} else {
@@ -80,25 +79,21 @@ export const InventoryTab = ({
 		setIsModalOpen(true);
 	};
 
-	// MODIFICADO: Al guardar, dividimos Total / Stock para sacar el unitario
 	const handleSave = async (e) => {
 		e.preventDefault();
 		setLoading(true);
 		try {
 			const stockNum = Number(formData.stock);
 			const totalCostNum = Number(formData.totalCost);
-
 			if (stockNum <= 0) throw new Error("El stock debe ser mayor a 0");
-
-			// Cálculo del coste unitario
 			const calculatedUnitCost = totalCostNum / stockNum;
-
 			const payload = {
 				name: formData.name,
 				stock: stockNum,
 				unit: formData.unit,
-				unit_cost: calculatedUnitCost, // Guardamos el unitario calculado
+				unit_cost: calculatedUnitCost,
 				min_stock: Number(formData.min_stock),
+				user_id: user.id,
 			};
 
 			if (editingItem) {
@@ -109,16 +104,14 @@ export const InventoryTab = ({
 				if (error) throw error;
 				showToast("Material actualizado");
 			} else {
-				const { error } = await supabase
-					.from("inventory")
-					.insert([{ ...payload, user_id: user.id }]);
+				const { error } = await supabase.from("inventory").insert([payload]);
 				if (error) throw error;
 				showToast("Material creado");
 			}
 			setIsModalOpen(false);
-			if (onRefresh) await onRefresh();
+			await onRefresh();
 		} catch (error) {
-			showToast("Error al guardar: " + error.message, "error");
+			showToast("Error: " + error.message, "error");
 		} finally {
 			setLoading(false);
 		}
@@ -138,10 +131,7 @@ export const InventoryTab = ({
 			const purchaseCost = Number(restockData.totalCost);
 			const currentStock = Number(restockItem.stock);
 			const currentUnitCost = Number(restockItem.unit_cost);
-
 			const newStock = currentStock + qtyBought;
-
-			// Fórmula de Precio Medio Ponderado
 			const newUnitCost =
 				(currentStock * currentUnitCost + purchaseCost) / newStock;
 
@@ -149,10 +139,9 @@ export const InventoryTab = ({
 				.from("inventory")
 				.update({
 					stock: newStock,
-					unit_cost: parseFloat(newUnitCost.toFixed(4)), // Más precisión
+					unit_cost: parseFloat(newUnitCost.toFixed(4)),
 				})
 				.eq("id", restockItem.id);
-
 			if (error) throw error;
 
 			await supabase.from("finance_entries").insert([
@@ -166,51 +155,140 @@ export const InventoryTab = ({
 				},
 			]);
 
-			showToast("Stock repuesto y coste actualizado");
+			showToast("Stock actualizado");
 			setIsRestockModalOpen(false);
-			if (onRefresh) await onRefresh();
+			await onRefresh();
 		} catch (error) {
-			showToast("Error al reponer stock", "error");
+			showToast("Error al reponer", "error");
 		} finally {
 			setLoading(false);
 		}
 	};
 
+	const handleDeleteClick = (item) => {
+		setItemToDelete(item);
+		setShowDeleteModal(true);
+	};
+
+	const confirmDelete = async () => {
+		if (!itemToDelete) return;
+		try {
+			const { error } = await supabase
+				.from("inventory")
+				.delete()
+				.eq("id", itemToDelete.id);
+			if (error) throw error;
+			showToast("Eliminado");
+			await onRefresh();
+		} catch (error) {
+			showToast("Error al eliminar", "error");
+		} finally {
+			setShowDeleteModal(false);
+			setItemToDelete(null);
+		}
+	};
+
 	return (
-		<div className="space-y-6 animate-in fade-in pb-20">
-			<div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-				<div className="relative flex-1 w-full md:max-w-md">
+		<div className="space-y-6 animate-in fade-in pb-24 xl:pb-0">
+			<ConfirmModal
+				isOpen={showDeleteModal}
+				title="Eliminar Material"
+				message={`¿Eliminar "${itemToDelete?.name}"?`}
+				onConfirm={confirmDelete}
+				onCancel={() => setShowDeleteModal(false)}
+				isDestructive={true}
+			/>
+
+			<div className="flex flex-col xl:flex-row gap-4 justify-between items-center">
+				<div className="relative flex-1 w-full xl:max-w-md">
 					<Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
 					<input
 						placeholder="Buscar material..."
-						className="w-full pl-12 p-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm outline-none focus:ring-2 ring-rose-100"
+						className="w-full pl-12 p-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm outline-none focus:ring-2 ring-rose-100 font-bold"
 						value={searchTerm}
 						onChange={(e) => setSearchTerm(e.target.value)}
 					/>
 				</div>
 				<button
 					onClick={() => openModal()}
-					className="bg-[#f43f5e] hover:bg-rose-600 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-rose-100 transition-all w-full md:w-auto justify-center">
+					className="bg-[#f43f5e] hover:bg-rose-600 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-rose-100 transition-all w-full xl:w-auto justify-center">
 					<Plus size={20} /> Nuevo Material
 				</button>
 			</div>
 
 			{lowStockCount > 0 && (
 				<div className="bg-[#fffbeb] border border-[#fef3c7] p-4 rounded-2xl flex items-start gap-4 shadow-sm">
-					<div className="p-2 bg-white rounded-xl shadow-sm">
-						<AlertTriangle className="text-[#d97706]" size={20} />
-					</div>
+					<AlertTriangle className="text-[#d97706]" size={20} />
 					<div>
-						<h4 className="font-bold text-[#92400e]">Stock Bajo Detectado</h4>
-						<p className="text-sm text-[#b45309]">
-							Tienes {lowStockCount} productos por debajo del mínimo. Revisa la
-							lista.
+						<h4 className="font-bold text-[#92400e]">
+							Stock Bajo ({lowStockCount})
+						</h4>
+						<p className="text-xs text-[#b45309]">
+							Revisa los productos marcados.
 						</p>
 					</div>
 				</div>
 			)}
 
-			<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+			<div className="xl:hidden space-y-3">
+				{filteredInventory.map((item) => (
+					<div
+						key={item.id}
+						className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3">
+						<div className="flex justify-between items-start">
+							<div className="flex items-center gap-3">
+								<div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+									<Package size={20} />
+								</div>
+								<div>
+									<h4 className="font-bold text-gray-800">{item.name}</h4>
+									<p className="text-xs text-gray-400 font-medium">
+										{item.unit_cost.toFixed(2)}€ / {item.unit}
+									</p>
+								</div>
+							</div>
+							<div className="flex gap-1">
+								<button
+									onClick={() => openModal(item)}
+									className="p-2 bg-gray-50 text-gray-400 rounded-lg">
+									<Edit2 size={16} />
+								</button>
+								<button
+									onClick={() => handleDeleteClick(item)}
+									className="p-2 bg-red-50 text-red-500 rounded-lg">
+									<Trash2 size={16} />
+								</button>
+							</div>
+						</div>
+
+						<div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl">
+							<div className="flex flex-col">
+								<span className="text-[10px] uppercase font-bold text-gray-400">
+									Stock Actual
+								</span>
+								<span
+									className={`font-black text-lg ${
+										item.stock <= item.min_stock
+											? "text-red-500"
+											: "text-gray-800"
+									}`}>
+									{item.stock}{" "}
+									<span className="text-xs font-normal text-gray-400">
+										{item.unit}
+									</span>
+								</span>
+							</div>
+							<button
+								onClick={() => openRestockModal(item)}
+								className="bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-200 transition-colors">
+								<RotateCcw size={14} /> Reponer
+							</button>
+						</div>
+					</div>
+				))}
+			</div>
+
+			<div className="hidden xl:block bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
 				<table className="w-full text-left border-collapse">
 					<thead>
 						<tr className="bg-gray-50/50 border-b text-[11px] font-black text-gray-400 uppercase tracking-[0.1em]">
@@ -241,21 +319,14 @@ export const InventoryTab = ({
 									</div>
 								</td>
 								<td className="p-6 text-center">
-									<div className="inline-flex flex-col items-center">
-										<span
-											className={`px-4 py-1.5 rounded-full text-sm font-black shadow-sm ${
-												Number(item.stock) <= Number(item.min_stock)
-													? "bg-rose-50 text-rose-600 border border-rose-100"
-													: "bg-emerald-50 text-emerald-600 border border-emerald-100"
-											}`}>
-											{item.stock}
-										</span>
-										{Number(item.stock) <= Number(item.min_stock) && (
-											<span className="text-[10px] font-black text-rose-500 mt-1 uppercase tracking-tighter italic">
-												¡Reponer!
-											</span>
-										)}
-									</div>
+									<span
+										className={`px-4 py-1.5 rounded-full text-sm font-black shadow-sm ${
+											Number(item.stock) <= Number(item.min_stock)
+												? "bg-rose-50 text-rose-600 border border-rose-100"
+												: "bg-emerald-50 text-emerald-600 border border-emerald-100"
+										}`}>
+										{item.stock}
+									</span>
 								</td>
 								<td className="p-6 text-center">
 									<span className="font-bold text-gray-600 text-lg">
@@ -276,15 +347,7 @@ export const InventoryTab = ({
 											<Edit2 size={18} />
 										</button>
 										<button
-											onClick={async () => {
-												if (confirm("¿Eliminar?")) {
-													await supabase
-														.from("inventory")
-														.delete()
-														.eq("id", item.id);
-													if (onRefresh) await onRefresh();
-												}
-											}}
+											onClick={() => handleDeleteClick(item)}
 											className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">
 											<Trash2 size={18} />
 										</button>
@@ -296,52 +359,45 @@ export const InventoryTab = ({
 				</table>
 			</div>
 
-			{/* MODAL CREAR/EDITAR MATERIAL */}
 			{isModalOpen && (
-				<div className="fixed inset-0 z-50 flex justify-center items-start p-4">
+				<div className="fixed inset-0 z-50 flex justify-center items-start xl:items-center p-4">
 					<div
 						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
 						onClick={() => setIsModalOpen(false)}
 					/>
-					<div className="relative bg-white w-full max-w-lg rounded-t-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-[0px] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
+					<div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] mt-8 xl:mt-0 animate-in zoom-in-95">
 						<div className="p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
 							<h3 className="text-2xl font-black text-gray-800 tracking-tight">
-								{editingItem ? "Editar Material" : "Nuevo Material"}
+								{editingItem ? "Editar" : "Nuevo"}
 							</h3>
 							<button
 								onClick={() => setIsModalOpen(false)}
-								className="text-gray-400 hover:text-gray-600 p-2">
+								className="text-gray-400 hover:text-gray-600">
 								<X size={24} />
 							</button>
 						</div>
-						<div className="flex-1 overflow-y-auto p-8 bg-white custom-scrollbar">
-							<form
-								onSubmit={handleSave}
-								className="space-y-6 flex flex-col min-h-full">
-								{/* NOMBRE */}
+						<div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+							<form onSubmit={handleSave} className="space-y-6">
 								<div>
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
-										Nombre
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+										Nombre del Producto
 									</label>
 									<input
 										required
-										className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-gray-200 focus:bg-white rounded-2xl outline-none font-bold transition-all"
+										className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-gray-200 focus:bg-white rounded-2xl outline-none font-bold"
 										value={formData.name}
 										onChange={(e) =>
 											setFormData({ ...formData, name: e.target.value })
 										}
 									/>
 								</div>
-
-								{/* STOCK Y UNIDAD */}
 								<div className="grid grid-cols-2 gap-4">
 									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
-											Stock Total
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+											Stock Actual
 										</label>
 										<input
 											type="number"
-											placeholder="Ej: 50"
 											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
 											value={formData.stock}
 											onChange={(e) =>
@@ -350,11 +406,10 @@ export const InventoryTab = ({
 										/>
 									</div>
 									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
 											Unidad
 										</label>
 										<input
-											placeholder="Ej: dosis"
 											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
 											value={formData.unit}
 											onChange={(e) =>
@@ -363,18 +418,15 @@ export const InventoryTab = ({
 										/>
 									</div>
 								</div>
-
-								{/* COSTE TOTAL Y MINIMO */}
 								<div className="grid grid-cols-2 gap-4">
 									<div>
-										<label className="text-[11px] font-black text-rose-500 uppercase tracking-widest mb-2 block">
+										<label className="text-[11px] font-black text-rose-500 uppercase tracking-widest mb-2 block ml-1">
 											Coste Total (€)
 										</label>
 										<input
 											type="number"
 											step="0.01"
-											placeholder="Factura"
-											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
+											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-rose-500 placeholder-rose-300"
 											value={formData.totalCost}
 											onChange={(e) =>
 												setFormData({ ...formData, totalCost: e.target.value })
@@ -382,13 +434,12 @@ export const InventoryTab = ({
 										/>
 									</div>
 									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
 											Aviso Mínimo
 										</label>
 										<input
 											type="number"
-											placeholder="Mínimo"
-											className="w-full p-4 bg-rose-50 text-rose-600 rounded-2xl outline-none font-bold"
+											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
 											value={formData.min_stock}
 											onChange={(e) =>
 												setFormData({ ...formData, min_stock: e.target.value })
@@ -396,21 +447,8 @@ export const InventoryTab = ({
 										/>
 									</div>
 								</div>
-
-								{/* FEEDBACK VISUAL DE CÁLCULO */}
-								{formData.stock > 0 && formData.totalCost > 0 && (
-									<div className="p-4 bg-emerald-50 rounded-2xl flex items-center justify-between">
-										<span className="text-xs font-bold text-emerald-600 uppercase">
-											Coste por {formData.unit}:
-										</span>
-										<span className="text-lg font-black text-emerald-700">
-											{(formData.totalCost / formData.stock).toFixed(2)} €
-										</span>
-									</div>
-								)}
-
-								<div className="mt-auto pt-8">
-									<button className="w-full bg-[#f43f5e] text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg">
+								<div className="pt-4">
+									<button className="w-full bg-[#1e293b] text-white font-black py-4 rounded-xl shadow-lg">
 										Guardar Material
 									</button>
 								</div>
@@ -420,63 +458,48 @@ export const InventoryTab = ({
 				</div>
 			)}
 
-			{/* MODAL REPONER STOCK (Mantenido igual) */}
 			{isRestockModalOpen && (
-				<div className="fixed inset-0 z-[60] mt-[100px] flex items-center justify-center p-4">
+				<div className="fixed inset-0 z-[60] flex justify-center items-center p-4">
 					<div
 						className="fixed inset-0 bg-black/60 backdrop-blur-sm"
 						onClick={() => setIsRestockModalOpen(false)}
 					/>
-					<div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 animate-in zoom-in-95 duration-200">
+					<div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 animate-in zoom-in-95">
 						<div className="flex justify-between items-start mb-6">
 							<div>
-								<h3 className="text-2xl font-black text-blue-600 tracking-tight">
-									Reponer Stock
-								</h3>
-								<p className="text-gray-500 font-bold">
-									Añadir unidades a{" "}
-									<span className="text-gray-800">{restockItem?.name}</span>
-								</p>
+								<h3 className="text-2xl font-black text-blue-600">Reponer</h3>
+								<p className="text-gray-500 font-bold">{restockItem?.name}</p>
 							</div>
-							<button
-								onClick={() => setIsRestockModalOpen(false)}
-								className="text-gray-400 hover:text-gray-600 p-1">
-								<X size={24} />
+							<button onClick={() => setIsRestockModalOpen(false)}>
+								<X className="text-gray-400" />
 							</button>
 						</div>
 						<form onSubmit={handleRestock} className="space-y-6">
 							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
-									CANTIDAD COMPRADA
+								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+									Cantidad Comprada
 								</label>
-								<div className="relative">
-									<input
-										type="number"
-										required
-										className="w-full p-4 bg-gray-50 border-2 border-gray-100 focus:border-blue-200 rounded-2xl outline-none font-bold text-xl transition-all"
-										value={restockData.quantity}
-										onChange={(e) =>
-											setRestockData({
-												...restockData,
-												quantity: e.target.value,
-											})
-										}
-									/>
-									<span className="absolute right-4 top-4 text-gray-400 font-bold">
-										{restockItem?.unit || "uds"}
-									</span>
-								</div>
+								<input
+									type="number"
+									required
+									placeholder="0"
+									className="w-full p-4 bg-gray-50 rounded-2xl font-bold text-xl outline-none"
+									value={restockData.quantity}
+									onChange={(e) =>
+										setRestockData({ ...restockData, quantity: e.target.value })
+									}
+								/>
 							</div>
 							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
-									COSTE TOTAL DE LA COMPRA (€)
+								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+									Coste Total (€)
 								</label>
 								<input
 									type="number"
 									step="0.01"
 									required
 									placeholder="0.00"
-									className="w-full p-4 bg-gray-50 border-2 border-gray-100 focus:border-blue-200 rounded-2xl outline-none font-bold text-xl transition-all"
+									className="w-full p-4 bg-gray-50 rounded-2xl font-bold text-xl outline-none"
 									value={restockData.totalCost}
 									onChange={(e) =>
 										setRestockData({
@@ -485,25 +508,11 @@ export const InventoryTab = ({
 										})
 									}
 								/>
-								<p className="mt-2 text-[11px] text-gray-400 font-medium leading-relaxed">
-									Pon lo que te ha costado la factura entera de este producto.
-								</p>
-							</div>
-							<div className="bg-blue-50/50 p-4 rounded-2xl flex items-start gap-3 border border-blue-100">
-								<Info className="text-blue-500 shrink-0 mt-0.5" size={18} />
-								<p className="text-xs font-bold text-blue-700 leading-relaxed">
-									Se recalculará el coste unitario automáticamente (Precio Medio
-									Ponderado).
-								</p>
 							</div>
 							<button
 								disabled={loading}
-								className="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-5 rounded-[1.5rem] shadow-xl shadow-blue-100 transition-all text-lg flex justify-center">
-								{loading ? (
-									<Loader2 className="animate-spin" />
-								) : (
-									"Confirmar Compra"
-								)}
+								className="w-full bg-blue-600 text-white font-black py-4 rounded-xl shadow-lg">
+								{loading ? "Guardando..." : "Confirmar Compra"}
 							</button>
 						</form>
 					</div>
