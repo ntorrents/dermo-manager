@@ -51,53 +51,77 @@ const DermoManager = () => {
 		setToast({ message: msg, type });
 
 	// ACTUALIZADO: Acepta 'date' como cuarto argumento
-	const handleSession = async (treatment, clientData, finalPrice, date) => {
-		const missing = treatment.recipe?.find((r) => {
-			const item = inventory.find((i) => i.id === r.materialId);
-			return !item || Number(item.stock) < Number(r.quantity);
-		});
+	const handleSession = async (
+		treatment,
+		clientData,
+		finalPrice,
+		date,
+		extras = []
+	) => {
+		// 1. Unificamos receta base + extras en una sola lista de consumo
+		const baseRecipe = treatment.recipe || [];
+
+		// Convertimos la lista en un array plano de objetos { materialId, quantity }
+		const totalConsumption = [...baseRecipe, ...extras];
+
+		// VALIDACIÓN: Verificar si hay stock suficiente para TODO (receta + extras)
+		// Agrupamos por materialId por si el mismo material está en receta y en extras
+		const combinedQuantities = totalConsumption.reduce((acc, item) => {
+			const qty = Number(item.quantity) || 0;
+			if (!item.materialId) return acc;
+			acc[item.materialId] = (acc[item.materialId] || 0) + qty;
+			return acc;
+		}, {});
+
+		const missing = Object.entries(combinedQuantities).find(
+			([matId, qtyNeeded]) => {
+				const item = inventory.find((i) => i.id === matId);
+				return !item || Number(item.stock) < qtyNeeded;
+			}
+		);
 
 		if (missing) {
-			showToastMsg("Falta material en inventario", "error");
+			const item = inventory.find((i) => i.id === missing[0]);
+			showToastMsg(
+				`Falta stock: ${item ? item.name : "Material desconocido"}`,
+				"error"
+			);
 			return;
 		}
 
 		try {
-			// 1. Descontar Stock
-			if (treatment.recipe && treatment.recipe.length > 0) {
-				for (const r of treatment.recipe) {
-					const item = inventory.find((i) => i.id === r.materialId);
-					if (item) {
-						const { error: invError } = await supabase
-							.from("inventory")
-							.update({ stock: Number(item.stock) - Number(r.quantity) })
-							.eq("id", r.materialId);
-						if (invError) throw invError;
-					}
+			// 2. Descontar Stock (Usando la lista agrupada)
+			for (const [matId, qty] of Object.entries(combinedQuantities)) {
+				const item = inventory.find((i) => i.id === matId);
+				if (item) {
+					const { error: invError } = await supabase
+						.from("inventory")
+						.update({ stock: Number(item.stock) - qty })
+						.eq("id", matId);
+					if (invError) throw invError;
 				}
 			}
 
-			// 2. Calcular Coste (Solo informativo)
-			const cost =
-				treatment.recipe?.reduce((total, r) => {
-					const item = inventory.find((m) => m.id === r.materialId);
-					return (
-						total +
-						(item ? (Number(item.unit_cost) || 0) * Number(r.quantity) : 0)
-					);
-				}, 0) || 0;
+			// 3. Calcular Coste Real (Receta + Extras)
+			const cost = Object.entries(combinedQuantities).reduce(
+				(total, [matId, qty]) => {
+					const item = inventory.find((m) => m.id === matId);
+					return total + (item ? (Number(item.unit_cost) || 0) * qty : 0);
+				},
+				0
+			);
 
 			const displayName = clientData.id
 				? `${treatment.name} (${clientData.name} ${clientData.surname || ""})`
 				: `${treatment.name} (${clientData.name})`;
 
-			// 3. Registrar Ingreso (con precio final y fecha seleccionada)
+			// 4. Registrar Ingreso
 			const { error: finError } = await supabase
 				.from("finance_entries")
 				.insert([
 					{
 						user_id: user.id,
-						date: date, // <--- AHORA USA LA FECHA DEL MODAL
+						date: date,
 						type: "income",
 						category: "Servicio",
 						description: displayName,
@@ -109,7 +133,7 @@ const DermoManager = () => {
 
 			if (finError) throw finError;
 
-			showToastMsg(`Sesión registrada el ${date}`);
+			showToastMsg(`Sesión guardada (Fecha: ${date})`);
 			setSelectedTreatment(null);
 
 			await refreshData();

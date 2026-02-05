@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { X, Calendar, User, Search, Euro, Tag } from "lucide-react";
+import {
+	X,
+	Calendar,
+	User,
+	Search,
+	Euro,
+	Tag,
+	Plus,
+	Trash2,
+} from "lucide-react";
 
 export const SessionModal = ({
 	isOpen,
@@ -12,18 +21,20 @@ export const SessionModal = ({
 	const [selectedClient, setSelectedClient] = useState(null);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [finalPrice, setFinalPrice] = useState("");
-	// NUEVO: Estado para la fecha
 	const [selectedDate, setSelectedDate] = useState(
 		new Date().toISOString().split("T")[0]
 	);
+
+	// NUEVO: Estado para materiales extra
+	const [extras, setExtras] = useState([]);
 
 	useEffect(() => {
 		if (isOpen && treatment) {
 			setFinalPrice(treatment.price);
 			setSelectedClient(null);
 			setSearchTerm("");
-			// Reseteamos la fecha a HOY cada vez que se abre
 			setSelectedDate(new Date().toISOString().split("T")[0]);
+			setExtras([]); // Reseteamos los extras al abrir
 		}
 	}, [isOpen, treatment]);
 
@@ -33,10 +44,32 @@ export const SessionModal = ({
 		`${c.name} ${c.surname}`.toLowerCase().includes(searchTerm.toLowerCase())
 	);
 
+	// Funciones para gestionar extras
+	const addExtra = () => {
+		setExtras([...extras, { materialId: "", quantity: 1 }]);
+	};
+
+	const updateExtra = (index, field, value) => {
+		const newExtras = [...extras];
+		newExtras[index][field] = value;
+		setExtras(newExtras);
+	};
+
+	const removeExtra = (index) => {
+		const newExtras = extras.filter((_, i) => i !== index);
+		setExtras(newExtras);
+	};
+
 	const handleConfirm = () => {
 		if (!selectedClient) return;
-		// AHORA enviamos también selectedDate
-		onConfirm(treatment, selectedClient, Number(finalPrice), selectedDate);
+		// AHORA enviamos también 'extras'
+		onConfirm(
+			treatment,
+			selectedClient,
+			Number(finalPrice),
+			selectedDate,
+			extras
+		);
 	};
 
 	return (
@@ -136,9 +169,8 @@ export const SessionModal = ({
 						)}
 					</div>
 
-					{/* 2. FECHA Y PRECIO (Grid de 2 columnas) */}
+					{/* 2. FECHA Y PRECIO */}
 					<div className="grid grid-cols-2 gap-4">
-						{/* FECHA (NUEVO) */}
 						<div className="space-y-3">
 							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
 								<Calendar size={14} /> Fecha
@@ -152,7 +184,6 @@ export const SessionModal = ({
 							/>
 						</div>
 
-						{/* PRECIO */}
 						<div className="space-y-3">
 							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
 								<Tag size={14} /> Precio (€)
@@ -173,32 +204,80 @@ export const SessionModal = ({
 						</div>
 					</div>
 
-					{/* 3. RESUMEN MATERIALES */}
-					{treatment.recipe?.length > 0 && (
-						<div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
-							<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">
-								Material a consumir
+					{/* 3. MATERIALES (Receta + Extras) */}
+					<div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-4">
+						<div className="flex justify-between items-center">
+							<p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+								Consumo de Material
 							</p>
+							<button
+								onClick={addExtra}
+								className="text-[10px] font-black uppercase text-rose-500 flex items-center gap-1 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors">
+								<Plus size={12} /> Añadir Extra
+							</button>
+						</div>
+
+						{/* Lista de Receta Standard */}
+						{treatment.recipe?.length > 0 && (
 							<div className="space-y-2">
 								{treatment.recipe.map((item, idx) => {
 									const materialName =
 										inventory?.find((i) => i.id === item.materialId)?.name ||
 										"Material desconocido";
-
 									return (
 										<div
-											key={idx}
-											className="flex justify-between text-xs font-bold text-gray-600">
+											key={`recipe-${idx}`}
+											className="flex justify-between text-xs font-bold text-gray-600 pl-2 border-l-2 border-gray-200">
 											<span>{materialName}</span>
-											<span className="bg-white px-2 py-0.5 rounded-md border border-gray-100">
-												x{item.quantity}
-											</span>
+											<span className="text-gray-400">x{item.quantity}</span>
 										</div>
 									);
 								})}
 							</div>
-						</div>
-					)}
+						)}
+
+						{/* Lista de Extras */}
+						{extras.length > 0 && (
+							<div className="space-y-2 pt-2 border-t border-dashed border-gray-200">
+								<p className="text-[10px] font-bold text-rose-400 italic">
+									Adicionales:
+								</p>
+								{extras.map((extra, idx) => (
+									<div
+										key={`extra-${idx}`}
+										className="flex gap-2 items-center animate-in slide-in-from-left-2">
+										<select
+											className="flex-1 bg-white text-xs font-bold p-2 rounded-lg border border-gray-200 outline-none focus:border-rose-300"
+											value={extra.materialId}
+											onChange={(e) =>
+												updateExtra(idx, "materialId", e.target.value)
+											}>
+											<option value="">Seleccionar...</option>
+											{inventory.map((inv) => (
+												<option key={inv.id} value={inv.id}>
+													{inv.name}
+												</option>
+											))}
+										</select>
+										<input
+											type="number"
+											step="0.1"
+											className="w-14 p-2 bg-white rounded-lg border border-gray-200 text-center font-bold text-xs outline-none focus:border-rose-300"
+											value={extra.quantity}
+											onChange={(e) =>
+												updateExtra(idx, "quantity", e.target.value)
+											}
+										/>
+										<button
+											onClick={() => removeExtra(idx)}
+											className="text-gray-400 hover:text-red-500">
+											<Trash2 size={14} />
+										</button>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
 				</div>
 
 				<div className="p-8 border-t bg-gray-50">
