@@ -27,6 +27,8 @@ export const SessionModal = ({
 
 	// NUEVO: Estado para materiales extra
 	const [extras, setExtras] = useState([]);
+	// Receta activa editable (permite eliminar ingredientes por sesión)
+	const [activeRecipe, setActiveRecipe] = useState([]);
 
 	useEffect(() => {
 		if (isOpen && treatment) {
@@ -34,7 +36,8 @@ export const SessionModal = ({
 			setSelectedClient(null);
 			setSearchTerm("");
 			setSelectedDate(new Date().toISOString().split("T")[0]);
-			setExtras([]); // Reseteamos los extras al abrir
+			setExtras([]);
+			setActiveRecipe(treatment.recipe ? [...treatment.recipe] : []);
 		}
 	}, [isOpen, treatment]);
 
@@ -60,11 +63,15 @@ export const SessionModal = ({
 		setExtras(newExtras);
 	};
 
+	const removeFromRecipe = (index) => {
+		setActiveRecipe((prev) => prev.filter((_, i) => i !== index));
+	};
+
 	const handleConfirm = () => {
 		if (!selectedClient) return;
-		// AHORA enviamos también 'extras'
+		// Pasamos treatment con receta filtrada (solo lo que queda en activeRecipe)
 		onConfirm(
-			treatment,
+			{ ...treatment, recipe: activeRecipe },
 			selectedClient,
 			Number(finalPrice),
 			selectedDate,
@@ -217,19 +224,28 @@ export const SessionModal = ({
 							</button>
 						</div>
 
-						{/* Lista de Receta Standard */}
-						{treatment.recipe?.length > 0 && (
+						{/* Lista de Receta Standard (editable por sesión) */}
+						{activeRecipe.length > 0 && (
 							<div className="space-y-2">
-								{treatment.recipe.map((item, idx) => {
+								{activeRecipe.map((item, idx) => {
 									const materialName =
 										inventory?.find((i) => i.id === item.materialId)?.name ||
 										"Material desconocido";
 									return (
 										<div
 											key={`recipe-${idx}`}
-											className="flex justify-between text-xs font-bold text-gray-600 pl-2 border-l-2 border-gray-200">
-											<span>{materialName}</span>
-											<span className="text-gray-400">x{item.quantity}</span>
+											className="flex justify-between items-center text-xs font-bold text-gray-600 pl-2 border-l-2 border-gray-200 gap-2">
+											<div className="flex-1 min-w-0">
+												<span>{materialName}</span>
+												<span className="text-gray-400 ml-1">x{item.quantity}</span>
+											</div>
+											<button
+												type="button"
+												onClick={() => removeFromRecipe(idx)}
+												className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors shrink-0"
+												title="Eliminar de esta sesión">
+												<Trash2 size={14} />
+											</button>
 										</div>
 									);
 								})}
