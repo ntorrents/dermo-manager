@@ -23,7 +23,7 @@ export const TreatmentsTab = ({
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingTreatment, setEditingTreatment] = useState(null);
 	const [loading, setLoading] = useState(false);
-	const [formData, setFormData] = useState({ name: "", price: "", recipe: [] });
+	const [formData, setFormData] = useState({ name: "", price: "", recipe: [], internal_notes: "" });
 
 	const calculateCost = (recipe) => {
 		return (
@@ -42,10 +42,10 @@ export const TreatmentsTab = ({
 	const openModal = (t = null) => {
 		if (t) {
 			setEditingTreatment(t);
-			setFormData({ name: t.name, price: t.price, recipe: t.recipe || [] });
+			setFormData({ name: t.name, price: t.price, recipe: t.recipe || [], internal_notes: t.internal_notes || "" });
 		} else {
 			setEditingTreatment(null);
-			setFormData({ name: "", price: "", recipe: [] });
+			setFormData({ name: "", price: "", recipe: [], internal_notes: "" });
 		}
 		setIsModalOpen(true);
 	};
@@ -58,6 +58,7 @@ export const TreatmentsTab = ({
 				name: formData.name,
 				price: Number(formData.price),
 				recipe: formData.recipe,
+				internal_notes: formData.internal_notes || null,
 				user_id: user.id,
 			};
 			if (editingTreatment) {
@@ -215,6 +216,21 @@ export const TreatmentsTab = ({
 										value={formData.price}
 										onChange={(e) =>
 											setFormData({ ...formData, price: e.target.value })
+										}
+									/>
+								</div>
+
+								<div>
+									<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-2">
+										Notas Internas
+									</label>
+									<textarea
+										rows={3}
+										placeholder="Notas solo para ti (no afectan precios ni recetas)"
+										className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-medium text-sm resize-none"
+										value={formData.internal_notes}
+										onChange={(e) =>
+											setFormData({ ...formData, internal_notes: e.target.value })
 										}
 									/>
 								</div>

@@ -86,7 +86,7 @@ export const DashboardTab = ({
 
 		return Object.entries(ranking)
 			.map(([name, data]) => ({ name, ...data }))
-			.sort((a, b) => b.amount - a.amount)
+			.sort((a, b) => b.count - a.count)
 			.slice(0, 5);
 	}, [currentData, treatments]);
 
@@ -292,7 +292,7 @@ export const DashboardTab = ({
 										</div>
 									</div>
 									<span className="font-bold text-sm text-gray-600">
-										{formatCurrency(t.amount)}
+										{t.count} sesiones
 									</span>
 								</div>
 							))}

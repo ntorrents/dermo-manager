@@ -412,6 +412,7 @@ export const InventoryTab = ({
 									</label>
 									<input
 										required
+										placeholder="Ej: Agujas 30G"
 										className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-gray-200 focus:bg-white rounded-2xl outline-none font-bold"
 										value={formData.name}
 										onChange={(e) =>
@@ -426,6 +427,7 @@ export const InventoryTab = ({
 										</label>
 										<input
 											type="number"
+											placeholder="Ej: 100"
 											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
 											value={formData.stock}
 											onChange={(e) =>
@@ -437,13 +439,18 @@ export const InventoryTab = ({
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
 											Unidad
 										</label>
-										<input
-											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
+										<select
+											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold appearance-none cursor-pointer"
 											value={formData.unit}
 											onChange={(e) =>
 												setFormData({ ...formData, unit: e.target.value })
-											}
-										/>
+											}>
+											<option value="uds">uds</option>
+											<option value="dosis">dosis</option>
+											<option value="ml">ml</option>
+											<option value="paq">paq</option>
+											<option value="g">g</option>
+										</select>
 									</div>
 								</div>
 								<div className="grid grid-cols-2 gap-4">
@@ -454,12 +461,18 @@ export const InventoryTab = ({
 										<input
 											type="number"
 											step="0.01"
+											placeholder="Ej: 25.50"
 											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-rose-500 placeholder-rose-300"
 											value={formData.totalCost}
 											onChange={(e) =>
 												setFormData({ ...formData, totalCost: e.target.value })
 											}
 										/>
+										{formData.stock && formData.totalCost && Number(formData.stock) > 0 && (
+											<p className="text-xs text-gray-500 mt-2 ml-1">
+												Coste unitario calculado: {(Number(formData.totalCost) / Number(formData.stock)).toFixed(2)} €
+											</p>
+										)}
 									</div>
 									<div>
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
@@ -467,6 +480,7 @@ export const InventoryTab = ({
 										</label>
 										<input
 											type="number"
+											placeholder="Ej: 5"
 											className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
 											value={formData.min_stock}
 											onChange={(e) =>
