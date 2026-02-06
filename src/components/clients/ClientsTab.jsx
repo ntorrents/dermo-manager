@@ -18,6 +18,9 @@ import { useClientHistory } from "../../hooks/useClientHistory";
 import { formatCurrency } from "../../utils/format";
 import { generateInvoice } from "../../utils/invoiceGenerator";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { LoadingButton } from "../ui/LoadingButton";
+import { EmptyState } from "../ui/EmptyState";
 
 export const ClientsTab = ({
 	user,
@@ -135,7 +138,7 @@ export const ClientsTab = ({
 			showToast("Cliente eliminado");
 			if (selectedClient?.id === clientToDelete.id) setSelectedClient(null);
 			if (onRefresh) await onRefresh();
-		} catch (error) {
+		} catch {
 			showToast("Error al eliminar", "error");
 		} finally {
 			setShowDeleteModal(false);
@@ -189,83 +192,99 @@ export const ClientsTab = ({
 					</div>
 				</div>
 
-				<div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
-					{filteredClients.map((client) => (
-						<div
-							key={client.id}
-							onClick={() => setSelectedClient(client)}
-							className={`p-4 rounded-2xl cursor-pointer transition-all border ${
-								selectedClient?.id === client.id
-									? "bg-rose-50 border-rose-200 shadow-sm"
-									: "bg-white border-transparent hover:bg-gray-50"
-							}`}>
-							<div className="flex justify-between items-start">
-								<div className="flex items-center gap-3 flex-1 min-w-0">
-									<div
-										className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${
-											selectedClient?.id === client.id
-												? "bg-rose-200 text-rose-700"
-												: "bg-gray-100 text-gray-500"
-										}`}>
-										{client.name.charAt(0)}
-									</div>
-									<div className="min-w-0 flex-1">
-										<h4
-											className={`font-bold ${
-												selectedClient?.id === client.id
-													? "text-rose-900"
-													: "text-gray-800"
-											}`}>
-											{client.name} {client.surname}
-										</h4>
-										<p className="text-xs text-gray-400">
-											{client.phone || "Sin tlf"}
-										</p>
-										<div className="flex items-center gap-2 mt-1.5 flex-wrap">
-											<span
-												className="inline-flex items-center gap-0.5 text-[10px] font-bold"
-												title="Consentimiento">
-												{client.has_consent ? (
-													<Check size={12} className="text-emerald-500" />
-												) : (
-													<X size={12} className="text-gray-400" />
-												)}
-												<span className="text-gray-500">Cons.</span>
-											</span>
-											<span
-												className="inline-flex items-center gap-0.5 text-[10px] font-bold"
-												title="Derechos de imagen">
-												{client.has_image_rights ? (
-													<Check size={12} className="text-emerald-500" />
-												) : (
-													<X size={12} className="text-gray-400" />
-												)}
-												<span className="text-gray-500">Imagen</span>
-											</span>
-											{client.drive_url && (
-												<a
-													href={client.drive_url}
-													target="_blank"
-													rel="noopener noreferrer"
-													onClick={(e) => e.stopPropagation()}
-													className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-600 hover:text-blue-700"
-													title="Abrir carpeta en Drive">
-													<ExternalLink size={12} />
-													Ver Drive
-												</a>
-											)}
+				<div className="flex-1 overflow-y-auto custom-scrollbar p-2">
+					{filteredClients.length === 0 ? (
+						<EmptyState
+							icon={Users}
+							title={searchTerm ? "Sin resultados" : "No hay clientes"}
+							description={
+								searchTerm
+									? "Prueba con otro término de búsqueda"
+									: "Añade tu primer cliente para empezar a gestionar citas y facturación."
+							}
+							actionLabel={searchTerm ? undefined : "Añadir cliente"}
+							onAction={searchTerm ? undefined : () => handleOpenModal()}
+						/>
+					) : (
+						<div className="space-y-2">
+							{filteredClients.map((client) => (
+								<div
+									key={client.id}
+									onClick={() => setSelectedClient(client)}
+									className={`p-4 rounded-2xl cursor-pointer transition-all border ${
+										selectedClient?.id === client.id
+											? "bg-rose-50 border-rose-200 shadow-sm"
+											: "bg-white border-transparent hover:bg-gray-50"
+									}`}>
+									<div className="flex justify-between items-start">
+										<div className="flex items-center gap-3 flex-1 min-w-0">
+											<div
+												className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${
+													selectedClient?.id === client.id
+														? "bg-rose-200 text-rose-700"
+														: "bg-gray-100 text-gray-500"
+												}`}>
+												{client.name.charAt(0)}
+											</div>
+											<div className="min-w-0 flex-1">
+												<h4
+													className={`font-bold ${
+														selectedClient?.id === client.id
+															? "text-rose-900"
+															: "text-gray-800"
+													}`}>
+													{client.name} {client.surname}
+												</h4>
+												<p className="text-xs text-gray-400">
+													{client.phone || "Sin tlf"}
+												</p>
+												<div className="flex items-center gap-2 mt-1.5 flex-wrap">
+													<span
+														className="inline-flex items-center gap-0.5 text-[10px] font-bold"
+														title="Consentimiento">
+														{client.has_consent ? (
+															<Check size={12} className="text-emerald-500" />
+														) : (
+															<X size={12} className="text-gray-400" />
+														)}
+														<span className="text-gray-500">Cons.</span>
+													</span>
+													<span
+														className="inline-flex items-center gap-0.5 text-[10px] font-bold"
+														title="Derechos de imagen">
+														{client.has_image_rights ? (
+															<Check size={12} className="text-emerald-500" />
+														) : (
+															<X size={12} className="text-gray-400" />
+														)}
+														<span className="text-gray-500">Imagen</span>
+													</span>
+													{client.drive_url && (
+														<a
+															href={client.drive_url}
+															target="_blank"
+															rel="noopener noreferrer"
+															onClick={(e) => e.stopPropagation()}
+															className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-600 hover:text-blue-700"
+															title="Abrir carpeta en Drive">
+															<ExternalLink size={12} />
+															Ver Drive
+														</a>
+													)}
+												</div>
+											</div>
 										</div>
+										<button
+											onClick={(e) => handleDeleteClick(e, client)}
+											className="p-2 text-gray-300 hover:text-rose-500 shrink-0"
+											title="Eliminar cliente">
+											<Trash2 size={16} />
+										</button>
 									</div>
 								</div>
-								<button
-									onClick={(e) => handleDeleteClick(e, client)}
-									className="p-2 text-gray-300 hover:text-rose-500 shrink-0"
-									title="Eliminar cliente">
-									<Trash2 size={16} />
-								</button>
-							</div>
+							))}
 						</div>
-					))}
+					)}
 				</div>
 			</div>
 
@@ -392,120 +411,111 @@ export const ClientsTab = ({
 				)}
 			</div>
 
-			{/* MODAL CREAR/EDITAR CLIENTE */}
-			{isModalOpen && (
-				<div className="fixed inset-0 z-50 flex justify-center items-start xl:items-center p-4">
-					<div
-						className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-						onClick={() => setIsModalOpen(false)}
-					/>
-					<div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] mt-8 xl:mt-0 animate-in zoom-in-95">
-						<div className="p-6 xl:p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
-							<h3 className="text-xl xl:text-2xl font-black text-gray-800 tracking-tight">
-								{selectedClient ? "Editar Cliente" : "Nuevo Cliente"}
-							</h3>
-							<button
-								onClick={() => setIsModalOpen(false)}
-								className="p-2 hover:bg-white rounded-full transition-colors text-gray-400">
-								<X size={24} />
-							</button>
-						</div>
-						<div className="flex-1 overflow-y-auto p-6 xl:p-8 custom-scrollbar">
-						<form onSubmit={handleSaveClient} className="space-y-5">
-							<div className="grid grid-cols-2 gap-4">
-								<input
-									required
-									className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
-									placeholder="Nombre"
-									value={formData.name}
-									onChange={(e) =>
-										setFormData({ ...formData, name: e.target.value })
-									}
-								/>
-								<input
-									className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
-									placeholder="Apellidos"
-									value={formData.surname}
-									onChange={(e) =>
-										setFormData({ ...formData, surname: e.target.value })
-									}
-								/>
-							</div>
-							<input
-								type="tel"
-								className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
-								placeholder="Teléfono"
-								value={formData.phone}
-								onChange={(e) =>
-									setFormData({ ...formData, phone: e.target.value })
-								}
-							/>
-							<input
-								type="email"
-								className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
-								placeholder="Email (Opcional)"
-								value={formData.email}
-								onChange={(e) =>
-									setFormData({ ...formData, email: e.target.value })
-								}
-							/>
-							<textarea
-								rows="3"
-								className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold resize-none"
-								placeholder="Notas privadas..."
-								value={formData.notes}
-								onChange={(e) =>
-									setFormData({ ...formData, notes: e.target.value })
-								}
-							/>
-							<div className="flex flex-col gap-3 pt-2">
-								<label className="flex items-center gap-3 cursor-pointer">
-									<input
-										type="checkbox"
-										checked={formData.has_consent}
-										onChange={(e) =>
-											setFormData({ ...formData, has_consent: e.target.checked })
-										}
-										className="w-5 h-5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
-									/>
-									<span className="font-bold text-gray-700">¿Ha firmado Consentimiento?</span>
-								</label>
-								<label className="flex items-center gap-3 cursor-pointer">
-									<input
-										type="checkbox"
-										checked={formData.has_image_rights}
-										onChange={(e) =>
-											setFormData({ ...formData, has_image_rights: e.target.checked })
-										}
-										className="w-5 h-5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
-									/>
-									<span className="font-bold text-gray-700">¿Derechos de Imagen?</span>
-								</label>
-							</div>
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-									URL Carpeta Drive
-								</label>
-								<input
-									type="url"
-									placeholder="https://drive.google.com/..."
-									className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
-									value={formData.drive_url}
-									onChange={(e) =>
-										setFormData({ ...formData, drive_url: e.target.value })
-									}
-								/>
-							</div>
-							<button
-								disabled={savingClient}
-								className="w-full bg-surface-dark text-white font-black py-4 rounded-[1.5rem] shadow-xl text-lg mt-4 disabled:opacity-60 disabled:cursor-not-allowed">
-								{savingClient ? "Guardando..." : "Guardar Cliente"}
-							</button>
-						</form>
-						</div>
+			<AdaptiveModal
+				isOpen={isModalOpen}
+				onClose={() => setIsModalOpen(false)}
+				title={selectedClient ? "Editar Cliente" : "Nuevo Cliente"}
+				maxWidth="max-w-lg">
+				<form onSubmit={handleSaveClient} className="space-y-5">
+					<div className="grid grid-cols-2 gap-4">
+						<input
+							required
+							className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
+							placeholder="Nombre"
+							value={formData.name}
+							onChange={(e) =>
+								setFormData({ ...formData, name: e.target.value })
+							}
+						/>
+						<input
+							className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
+							placeholder="Apellidos"
+							value={formData.surname}
+							onChange={(e) =>
+								setFormData({ ...formData, surname: e.target.value })
+							}
+						/>
 					</div>
-				</div>
-			)}
+					<input
+						type="tel"
+						className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
+						placeholder="Teléfono"
+						value={formData.phone}
+						onChange={(e) =>
+							setFormData({ ...formData, phone: e.target.value })
+						}
+					/>
+					<input
+						type="email"
+						className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
+						placeholder="Email (Opcional)"
+						value={formData.email}
+						onChange={(e) =>
+							setFormData({ ...formData, email: e.target.value })
+						}
+					/>
+					<textarea
+						rows="3"
+						className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold resize-none"
+						placeholder="Notas privadas..."
+						value={formData.notes}
+						onChange={(e) =>
+							setFormData({ ...formData, notes: e.target.value })
+						}
+					/>
+					<div className="flex flex-col gap-3 pt-2">
+						<label className="flex items-center gap-3 cursor-pointer">
+							<input
+								type="checkbox"
+								checked={formData.has_consent}
+								onChange={(e) =>
+									setFormData({ ...formData, has_consent: e.target.checked })
+								}
+								className="w-5 h-5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+							/>
+							<span className="font-bold text-gray-700">
+								¿Ha firmado Consentimiento?
+							</span>
+						</label>
+						<label className="flex items-center gap-3 cursor-pointer">
+							<input
+								type="checkbox"
+								checked={formData.has_image_rights}
+								onChange={(e) =>
+									setFormData({
+										...formData,
+										has_image_rights: e.target.checked,
+									})
+								}
+								className="w-5 h-5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+							/>
+							<span className="font-bold text-gray-700">
+								¿Derechos de Imagen?
+							</span>
+						</label>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+							URL Carpeta Drive
+						</label>
+						<input
+							type="url"
+							placeholder="https://drive.google.com/..."
+							className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
+							value={formData.drive_url}
+							onChange={(e) =>
+								setFormData({ ...formData, drive_url: e.target.value })
+							}
+						/>
+					</div>
+					<LoadingButton
+						loading={savingClient}
+						type="submit"
+						className="w-full bg-surface-dark text-white font-black py-4 rounded-[1.5rem] shadow-xl text-lg mt-4">
+						{savingClient ? "Guardando..." : "Guardar Cliente"}
+					</LoadingButton>
+				</form>
+			</AdaptiveModal>
 		</div>
 	);
 };

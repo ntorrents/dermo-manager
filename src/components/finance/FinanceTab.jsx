@@ -16,13 +16,15 @@ import {
 import { supabase } from "../../services/supabase";
 import {
 	formatCurrency,
-	formatDate,
 	IVA_OPTIONS,
 	calculateTaxFromTotal,
 } from "../../utils/format";
 import { exportToCSV } from "../../utils/export";
 import { filterByDate, getDateLabel } from "../../utils/dateUtils";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { LoadingButton } from "../ui/LoadingButton";
+import { EmptyState } from "../ui/EmptyState";
+import { AdaptiveModal } from "../ui/AdaptiveModal";
 
 export const FinanceTab = ({
 	user,
@@ -544,8 +546,14 @@ export const FinanceTab = ({
 									</div>
 								))
 						) : (
-							<div className="p-10 text-center text-gray-300 text-xs font-bold uppercase italic tracking-widest">
-								Sin ingresos
+							<div className="p-6">
+								<EmptyState
+									icon={TrendingUp}
+									title="Sin ingresos"
+									description="Registra tu primer ingreso en este periodo."
+									actionLabel="Registrar ingreso"
+									onAction={() => openEntryModal("income")}
+								/>
 							</div>
 						)}
 					</div>
@@ -598,8 +606,14 @@ export const FinanceTab = ({
 									</div>
 								))
 						) : (
-							<div className="p-10 text-center text-gray-300 text-xs font-bold uppercase italic tracking-widest">
-								Sin gastos
+							<div className="p-6">
+								<EmptyState
+									icon={TrendingDown}
+									title="Sin gastos"
+									description="Registra tu primer gasto en este periodo."
+									actionLabel="Registrar gasto"
+									onAction={() => openEntryModal("expense")}
+								/>
 							</div>
 						)}
 					</div>
@@ -652,36 +666,20 @@ export const FinanceTab = ({
 				</div>
 			</div>
 
-			{/* MODAL CREAR MOVIMIENTO (Actualizado con Labels) */}
-			{isModalOpen && (
-				<div className="fixed inset-0 z-[9999] flex justify-center items-start p-4">
-					<div
-						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-						onClick={() => setIsModalOpen(false)}
-					/>
-					<div className="relative bg-white w-full max-w-md rounded-t-2xl xl:rounded-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-100px)] mt-auto xl:mt-20 overflow-hidden animate-in slide-in-from-top-4">
-						<div className="p-6 border-b bg-gray-50 flex justify-between items-center">
-							<h3
-								className={`text-xl font-black uppercase italic ${
-									formData.type === "income"
-										? "text-emerald-500"
-										: "text-rose-500"
-								}`}>
-								{editingEntry
-									? "Editar Movimiento"
-									: formData.type === "income"
-									? "Registrar Ingreso"
-									: "Registrar Gasto"}
-							</h3>
-							<button
-								onClick={() => setIsModalOpen(false)}
-								className="text-gray-400">
-								<X size={24} />
-							</button>
-						</div>
-						<form
-							onSubmit={handleSaveEntry}
-							className="p-6 space-y-5 overflow-y-auto">
+			<AdaptiveModal
+				isOpen={isModalOpen}
+				onClose={() => setIsModalOpen(false)}
+				title={
+					editingEntry
+						? "Editar Movimiento"
+						: formData.type === "income"
+						? "Registrar Ingreso"
+						: "Registrar Gasto"
+				}
+				maxWidth="max-w-md">
+				<form
+					onSubmit={handleSaveEntry}
+					className="space-y-5">
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 									Descripción
@@ -786,39 +784,25 @@ export const FinanceTab = ({
 									}
 								/>
 							</div>
-							<button
-								disabled={savingEntry}
-								className={`w-full py-4 rounded-xl font-black text-white shadow-lg disabled:opacity-60 disabled:cursor-not-allowed ${
+							<LoadingButton
+								loading={savingEntry}
+								type="submit"
+								className={`w-full py-4 rounded-xl font-black text-white shadow-lg ${
 									formData.type === "income" ? "bg-emerald-500" : "bg-rose-500"
 								}`}>
 								{savingEntry ? "Guardando..." : "Guardar"}
-							</button>
+							</LoadingButton>
 						</form>
-					</div>
-				</div>
-			)}
+			</AdaptiveModal>
 
-			{/* MODAL CONFIGURACIÓN (Sin cambios) */}
-			{isConfigOpen && (
-				<div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-					<div
-						className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-						onClick={() => setIsConfigOpen(false)}
-					/>
-					<div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
-						<div className="p-8 border-b bg-gray-50 flex justify-between items-center">
-							<div>
-								<h3 className="text-2xl font-black text-gray-800 tracking-tighter italic">
-									Gastos Fijos
-								</h3>
-							</div>
-							<button onClick={() => setIsConfigOpen(false)}>
-								<X size={24} className="text-gray-300" />
-							</button>
-						</div>
-						<form
-							onSubmit={handleSaveConfig}
-							className="p-8 space-y-6 bg-white">
+			<AdaptiveModal
+				isOpen={isConfigOpen}
+				onClose={() => setIsConfigOpen(false)}
+				title="Gastos Fijos"
+				maxWidth="max-w-md">
+				<form
+					onSubmit={handleSaveConfig}
+					className="space-y-6">
 							<div className="max-h-[400px] overflow-y-auto space-y-6 pr-2 custom-scrollbar">
 								{recurringExpenses.map((exp, idx) => (
 									<div
@@ -880,13 +864,13 @@ export const FinanceTab = ({
 									<Plus size={14} /> Añadir concepto
 								</button>
 							</div>
-							<button className="w-full bg-surface-dark text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg mt-4">
+							<button
+								type="submit"
+								className="w-full bg-surface-dark text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg mt-4">
 								Guardar
 							</button>
 						</form>
-					</div>
-				</div>
-			)}
+			</AdaptiveModal>
 		</div>
 	);
 };

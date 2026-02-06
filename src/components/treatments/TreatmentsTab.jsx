@@ -1,7 +1,10 @@
 import React, { useState } from "react";
-import { Plus, Trash2, Edit2, Zap, X, Loader2 } from "lucide-react";
+import { Plus, Trash2, Edit2, Zap, X } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { LoadingButton } from "../ui/LoadingButton";
+import { EmptyState } from "../ui/EmptyState";
+import { AdaptiveModal } from "../ui/AdaptiveModal";
 
 export const TreatmentsTab = ({
 	user,
@@ -68,7 +71,7 @@ export const TreatmentsTab = ({
 			}
 			setIsModalOpen(false);
 			if (onRefresh) await onRefresh();
-		} catch (error) {
+		} catch {
 			showToast("Error al guardar", "error");
 		} finally {
 			setLoading(false);
@@ -124,8 +127,18 @@ export const TreatmentsTab = ({
 			</div>
 
 			{/* GRID: Tarjetas más compactas */}
-			<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6">
-				{treatments.map((t) => {
+			<div className={treatments.length === 0 ? "" : "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 xl:gap-6"}>
+				{treatments.length === 0 ? (
+					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+						<EmptyState
+							icon={Zap}
+							title="No hay tratamientos"
+							description="Crea tu primer servicio para poder registrar sesiones y facturar."
+							actionLabel="Crear tratamiento"
+							onAction={() => openModal()}
+						/>
+					</div>
+				) : treatments.map((t) => {
 					const materialCost = calculateCost(t.recipe);
 					const profit = Number(t.price) - materialCost;
 
@@ -194,26 +207,12 @@ export const TreatmentsTab = ({
 				})}
 			</div>
 
-			{/* MODAL: Reutilizado con mejoras de scroll móvil */}
-			{isModalOpen && (
-				<div className="fixed inset-0 z-50 flex justify-center items-start p-4">
-					<div
-						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-						onClick={() => setIsModalOpen(false)}
-					/>
-					<div className="relative bg-white w-full max-w-lg rounded-t-2xl xl:rounded-[2.5rem] shadow-2xl flex flex-col h-[calc(100vh-120px)] mt-auto xl:mt-20 overflow-hidden animate-in slide-in-from-bottom-4 xl:zoom-in-95">
-						<div className="p-6 border-b bg-gray-50 flex justify-between items-center">
-							<h3 className="text-xl font-black text-gray-800">
-								{editingTreatment ? "Editar" : "Nuevo"} Tratamiento
-							</h3>
-							<button
-								onClick={() => setIsModalOpen(false)}
-								className="text-gray-400">
-								<X size={24} />
-							</button>
-						</div>
-						<div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar">
-							<form onSubmit={handleSave} className="space-y-6">
+			<AdaptiveModal
+				isOpen={isModalOpen}
+				onClose={() => setIsModalOpen(false)}
+				title={editingTreatment ? "Editar" : "Nuevo Tratamiento"}
+				maxWidth="max-w-lg">
+				<form onSubmit={handleSave} className="space-y-6">
 								<input
 									required
 									className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
@@ -351,17 +350,15 @@ export const TreatmentsTab = ({
 											</p>
 										</div>
 									</div>
-									<button
-										disabled={loading}
+									<LoadingButton
+										loading={loading}
+										type="submit"
 										className="w-full bg-primary text-white font-black py-4 rounded-xl mt-6 shadow-lg">
 										Confirmar
-									</button>
+									</LoadingButton>
 								</div>
 							</form>
-						</div>
-					</div>
-				</div>
-			)}
+			</AdaptiveModal>
 		</div>
 	);
 };

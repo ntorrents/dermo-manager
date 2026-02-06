@@ -7,16 +7,13 @@ import {
 	Edit2,
 	Loader2,
 	AlertTriangle,
-	X,
 } from "lucide-react";
-import {
-	IVA_OPTIONS,
-	calculateTaxFromTotal,
-	formatCurrency,
-	formatDate,
-} from "../../utils/format";
+import { IVA_OPTIONS, formatCurrency, formatDate } from "../../utils/format";
 import { calculateUnitCost } from "../../utils/calculations";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { LoadingButton } from "../ui/LoadingButton";
+import { EmptyState } from "../ui/EmptyState";
+import { AdaptiveModal } from "../ui/AdaptiveModal";
 import {
 	useCreateMaterial,
 	useUpdateMaterial,
@@ -108,7 +105,6 @@ export const InventoryTab = ({
 
 	const handleSave = async (e) => {
 		e.preventDefault();
-		const totalCostNum = Number(formData.totalCost);
 		if (Number(formData.stock) <= 0) {
 			showToast("El stock debe ser mayor a 0", "error");
 			return;
@@ -206,7 +202,19 @@ export const InventoryTab = ({
 				</div>
 			)}
 
-			<div className="xl:hidden space-y-3">
+			<div className="xl:hidden">
+				{filteredInventory.length === 0 ? (
+					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+						<EmptyState
+							icon={Package}
+							title="No hay materiales"
+							description="Añade tu primer producto al inventario para empezar a controlar el stock."
+							actionLabel="Añadir primer material"
+							onAction={() => openModal()}
+						/>
+					</div>
+				) : (
+				<div className="space-y-3">
 				{filteredInventory.map((item) => (
 					<div
 						key={item.id}
@@ -264,9 +272,22 @@ export const InventoryTab = ({
 						</div>
 					</div>
 				))}
+				</div>
+				)}
 			</div>
 
 			<div className="hidden xl:block bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+				{filteredInventory.length === 0 ? (
+					<div className="p-6">
+						<EmptyState
+							icon={Package}
+							title="No hay materiales"
+							description="Añade tu primer producto al inventario para empezar a controlar el stock."
+							actionLabel="Añadir primer material"
+							onAction={() => openModal()}
+						/>
+					</div>
+				) : (
 				<table className="w-full text-left border-collapse">
 					<thead>
 						<tr className="bg-gray-50/50 border-b text-[11px] font-black text-gray-400 uppercase tracking-[0.1em]">
@@ -337,6 +358,7 @@ export const InventoryTab = ({
 						))}
 					</tbody>
 				</table>
+				)}
 			</div>
 
 			{/* Historial de compras (Material) */}
@@ -367,25 +389,12 @@ export const InventoryTab = ({
 				</div>
 			)}
 
-			{isModalOpen && (
-				<div className="fixed inset-0 z-50 flex justify-center items-start xl:items-center p-4">
-					<div
-						className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-						onClick={() => setIsModalOpen(false)}
-					/>
-					<div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl flex flex-col max-h-[90vh] mt-8 xl:mt-0 animate-in zoom-in-95">
-						<div className="p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
-							<h3 className="text-2xl font-black text-gray-800 tracking-tight">
-								{editingItem ? "Editar" : "Nuevo"}
-							</h3>
-							<button
-								onClick={() => setIsModalOpen(false)}
-								className="text-gray-400 hover:text-gray-600">
-								<X size={24} />
-							</button>
-						</div>
-						<div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-							<form onSubmit={handleSave} className="space-y-6">
+			<AdaptiveModal
+				isOpen={isModalOpen}
+				onClose={() => setIsModalOpen(false)}
+				title={editingItem ? "Editar Material" : "Nuevo Material"}
+				maxWidth="max-w-lg">
+				<form onSubmit={handleSave} className="space-y-6">
 								<div>
 									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
 										Nombre del Producto
@@ -487,35 +496,22 @@ export const InventoryTab = ({
 									</div>
 								</div>
 								<div className="pt-4">
-									<button
-										disabled={loading}
-										className="w-full bg-surface-dark text-white font-black py-4 rounded-xl shadow-lg disabled:opacity-60 disabled:cursor-not-allowed">
+									<LoadingButton
+										loading={loading}
+										type="submit"
+										className="w-full bg-surface-dark text-white font-black py-4 rounded-xl shadow-lg">
 										{loading ? "Guardando..." : "Guardar Material"}
-									</button>
+									</LoadingButton>
 								</div>
 							</form>
-						</div>
-					</div>
-				</div>
-			)}
+			</AdaptiveModal>
 
-			{isRestockModalOpen && (
-				<div className="fixed inset-0 z-[60] flex justify-center items-center p-4">
-					<div
-						className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-						onClick={() => setIsRestockModalOpen(false)}
-					/>
-					<div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 animate-in zoom-in-95">
-						<div className="flex justify-between items-start mb-6">
-							<div>
-								<h3 className="text-2xl font-black text-rose-500">Reponer</h3>
-								<p className="text-gray-500 font-bold">{restockItem?.name}</p>
-							</div>
-							<button onClick={() => setIsRestockModalOpen(false)}>
-								<X className="text-gray-400" />
-							</button>
-						</div>
-						<form onSubmit={handleRestock} className="space-y-6">
+			<AdaptiveModal
+				isOpen={isRestockModalOpen}
+				onClose={() => setIsRestockModalOpen(false)}
+				title={`Reponer: ${restockItem?.name || ""}`}
+				maxWidth="max-w-md">
+				<form onSubmit={handleRestock} className="space-y-6">
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
 									Cantidad Comprada
@@ -570,15 +566,14 @@ export const InventoryTab = ({
 									</select>
 								</div>
 							</div>
-							<button
-								disabled={loading}
+							<LoadingButton
+								loading={loading}
+								type="submit"
 								className="w-full bg-blue-600 text-white font-black py-4 rounded-xl shadow-lg">
 								{loading ? "Guardando..." : "Confirmar Compra"}
-							</button>
+							</LoadingButton>
 						</form>
-					</div>
-				</div>
-			)}
+			</AdaptiveModal>
 		</div>
 	);
 };
