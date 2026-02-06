@@ -9,6 +9,7 @@ import { useFinance } from "./hooks/useFinance";
 import { useRecurringConfig } from "./hooks/useRecurringConfig";
 import { useProfile } from "./hooks/useProfile";
 import { useClients } from "./hooks/useClients";
+import { useAppointments } from "./hooks/useAppointments";
 import { Toast } from "./components/ui/Toast";
 import { ConfirmModal } from "./components/ui/ConfirmModal";
 import { SessionModal } from "./components/ui/SessionModal";
@@ -21,6 +22,7 @@ import { InventoryTab } from "./components/inventory/InventoryTab";
 import { FinanceTab } from "./components/finance/FinanceTab";
 import { SettingsTab } from "./components/settings/SettingsTab";
 import { ClientsTab } from "./components/clients/ClientsTab";
+import { CalendarTab } from "./components/calendar/CalendarTab";
 import { TaxesTab } from "./components/taxes/TaxesTab";
 
 const DermoManager = () => {
@@ -33,9 +35,16 @@ const DermoManager = () => {
 		useRecurringConfig(user);
 	const profile = useProfile(user);
 	const { clients, loading: clientsLoading, refreshClients } = useClients(user);
+	const { appointments, loading: appointmentsLoading, refreshAppointments } =
+		useAppointments(user?.id);
 
 	const dataLoading =
-		inventoryLoading || treatmentsLoading || financeLoading || recurringLoading || clientsLoading;
+		inventoryLoading ||
+		treatmentsLoading ||
+		financeLoading ||
+		recurringLoading ||
+		clientsLoading ||
+		appointmentsLoading;
 
 	const refreshData = async () => {
 		await Promise.all([
@@ -43,6 +52,7 @@ const DermoManager = () => {
 			refreshTreatments(),
 			refreshFinance(),
 			refreshRecurringConfig(),
+			refreshAppointments(),
 		]);
 	};
 
@@ -236,6 +246,17 @@ const DermoManager = () => {
 						setViewMode={setViewMode}
 						showToast={showToastMsg}
 						onRefresh={refreshData}
+					/>
+				)}
+				{activeTab === "calendar" && (
+					<CalendarTab
+						user={user}
+						entries={entries}
+						appointments={appointments}
+						clients={clients}
+						treatments={treatments}
+						showToast={showToastMsg}
+						onRefresh={refreshAppointments}
 					/>
 				)}
 				{activeTab === "taxes" && (

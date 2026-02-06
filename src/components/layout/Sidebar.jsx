@@ -8,6 +8,7 @@ import {
 	Settings,
 	Users,
 	Landmark,
+	Calendar,
 } from "lucide-react";
 import { GlobalSearch } from "./GlobalSearch";
 
@@ -39,6 +40,7 @@ export const Sidebar = ({
 				{ id: "clients", l: "Clientes", i: Users },
 				{ id: "treatments", l: "Tratamientos", i: Syringe },
 				{ id: "inventory", l: "Stock", i: Package },
+				{ id: "calendar", l: "Agenda", i: Calendar },
 				{ id: "finance", l: "Finanzas", i: DollarSign },
 				{ id: "taxes", l: "Fiscalidad", i: Landmark },
 				{ id: "settings", l: "Configuración", i: Settings },
