@@ -191,6 +191,9 @@ const DermoManager = () => {
 				setActiveTab={setActiveTab}
 				onLogout={() => setShowLogout(true)}
 				companyName={profile?.company_name}
+				clients={clients}
+				treatments={treatments}
+				inventory={inventory}
 				className="hidden xl:flex"
 			/>
 			<div className="xl:hidden h-16 bg-white border-b sticky top-0 z-40 px-4 flex items-center justify-between shadow-sm">
@@ -240,6 +243,7 @@ const DermoManager = () => {
 					<InventoryTab
 						user={user}
 						inventory={inventory}
+						entries={entries}
 						showToast={showToastMsg}
 						onRefresh={refreshData}
 					/>

@@ -80,12 +80,12 @@ export const SessionModal = ({
 	};
 
 	return (
-		<div className="fixed inset-0 z-[100] flex justify-center items-center p-4">
+		<div className="fixed inset-0 z-[100] flex justify-center items-start xl:items-center p-4">
 			<div
 				className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
 				onClick={onClose}
 			/>
-			<div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+			<div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] mt-8 xl:mt-0 animate-in zoom-in-95 duration-200">
 				<div className="p-8 border-b bg-gray-50 flex justify-between items-start">
 					<div>
 						<h3 className="text-2xl font-black text-gray-800 tracking-tight leading-none">
@@ -285,8 +285,10 @@ export const SessionModal = ({
 											}
 										/>
 										<button
+											type="button"
 											onClick={() => removeExtra(idx)}
-											className="text-gray-400 hover:text-red-500">
+											className="text-gray-400 hover:text-red-500"
+											title="Eliminar extra">
 											<Trash2 size={14} />
 										</button>
 									</div>

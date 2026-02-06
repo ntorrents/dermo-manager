@@ -1,5 +1,16 @@
 // /Users/nilto/Documents/GitHub/DermoManager/src/utils/format.js
 
+export const IVA_OPTIONS = [0, 4, 10, 21];
+
+export const calculateTaxFromTotal = (totalAmount, taxRate = 0) => {
+	const amount = Number(totalAmount) || 0;
+	const rate = Number(taxRate) || 0;
+	if (amount <= 0) return { baseAmount: 0, taxAmount: 0 };
+	const baseAmount = Math.round((amount / (1 + rate / 100)) * 100) / 100;
+	const taxAmount = Math.round((amount - baseAmount) * 100) / 100;
+	return { baseAmount, taxAmount };
+};
+
 export const formatCurrency = (amount) =>
 	new Intl.NumberFormat("es-ES", {
 		style: "currency",

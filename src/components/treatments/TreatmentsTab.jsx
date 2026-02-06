@@ -1,16 +1,7 @@
 import React, { useState } from "react";
-import {
-	Plus,
-	Trash2,
-	Edit2,
-	Zap,
-	X,
-	Loader2,
-	Beaker,
-	TrendingUp,
-	Info,
-} from "lucide-react";
+import { Plus, Trash2, Edit2, Zap, X, Loader2 } from "lucide-react";
 import { supabase } from "../../services/supabase";
+import { ConfirmModal } from "../ui/ConfirmModal";
 
 export const TreatmentsTab = ({
 	user,
@@ -23,6 +14,8 @@ export const TreatmentsTab = ({
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingTreatment, setEditingTreatment] = useState(null);
 	const [loading, setLoading] = useState(false);
+	const [showDeleteModal, setShowDeleteModal] = useState(false);
+	const [treatmentToDelete, setTreatmentToDelete] = useState(null);
 	const [formData, setFormData] = useState({ name: "", price: "", recipe: [], internal_notes: "" });
 
 	const calculateCost = (recipe) => {
@@ -88,8 +81,36 @@ export const TreatmentsTab = ({
 		setFormData({ ...formData, recipe: newRecipe });
 	};
 
+	const confirmDeleteTreatment = async () => {
+		if (!treatmentToDelete) return;
+		try {
+			await supabase
+				.from("treatments")
+				.delete()
+				.eq("id", treatmentToDelete.id);
+			showToast("Tratamiento eliminado");
+			if (onRefresh) await onRefresh();
+		} catch {
+			showToast("Error al eliminar", "error");
+		} finally {
+			setShowDeleteModal(false);
+			setTreatmentToDelete(null);
+		}
+	};
+
 	return (
 		<div className="space-y-6 animate-in fade-in pb-24 xl:pb-0">
+			<ConfirmModal
+				isOpen={showDeleteModal}
+				title="Eliminar Tratamiento"
+				message={`¿Borrar "${treatmentToDelete?.name}"?`}
+				onConfirm={confirmDeleteTreatment}
+				onCancel={() => {
+					setShowDeleteModal(false);
+					setTreatmentToDelete(null);
+				}}
+				isDestructive={true}
+			/>
 			{/* HEADER: Fix choque de titulo y botón */}
 			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 				<h2 className="text-2xl xl:text-3xl font-black text-gray-800 tracking-tight italic">
@@ -119,20 +140,17 @@ export const TreatmentsTab = ({
 								<div className="flex gap-1">
 									<button
 										onClick={() => openModal(t)}
-										className="p-2 text-gray-300 hover:text-blue-500">
+										className="p-2 text-gray-300 hover:text-blue-500"
+										title="Editar tratamiento">
 										<Edit2 size={16} />
 									</button>
 									<button
-										onClick={async () => {
-											if (confirm("¿Borrar?")) {
-												await supabase
-													.from("treatments")
-													.delete()
-													.eq("id", t.id);
-												onRefresh();
-											}
+										onClick={() => {
+											setTreatmentToDelete(t);
+											setShowDeleteModal(true);
 										}}
-										className="p-2 text-gray-300 hover:text-red-500">
+										className="p-2 text-gray-300 hover:text-red-500"
+										title="Eliminar tratamiento">
 										<Trash2 size={16} />
 									</button>
 								</div>

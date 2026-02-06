@@ -8,18 +8,27 @@ import {
 	Loader2,
 	AlertTriangle,
 	X,
-	Info,
-	MoreVertical,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
+import {
+	IVA_OPTIONS,
+	calculateTaxFromTotal,
+	formatCurrency,
+	formatDate,
+} from "../../utils/format";
 import { ConfirmModal } from "../ui/ConfirmModal";
 
 export const InventoryTab = ({
 	user,
 	inventory = [],
+	entries = [],
 	showToast,
 	onRefresh,
 }) => {
+	const materialPurchases = (entries || [])
+		.filter((e) => e.type === "expense" && e.category === "Material")
+		.sort((a, b) => (b.date || "").localeCompare(a.date || ""))
+		.slice(0, 15);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState(null);
@@ -124,9 +133,10 @@ export const InventoryTab = ({
 				// 2. Insertar en Finanzas (con IVA calculado)
 				const taxRate =
 					formData.tax_rate != null ? Number(formData.tax_rate) : 21;
-				const baseAmount =
-					Math.round((totalCostNum / (1 + taxRate / 100)) * 100) / 100;
-				const taxAmount = Math.round((totalCostNum - baseAmount) * 100) / 100;
+				const { baseAmount, taxAmount } = calculateTaxFromTotal(
+					totalCostNum,
+					taxRate
+				);
 
 				const { error: finError } = await supabase
 					.from("finance_entries")
@@ -184,10 +194,12 @@ export const InventoryTab = ({
 				.eq("id", restockItem.id);
 			if (error) throw error;
 
-			const taxRate = restockData.taxRate != null ? Number(restockData.taxRate) : 21;
-			const baseAmount =
-				Math.round((purchaseCost / (1 + taxRate / 100)) * 100) / 100;
-			const taxAmount = Math.round((purchaseCost - baseAmount) * 100) / 100;
+			const taxRate =
+				restockData.taxRate != null ? Number(restockData.taxRate) : 21;
+			const { baseAmount, taxAmount } = calculateTaxFromTotal(
+				purchaseCost,
+				taxRate
+			);
 
 			await supabase.from("finance_entries").insert([
 				{
@@ -206,7 +218,7 @@ export const InventoryTab = ({
 			showToast("Stock actualizado");
 			setIsRestockModalOpen(false);
 			await onRefresh();
-		} catch (error) {
+		} catch {
 			showToast("Error al reponer", "error");
 		} finally {
 			setLoading(false);
@@ -228,7 +240,7 @@ export const InventoryTab = ({
 			if (error) throw error;
 			showToast("Eliminado");
 			await onRefresh();
-		} catch (error) {
+		} catch {
 			showToast("Error al eliminar", "error");
 		} finally {
 			setShowDeleteModal(false);
@@ -298,12 +310,14 @@ export const InventoryTab = ({
 							<div className="flex gap-1">
 								<button
 									onClick={() => openModal(item)}
-									className="p-2 bg-gray-50 text-gray-400 rounded-lg">
+									className="p-2 bg-gray-50 text-gray-400 rounded-lg"
+									title="Editar material">
 									<Edit2 size={16} />
 								</button>
 								<button
 									onClick={() => handleDeleteClick(item)}
-									className="p-2 bg-red-50 text-red-500 rounded-lg">
+									className="p-2 bg-red-50 text-red-500 rounded-lg"
+									title="Eliminar material">
 									<Trash2 size={16} />
 								</button>
 							</div>
@@ -391,12 +405,14 @@ export const InventoryTab = ({
 										</button>
 										<button
 											onClick={() => openModal(item)}
-											className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-200 transition-all shadow-sm">
+											className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-200 transition-all shadow-sm"
+											title="Editar material">
 											<Edit2 size={18} />
 										</button>
 										<button
 											onClick={() => handleDeleteClick(item)}
-											className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm">
+											className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm"
+											title="Eliminar material">
 											<Trash2 size={18} />
 										</button>
 									</div>
@@ -406,6 +422,34 @@ export const InventoryTab = ({
 					</tbody>
 				</table>
 			</div>
+
+			{/* Historial de compras (Material) */}
+			{materialPurchases.length > 0 && (
+				<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+					<h3 className="p-4 font-black text-gray-700 uppercase text-xs tracking-widest border-b border-gray-100">
+						Historial de compras
+					</h3>
+					<div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+						{materialPurchases.map((entry) => (
+							<div
+								key={entry.id}
+								className="flex justify-between items-center p-4 hover:bg-gray-50/50">
+								<div>
+									<p className="font-bold text-gray-800 text-sm">
+										{entry.description}
+									</p>
+									<p className="text-[10px] text-gray-400 font-bold uppercase">
+										{formatDate(entry.date)}
+									</p>
+								</div>
+								<span className="font-black text-rose-500">
+									-{formatCurrency(entry.amount)}
+								</span>
+							</div>
+						))}
+					</div>
+				</div>
+			)}
 
 			{isModalOpen && (
 				<div className="fixed inset-0 z-50 flex justify-center items-start xl:items-center p-4">
@@ -505,12 +549,11 @@ export const InventoryTab = ({
 												onChange={(e) =>
 													setFormData({ ...formData, tax_rate: Number(e.target.value) })
 												}>
-												<option value={0}>0%</option>
-												<option value={4}>4%</option>
-												<option value={10}>10%</option>
-												<option value={21}>21%</option>
-											</select>
-										</div>
+										{IVA_OPTIONS.map((v) => (
+											<option key={v} value={v}>{v}%</option>
+										))}
+									</select>
+								</div>
 									)}
 									<div className={!editingItem ? "col-span-2" : ""}>
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
@@ -528,8 +571,10 @@ export const InventoryTab = ({
 									</div>
 								</div>
 								<div className="pt-4">
-									<button className="w-full bg-[#1e293b] text-white font-black py-4 rounded-xl shadow-lg">
-										Guardar Material
+									<button
+										disabled={loading}
+										className="w-full bg-[#1e293b] text-white font-black py-4 rounded-xl shadow-lg disabled:opacity-60 disabled:cursor-not-allowed">
+										{loading ? "Guardando..." : "Guardar Material"}
 									</button>
 								</div>
 							</form>
@@ -547,7 +592,7 @@ export const InventoryTab = ({
 					<div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 animate-in zoom-in-95">
 						<div className="flex justify-between items-start mb-6">
 							<div>
-								<h3 className="text-2xl font-black text-blue-600">Reponer</h3>
+								<h3 className="text-2xl font-black text-rose-500">Reponer</h3>
 								<p className="text-gray-500 font-bold">{restockItem?.name}</p>
 							</div>
 							<button onClick={() => setIsRestockModalOpen(false)}>
@@ -603,10 +648,9 @@ export const InventoryTab = ({
 												taxRate: Number(e.target.value),
 											})
 										}>
-										<option value={0}>0%</option>
-										<option value={4}>4%</option>
-										<option value={10}>10%</option>
-										<option value={21}>21%</option>
+										{IVA_OPTIONS.map((v) => (
+											<option key={v} value={v}>{v}%</option>
+										))}
 									</select>
 								</div>
 							</div>

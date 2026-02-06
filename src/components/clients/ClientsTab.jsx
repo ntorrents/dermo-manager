@@ -4,14 +4,11 @@ import {
 	Search,
 	Plus,
 	Users,
-	Phone,
-	Calendar,
 	Trash2,
 	Edit2,
 	FileText,
 	UserPlus,
 	X,
-	Save,
 	Clock,
 	Check,
 	ExternalLink,
@@ -47,6 +44,7 @@ export const ClientsTab = ({
 	// ESTADOS PARA EL MODAL DE BORRADO
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
 	const [clientToDelete, setClientToDelete] = useState(null);
+	const [savingClient, setSavingClient] = useState(false);
 
 	// CORRECCIÓN: Pasamos solo el ID al hook corregido
 	const { history, loading: historyLoading } = useClientHistory(
@@ -91,6 +89,7 @@ export const ClientsTab = ({
 
 	const handleSaveClient = async (e) => {
 		e.preventDefault();
+		setSavingClient(true);
 		try {
 			const payload = {
 				...formData,
@@ -113,8 +112,10 @@ export const ClientsTab = ({
 			}
 			setIsModalOpen(false);
 			if (onRefresh) await onRefresh();
-		} catch (error) {
+		} catch {
 			showToast("Error al guardar cliente", "error");
+		} finally {
+			setSavingClient(false);
 		}
 	};
 
@@ -248,7 +249,8 @@ export const ClientsTab = ({
 													target="_blank"
 													rel="noopener noreferrer"
 													onClick={(e) => e.stopPropagation()}
-													className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-600 hover:text-blue-700">
+													className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-600 hover:text-blue-700"
+													title="Abrir carpeta en Drive">
 													<ExternalLink size={12} />
 													Ver Drive
 												</a>
@@ -258,7 +260,8 @@ export const ClientsTab = ({
 								</div>
 								<button
 									onClick={(e) => handleDeleteClick(e, client)}
-									className="p-2 text-gray-300 hover:text-rose-500 shrink-0">
+									className="p-2 text-gray-300 hover:text-rose-500 shrink-0"
+									title="Eliminar cliente">
 									<Trash2 size={16} />
 								</button>
 							</div>
@@ -295,7 +298,8 @@ export const ClientsTab = ({
 							</div>
 							<button
 								onClick={() => handleOpenModal(selectedClient)}
-								className="p-3 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-rose-600 transition-all shadow-sm">
+								className="p-3 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-rose-600 transition-all shadow-sm"
+								title="Editar cliente">
 								<Edit2 size={18} />
 							</button>
 						</div>
@@ -350,7 +354,8 @@ export const ClientsTab = ({
 																profile,
 																profile?.logo_url
 															);
-														} catch (err) {
+															showToast("Factura generada");
+														} catch {
 															showToast("Error al generar factura", "error");
 														}
 													}}
@@ -390,13 +395,13 @@ export const ClientsTab = ({
 
 			{/* MODAL CREAR/EDITAR CLIENTE */}
 			{isModalOpen && (
-				<div className="fixed inset-0 z-50 flex justify-center items-center p-4">
+				<div className="fixed inset-0 z-50 flex justify-center items-start xl:items-center p-4">
 					<div
 						className="fixed inset-0 bg-black/60 backdrop-blur-sm"
 						onClick={() => setIsModalOpen(false)}
 					/>
-					<div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95">
-						<div className="p-6 xl:p-8 border-b bg-gray-50 flex justify-between items-center">
+					<div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] mt-8 xl:mt-0 animate-in zoom-in-95">
+						<div className="p-6 xl:p-8 border-b bg-gray-50 flex justify-between items-center shrink-0">
 							<h3 className="text-xl xl:text-2xl font-black text-gray-800 tracking-tight">
 								{selectedClient ? "Editar Cliente" : "Nuevo Cliente"}
 							</h3>
@@ -406,7 +411,8 @@ export const ClientsTab = ({
 								<X size={24} />
 							</button>
 						</div>
-						<form onSubmit={handleSaveClient} className="p-6 xl:p-8 space-y-5">
+						<div className="flex-1 overflow-y-auto p-6 xl:p-8 custom-scrollbar">
+						<form onSubmit={handleSaveClient} className="space-y-5">
 							<div className="grid grid-cols-2 gap-4">
 								<input
 									required
@@ -491,10 +497,13 @@ export const ClientsTab = ({
 									}
 								/>
 							</div>
-							<button className="w-full bg-[#1e293b] text-white font-black py-4 rounded-[1.5rem] shadow-xl text-lg mt-4">
-								Guardar Cliente
+							<button
+								disabled={savingClient}
+								className="w-full bg-[#1e293b] text-white font-black py-4 rounded-[1.5rem] shadow-xl text-lg mt-4 disabled:opacity-60 disabled:cursor-not-allowed">
+								{savingClient ? "Guardando..." : "Guardar Cliente"}
 							</button>
 						</form>
+						</div>
 					</div>
 				</div>
 			)}

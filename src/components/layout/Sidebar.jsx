@@ -9,15 +9,30 @@ import {
 	Users,
 	Landmark,
 } from "lucide-react";
+import { GlobalSearch } from "./GlobalSearch";
 
-export const Sidebar = ({ activeTab, setActiveTab, onLogout, companyName }) => (
+export const Sidebar = ({
+	activeTab,
+	setActiveTab,
+	onLogout,
+	companyName,
+	clients = [],
+	treatments = [],
+	inventory = [],
+}) => (
 	<div className="hidden xl:flex flex-col w-64 bg-white border-r border-gray-100 h-screen fixed left-0 top-0 z-50">
 		<div className="h-20 flex items-center justify-center border-b">
 			<h1 className="text-2xl font-bold text-rose-500">
 				{companyName || "DermoApp"}
 			</h1>
 		</div>
-
+		<GlobalSearch
+			clients={clients}
+			treatments={treatments}
+			inventory={inventory}
+			activeTab={activeTab}
+			setActiveTab={setActiveTab}
+		/>
 		<nav className="p-4 space-y-2 flex-1">
 			{[
 				{ id: "dashboard", l: "Resumen", i: BarChart3 },

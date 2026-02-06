@@ -9,16 +9,18 @@ import {
 	Settings,
 	Trash2,
 	CheckCircle2,
-	AlertCircle,
 	X,
-	ArrowRight,
-	Loader2,
 	Calendar,
 	Edit2,
 	FileText,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
-import { formatCurrency, formatDate } from "../../utils/format";
+import {
+	formatCurrency,
+	formatDate,
+	IVA_OPTIONS,
+	calculateTaxFromTotal,
+} from "../../utils/format";
 import { exportToCSV } from "../../utils/export";
 import { filterByDate, getDateLabel } from "../../utils/dateUtils";
 import { ConfirmModal } from "../ui/ConfirmModal"; // IMPORTANTE
@@ -48,6 +50,7 @@ export const FinanceTab = ({
 	const [itemToDelete, setItemToDelete] = useState(null);
 	const [showPayModal, setShowPayModal] = useState(false);
 	const [itemToPay, setItemToPay] = useState(null);
+	const [savingEntry, setSavingEntry] = useState(false);
 
 	// NUEVO: Filtro para la vista móvil (Gasto por defecto)
 	const [typeFilter, setTypeFilter] = useState("expense");
@@ -62,14 +65,12 @@ export const FinanceTab = ({
 		notes: "",
 	});
 
-	// Cálculo automático: Base Imponible y Cuota IVA (amount = TOTAL)
 	const taxCalc = useMemo(() => {
-		const amount = Number(formData.amount) || 0;
-		const rate = Number(formData.tax_rate) || 0;
-		if (amount <= 0) return { base_amount: 0, tax_amount: 0 };
-		const base_amount = Math.round((amount / (1 + rate / 100)) * 100) / 100;
-		const tax_amount = Math.round((amount - base_amount) * 100) / 100;
-		return { base_amount, tax_amount };
+		const { baseAmount, taxAmount } = calculateTaxFromTotal(
+			formData.amount,
+			formData.tax_rate
+		);
+		return { base_amount: baseAmount, tax_amount: taxAmount };
 	}, [formData.amount, formData.tax_rate]);
 
 	const fetchConfig = async () => {
@@ -163,6 +164,7 @@ export const FinanceTab = ({
 
 	const handleSaveEntry = async (e) => {
 		e.preventDefault();
+		setSavingEntry(true);
 		try {
 			const taxRate = Number(formData.tax_rate) || 0;
 			const payload = {
@@ -192,8 +194,10 @@ export const FinanceTab = ({
 
 			setIsModalOpen(false);
 			if (onRefresh) await onRefresh();
-		} catch (error) {
+		} catch {
 			showToast("Error al guardar", "error");
+		} finally {
+			setSavingEntry(false);
 		}
 	};
 
@@ -223,8 +227,8 @@ export const FinanceTab = ({
 			if (error) throw error;
 			showToast(`Pago de ${itemToPay.category} registrado ✅`);
 			if (onRefresh) await onRefresh();
-		} catch (error) {
-			showToast("Error al registrar pago", error);
+		} catch {
+			showToast("Error al registrar pago", "error");
 		} finally {
 			setShowPayModal(false);
 			setItemToPay(null);
@@ -274,8 +278,8 @@ export const FinanceTab = ({
 			showToast("Configuración guardada");
 			setIsConfigOpen(false);
 			fetchConfig();
-		} catch (error) {
-			showToast("Error al configurar", error);
+		} catch {
+			showToast("Error al configurar", "error");
 		}
 	};
 
@@ -426,12 +430,14 @@ export const FinanceTab = ({
 									</span>
 									<button
 										onClick={() => openEntryModal(null, entry)}
-										className="text-gray-300 p-1">
+										className="text-gray-300 p-1"
+										title="Editar">
 										<Edit2 size={14} />
 									</button>
 									<button
 										onClick={() => handleDeleteClick(entry.id)}
-										className="text-gray-300 p-1">
+										className="text-gray-300 p-1"
+										title="Eliminar">
 										<Trash2 size={14} />
 									</button>
 								</div>
@@ -480,7 +486,7 @@ export const FinanceTab = ({
 									) : (
 										<button
 											onClick={() => handlePayClick(exp)}
-											className="bg-rose-500 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase">
+											className="bg-[#f43f5e] hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-colors">
 											Pagar
 										</button>
 									)}
@@ -525,12 +531,14 @@ export const FinanceTab = ({
 											</span>
 											<button
 												onClick={() => openEntryModal("income", entry)}
-												className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+												className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+												title="Editar">
 												<Edit2 size={14} />
 											</button>
 											<button
 												onClick={() => handleDeleteClick(entry.id)}
-												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
+												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+												title="Eliminar">
 												<Trash2 size={14} />
 											</button>
 										</div>
@@ -577,12 +585,14 @@ export const FinanceTab = ({
 											</span>
 											<button
 												onClick={() => openEntryModal("expense", entry)}
-												className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity">
+												className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+												title="Editar">
 												<Edit2 size={14} />
 											</button>
 											<button
 												onClick={() => handleDeleteClick(entry.id)}
-												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
+												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+												title="Eliminar">
 												<Trash2 size={14} />
 											</button>
 										</div>
@@ -712,10 +722,9 @@ export const FinanceTab = ({
 										onChange={(e) =>
 											setFormData({ ...formData, tax_rate: Number(e.target.value) })
 										}>
-										<option value={0}>0%</option>
-										<option value={4}>4%</option>
-										<option value={10}>10%</option>
-										<option value={21}>21%</option>
+										{IVA_OPTIONS.map((v) => (
+											<option key={v} value={v}>{v}%</option>
+										))}
 									</select>
 								</div>
 							</div>
@@ -779,10 +788,11 @@ export const FinanceTab = ({
 								/>
 							</div>
 							<button
-								className={`w-full py-4 rounded-xl font-black text-white shadow-lg ${
+								disabled={savingEntry}
+								className={`w-full py-4 rounded-xl font-black text-white shadow-lg disabled:opacity-60 disabled:cursor-not-allowed ${
 									formData.type === "income" ? "bg-emerald-500" : "bg-rose-500"
 								}`}>
-								Guardar
+								{savingEntry ? "Guardando..." : "Guardar"}
 							</button>
 						</form>
 					</div>
