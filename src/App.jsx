@@ -2,8 +2,11 @@ import React, { useState } from "react";
 import { Loader2, LogOut } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { logout } from "./services/auth";
-import { supabase } from "./services/supabase";
-import { useData } from "./hooks/useData";
+import { useSessionMutation } from "./hooks/useSessionMutation";
+import { useTreatments } from "./hooks/useTreatments";
+import { useInventory } from "./hooks/useInventory";
+import { useFinance } from "./hooks/useFinance";
+import { useRecurringConfig } from "./hooks/useRecurringConfig";
 import { useProfile } from "./hooks/useProfile";
 import { useClients } from "./hooks/useClients";
 import { Toast } from "./components/ui/Toast";
@@ -23,17 +26,25 @@ import { TaxesTab } from "./components/taxes/TaxesTab";
 const DermoManager = () => {
 	const { user, loading: authLoading } = useAuth();
 
-	const {
-		inventory,
-		treatments,
-		entries,
-		recurringConfig,
-		loading: dataLoading,
-		refreshData,
-	} = useData(user);
-
+	const { inventory, loading: inventoryLoading, refreshInventory } = useInventory(user);
+	const { treatments, loading: treatmentsLoading, refreshTreatments } = useTreatments(user);
+	const { entries, loading: financeLoading, refreshFinance } = useFinance(user);
+	const { recurringConfig, loading: recurringLoading, refreshRecurringConfig } =
+		useRecurringConfig(user);
 	const profile = useProfile(user);
-	const { clients, refreshClients } = useClients(user);
+	const { clients, loading: clientsLoading, refreshClients } = useClients(user);
+
+	const dataLoading =
+		inventoryLoading || treatmentsLoading || financeLoading || recurringLoading || clientsLoading;
+
+	const refreshData = async () => {
+		await Promise.all([
+			refreshInventory(),
+			refreshTreatments(),
+			refreshFinance(),
+			refreshRecurringConfig(),
+		]);
+	};
 
 	const [activeTab, setActiveTab] = useState("dashboard");
 
@@ -48,10 +59,11 @@ const DermoManager = () => {
 	const [showLogout, setShowLogout] = useState(false);
 	const [selectedTreatment, setSelectedTreatment] = useState(null);
 
+	const sessionMutation = useSessionMutation(user?.id, inventory);
+
 	const showToastMsg = (msg, type = "success") =>
 		setToast({ message: msg, type });
 
-	// ACTUALIZADO: Acepta 'date' como cuarto argumento
 	const handleSession = async (
 		treatment,
 		clientData,
@@ -91,52 +103,15 @@ const DermoManager = () => {
 		}
 
 		try {
-			// 2. Descontar Stock (Usando la lista agrupada)
-			for (const [matId, qty] of Object.entries(combinedQuantities)) {
-				const item = inventory.find((i) => i.id === matId);
-				if (item) {
-					const { error: invError } = await supabase
-						.from("inventory")
-						.update({ stock: Number(item.stock) - qty })
-						.eq("id", matId);
-					if (invError) throw invError;
-				}
-			}
-
-			// 3. Calcular Coste Real (Receta + Extras)
-			const cost = Object.entries(combinedQuantities).reduce(
-				(total, [matId, qty]) => {
-					const item = inventory.find((m) => m.id === matId);
-					return total + (item ? (Number(item.unit_cost) || 0) * qty : 0);
-				},
-				0
-			);
-
-			const displayName = clientData.id
-				? `${treatment.name} (${clientData.name} ${clientData.surname || ""})`
-				: `${treatment.name} (${clientData.name})`;
-
-			// 4. Registrar Ingreso
-			const { error: finError } = await supabase
-				.from("finance_entries")
-				.insert([
-					{
-						user_id: user.id,
-						date: date,
-						type: "income",
-						category: "Servicio",
-						description: displayName,
-						amount: Number(finalPrice),
-						related_cost: Number(cost),
-						client_id: clientData.id || null,
-					},
-				]);
-
-			if (finError) throw finError;
-
+			await sessionMutation.mutateAsync({
+				treatment,
+				clientData,
+				finalPrice,
+				date,
+				extras,
+			});
 			showToastMsg(`Sesión guardada (Fecha: ${date})`);
 			setSelectedTreatment(null);
-
 			await refreshData();
 		} catch (e) {
 			console.error("Error en handleSession:", e);
@@ -185,6 +160,7 @@ const DermoManager = () => {
 				inventory={inventory}
 				onClose={() => setSelectedTreatment(null)}
 				onConfirm={handleSession}
+				isSubmitting={sessionMutation.isPending}
 			/>
 			<Sidebar
 				activeTab={activeTab}

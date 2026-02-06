@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import React, { useState, useMemo, useEffect } from "react";
 import {
 	Plus,
@@ -23,7 +22,7 @@ import {
 } from "../../utils/format";
 import { exportToCSV } from "../../utils/export";
 import { filterByDate, getDateLabel } from "../../utils/dateUtils";
-import { ConfirmModal } from "../ui/ConfirmModal"; // IMPORTANTE
+import { ConfirmModal } from "../ui/ConfirmModal";
 
 export const FinanceTab = ({
 	user,
@@ -486,7 +485,7 @@ export const FinanceTab = ({
 									) : (
 										<button
 											onClick={() => handlePayClick(exp)}
-											className="bg-[#f43f5e] hover:bg-rose-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-colors">
+											className="bg-primary hover:bg-primary-hover text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-colors">
 											Pagar
 										</button>
 									)}
@@ -642,7 +641,7 @@ export const FinanceTab = ({
 									) : (
 										<button
 											onClick={() => handlePayClick(exp)}
-											className="bg-[#f43f5e] hover:bg-rose-600 text-white px-5 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md transition-all active:scale-95">
+											className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md transition-all active:scale-95">
 											Pagar
 										</button>
 									)}
@@ -881,7 +880,7 @@ export const FinanceTab = ({
 									<Plus size={14} /> Añadir concepto
 								</button>
 							</div>
-							<button className="w-full bg-[#1e293b] text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg mt-4">
+							<button className="w-full bg-surface-dark text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg mt-4">
 								Guardar
 							</button>
 						</form>

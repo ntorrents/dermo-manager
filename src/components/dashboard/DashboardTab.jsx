@@ -11,7 +11,13 @@ import {
 	Calendar,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
-import { filterByDate, getDateLabel } from "../../utils/dateUtils"; // IMPORTANTE
+import { filterByDate, getDateLabel } from "../../utils/dateUtils";
+import {
+	calculateStats,
+	calculateGrowth,
+	getTopTreatments,
+	getLowStockItems,
+} from "../../utils/calculations";
 import { DailyBarChart } from "./DailyBarChart";
 
 export const DashboardTab = ({
@@ -44,55 +50,21 @@ export const DashboardTab = ({
 		return entries.filter((e) => e.date && e.date.startsWith(previousMonth));
 	}, [entries, previousMonth, viewMode]);
 
-	// --- CÁLCULOS FINANCIEROS BLINDADOS ---
-	const calculateStats = (data) => {
-		const income = data
-			.filter((e) => e.type === "income")
-			.reduce((a, b) => a + Number(b.amount || 0), 0);
-		const expense = data
-			.filter((e) => e.type === "expense")
-			.reduce((a, b) => a + Number(b.amount || 0), 0);
-		return { income, expense, net: income - expense };
-	};
-
-	const currentStats = calculateStats(currentData);
-	const prevStats = calculateStats(previousData);
-
-	let growth = 0;
-	if (prevStats.net !== 0) {
-		growth = ((currentStats.net - prevStats.net) / prevStats.net) * 100;
-	}
+	const currentStats = useMemo(() => calculateStats(currentData), [currentData]);
+	const prevStats = useMemo(() => calculateStats(previousData), [previousData]);
+	const growth = useMemo(
+		() => calculateGrowth(currentStats.net, prevStats.net),
+		[currentStats.net, prevStats.net]
+	);
 	const isGrowing = growth >= 0;
 
-	// --- LÓGICA TOP TRATAMIENTOS ---
-	const topTreatments = useMemo(() => {
-		const officialTreatments = new Set(
-			treatments.map((t) => t.name.toLowerCase())
-		);
-
-		const ranking = {};
-
-		currentData
-			.filter((e) => e.type === "income" && e.description)
-			.forEach((e) => {
-				const rawName = e.description.split("(")[0].trim();
-
-				if (officialTreatments.has(rawName.toLowerCase())) {
-					if (!ranking[rawName]) ranking[rawName] = { count: 0, amount: 0 };
-					ranking[rawName].count += 1;
-					ranking[rawName].amount += Number(e.amount || 0);
-				}
-			});
-
-		return Object.entries(ranking)
-			.map(([name, data]) => ({ name, ...data }))
-			.sort((a, b) => b.count - a.count)
-			.slice(0, 5);
-	}, [currentData, treatments]);
-
-	// --- ALERTAS ---
-	const lowStockItems = inventory.filter(
-		(i) => Number(i.stock) <= Number(i.min_stock || 5)
+	const topTreatments = useMemo(
+		() => getTopTreatments(currentData, treatments, 5),
+		[currentData, treatments]
+	);
+	const lowStockItems = useMemo(
+		() => getLowStockItems(inventory, 5),
+		[inventory]
 	);
 
 	return (

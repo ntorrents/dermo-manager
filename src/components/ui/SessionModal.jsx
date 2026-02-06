@@ -8,6 +8,7 @@ import {
 	Tag,
 	Plus,
 	Trash2,
+	Loader2,
 } from "lucide-react";
 
 export const SessionModal = ({
@@ -17,6 +18,7 @@ export const SessionModal = ({
 	inventory,
 	onClose,
 	onConfirm,
+	isSubmitting = false,
 }) => {
 	const [selectedClient, setSelectedClient] = useState(null);
 	const [searchTerm, setSearchTerm] = useState("");
@@ -300,11 +302,15 @@ export const SessionModal = ({
 
 				<div className="p-8 border-t bg-gray-50">
 					<button
-						disabled={!selectedClient || !finalPrice}
+						disabled={!selectedClient || !finalPrice || isSubmitting}
 						onClick={handleConfirm}
-						className="w-full bg-[#1e293b] hover:bg-black text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
-						<Calendar size={20} className="text-rose-500" />
-						Confirmar Sesión
+						className="w-full bg-surface-dark hover:bg-black text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
+						{isSubmitting ? (
+							<Loader2 size={20} className="animate-spin" />
+						) : (
+							<Calendar size={20} className="text-rose-500" />
+						)}
+						{isSubmitting ? "Guardando..." : "Confirmar Sesión"}
 					</button>
 				</div>
 			</div>

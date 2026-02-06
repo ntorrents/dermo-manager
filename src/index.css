@@ -1,7 +1,16 @@
 @import "tailwindcss";
 
 @theme {
-	/* Puedes personalizar el tema aquí si lo necesitas en el futuro */
+	/* Paleta semántica DermoManager */
+	--color-primary: #f43f5e;
+	--color-primary-hover: #e11d48;
+	--color-primary-light: #ffe4e6;
+	--color-surface-dark: #1e293b;
+	--color-warning-bg: #fffbeb;
+	--color-warning-border: #fef3c7;
+	--color-warning-icon: #d97706;
+	--color-warning-text: #92400e;
+	--color-warning-text-light: #b45309;
 }
 
 body {

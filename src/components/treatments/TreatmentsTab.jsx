@@ -118,7 +118,7 @@ export const TreatmentsTab = ({
 				</h2>
 				<button
 					onClick={() => openModal()}
-					className="bg-[#f43f5e] hover:bg-rose-600 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg transition-all w-full sm:w-auto justify-center">
+					className="bg-primary hover:bg-primary-hover text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg transition-all w-full sm:w-auto justify-center">
 					<Plus size={18} /> Nuevo Tratamiento
 				</button>
 			</div>
@@ -157,7 +157,7 @@ export const TreatmentsTab = ({
 							</div>
 
 							<div className="flex items-baseline gap-1 mb-4">
-								<span className="text-3xl xl:text-4xl font-black text-[#f43f5e] tracking-tighter">
+								<span className="text-3xl xl:text-4xl font-black text-primary tracking-tighter">
 									{t.price}€
 								</span>
 								<span className="text-[9px] font-bold text-gray-400 uppercase italic">
@@ -186,7 +186,7 @@ export const TreatmentsTab = ({
 
 							<button
 								onClick={() => onSelectTreatment(t)}
-								className="w-full mt-auto bg-[#1e293b] hover:bg-rose-500 text-white font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
+								className="w-full mt-auto bg-surface-dark hover:bg-primary text-white font-black py-3.5 rounded-2xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95">
 								<Zap size={16} fill="currentColor" /> Realizar Sesión
 							</button>
 						</div>
@@ -269,7 +269,7 @@ export const TreatmentsTab = ({
 													],
 												})
 											}
-											className="text-[#f43f5e] text-[10px] font-black uppercase">
+											className="text-primary text-[10px] font-black uppercase">
 											+ Añadir
 										</button>
 									</div>
@@ -320,7 +320,7 @@ export const TreatmentsTab = ({
 									</div>
 								</div>
 
-								<div className="mt-6 bg-[#1e293b] rounded-[2rem] p-6 text-white shadow-xl">
+								<div className="mt-6 bg-surface-dark rounded-[2rem] p-6 text-white shadow-xl">
 									<div className="grid grid-cols-2 gap-4">
 										<div>
 											<p className="text-[10px] font-bold text-gray-400 uppercase">
@@ -353,7 +353,7 @@ export const TreatmentsTab = ({
 									</div>
 									<button
 										disabled={loading}
-										className="w-full bg-[#f43f5e] text-white font-black py-4 rounded-xl mt-6 shadow-lg">
+										className="w-full bg-primary text-white font-black py-4 rounded-xl mt-6 shadow-lg">
 										Confirmar
 									</button>
 								</div>

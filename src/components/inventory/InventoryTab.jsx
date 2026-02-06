@@ -9,14 +9,20 @@ import {
 	AlertTriangle,
 	X,
 } from "lucide-react";
-import { supabase } from "../../services/supabase";
 import {
 	IVA_OPTIONS,
 	calculateTaxFromTotal,
 	formatCurrency,
 	formatDate,
 } from "../../utils/format";
+import { calculateUnitCost } from "../../utils/calculations";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import {
+	useCreateMaterial,
+	useUpdateMaterial,
+	useRestockMaterial,
+	useDeleteMaterial,
+} from "../../hooks/useInventoryMutations";
 
 export const InventoryTab = ({
 	user,
@@ -25,6 +31,16 @@ export const InventoryTab = ({
 	showToast,
 	onRefresh,
 }) => {
+	const createMaterial = useCreateMaterial(user?.id);
+	const updateMaterial = useUpdateMaterial(user?.id);
+	const restockMaterial = useRestockMaterial(user?.id);
+	const deleteMaterial = useDeleteMaterial(user?.id);
+
+	const loading =
+		createMaterial.isPending ||
+		updateMaterial.isPending ||
+		restockMaterial.isPending ||
+		deleteMaterial.isPending;
 	const materialPurchases = (entries || [])
 		.filter((e) => e.type === "expense" && e.category === "Material")
 		.sort((a, b) => (b.date || "").localeCompare(a.date || ""))
@@ -43,7 +59,6 @@ export const InventoryTab = ({
 
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
 	const [itemToDelete, setItemToDelete] = useState(null);
-	const [loading, setLoading] = useState(false);
 
 	const [formData, setFormData] = useState({
 		name: "",
@@ -93,77 +108,23 @@ export const InventoryTab = ({
 
 	const handleSave = async (e) => {
 		e.preventDefault();
-		setLoading(true);
+		const totalCostNum = Number(formData.totalCost);
+		if (Number(formData.stock) <= 0) {
+			showToast("El stock debe ser mayor a 0", "error");
+			return;
+		}
 		try {
-			const stockNum = Number(formData.stock);
-			const totalCostNum = Number(formData.totalCost);
-
-			if (stockNum <= 0) throw new Error("El stock debe ser mayor a 0");
-
-			// Calcular coste unitario
-			const calculatedUnitCost = totalCostNum / stockNum;
-
-			const payload = {
-				name: formData.name,
-				stock: stockNum,
-				unit: formData.unit,
-				unit_cost: calculatedUnitCost,
-				min_stock: Number(formData.min_stock),
-				user_id: user.id,
-			};
-
 			if (editingItem) {
-				// MODO EDICIÓN: Solo actualizamos la ficha del material
-				// (No generamos gasto financiero porque asumimos que es una corrección de datos)
-				const { error } = await supabase
-					.from("inventory")
-					.update(payload)
-					.eq("id", editingItem.id);
-				if (error) throw error;
+				await updateMaterial.mutateAsync({ editingItem, formData });
 				showToast("Material actualizado");
 			} else {
-				// MODO CREACIÓN: Nuevo material -> Generar Gasto
-
-				// 1. Insertar en Inventario
-				const { error: invError } = await supabase
-					.from("inventory")
-					.insert([payload]);
-				if (invError) throw invError;
-
-				// 2. Insertar en Finanzas (con IVA calculado)
-				const taxRate =
-					formData.tax_rate != null ? Number(formData.tax_rate) : 21;
-				const { baseAmount, taxAmount } = calculateTaxFromTotal(
-					totalCostNum,
-					taxRate
-				);
-
-				const { error: finError } = await supabase
-					.from("finance_entries")
-					.insert([
-						{
-							user_id: user.id,
-							type: "expense",
-							category: "Material",
-							description: `Compra Stock Inicial: ${formData.name}`,
-							amount: totalCostNum,
-							tax_rate: taxRate,
-							base_amount: baseAmount,
-							tax_amount: taxAmount,
-							date: new Date().toISOString().split("T")[0],
-						},
-					]);
-				if (finError) throw finError;
-
+				await createMaterial.mutateAsync({ formData, taxCalc: {} });
 				showToast("Material creado y gasto registrado");
 			}
 			setIsModalOpen(false);
 			await onRefresh();
 		} catch (error) {
-			console.error(error);
-			showToast("Error: " + error.message, "error");
-		} finally {
-			setLoading(false);
+			showToast("Error: " + (error?.message || "Error al guardar"), "error");
 		}
 	};
 
@@ -175,53 +136,13 @@ export const InventoryTab = ({
 
 	const handleRestock = async (e) => {
 		e.preventDefault();
-		setLoading(true);
 		try {
-			const qtyBought = Number(restockData.quantity);
-			const purchaseCost = Number(restockData.totalCost);
-			const currentStock = Number(restockItem.stock);
-			const currentUnitCost = Number(restockItem.unit_cost);
-			const newStock = currentStock + qtyBought;
-			const newUnitCost =
-				(currentStock * currentUnitCost + purchaseCost) / newStock;
-
-			const { error } = await supabase
-				.from("inventory")
-				.update({
-					stock: newStock,
-					unit_cost: parseFloat(newUnitCost.toFixed(4)),
-				})
-				.eq("id", restockItem.id);
-			if (error) throw error;
-
-			const taxRate =
-				restockData.taxRate != null ? Number(restockData.taxRate) : 21;
-			const { baseAmount, taxAmount } = calculateTaxFromTotal(
-				purchaseCost,
-				taxRate
-			);
-
-			await supabase.from("finance_entries").insert([
-				{
-					user_id: user.id,
-					date: new Date().toISOString().split("T")[0],
-					type: "expense",
-					category: "Material",
-					description: `Reposición: ${restockItem.name} (${qtyBought} ${restockItem.unit})`,
-					amount: purchaseCost,
-					tax_rate: taxRate,
-					base_amount: baseAmount,
-					tax_amount: taxAmount,
-				},
-			]);
-
+			await restockMaterial.mutateAsync({ restockItem, restockData });
 			showToast("Stock actualizado");
 			setIsRestockModalOpen(false);
 			await onRefresh();
 		} catch {
 			showToast("Error al reponer", "error");
-		} finally {
-			setLoading(false);
 		}
 	};
 
@@ -233,18 +154,13 @@ export const InventoryTab = ({
 	const confirmDelete = async () => {
 		if (!itemToDelete) return;
 		try {
-			const { error } = await supabase
-				.from("inventory")
-				.delete()
-				.eq("id", itemToDelete.id);
-			if (error) throw error;
+			await deleteMaterial.mutateAsync(itemToDelete.id);
 			showToast("Eliminado");
+			setShowDeleteModal(false);
+			setItemToDelete(null);
 			await onRefresh();
 		} catch {
 			showToast("Error al eliminar", "error");
-		} finally {
-			setShowDeleteModal(false);
-			setItemToDelete(null);
 		}
 	};
 
@@ -271,19 +187,19 @@ export const InventoryTab = ({
 				</div>
 				<button
 					onClick={() => openModal()}
-					className="bg-[#f43f5e] hover:bg-rose-600 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-rose-100 transition-all w-full xl:w-auto justify-center">
+					className="bg-primary hover:bg-primary-hover text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-rose-100 transition-all w-full xl:w-auto justify-center">
 					<Plus size={20} /> Nuevo Material
 				</button>
 			</div>
 
 			{lowStockCount > 0 && (
-				<div className="bg-[#fffbeb] border border-[#fef3c7] p-4 rounded-2xl flex items-start gap-4 shadow-sm">
-					<AlertTriangle className="text-[#d97706]" size={20} />
+				<div className="bg-warning-bg border border-warning-border p-4 rounded-2xl flex items-start gap-4 shadow-sm">
+					<AlertTriangle className="text-warning-icon" size={20} />
 					<div>
-						<h4 className="font-bold text-[#92400e]">
+						<h4 className="font-bold text-warning-text">
 							Stock Bajo ({lowStockCount})
 						</h4>
-						<p className="text-xs text-[#b45309]">
+						<p className="text-xs text-warning-text-light">
 							Revisa los productos marcados.
 						</p>
 					</div>
@@ -534,7 +450,7 @@ export const InventoryTab = ({
 										/>
 										{formData.stock && formData.totalCost && Number(formData.stock) > 0 && (
 											<p className="text-xs text-gray-500 mt-2 ml-1">
-												Coste unitario calculado: {(Number(formData.totalCost) / Number(formData.stock)).toFixed(2)} €
+												Coste unitario calculado: {calculateUnitCost(formData.totalCost, formData.stock).toFixed(2)} €
 											</p>
 										)}
 									</div>
@@ -573,7 +489,7 @@ export const InventoryTab = ({
 								<div className="pt-4">
 									<button
 										disabled={loading}
-										className="w-full bg-[#1e293b] text-white font-black py-4 rounded-xl shadow-lg disabled:opacity-60 disabled:cursor-not-allowed">
+										className="w-full bg-surface-dark text-white font-black py-4 rounded-xl shadow-lg disabled:opacity-60 disabled:cursor-not-allowed">
 										{loading ? "Guardando..." : "Guardar Material"}
 									</button>
 								</div>

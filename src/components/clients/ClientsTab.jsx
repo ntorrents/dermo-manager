@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 import React, { useState } from "react";
 import {
 	Search,
@@ -499,7 +498,7 @@ export const ClientsTab = ({
 							</div>
 							<button
 								disabled={savingClient}
-								className="w-full bg-[#1e293b] text-white font-black py-4 rounded-[1.5rem] shadow-xl text-lg mt-4 disabled:opacity-60 disabled:cursor-not-allowed">
+								className="w-full bg-surface-dark text-white font-black py-4 rounded-[1.5rem] shadow-xl text-lg mt-4 disabled:opacity-60 disabled:cursor-not-allowed">
 								{savingClient ? "Guardando..." : "Guardar Cliente"}
 							</button>
 						</form>
