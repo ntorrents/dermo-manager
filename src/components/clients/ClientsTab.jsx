@@ -12,15 +12,19 @@ import {
 	Check,
 	ExternalLink,
 	FileDown,
+	Camera,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useClientHistory } from "../../hooks/useClientHistory";
+import { useSessionPhotos } from "../../hooks/useSessionPhotos";
 import { formatCurrency } from "../../utils/format";
 import { generateInvoice } from "../../utils/invoiceGenerator";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
+import { PhotoUploadModal } from "../photos/PhotoUploadModal";
+import { BeforeAfterViewer } from "../photos/BeforeAfterViewer";
 
 export const ClientsTab = ({
 	user,
@@ -47,10 +51,14 @@ export const ClientsTab = ({
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
 	const [clientToDelete, setClientToDelete] = useState(null);
 	const [savingClient, setSavingClient] = useState(false);
+	const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
 
-	// CORRECCIÓN: Pasamos solo el ID al hook corregido
 	const { history, loading: historyLoading } = useClientHistory(
 		selectedClient?.id
+	);
+	const { photos, loading: photosLoading, refreshPhotos } = useSessionPhotos(
+		selectedClient?.id,
+		user?.id
 	);
 
 	const filteredClients = clients.filter(
@@ -323,6 +331,66 @@ export const ClientsTab = ({
 						</div>
 
 						<div className="flex-1 overflow-y-auto p-6 xl:p-8 custom-scrollbar bg-gray-50/30">
+							{/* Fotos Antes/Después */}
+							<div className="mb-8">
+								<div className="flex justify-between items-center mb-4">
+									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
+										<Camera size={14} /> Fotos
+									</h3>
+									{history.length > 0 && (
+										<button
+											onClick={() => setShowPhotoUploadModal(true)}
+											className="text-primary text-[10px] font-black uppercase hover:underline">
+											+ Añadir
+										</button>
+									)}
+								</div>
+								{photosLoading ? (
+									<div className="space-y-4">
+										<div className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
+									</div>
+								) : (
+									<div className="space-y-6">
+										{history
+											.filter(
+												(s) =>
+													photos.some((p) => p.finance_entry_id === s.id)
+											)
+											.map((session) => {
+												const before = photos.find(
+													(p) =>
+														p.finance_entry_id === session.id &&
+														p.type === "before"
+												);
+												const after = photos.find(
+													(p) =>
+														p.finance_entry_id === session.id &&
+														p.type === "after"
+												);
+												if (!before && !after) return null;
+												return (
+													<BeforeAfterViewer
+														key={session.id}
+														beforePhoto={before}
+														afterPhoto={after}
+														sessionLabel={`${session.description?.split("(")[0] || "Sesión"} — ${session.date}`}
+													/>
+												);
+											})}
+										{!photos.some((p) =>
+											history.some((s) => s.id === p.finance_entry_id)
+										) && (
+											<div className="flex flex-col items-center justify-center py-8 text-gray-300 border-2 border-dashed border-gray-200 rounded-2xl">
+												<Camera size={32} className="mb-2 opacity-50" />
+												<p className="text-sm font-bold">
+													Sin fotos. Añade antes/después de una sesión.
+												</p>
+											</div>
+										)}
+									</div>
+								)}
+							</div>
+
 							<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
 								<Clock size={14} /> Historial
 							</h3>
@@ -513,9 +581,22 @@ export const ClientsTab = ({
 						type="submit"
 						className="w-full bg-surface-dark text-white font-black py-4 rounded-[1.5rem] shadow-xl text-lg mt-4">
 						{savingClient ? "Guardando..." : "Guardar Cliente"}
-					</LoadingButton>
-				</form>
+							</LoadingButton>
+						</form>
 			</AdaptiveModal>
+
+			<PhotoUploadModal
+				isOpen={showPhotoUploadModal}
+				onClose={() => setShowPhotoUploadModal(false)}
+				userId={user?.id}
+				clientId={selectedClient?.id}
+				sessions={history}
+				onSuccess={(err) => {
+					refreshPhotos();
+					if (!err) showToast("Foto guardada");
+					else showToast("Error al subir", "error");
+				}}
+			/>
 		</div>
 	);
 };
