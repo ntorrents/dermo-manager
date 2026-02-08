@@ -12,14 +12,23 @@ export const entriesToEvents = (entries = [], clients = []) =>
 			const clientName = client ? `${client.name} ${client.surname || ""}`.trim() : "";
 			const treatmentName = e.description?.split("(")[0]?.trim() || "Sesión";
 			const title = clientName ? `${treatmentName} - ${clientName}` : treatmentName;
-			return {
-				id: `entry-${e.id}`,
-				title,
-				start,
-				end,
-				resource: { type: "session", entry: e },
-			};
+		return {
+			id: `entry-${e.id}`,
+			title,
+			start,
+			end,
+			draggable: false,
+			resource: { type: "session", entry: e },
+		};
 		});
+
+/** Colores por estado de cita */
+export const STATUS_COLORS = {
+	pending: "#64748b",
+	confirmed: "#3b82f6",
+	done: "#22c55e",
+	cancelled: "#ef4444",
+};
 
 /**
  * Convierte appointments a eventos del calendario.
@@ -34,6 +43,8 @@ export const appointmentsToEvents = (appointments = []) =>
 			start,
 			end,
 			allDay: !!a.all_day,
+			status: a.status || "pending",
+			draggable: true,
 			resource: { type: "appointment", appointment: a },
 		};
 	});

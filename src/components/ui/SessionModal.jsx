@@ -22,6 +22,7 @@ export const SessionModal = ({
 }) => {
 	const [selectedClient, setSelectedClient] = useState(null);
 	const [searchTerm, setSearchTerm] = useState("");
+	const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
 	const [finalPrice, setFinalPrice] = useState("");
 	const [selectedDate, setSelectedDate] = useState(
 		new Date().toISOString().split("T")[0]
@@ -45,8 +46,8 @@ export const SessionModal = ({
 
 	if (!isOpen || !treatment) return null;
 
-	const filteredClients = clients.filter((c) =>
-		`${c.name} ${c.surname}`.toLowerCase().includes(searchTerm.toLowerCase())
+	const filteredClients = (clients || []).filter((c) =>
+		`${c.name || ""} ${c.surname || ""}`.toLowerCase().includes(searchTerm.toLowerCase())
 	);
 
 	// Funciones para gestionar extras
@@ -120,35 +121,40 @@ export const SessionModal = ({
 								<input
 									autoFocus
 									className="w-full pl-12 p-4 bg-gray-50 border-2 border-transparent focus:border-rose-100 focus:bg-white rounded-2xl outline-none font-bold text-gray-800 transition-all placeholder:text-gray-300"
-									placeholder="Buscar por nombre..."
+									placeholder="Escribe para filtrar pacientes..."
 									value={searchTerm}
 									onChange={(e) => setSearchTerm(e.target.value)}
+									onFocus={() => setIsClientDropdownOpen(true)}
+									onBlur={() => setTimeout(() => setIsClientDropdownOpen(false), 150)}
 								/>
 
-								{searchTerm && (
+								{isClientDropdownOpen && (
 									<div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-2xl shadow-xl max-h-48 overflow-y-auto z-20">
 										{filteredClients.length > 0 ? (
 											filteredClients.map((client) => (
 												<button
 													key={client.id}
+													type="button"
+													onMouseDown={(e) => e.preventDefault()}
 													onClick={() => {
 														setSelectedClient(client);
 														setSearchTerm("");
+														setIsClientDropdownOpen(false);
 													}}
 													className="w-full text-left p-4 hover:bg-rose-50 flex items-center gap-3 transition-colors border-b border-gray-50 last:border-0">
 													<div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-black text-xs">
-														{client.name[0]}
+														{(client.name || "?")[0]}
 													</div>
 													<div>
 														<p className="font-bold text-gray-800 text-sm">
-															{client.name} {client.surname}
+															{client.name || ""} {client.surname || ""}
 														</p>
 													</div>
 												</button>
 											))
 										) : (
 											<div className="p-4 text-center text-gray-400 text-xs font-bold">
-												No se encontraron clientes.
+												{searchTerm ? "No se encontraron clientes." : "No hay pacientes. Añade uno en Clientes."}
 											</div>
 										)}
 									</div>

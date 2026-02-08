@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Loader2, LogOut } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { logout } from "./services/auth";
@@ -71,6 +71,19 @@ const DermoManager = () => {
 
 	const sessionMutation = useSessionMutation(user?.id, inventory);
 
+	// Favicon dinámico según logo del perfil
+	useEffect(() => {
+		const link = document.querySelector("link[rel~='icon']");
+		if (!link) return;
+		if (profile?.logo_url && /^https?:\/\//i.test(profile.logo_url)) {
+			link.href = profile.logo_url;
+			link.type = profile.logo_url.toLowerCase().endsWith(".svg") ? "image/svg+xml" : "image/png";
+		} else {
+			link.href = "/vite.svg";
+			link.type = "image/svg+xml";
+		}
+	}, [profile?.logo_url]);
+
 	const showToastMsg = (msg, type = "success") =>
 		setToast({ message: msg, type });
 
@@ -135,7 +148,7 @@ const DermoManager = () => {
 				<div className="flex flex-col items-center gap-4">
 					<Loader2 className="animate-spin text-rose-500" size={40} />
 					<p className="text-rose-400 font-medium">
-						Sincronizando con Supabase...
+						Sincronizando Datos...
 					</p>
 				</div>
 			</div>
@@ -197,6 +210,8 @@ const DermoManager = () => {
 						entries={entries}
 						inventory={inventory}
 						treatments={treatments}
+						appointments={appointments}
+						clients={clients}
 						// Props Globales
 						currentDate={currentDate}
 						setCurrentDate={setCurrentDate}

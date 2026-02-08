@@ -65,6 +65,59 @@ export const getSignedUrl = async (storagePath) => {
 };
 
 /**
+ * Actualiza tipo y/o sesión de una foto (sin reemplazar archivo).
+ */
+export const updateSessionPhoto = async (photoId, { type, financeEntryId }) => {
+	const updates = {};
+	if (type !== undefined) updates.type = type;
+	if (financeEntryId !== undefined && financeEntryId !== "")
+		updates.finance_entry_id = financeEntryId || null;
+	if (Object.keys(updates).length === 0) return;
+
+	const { error } = await supabase
+		.from("session_photos")
+		.update(updates)
+		.eq("id", photoId);
+
+	if (error) throw error;
+};
+
+/**
+ * Reemplaza el archivo de una foto existente (Storage + BD).
+ * type y financeEntryId opcionales por si se actualizaron antes.
+ */
+export const replaceSessionPhotoFile = async (
+	photo,
+	{ userId, clientId, file, type, financeEntryId }
+) => {
+	const compressed = await compressImage(file);
+	const entryId = financeEntryId ?? photo.finance_entry_id;
+	const photoType = type ?? photo.type;
+	const path = getStoragePath(userId, clientId, entryId, photoType);
+
+	const { error: uploadError } = await supabase.storage
+		.from(BUCKET)
+		.upload(path, compressed, {
+			contentType: "image/jpeg",
+			upsert: false,
+		});
+
+	if (uploadError) throw uploadError;
+
+	const { error } = await supabase
+		.from("session_photos")
+		.update({ storage_path: path })
+		.eq("id", photo.id);
+
+	if (error) throw error;
+
+	// Eliminar el archivo antiguo tras actualizar BD
+	if (photo.storage_path !== path) {
+		await supabase.storage.from(BUCKET).remove([photo.storage_path]);
+	}
+};
+
+/**
  * Elimina una foto (Storage + BD).
  */
 export const deleteSessionPhoto = async (photo) => {

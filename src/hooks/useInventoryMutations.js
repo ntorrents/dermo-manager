@@ -9,6 +9,13 @@ export const useCreateMaterial = (userId) => {
 			const stockNum = Number(formData.stock);
 			const totalCostNum = Number(formData.totalCost);
 			if (stockNum <= 0) throw new Error("El stock debe ser mayor a 0");
+
+			const lotNumber = String(formData.lotNumber || "").trim();
+			const expiryDate = formData.expiryDate;
+			if (stockNum > 0 && (!lotNumber || !expiryDate)) {
+				throw new Error("Lote y fecha de caducidad son obligatorios para el stock inicial");
+			}
+
 			const calculatedUnitCost = totalCostNum / stockNum;
 			const payload = {
 				name: formData.name,
@@ -18,27 +25,49 @@ export const useCreateMaterial = (userId) => {
 				min_stock: Number(formData.min_stock),
 				user_id: userId,
 			};
-			const { error: invError } = await supabase.from("inventory").insert([payload]);
+			const { data: inserted, error: invError } = await supabase
+				.from("inventory")
+				.insert([payload])
+				.select()
+				.single();
 			if (invError) throw invError;
+
+			if (stockNum > 0 && lotNumber && expiryDate) {
+				const { error: batchError } = await supabase
+					.from("inventory_batches")
+					.insert([
+						{
+							inventory_id: inserted.id,
+							user_id: userId,
+							lot_number: lotNumber,
+							expiry_date: expiryDate,
+							quantity_remaining: stockNum,
+						},
+					]);
+				if (batchError) throw batchError;
+			}
+
 			const taxRate = formData.tax_rate != null ? Number(formData.tax_rate) : 21;
+			const purchaseDate = formData.purchaseDate || new Date().toISOString().split("T")[0];
 			const { baseAmount, taxAmount } = calculateTaxFromTotal(totalCostNum, taxRate);
 			const { error: finError } = await supabase.from("finance_entries").insert([
 				{
 					user_id: userId,
 					type: "expense",
 					category: "Material",
-					description: `Compra Stock Inicial: ${formData.name}`,
+					description: `Compra Stock Inicial: ${formData.name}` + (lotNumber ? ` Lote: ${lotNumber}` : ""),
 					amount: totalCostNum,
 					tax_rate: taxRate,
 					base_amount: baseAmount,
 					tax_amount: taxAmount,
-					date: new Date().toISOString().split("T")[0],
+					date: purchaseDate,
 				},
 			]);
 			if (finError) throw finError;
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
+			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", userId] });
 			queryClient.invalidateQueries({ queryKey: ["finance", userId] });
 		},
 	});
@@ -77,11 +106,31 @@ export const useRestockMaterial = (userId) => {
 		mutationFn: async ({ restockItem, restockData }) => {
 			const qtyBought = Number(restockData.quantity);
 			const purchaseCost = Number(restockData.totalCost);
+			const lotNumber = String(restockData.lotNumber || "").trim();
+			const expiryDate = restockData.expiryDate;
+
+			if (!lotNumber) throw new Error("El número de lote es obligatorio");
+			if (!expiryDate) throw new Error("La fecha de caducidad es obligatoria");
+
 			const currentStock = Number(restockItem.stock);
 			const currentUnitCost = Number(restockItem.unit_cost);
 			const newStock = currentStock + qtyBought;
 			const newUnitCost =
 				(currentStock * currentUnitCost + purchaseCost) / newStock;
+
+			const { error: batchError } = await supabase
+				.from("inventory_batches")
+				.insert([
+					{
+						inventory_id: restockItem.id,
+						user_id: userId,
+						lot_number: lotNumber,
+						expiry_date: expiryDate,
+						quantity_remaining: qtyBought,
+					},
+				]);
+			if (batchError) throw batchError;
+
 			const { error } = await supabase
 				.from("inventory")
 				.update({
@@ -90,15 +139,17 @@ export const useRestockMaterial = (userId) => {
 				})
 				.eq("id", restockItem.id);
 			if (error) throw error;
+
+			const purchaseDate = restockData.purchaseDate || new Date().toISOString().split("T")[0];
 			const taxRate = restockData.taxRate != null ? Number(restockData.taxRate) : 21;
 			const { baseAmount, taxAmount } = calculateTaxFromTotal(purchaseCost, taxRate);
 			const { error: finError } = await supabase.from("finance_entries").insert([
 				{
 					user_id: userId,
-					date: new Date().toISOString().split("T")[0],
+					date: purchaseDate,
 					type: "expense",
 					category: "Material",
-					description: `Reposición: ${restockItem.name} (${qtyBought} ${restockItem.unit})`,
+					description: `Reposición: ${restockItem.name} (${qtyBought} ${restockItem.unit}) Lote: ${lotNumber}`,
 					amount: purchaseCost,
 					tax_rate: taxRate,
 					base_amount: baseAmount,
@@ -109,7 +160,25 @@ export const useRestockMaterial = (userId) => {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
+			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", userId] });
 			queryClient.invalidateQueries({ queryKey: ["finance", userId] });
+		},
+	});
+};
+
+export const useUpdateBatch = (userId) => {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: async ({ batchId, updates }) => {
+			const { error } = await supabase
+				.from("inventory_batches")
+				.update(updates)
+				.eq("id", batchId);
+			if (error) throw error;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", userId] });
+			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
 		},
 	});
 };

@@ -1,49 +1,43 @@
 import React, { useState, useRef } from "react";
-import { Camera, Loader2 } from "lucide-react";
+import { Loader2, Camera } from "lucide-react";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
-import { uploadSessionPhoto } from "../../services/photoStorage";
+import { LoadingButton } from "../ui/LoadingButton";
+import {
+	updateSessionPhoto,
+	replaceSessionPhotoFile,
+} from "../../services/photoStorage";
 
-export const PhotoUploadModal = ({
+export const PhotoEditModal = ({
 	isOpen,
 	onClose,
+	photo,
 	userId,
 	clientId,
 	sessions = [],
 	onSuccess,
-	initialSession = null,
-	initialPhotoType = "before",
 }) => {
-	const [selectedEntry, setSelectedEntry] = useState(initialSession);
-	const [photoType, setPhotoType] = useState(initialPhotoType);
-	const [uploading, setUploading] = useState(false);
+	const [type, setType] = useState(photo?.type || "before");
+	const [financeEntryId, setFinanceEntryId] = useState(
+		photo?.finance_entry_id || ""
+	);
+	const [replacementFile, setReplacementFile] = useState(null);
 	const [preview, setPreview] = useState(null);
-	const [selectedFile, setSelectedFile] = useState(null);
+	const [saving, setSaving] = useState(false);
 	const fileInputRef = useRef(null);
 
 	React.useEffect(() => {
-		if (isOpen) {
-			setSelectedEntry(initialSession);
-			setPhotoType(initialPhotoType);
+		if (photo) {
+			setType(photo.type);
+			setFinanceEntryId(photo.finance_entry_id || "");
+			setReplacementFile(null);
+			setPreview(null);
 		}
-	}, [isOpen, initialSession?.id, initialPhotoType]);
-
-	const reset = () => {
-		setSelectedEntry(initialSession);
-		setPhotoType(initialPhotoType);
-		setPreview(null);
-		setSelectedFile(null);
-		if (fileInputRef.current) fileInputRef.current.value = "";
-	};
-
-	const handleClose = () => {
-		reset();
-		onClose();
-	};
+	}, [photo, isOpen]);
 
 	const handleFileSelect = (e) => {
 		const file = e.target.files?.[0];
 		if (!file || !file.type.startsWith("image/")) return;
-		setSelectedFile(file);
+		setReplacementFile(file);
 		const reader = new FileReader();
 		reader.onload = () => setPreview(reader.result);
 		reader.readAsDataURL(file);
@@ -51,45 +45,99 @@ export const PhotoUploadModal = ({
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		if (!selectedFile || !selectedEntry || !userId || !clientId) return;
+		if (!photo || !userId || !clientId) return;
 
-		setUploading(true);
+		setSaving(true);
 		try {
-			await uploadSessionPhoto({
-				userId,
-				clientId,
-				financeEntryId: selectedEntry.id,
-				type: photoType,
-				file: selectedFile,
-			});
+			const typeChanged = type !== photo.type;
+			const sessionChanged =
+				financeEntryId && financeEntryId !== photo.finance_entry_id;
+
+			if (typeChanged || sessionChanged) {
+				await updateSessionPhoto(photo.id, {
+					...(typeChanged && { type }),
+					...(sessionChanged && { financeEntryId }),
+				});
+			}
+
+			if (replacementFile) {
+				await replaceSessionPhotoFile(photo, {
+					userId,
+					clientId,
+					file: replacementFile,
+					type,
+					financeEntryId: financeEntryId || photo.finance_entry_id,
+				});
+			}
+
 			onSuccess?.();
-			handleClose();
+			onClose();
 		} catch (err) {
 			console.error(err);
 			onSuccess?.(err);
 		} finally {
-			setUploading(false);
+			setSaving(false);
 		}
 	};
+
+	if (!photo) return null;
 
 	return (
 		<AdaptiveModal
 			isOpen={isOpen}
-			onClose={handleClose}
-			title="Añadir foto"
+			onClose={onClose}
+			title="Editar foto"
 			maxWidth="max-w-md">
 			<form onSubmit={handleSubmit} className="space-y-6">
+				<div>
+					<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+						Tipo
+					</label>
+					<div className="flex gap-3">
+						<label
+							className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+								type === "before"
+									? "border-rose-500 bg-rose-50 text-rose-600"
+									: "border-gray-100 bg-gray-50 text-gray-500"
+							}`}>
+							<input
+								type="radio"
+								name="editType"
+								value="before"
+								checked={type === "before"}
+								onChange={() => setType("before")}
+								className="sr-only"
+							/>
+							<Camera size={18} />
+							Antes
+						</label>
+						<label
+							className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+								type === "after"
+									? "border-rose-500 bg-rose-50 text-rose-600"
+									: "border-gray-100 bg-gray-50 text-gray-500"
+							}`}>
+							<input
+								type="radio"
+								name="editType"
+								value="after"
+								checked={type === "after"}
+								onChange={() => setType("after")}
+								className="sr-only"
+							/>
+							<Camera size={18} />
+							Después
+						</label>
+					</div>
+				</div>
+
 				<div>
 					<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
 						Sesión
 					</label>
 					<select
-						required
-						value={selectedEntry?.id || ""}
-						onChange={(e) => {
-							const entry = sessions.find((s) => s.id === e.target.value);
-							setSelectedEntry(entry || null);
-						}}
+						value={financeEntryId}
+						onChange={(e) => setFinanceEntryId(e.target.value)}
 						className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-rose-100">
 						<option value="">Seleccionar sesión...</option>
 						{sessions.map((s) => (
@@ -102,57 +150,13 @@ export const PhotoUploadModal = ({
 
 				<div>
 					<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
-						Tipo
-					</label>
-					<div className="flex gap-3">
-						<label
-							className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-								photoType === "before"
-									? "border-rose-500 bg-rose-50 text-rose-600"
-									: "border-gray-100 bg-gray-50 text-gray-500"
-							}`}>
-							<input
-								type="radio"
-								name="photoType"
-								value="before"
-								checked={photoType === "before"}
-								onChange={() => setPhotoType("before")}
-								className="sr-only"
-							/>
-							<Camera size={18} />
-							Antes
-						</label>
-						<label
-							className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-								photoType === "after"
-									? "border-rose-500 bg-rose-50 text-rose-600"
-									: "border-gray-100 bg-gray-50 text-gray-500"
-							}`}>
-							<input
-								type="radio"
-								name="photoType"
-								value="after"
-								checked={photoType === "after"}
-								onChange={() => setPhotoType("after")}
-								className="sr-only"
-							/>
-							<Camera size={18} />
-							Después
-						</label>
-					</div>
-				</div>
-
-				<div>
-					<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
-						Foto
+						Reemplazar imagen
 					</label>
 					<input
 						ref={fileInputRef}
 						type="file"
 						accept="image/*"
-						capture="environment"
 						onChange={handleFileSelect}
-						required
 						className="hidden"
 					/>
 					<button
@@ -168,28 +172,23 @@ export const PhotoUploadModal = ({
 						) : (
 							<div className="flex flex-col items-center gap-2 text-gray-400">
 								<Camera size={40} />
-								<span className="text-sm font-bold">Seleccionar imagen</span>
+								<span className="text-sm font-bold">
+									{replacementFile ? replacementFile.name : "Seleccionar otra imagen"}
+								</span>
 							</div>
 						)}
 					</button>
 					<p className="text-xs text-gray-400 mt-2">
-						Se comprimirá a ~200KB antes de subir
+						Opcional. Dejar vacío para conservar la imagen actual.
 					</p>
 				</div>
 
-				<button
+				<LoadingButton
+					loading={saving}
 					type="submit"
-					disabled={uploading || !selectedFile || !selectedEntry}
-					className="w-full bg-primary hover:bg-primary-hover text-white font-black py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-					{uploading ? (
-						<>
-							<Loader2 size={20} className="animate-spin" />
-							Subiendo...
-						</>
-					) : (
-						"Guardar foto"
-					)}
-				</button>
+					className="w-full bg-primary text-white font-black py-4 rounded-xl">
+					{saving ? "Guardando..." : "Guardar cambios"}
+				</LoadingButton>
 			</form>
 		</AdaptiveModal>
 	);

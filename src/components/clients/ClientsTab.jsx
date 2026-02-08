@@ -24,7 +24,10 @@ import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
 import { PhotoUploadModal } from "../photos/PhotoUploadModal";
+import { PhotoEditModal } from "../photos/PhotoEditModal";
 import { BeforeAfterViewer } from "../photos/BeforeAfterViewer";
+import { SessionPhotoThumbnail } from "../photos/SessionPhotoThumbnail";
+import { deleteSessionPhoto } from "../../services/photoStorage";
 
 export const ClientsTab = ({
 	user,
@@ -52,11 +55,17 @@ export const ClientsTab = ({
 	const [clientToDelete, setClientToDelete] = useState(null);
 	const [savingClient, setSavingClient] = useState(false);
 	const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false);
+	const [photoUploadSession, setPhotoUploadSession] = useState(null);
+	const [showPhotoDeleteModal, setShowPhotoDeleteModal] = useState(false);
+	const [photoToDelete, setPhotoToDelete] = useState(null);
+	const [showPhotoEditModal, setShowPhotoEditModal] = useState(false);
+	const [photoToEdit, setPhotoToEdit] = useState(null);
+	const [viewerSession, setViewerSession] = useState(null);
 
 	const { history, loading: historyLoading } = useClientHistory(
 		selectedClient?.id
 	);
-	const { photos, loading: photosLoading, refreshPhotos } = useSessionPhotos(
+	const { photos, refreshPhotos } = useSessionPhotos(
 		selectedClient?.id,
 		user?.id
 	);
@@ -154,6 +163,42 @@ export const ClientsTab = ({
 		}
 	};
 
+	const handlePhotoDelete = (photo) => {
+		setPhotoToDelete(photo);
+		setShowPhotoDeleteModal(true);
+	};
+
+	const confirmPhotoDelete = async () => {
+		if (!photoToDelete) return;
+		try {
+			await deleteSessionPhoto(photoToDelete);
+			refreshPhotos();
+			showToast("Foto eliminada");
+		} catch {
+			showToast("Error al eliminar foto", "error");
+		} finally {
+			setShowPhotoDeleteModal(false);
+			setPhotoToDelete(null);
+		}
+	};
+
+	const handlePhotoEdit = (photo) => {
+		setPhotoToEdit(photo);
+		setShowPhotoEditModal(true);
+	};
+
+	const handlePhotoSuccess = (err) => {
+		refreshPhotos();
+		if (!err) showToast("Foto guardada");
+		else showToast("Error al subir", "error");
+	};
+
+	const handlePhotoEditSuccess = (err) => {
+		refreshPhotos();
+		if (!err) showToast("Foto actualizada");
+		else showToast("Error al actualizar", "error");
+	};
+
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0 h-[calc(100vh-120px)] md:h-auto flex flex-col md:flex-row gap-6">
 			<ConfirmModal
@@ -162,6 +207,14 @@ export const ClientsTab = ({
 				message={`¿Seguro que quieres eliminar a ${clientToDelete?.name}? Se perderá todo su historial.`}
 				onConfirm={confirmDelete}
 				onCancel={() => setShowDeleteModal(false)}
+				isDestructive={true}
+			/>
+			<ConfirmModal
+				isOpen={showPhotoDeleteModal}
+				title="Eliminar foto"
+				message="¿Eliminar esta foto del historial? Esta acción no se puede deshacer."
+				onConfirm={confirmPhotoDelete}
+				onCancel={() => setShowPhotoDeleteModal(false)}
 				isDestructive={true}
 			/>
 
@@ -331,66 +384,6 @@ export const ClientsTab = ({
 						</div>
 
 						<div className="flex-1 overflow-y-auto p-6 xl:p-8 custom-scrollbar bg-gray-50/30">
-							{/* Fotos Antes/Después */}
-							<div className="mb-8">
-								<div className="flex justify-between items-center mb-4">
-									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
-										<Camera size={14} /> Fotos
-									</h3>
-									{history.length > 0 && (
-										<button
-											onClick={() => setShowPhotoUploadModal(true)}
-											className="text-primary text-[10px] font-black uppercase hover:underline">
-											+ Añadir
-										</button>
-									)}
-								</div>
-								{photosLoading ? (
-									<div className="space-y-4">
-										<div className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
-									</div>
-								) : (
-									<div className="space-y-6">
-										{history
-											.filter(
-												(s) =>
-													photos.some((p) => p.finance_entry_id === s.id)
-											)
-											.map((session) => {
-												const before = photos.find(
-													(p) =>
-														p.finance_entry_id === session.id &&
-														p.type === "before"
-												);
-												const after = photos.find(
-													(p) =>
-														p.finance_entry_id === session.id &&
-														p.type === "after"
-												);
-												if (!before && !after) return null;
-												return (
-													<BeforeAfterViewer
-														key={session.id}
-														beforePhoto={before}
-														afterPhoto={after}
-														sessionLabel={`${session.description?.split("(")[0] || "Sesión"} — ${session.date}`}
-													/>
-												);
-											})}
-										{!photos.some((p) =>
-											history.some((s) => s.id === p.finance_entry_id)
-										) && (
-											<div className="flex flex-col items-center justify-center py-8 text-gray-300 border-2 border-dashed border-gray-200 rounded-2xl">
-												<Camera size={32} className="mb-2 opacity-50" />
-												<p className="text-sm font-bold">
-													Sin fotos. Añade antes/después de una sesión.
-												</p>
-											</div>
-										)}
-									</div>
-								)}
-							</div>
-
 							<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
 								<Clock size={14} /> Historial
 							</h3>
@@ -406,60 +399,112 @@ export const ClientsTab = ({
 								</div>
 							) : history.length > 0 ? (
 								<div className="space-y-4">
-									{history.map((session) => (
-										<div
-											key={session.id}
-											className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center hover:border-rose-100 transition-all">
-											<div className="flex items-start gap-4">
-												<div className="flex flex-col items-center justify-center w-12 h-12 bg-rose-50 rounded-xl text-rose-500 font-bold border border-rose-100">
-													<span className="text-sm leading-none">
-														{new Date(session.date).getDate()}
-													</span>
-													<span className="text-[9px] uppercase">
-														{new Date(session.date).toLocaleString("es-ES", {
-															month: "short",
-														})}
-													</span>
-												</div>
-												<div>
-													<h4 className="font-bold text-gray-800 text-sm xl:text-lg">
-														{session.description.split("(")[0]}
-													</h4>
-													<p className="text-[10px] text-gray-400 font-medium uppercase">
-														{session.date}
-													</p>
+									{history.map((session) => {
+										const sessionPhotos = photos.filter(
+											(p) => p.finance_entry_id === session.id
+										);
+										const beforePhoto = sessionPhotos.find((p) => p.type === "before");
+										const afterPhoto = sessionPhotos.find((p) => p.type === "after");
+
+										return (
+											<div
+												key={session.id}
+												className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-rose-100 transition-all">
+												<div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+													<div className="flex items-start gap-4 flex-1 min-w-0">
+														<div className="flex flex-col items-center justify-center w-12 h-12 bg-rose-50 rounded-xl text-rose-500 font-bold border border-rose-100 shrink-0">
+															<span className="text-sm leading-none">
+																{new Date(session.date).getDate()}
+															</span>
+															<span className="text-[9px] uppercase">
+																{new Date(session.date).toLocaleString("es-ES", {
+																	month: "short",
+																})}
+															</span>
+														</div>
+														<div className="min-w-0 flex-1">
+															<h4 className="font-bold text-gray-800 text-sm xl:text-lg">
+																{session.description?.split("(")[0] || "Sesión"}
+															</h4>
+															<p className="text-[10px] text-gray-400 font-medium uppercase">
+																{session.date}
+															</p>
+															{/* Miniaturas de fotos integradas */}
+															<div className="flex items-center gap-2 mt-3 flex-wrap">
+																{beforePhoto && (
+																	<SessionPhotoThumbnail
+																		photo={beforePhoto}
+																		label="Antes"
+																		onView={() =>
+																			setViewerSession({
+																				session,
+																				before: beforePhoto,
+																				after: afterPhoto,
+																			})
+																		}
+																		onEdit={handlePhotoEdit}
+																		onDelete={handlePhotoDelete}
+																	/>
+																)}
+																{afterPhoto && (
+																	<SessionPhotoThumbnail
+																		photo={afterPhoto}
+																		label="Después"
+																		onView={() =>
+																			setViewerSession({
+																				session,
+																				before: beforePhoto,
+																				after: afterPhoto,
+																			})
+																		}
+																		onEdit={handlePhotoEdit}
+																		onDelete={handlePhotoDelete}
+																	/>
+																)}
+																<button
+																	onClick={() => {
+																		setPhotoUploadSession(session);
+																		setShowPhotoUploadModal(true);
+																	}}
+																	className="w-16 h-20 rounded-lg border-2 border-dashed border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors shrink-0"
+																	title="Añadir foto">
+																	<Camera size={20} />
+																</button>
+															</div>
+														</div>
+													</div>
+													<div className="flex items-center gap-3 shrink-0">
+														<button
+															onClick={async () => {
+																try {
+																	await generateInvoice(
+																		session,
+																		selectedClient,
+																		profile,
+																		profile?.logo_url
+																	);
+																	showToast("Factura generada");
+																} catch {
+																	showToast("Error al generar factura", "error");
+																}
+															}}
+															className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
+															title="Generar factura">
+															<FileDown size={18} />
+														</button>
+														<div className="text-right">
+															<span className="block font-black text-gray-800 text-lg xl:text-xl">
+																{formatCurrency(session.amount)}
+															</span>
+															<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
+																Pagado
+															</span>
+														</div>
+													</div>
 												</div>
 											</div>
-											<div className="flex items-center gap-3">
-												<button
-													onClick={async () => {
-														try {
-															await generateInvoice(
-																session,
-																selectedClient,
-																profile,
-																profile?.logo_url
-															);
-															showToast("Factura generada");
-														} catch {
-															showToast("Error al generar factura", "error");
-														}
-													}}
-													className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
-													title="Generar factura">
-													<FileDown size={18} />
-												</button>
-												<div className="text-right">
-													<span className="block font-black text-gray-800 text-lg xl:text-xl">
-														{formatCurrency(session.amount)}
-													</span>
-													<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
-														Pagado
-													</span>
-												</div>
-											</div>
-										</div>
-									))}
+										);
+									})}
 								</div>
 							) : (
 								<div className="flex flex-col items-center justify-center h-40 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
@@ -587,16 +632,43 @@ export const ClientsTab = ({
 
 			<PhotoUploadModal
 				isOpen={showPhotoUploadModal}
-				onClose={() => setShowPhotoUploadModal(false)}
+				onClose={() => {
+					setShowPhotoUploadModal(false);
+					setPhotoUploadSession(null);
+				}}
 				userId={user?.id}
 				clientId={selectedClient?.id}
 				sessions={history}
-				onSuccess={(err) => {
-					refreshPhotos();
-					if (!err) showToast("Foto guardada");
-					else showToast("Error al subir", "error");
-				}}
+				initialSession={photoUploadSession}
+				onSuccess={handlePhotoSuccess}
 			/>
+
+			<PhotoEditModal
+				isOpen={showPhotoEditModal}
+				onClose={() => {
+					setShowPhotoEditModal(false);
+					setPhotoToEdit(null);
+				}}
+				photo={photoToEdit}
+				userId={user?.id}
+				clientId={selectedClient?.id}
+				sessions={history}
+				onSuccess={handlePhotoEditSuccess}
+			/>
+
+			{viewerSession && (
+				<AdaptiveModal
+					isOpen={!!viewerSession}
+					onClose={() => setViewerSession(null)}
+					title={`${viewerSession.session?.description?.split("(")[0] || "Sesión"} — ${viewerSession.session?.date}`}
+					maxWidth="max-w-2xl">
+					<BeforeAfterViewer
+						beforePhoto={viewerSession.before}
+						afterPhoto={viewerSession.after}
+						sessionLabel={null}
+					/>
+				</AdaptiveModal>
+			)}
 		</div>
 	);
 };

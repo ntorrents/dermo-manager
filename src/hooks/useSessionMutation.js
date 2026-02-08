@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
+import { consumeFromBatchesFIFO } from "../services/inventoryBatches";
 import { calculateSessionCost } from "../utils/calculations";
 
 export const useSessionMutation = (userId, inventory = []) => {
@@ -22,15 +23,11 @@ export const useSessionMutation = (userId, inventory = []) => {
 				return acc;
 			}, {});
 
-			// Descontar stock
+			// Descontar stock (FIFO por lotes)
 			for (const [matId, qty] of Object.entries(combinedQuantities)) {
 				const item = inventory.find((i) => i.id === matId);
 				if (item) {
-					const { error } = await supabase
-						.from("inventory")
-						.update({ stock: Number(item.stock) - qty })
-						.eq("id", matId);
-					if (error) throw error;
+					await consumeFromBatchesFIFO(matId, qty);
 				}
 			}
 
@@ -55,6 +52,7 @@ export const useSessionMutation = (userId, inventory = []) => {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
+			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", userId] });
 			queryClient.invalidateQueries({ queryKey: ["finance", userId] });
 		},
 	});

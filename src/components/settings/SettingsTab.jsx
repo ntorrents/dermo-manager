@@ -13,9 +13,12 @@ import {
 	LogOut,
 	Mail,
 	CheckCircle2,
+	Download,
+	AlertTriangle,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { updateUserPassword, logout } from "../../services/auth";
+import { exportUserBackup, downloadBackup } from "../../services/backupExport";
 
 export const SettingsTab = ({ user, profile, showToast }) => {
 	const [formData, setFormData] = useState({
@@ -42,6 +45,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 	const [loadingProfile, setLoadingProfile] = useState(false);
 	const [loadingPass, setLoadingPass] = useState(false);
 	const [loadingEmail, setLoadingEmail] = useState(false);
+	const [loadingBackup, setLoadingBackup] = useState(false);
 
 	const [isGoogleUser, setIsGoogleUser] = useState(false);
 
@@ -140,6 +144,21 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 			showToast("Error al actualizar contraseña", "error");
 		} finally {
 			setLoadingPass(false);
+		}
+	};
+
+	const handleDownloadBackup = async () => {
+		if (!user?.id) return;
+		setLoadingBackup(true);
+		try {
+			const backup = await exportUserBackup(user.id);
+			downloadBackup(backup);
+			showToast("Copia de seguridad descargada");
+		} catch (err) {
+			console.error(err);
+			showToast("Error al generar la copia de seguridad", "error");
+		} finally {
+			setLoadingBackup(false);
 		}
 	};
 
@@ -461,6 +480,28 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 						</div>
 					</div>
 				)}
+			</div>
+
+			{/* ZONA DE PELIGRO / DATOS */}
+			<div className="bg-amber-50/50 border border-amber-200 p-6 rounded-2xl">
+				<h3 className="text-lg font-bold text-amber-800 mb-2 flex items-center gap-2">
+					<AlertTriangle size={20} className="text-amber-600" /> Zona de Datos
+				</h3>
+				<p className="text-sm text-amber-800/80 mb-4">
+					Exporta todos tus datos (clientes, tratamientos, historial financiero, citas, inventario) 
+					en un archivo JSON. Las fotos no se incluyen para reducir el tamaño.
+				</p>
+				<button
+					onClick={handleDownloadBackup}
+					disabled={loadingBackup}
+					className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-200 transition-colors disabled:opacity-60">
+					{loadingBackup ? (
+						<Loader2 size={18} className="animate-spin" />
+					) : (
+						<Download size={18} />
+					)}
+					{loadingBackup ? "Generando..." : "Descargar copia de seguridad"}
+				</button>
 			</div>
 
 			<div className="text-center pt-8">

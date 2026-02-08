@@ -45,7 +45,7 @@ export const Sidebar = ({
 			</h1>
 		</div>
 		{/* Búsqueda: solo en lg+ (sidebar ancho) */}
-		<div className="hidden lg:block shrink-0">
+		<div className="hidden lg:block shrink-0 mt-2">
 			<GlobalSearch
 				clients={clients}
 				treatments={treatments}
