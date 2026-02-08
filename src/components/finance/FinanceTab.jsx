@@ -285,7 +285,7 @@ export const FinanceTab = ({
 	};
 
 	return (
-		<div className="space-y-6 animate-in fade-in pb-20 xl:pb-0">
+		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			{/* MODALES DE CONFIRMACIÓN */}
 			<ConfirmModal
 				isOpen={showDeleteModal}
@@ -307,7 +307,7 @@ export const FinanceTab = ({
 			/>
 
 			{/* HEADER: BALANCE Y SELECTORES */}
-			<div className="flex flex-col xl:flex-row gap-4 justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+			<div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
 				<div>
 					<p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">
 						Balance {getDateLabel(currentDate, viewMode)}
@@ -319,7 +319,7 @@ export const FinanceTab = ({
 						{formatCurrency(netProfit)}
 					</h2>
 				</div>
-				<div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+				<div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
 					<div className="relative">
 						<Calendar
 							className="absolute left-3 top-2.5 text-gray-400"
@@ -351,23 +351,23 @@ export const FinanceTab = ({
 			</div>
 
 			{/* BOTONES DE ACCIÓN RÁPIDA (Siempre arriba) */}
-			<div className="grid grid-cols-2 gap-3 xl:gap-6">
+			<div className="grid grid-cols-2 gap-3 md:gap-6">
 				<button
 					onClick={() => openEntryModal("income")}
-					className="py-4 xl:py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
+					className="py-4 md:py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
 					<Plus size={22} />{" "}
 					<span className="uppercase tracking-widest text-sm">Ingreso</span>
 				</button>
 				<button
 					onClick={() => openEntryModal("expense")}
-					className="py-4 xl:py-5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-black shadow-lg shadow-rose-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
+					className="py-4 md:py-5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-black shadow-lg shadow-rose-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
 					<Plus size={22} />{" "}
 					<span className="uppercase tracking-widest text-sm">Gasto</span>
 				</button>
 			</div>
 
 			{/* --- VISTA MÓVIL/TABLET (Tabs y Lista Unificada) --- */}
-			<div className="xl:hidden space-y-4">
+			<div className="md:hidden space-y-4">
 				{/* Pestañas de Filtro */}
 				<div className="flex bg-gray-100 p-1 rounded-xl">
 					{["all", "income", "expense"].map((type) => (
@@ -498,8 +498,8 @@ export const FinanceTab = ({
 				</div>
 			</div>
 
-			{/* --- VISTA WEB (3 Columnas Originales) --- */}
-			<div className="hidden xl:grid grid-cols-3 gap-6">
+			{/* --- VISTA WEB/TABLET: 2 cols en tablet, 3 en escritorio --- */}
+			<div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
 				{/* COLUMNA 1: INGRESOS */}
 				<div className="space-y-4">
 					<div className="flex justify-between items-center px-4">

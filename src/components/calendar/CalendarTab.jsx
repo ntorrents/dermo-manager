@@ -161,7 +161,7 @@ export const CalendarTab = ({
 	};
 
 	return (
-		<div className="space-y-6 animate-in fade-in pb-24 xl:pb-0">
+		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
 			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 				<h2 className="text-2xl xl:text-3xl font-black text-gray-800 tracking-tight">
 					Agenda

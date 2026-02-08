@@ -161,7 +161,7 @@ export const InventoryTab = ({
 	};
 
 	return (
-		<div className="space-y-6 animate-in fade-in pb-24 xl:pb-0">
+		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
 			<ConfirmModal
 				isOpen={showDeleteModal}
 				title="Eliminar Material"
@@ -171,8 +171,8 @@ export const InventoryTab = ({
 				isDestructive={true}
 			/>
 
-			<div className="flex flex-col xl:flex-row gap-4 justify-between items-center">
-				<div className="relative flex-1 w-full xl:max-w-md">
+			<div className="flex flex-col md:flex-row gap-4 justify-between items-center">
+				<div className="relative flex-1 w-full md:max-w-md">
 					<Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
 					<input
 						placeholder="Buscar material..."
@@ -183,7 +183,7 @@ export const InventoryTab = ({
 				</div>
 				<button
 					onClick={() => openModal()}
-					className="bg-primary hover:bg-primary-hover text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-rose-100 transition-all w-full xl:w-auto justify-center">
+					className="bg-primary hover:bg-primary-hover text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-rose-100 transition-all w-full md:w-auto justify-center">
 					<Plus size={20} /> Nuevo Material
 				</button>
 			</div>
@@ -202,7 +202,7 @@ export const InventoryTab = ({
 				</div>
 			)}
 
-			<div className="xl:hidden">
+			<div className="md:hidden">
 				{filteredInventory.length === 0 ? (
 					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 						<EmptyState
@@ -276,7 +276,7 @@ export const InventoryTab = ({
 				)}
 			</div>
 
-			<div className="hidden xl:block bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+			<div className="hidden md:block bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
 				{filteredInventory.length === 0 ? (
 					<div className="p-6">
 						<EmptyState

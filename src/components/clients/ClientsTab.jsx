@@ -155,7 +155,7 @@ export const ClientsTab = ({
 	};
 
 	return (
-		<div className="space-y-6 animate-in fade-in pb-20 xl:pb-0 h-[calc(100vh-120px)] flex flex-col xl:flex-row gap-6">
+		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0 h-[calc(100vh-120px)] md:h-auto flex flex-col md:flex-row gap-6">
 			<ConfirmModal
 				isOpen={showDeleteModal}
 				title="Eliminar Cliente"
@@ -167,8 +167,8 @@ export const ClientsTab = ({
 
 			{/* LISTA DE CLIENTES: Se oculta en móvil si hay uno seleccionado */}
 			<div
-				className={`flex-1 bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col ${
-					selectedClient ? "hidden xl:flex" : "flex"
+				className={`flex-1 min-w-0 bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col ${
+					selectedClient ? "hidden md:flex" : "flex"
 				}`}>
 				<div className="p-6 border-b border-gray-50 flex flex-col gap-4">
 					<div className="flex justify-between items-center">
@@ -298,8 +298,8 @@ export const ClientsTab = ({
 
 			{/* DETALLE CLIENTE (Panel derecho) */}
 			<div
-				className={`flex-[2] bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex-col ${
-					selectedClient ? "flex" : "hidden xl:flex"
+				className={`flex-[2] min-w-0 bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col ${
+					selectedClient ? "flex" : "hidden md:flex"
 				}`}>
 				{selectedClient ? (
 					<>
@@ -307,7 +307,7 @@ export const ClientsTab = ({
 							<div className="flex items-center gap-4">
 								<button
 									onClick={() => setSelectedClient(null)}
-									className="xl:hidden p-2 -ml-2 text-gray-400">
+									className="md:hidden p-2 -ml-2 text-gray-400">
 									<X size={24} />
 								</button>
 								<div className="w-12 h-12 xl:w-16 xl:h-16 bg-gradient-to-br from-rose-400 to-orange-400 rounded-2xl flex items-center justify-center text-white text-xl xl:text-2xl font-black shadow-lg shadow-rose-100">

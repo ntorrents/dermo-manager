@@ -128,7 +128,7 @@ export const TaxesTab = ({ entries = [] }) => {
 	}, [quarterEntries]);
 
 	return (
-		<div className="space-y-6 animate-in fade-in pb-20 xl:pb-0">
+		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			<div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
 				<h2 className="text-2xl xl:text-3xl font-black text-gray-800 tracking-tight flex items-center gap-2">
 					<Landmark className="text-rose-500" size={28} /> Fiscalidad

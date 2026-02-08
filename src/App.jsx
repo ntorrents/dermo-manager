@@ -144,7 +144,7 @@ const DermoManager = () => {
 	if (!user) return <LoginScreen />;
 
 	return (
-		<div className="min-h-[100dvh] bg-gray-50 pb-24 md:pb-0 font-sans text-gray-800">
+		<div className="min-h-[100dvh] bg-gray-50 pb-24 md:pb-0 font-sans text-gray-800 overflow-x-hidden pl-0 md:pl-20 lg:pl-64">
 			{toast && (
 				<Toast
 					message={toast.message}
@@ -180,9 +180,8 @@ const DermoManager = () => {
 				clients={clients}
 				treatments={treatments}
 				inventory={inventory}
-				className="hidden xl:flex"
 			/>
-			<div className="xl:hidden h-16 bg-white border-b sticky top-0 z-40 px-4 flex items-center justify-between shadow-sm">
+			<div className="md:hidden h-16 bg-white border-b sticky top-0 z-40 px-4 flex items-center justify-between shadow-sm">
 				{/* Header móvil visible hasta XL */}
 				<span className="font-bold text-xl text-rose-500 uppercase tracking-tighter">
 					{profile?.company_name || "DermoManager"}
@@ -191,7 +190,7 @@ const DermoManager = () => {
 					<LogOut size={18} className="text-gray-400" />
 				</button>
 			</div>
-			<main className="xl:pl-64 p-4 md:p-8 max-w-6xl mx-auto space-y-6">
+			<main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-6 min-h-screen">
 				{activeTab === "dashboard" && (
 					<DashboardTab
 						user={user}
@@ -269,7 +268,7 @@ const DermoManager = () => {
 			<MobileNav
 				activeTab={activeTab}
 				setActiveTab={setActiveTab}
-				className="xl:hidden"
+				className="md:hidden"
 			/>
 		</div>
 	);

@@ -102,7 +102,7 @@ export const TreatmentsTab = ({
 	};
 
 	return (
-		<div className="space-y-6 animate-in fade-in pb-24 xl:pb-0">
+		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
 			<ConfirmModal
 				isOpen={showDeleteModal}
 				title="Eliminar Tratamiento"
