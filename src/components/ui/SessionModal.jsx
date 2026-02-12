@@ -9,6 +9,7 @@ import {
 	Plus,
 	Trash2,
 	Loader2,
+	FileText,
 } from "lucide-react";
 
 export const SessionModal = ({
@@ -28,10 +29,11 @@ export const SessionModal = ({
 		new Date().toISOString().split("T")[0]
 	);
 
-	// NUEVO: Estado para materiales extra
+	// Estado para materiales extra
 	const [extras, setExtras] = useState([]);
 	// Receta activa editable (permite eliminar ingredientes por sesión)
 	const [activeRecipe, setActiveRecipe] = useState([]);
+	const [internalNotes, setInternalNotes] = useState("");
 
 	useEffect(() => {
 		if (isOpen && treatment) {
@@ -41,6 +43,7 @@ export const SessionModal = ({
 			setSelectedDate(new Date().toISOString().split("T")[0]);
 			setExtras([]);
 			setActiveRecipe(treatment.recipe ? [...treatment.recipe] : []);
+			setInternalNotes("");
 		}
 	}, [isOpen, treatment]);
 
@@ -72,13 +75,13 @@ export const SessionModal = ({
 
 	const handleConfirm = () => {
 		if (!selectedClient) return;
-		// Pasamos treatment con receta filtrada (solo lo que queda en activeRecipe)
 		onConfirm(
 			{ ...treatment, recipe: activeRecipe },
 			selectedClient,
 			Number(finalPrice),
 			selectedDate,
-			extras
+			extras,
+			internalNotes
 		);
 	};
 
@@ -211,7 +214,8 @@ export const SessionModal = ({
 								<input
 									type="number"
 									step="0.01"
-									className="w-full pl-10 p-4 bg-gray-50 border-2 border-transparent focus:border-emerald-100 focus:bg-white rounded-2xl outline-none font-black text-xl text-gray-800 transition-all"
+									placeholder="0.00 €"
+									className="w-full pl-10 p-4 bg-gray-50 border-2 border-transparent focus:border-emerald-100 focus:bg-white rounded-2xl outline-none font-black text-xl text-gray-800 transition-all placeholder:text-gray-400"
 									value={finalPrice}
 									onChange={(e) => setFinalPrice(e.target.value)}
 								/>
@@ -303,6 +307,20 @@ export const SessionModal = ({
 								))}
 							</div>
 						)}
+					</div>
+
+					{/* Notas internas (no aparecen en la factura) */}
+					<div className="space-y-3">
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+							<FileText size={14} /> Notas internas
+						</label>
+						<textarea
+							rows={2}
+							placeholder="Solo para uso interno (no se incluyen en la factura)"
+							className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-rose-100 focus:bg-white rounded-2xl outline-none font-medium text-sm resize-none placeholder:text-gray-300"
+							value={internalNotes}
+							onChange={(e) => setInternalNotes(e.target.value)}
+						/>
 					</div>
 				</div>
 

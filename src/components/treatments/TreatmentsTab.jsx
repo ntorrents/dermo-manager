@@ -180,11 +180,11 @@ export const TreatmentsTab = ({
 
 							<div className="bg-gray-50 rounded-2xl p-4 space-y-2 mb-6 text-xs xl:text-sm">
 								<div className="flex justify-between font-bold">
-									<span className="text-gray-400 uppercase tracking-tighter">
-										Coste Mat.
+									<span className="text-gray-400 uppercase tracking-tighter" title="Por sesión según receta">
+										Coste est. por tratamiento
 									</span>
 									<span className="text-gray-600">
-										{materialCost.toFixed(2)}€
+										{materialCost.toFixed(2)} €
 									</span>
 								</div>
 								<div className="flex justify-between font-bold border-t border-gray-200 pt-2">

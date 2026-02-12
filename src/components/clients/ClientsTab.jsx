@@ -13,6 +13,9 @@ import {
 	ExternalLink,
 	FileDown,
 	Camera,
+	User,
+	Stethoscope,
+	Shield,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useClientHistory } from "../../hooks/useClientHistory";
@@ -38,13 +41,18 @@ export const ClientsTab = ({
 }) => {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedClient, setSelectedClient] = useState(null);
+	const [clientDetailTab, setClientDetailTab] = useState("filiacion");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [formData, setFormData] = useState({
 		name: "",
 		surname: "",
 		phone: "",
 		email: "",
+		nif: "",
+		origin: "",
 		notes: "",
+		allergies: "",
+		medical_history: "",
 		has_consent: false,
 		has_image_rights: false,
 		drive_url: "",
@@ -84,7 +92,11 @@ export const ClientsTab = ({
 				surname: client.surname || "",
 				phone: client.phone || "",
 				email: client.email || "",
+				nif: client.nif || "",
+				origin: client.origin || "",
 				notes: client.notes || "",
+				allergies: client.allergies || "",
+				medical_history: client.medical_history || "",
 				has_consent: client.has_consent ?? false,
 				has_image_rights: client.has_image_rights ?? false,
 				drive_url: client.drive_url || "",
@@ -96,7 +108,11 @@ export const ClientsTab = ({
 				surname: "",
 				phone: "",
 				email: "",
+				nif: "",
+				origin: "",
 				notes: "",
+				allergies: "",
+				medical_history: "",
 				has_consent: false,
 				has_image_rights: false,
 				drive_url: "",
@@ -113,9 +129,13 @@ export const ClientsTab = ({
 			const payload = {
 				...formData,
 				user_id: user.id,
+				nif: formData.nif?.trim() || null,
+				origin: formData.origin || null,
+				allergies: formData.allergies?.trim() || null,
+				medical_history: formData.medical_history?.trim() || null,
 				has_consent: formData.has_consent,
 				has_image_rights: formData.has_image_rights,
-				drive_url: formData.drive_url || null,
+				drive_url: formData.drive_url?.trim() || null,
 			};
 			if (selectedClient && isModalOpen) {
 				const { error } = await supabase
@@ -124,6 +144,7 @@ export const ClientsTab = ({
 					.eq("id", selectedClient.id);
 				if (error) throw error;
 				showToast("Cliente actualizado");
+				setSelectedClient({ ...selectedClient, ...payload });
 			} else {
 				const { error } = await supabase.from("clients").insert([payload]);
 				if (error) throw error;
@@ -383,10 +404,146 @@ export const ClientsTab = ({
 							</button>
 						</div>
 
+						{/* Pestañas perfil 360º */}
+						<div className="flex border-b border-gray-100 bg-white px-4 gap-1 overflow-x-auto">
+							{[
+								{ id: "filiacion", label: "Filiación", icon: User },
+								{ id: "medico", label: "Médico", icon: Stethoscope },
+								{ id: "legal", label: "Legal", icon: Shield },
+								{ id: "historial", label: "Historial", icon: Clock },
+							].map(({ id, label, icon: Icon }) => (
+								<button
+									key={id}
+									type="button"
+									onClick={() => setClientDetailTab(id)}
+									className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+										clientDetailTab === id
+											? "border-rose-500 text-rose-600"
+											: "border-transparent text-gray-400 hover:text-gray-600"
+									}`}>
+									<Icon size={16} />
+									{label}
+								</button>
+							))}
+						</div>
+
 						<div className="flex-1 overflow-y-auto p-6 xl:p-8 custom-scrollbar bg-gray-50/30">
-							<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
-								<Clock size={14} /> Historial
-							</h3>
+							{clientDetailTab === "filiacion" && (
+								<div className="space-y-6">
+									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
+										<User size={14} /> Datos personales
+									</h3>
+									<dl className="space-y-3 text-sm">
+										<div>
+											<dt className="text-[10px] font-black text-gray-400 uppercase">Nombre</dt>
+											<dd className="font-bold text-gray-800">{selectedClient.name} {selectedClient.surname}</dd>
+										</div>
+										{selectedClient.phone && (
+											<div>
+												<dt className="text-[10px] font-black text-gray-400 uppercase">Teléfono</dt>
+												<dd className="font-bold text-gray-800">{selectedClient.phone}</dd>
+											</div>
+										)}
+										{selectedClient.email && (
+											<div>
+												<dt className="text-[10px] font-black text-gray-400 uppercase">Email</dt>
+												<dd className="font-bold text-gray-800">{selectedClient.email}</dd>
+											</div>
+										)}
+										<div>
+											<dt className="text-[10px] font-black text-gray-400 uppercase">NIF/CIF</dt>
+											<dd className="font-bold text-gray-800">{selectedClient.nif || "—"}</dd>
+										</div>
+										<div>
+											<dt className="text-[10px] font-black text-gray-400 uppercase">Origen</dt>
+											<dd className="font-bold text-gray-800">
+												{selectedClient.origin === "instagram"
+													? "Instagram"
+													: selectedClient.origin === "google"
+													? "Google"
+													: selectedClient.origin === "recommendation"
+													? "Recomendación"
+													: selectedClient.origin === "other"
+													? "Otro"
+													: selectedClient.origin || "—"}
+											</dd>
+										</div>
+										{selectedClient.notes && (
+											<div>
+												<dt className="text-[10px] font-black text-gray-400 uppercase">Notas</dt>
+												<dd className="font-medium text-gray-700">{selectedClient.notes}</dd>
+											</div>
+										)}
+									</dl>
+								</div>
+							)}
+
+							{clientDetailTab === "medico" && (
+								<div className="space-y-6">
+									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
+										<Stethoscope size={14} /> Datos médicos
+									</h3>
+									<div>
+										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">Alergias</dt>
+										<dd
+											className={`p-4 rounded-2xl text-sm font-medium ${
+												selectedClient.allergies
+													? "bg-red-50 border-2 border-red-200 text-red-900"
+													: "bg-gray-50 text-gray-500 border border-gray-100"
+											}`}>
+											{selectedClient.allergies || "Ninguna indicada"}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">Antecedentes</dt>
+										<dd className="p-4 bg-gray-50 rounded-2xl text-sm font-medium text-gray-700 border border-gray-100 min-h-[80px]">
+											{selectedClient.medical_history || "—"}
+										</dd>
+									</div>
+								</div>
+							)}
+
+							{clientDetailTab === "legal" && (
+								<div className="space-y-6">
+									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
+										<Shield size={14} /> Consentimientos
+									</h3>
+									<div className="flex flex-col gap-4">
+										<div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+											{selectedClient.has_consent ? (
+												<Check size={22} className="text-emerald-500 shrink-0" />
+											) : (
+												<X size={22} className="text-gray-400 shrink-0" />
+											)}
+											<span className="font-bold text-gray-800">RGPD firmada</span>
+										</div>
+										<div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+											{selectedClient.has_image_rights ? (
+												<Check size={22} className="text-emerald-500 shrink-0" />
+											) : (
+												<X size={22} className="text-gray-400 shrink-0" />
+											)}
+											<span className="font-bold text-gray-800">Derechos de imagen</span>
+										</div>
+										{selectedClient.drive_url && (
+											<a
+												href={selectedClient.drive_url}
+												target="_blank"
+												rel="noopener noreferrer"
+												className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700"
+											>
+												<ExternalLink size={16} /> Carpeta Drive
+											</a>
+										)}
+									</div>
+								</div>
+							)}
+
+							{clientDetailTab === "historial" && (
+								<>
+									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+										<Clock size={14} /> Tratamientos previos
+									</h3>
 
 							{historyLoading ? (
 								<div className="space-y-4">
@@ -512,6 +669,8 @@ export const ClientsTab = ({
 									<p className="font-bold text-sm">Sin historial previo</p>
 								</div>
 							)}
+								</>
+							)}
 						</div>
 					</>
 				) : (
@@ -567,8 +726,34 @@ export const ClientsTab = ({
 							setFormData({ ...formData, email: e.target.value })
 						}
 					/>
+					<input
+						type="text"
+						className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
+						placeholder="NIF/CIF (obligatorio para facturación)"
+						value={formData.nif}
+						onChange={(e) =>
+							setFormData({ ...formData, nif: e.target.value })
+						}
+					/>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Origen
+						</label>
+						<select
+							className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
+							value={formData.origin}
+							onChange={(e) =>
+								setFormData({ ...formData, origin: e.target.value })
+							}>
+							<option value="">— Seleccionar —</option>
+							<option value="instagram">Instagram</option>
+							<option value="google">Google</option>
+							<option value="recommendation">Recomendación</option>
+							<option value="other">Otro</option>
+						</select>
+					</div>
 					<textarea
-						rows="3"
+						rows="2"
 						className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold resize-none"
 						placeholder="Notas privadas..."
 						value={formData.notes}
@@ -576,6 +761,41 @@ export const ClientsTab = ({
 							setFormData({ ...formData, notes: e.target.value })
 						}
 					/>
+					<div>
+						<label className="text-[11px] font-black text-rose-600 uppercase tracking-widest mb-1 block ml-1">
+							Alergias
+						</label>
+						<textarea
+							rows="2"
+							className={`w-full p-4 rounded-2xl outline-none font-bold resize-none border-2 ${
+								formData.allergies
+									? "bg-red-50 border-red-200 focus:border-red-300 text-red-900"
+									: "bg-gray-50 border-transparent focus:bg-white focus:border-rose-100"
+							}`}
+							placeholder="Indicar si hay alergias conocidas..."
+							value={formData.allergies}
+							onChange={(e) =>
+								setFormData({ ...formData, allergies: e.target.value })
+							}
+						/>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Antecedentes médicos
+						</label>
+						<textarea
+							rows="3"
+							className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold resize-none"
+							placeholder="Antecedentes relevantes..."
+							value={formData.medical_history}
+							onChange={(e) =>
+								setFormData({ ...formData, medical_history: e.target.value })
+							}
+						/>
+					</div>
+					<p className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">
+						Legal
+					</p>
 					<div className="flex flex-col gap-3 pt-2">
 						<label className="flex items-center gap-3 cursor-pointer">
 							<input
@@ -609,7 +829,7 @@ export const ClientsTab = ({
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-							URL Carpeta Drive
+							Link carpeta Drive (cliente)
 						</label>
 						<input
 							type="url"

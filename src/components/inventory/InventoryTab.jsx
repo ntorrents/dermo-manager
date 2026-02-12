@@ -347,8 +347,13 @@ export const InventoryTab = ({
 								<div>
 									<h4 className="font-bold text-gray-800">{item.name}</h4>
 									<p className="text-xs text-gray-400 font-medium">
-										{item.unit_cost.toFixed(2)}€ / {item.unit}
+										{item.unit_cost.toFixed(2)} € / {item.unit_consumption || item.unit || "uds"}
 									</p>
+									{(item.unit_purchase || item.unit_consumption) && (
+										<p className="text-[10px] text-gray-400">
+											Compra: {item.unit_purchase || item.unit || "uds"}
+										</p>
+									)}
 								</div>
 							</div>
 							<div className="flex gap-1">
@@ -433,7 +438,9 @@ export const InventoryTab = ({
 												{item.name}
 											</p>
 											<p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
-												{item.unit || "uds"}
+												{item.unit_purchase || item.unit_consumption
+													? `Compra: ${item.unit_purchase || item.unit || "uds"} · Consumo: ${item.unit_consumption || item.unit || "uds"}`
+													: (item.unit || "uds")}
 											</p>
 										</div>
 									</div>

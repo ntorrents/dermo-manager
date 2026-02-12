@@ -1,7 +1,10 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { consumeFromBatchesFIFO } from "../services/inventoryBatches";
-import { calculateSessionCost } from "../utils/calculations";
+import { calculateSessionCost, calculateTaxReverse } from "../utils/calculations";
+import { getNextInvoiceNumber } from "../services/invoiceSeries";
+
+const DEFAULT_TAX_RATE = 21;
 
 export const useSessionMutation = (userId, inventory = []) => {
 	const queryClient = useQueryClient();
@@ -13,6 +16,7 @@ export const useSessionMutation = (userId, inventory = []) => {
 			finalPrice,
 			date,
 			extras = [],
+			internal_notes = "",
 		}) => {
 			const baseRecipe = treatment.recipe || [];
 			const totalConsumption = [...baseRecipe, ...extras];
@@ -36,6 +40,18 @@ export const useSessionMutation = (userId, inventory = []) => {
 				? `${treatment.name} (${clientData.name} ${clientData.surname || ""})`
 				: `${treatment.name} (${clientData.name})`;
 
+			const totalAmount = Number(finalPrice);
+			const { baseAmount, taxAmount } = calculateTaxReverse(totalAmount, DEFAULT_TAX_RATE);
+			const year = date ? parseInt(date.slice(0, 4), 10) : new Date().getFullYear();
+
+			let invoice_number = null;
+			try {
+				invoice_number = await getNextInvoiceNumber(userId, year);
+			} catch {
+				// RPC get_next_invoice_number no existe aún (migración no ejecutada). Guardamos sin número.
+				// El PDF usará fallback F-YYYYMMDD-id. Ejecuta el SQL en Supabase para activar series.
+			}
+
 			const { error } = await supabase.from("finance_entries").insert([
 				{
 					user_id: userId,
@@ -43,9 +59,15 @@ export const useSessionMutation = (userId, inventory = []) => {
 					type: "income",
 					category: "Servicio",
 					description: displayName,
-					amount: Number(finalPrice),
+					amount: totalAmount,
+					total_amount: totalAmount,
+					tax_rate: DEFAULT_TAX_RATE,
+					tax_base: baseAmount,
+					tax_amount: taxAmount,
+					invoice_number,
 					related_cost: Number(cost),
 					client_id: clientData.id || null,
+					internal_notes: internal_notes?.trim() || null,
 				},
 			]);
 			if (error) throw error;

@@ -20,12 +20,14 @@ import {
 	calculateGrowth,
 	getTopTreatments,
 	getLowStockItems,
+	getItemsWithExpiredBatches,
 } from "../../utils/calculations";
 import { DailyBarChart } from "./DailyBarChart";
 
 export const DashboardTab = ({
 	entries = [],
 	inventory = [],
+	batches = [],
 	treatments = [],
 	appointments = [],
 	clients = [],
@@ -69,6 +71,21 @@ export const DashboardTab = ({
 	const lowStockItems = useMemo(
 		() => getLowStockItems(inventory, 5),
 		[inventory]
+	);
+	const expiredStockItems = useMemo(
+		() => getItemsWithExpiredBatches(inventory, batches),
+		[inventory, batches]
+	);
+	const incomeGrowth = useMemo(
+		() => calculateGrowth(currentStats.income, prevStats.income),
+		[currentStats.income, prevStats.income]
+	);
+	const taxHucha = useMemo(
+		() =>
+			currentData
+				.filter((e) => e.type === "income")
+				.reduce((acc, e) => acc + (Number(e.tax_amount) || 0), 0),
+		[currentData]
 	);
 
 	const upcomingAppointments = useMemo(() => {
@@ -124,98 +141,78 @@ export const DashboardTab = ({
 				</div>
 			</div>
 
-			{/* ALERTAS */}
-			{lowStockItems.length > 0 && (
-				<div className="bg-orange-50 border border-orange-100 p-4 rounded-2xl flex items-start gap-4 shadow-sm animate-in slide-in-from-top-2">
-					<div className="bg-orange-100 p-2 rounded-lg text-orange-600">
-						<AlertTriangle size={24} />
-					</div>
-					<div>
-						<h4 className="font-bold text-orange-800">Atención Requerida</h4>
-						<p className="text-sm text-orange-700 mb-2">
-							Tienes <strong>{lowStockItems.length} productos</strong> con stock
-							bajo.
-						</p>
-						<div className="flex flex-wrap gap-2">
-							{lowStockItems.slice(0, 3).map((item) => (
-								<span
-									key={item.id}
-									className="text-xs bg-white text-orange-600 px-2 py-1 rounded-md border border-orange-200 font-medium">
-									{item.name} ({item.stock})
-								</span>
-							))}
-							{lowStockItems.length > 3 && (
-								<span className="text-xs text-orange-600 pt-1">
-									...+{lowStockItems.length - 3}
-								</span>
+			{/* ALERTAS STOCK: bajo mínimos o caducados */}
+			{(lowStockItems.length > 0 || expiredStockItems.length > 0) && (
+				<div className="bg-red-50 border border-red-100 p-4 rounded-2xl shadow-sm animate-in slide-in-from-top-2">
+					<div className="flex items-start gap-4">
+						<div className="bg-red-100 p-2 rounded-lg text-red-600 shrink-0">
+							<AlertTriangle size={24} />
+						</div>
+						<div className="min-w-0 flex-1">
+							<h4 className="font-bold text-red-800">Alertas de stock</h4>
+							{lowStockItems.length > 0 && (
+								<p className="text-sm text-red-700 mt-1">
+									<strong>Stock bajo:</strong>{" "}
+									{lowStockItems.map((i) => i.name).join(", ")}
+									{lowStockItems.length > 3 && ` (+${lowStockItems.length - 3})`}
+								</p>
+							)}
+							{expiredStockItems.length > 0 && (
+								<p className="text-sm text-red-700 mt-1">
+									<strong>Con lotes caducados:</strong>{" "}
+									{expiredStockItems.map((i) => i.name).join(", ")}
+									{expiredStockItems.length > 3 && ` (+${expiredStockItems.length - 3})`}
+								</p>
 							)}
 						</div>
 					</div>
 				</div>
 			)}
 
-			{/* KPIS */}
+			{/* KPI 1: Facturación mes (grande) vs anterior */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-				<div className="md:col-span-1 bg-gradient-to-br from-gray-900 to-gray-800 text-white p-6 rounded-3xl shadow-xl flex flex-col justify-between relative overflow-hidden">
-					<div className="absolute top-0 right-0 w-32 h-32 bg-rose-500 rounded-full blur-[60px] opacity-20 -mr-10 -mt-10 pointer-events-none"></div>
+				<div className="md:col-span-1 bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-6 rounded-3xl shadow-xl flex flex-col justify-between relative overflow-hidden">
+					<div className="absolute top-0 right-0 w-32 h-32 bg-white rounded-full blur-[60px] opacity-10 -mr-10 -mt-10 pointer-events-none"></div>
 					<div>
-						<p className="text-gray-400 font-medium mb-1 flex items-center gap-2">
-							<TrendingUp size={16} /> Beneficio Neto
+						<p className="text-emerald-100 font-medium mb-1 flex items-center gap-2">
+							<DollarSign size={16} /> Facturación {viewMode === "month" ? "mes" : "periodo"}
 						</p>
 						<h3 className="text-4xl font-bold tracking-tight">
-							{formatCurrency(currentStats.net)}
+							{formatCurrency(currentStats.income)}
 						</h3>
 					</div>
 					<div className="mt-8">
-						{viewMode === "month" && prevStats.net !== 0 && (
+						{viewMode === "month" && prevStats.income !== 0 && (
 							<div
 								className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-bold ${
-									isGrowing
-										? "bg-green-500/20 text-green-400"
-										: "bg-red-500/20 text-red-400"
+									incomeGrowth >= 0
+										? "bg-white/20 text-white"
+										: "bg-red-500/30 text-red-100"
 								}`}>
-								{isGrowing ? (
+								{incomeGrowth >= 0 ? (
 									<ArrowUpRight size={16} />
 								) : (
 									<ArrowDownRight size={16} />
 								)}
-								<span>{Math.abs(growth).toFixed(1)}%</span>
-								<span className="text-gray-400 font-normal ml-1">
-									vs mes pasado
-								</span>
+								<span>{Math.abs(incomeGrowth).toFixed(1)}%</span>
+								<span className="opacity-90 ml-1">vs mes anterior</span>
 							</div>
 						)}
 					</div>
 				</div>
 
-				<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center gap-6">
-					<div>
-						<div className="flex justify-between items-center mb-1">
-							<p className="text-gray-500 text-sm font-medium">
-								Ingresos Totales
-							</p>
-							<div className="bg-green-100 text-green-600 p-1.5 rounded-lg">
-								<DollarSign size={16} />
-							</div>
-						</div>
-						<p className="text-2xl font-bold text-gray-800">
-							{formatCurrency(currentStats.income)}
-						</p>
+				{/* KPI 2: Hucha de impuestos */}
+				<div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl shadow-sm flex flex-col justify-center">
+					<div className="flex justify-between items-center mb-1">
+						<p className="text-amber-800 text-sm font-bold">Hucha de impuestos</p>
+						<span className="text-[10px] font-bold text-amber-600 uppercase">IVA a pagar (est.)</span>
 					</div>
-					<div className="h-px bg-gray-100 w-full"></div>
-					<div>
-						<div className="flex justify-between items-center mb-1">
-							<p className="text-gray-500 text-sm font-medium">
-								Gastos / Material
-							</p>
-							<div className="bg-red-100 text-red-600 p-1.5 rounded-lg">
-								<Package size={16} />
-							</div>
-						</div>
-						<p className="text-2xl font-bold text-gray-800">
-							{formatCurrency(currentStats.expense)}
-						</p>
-					</div>
+					<p className="text-2xl font-bold text-amber-900">
+						{formatCurrency(taxHucha)}
+					</p>
+					<p className="text-xs text-amber-700 mt-2">
+						Acumulado en el periodo
+					</p>
 				</div>
 
 				<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col">
@@ -256,6 +253,31 @@ export const DashboardTab = ({
 				</div>
 			</div>
 
+			{/* Fila secundaria: Beneficio neto + Ingresos/Gastos */}
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<div className="bg-gray-900 text-white p-6 rounded-3xl shadow-sm flex flex-col justify-center gap-4">
+					<p className="text-gray-400 font-medium flex items-center gap-2">
+						<TrendingUp size={16} /> Beneficio neto
+					</p>
+					<p className="text-3xl font-bold">{formatCurrency(currentStats.net)}</p>
+					{viewMode === "month" && prevStats.net !== 0 && (
+						<span className={`text-sm font-bold ${isGrowing ? "text-green-400" : "text-red-400"}`}>
+							{isGrowing ? "+" : ""}{growth.toFixed(1)}% vs mes pasado
+						</span>
+					)}
+				</div>
+				<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center gap-4">
+					<div className="flex justify-between items-center">
+						<span className="text-gray-500 text-sm font-medium">Ingresos</span>
+						<span className="font-bold text-emerald-600">{formatCurrency(currentStats.income)}</span>
+					</div>
+					<div className="flex justify-between items-center">
+						<span className="text-gray-500 text-sm font-medium">Gastos</span>
+						<span className="font-bold text-rose-600">{formatCurrency(currentStats.expense)}</span>
+					</div>
+				</div>
+			</div>
+
 			{/* GRÁFICAS */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<div className="lg:col-span-2 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
@@ -274,40 +296,34 @@ export const DashboardTab = ({
 					</h3>
 					{topTreatments.length > 0 ? (
 						<div className="space-y-4">
-							{topTreatments.map((t, index) => (
-								<div
-									key={t.name}
-									className="flex items-center justify-between group">
-									<div className="flex items-center gap-3">
-										<div
-											className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs ${
-												index === 0
-													? "bg-yellow-100 text-yellow-700"
-													: index === 1
-													? "bg-gray-100 text-gray-600"
-													: index === 2
-													? "bg-orange-100 text-orange-700"
-													: "bg-rose-50 text-rose-400"
-											}`}>
-											#{index + 1}
+							{(() => {
+								const maxCount = Math.max(...topTreatments.map((t) => t.count), 1);
+								return topTreatments.map((t, index) => (
+									<div key={t.name} className="space-y-1">
+										<div className="flex justify-between text-xs font-bold text-gray-600">
+											<span className="truncate pr-2">{t.name}</span>
+											<span>{t.count} sesiones</span>
 										</div>
-										<div>
-											<p className="text-sm font-bold text-gray-800">
-												{t.name}
-											</p>
-											<p className="text-xs text-gray-400">
-												{t.count} sesiones
-											</p>
+										<div className="h-6 bg-gray-100 rounded-lg overflow-hidden">
+											<div
+												className={`h-full rounded-lg transition-all ${
+													index === 0
+														? "bg-rose-500"
+														: index === 1
+														? "bg-rose-400"
+														: index === 2
+														? "bg-rose-300"
+														: "bg-rose-200"
+												}`}
+												style={{ width: `${(t.count / maxCount) * 100}%` }}
+											/>
 										</div>
 									</div>
-									<span className="font-bold text-sm text-gray-600">
-										{t.count} sesiones
-									</span>
-								</div>
-							))}
+								));
+							})()}
 						</div>
 					) : (
-						<div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-50">
+						<div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-50 min-h-[200px]">
 							<Package size={40} className="mb-2" />
 							<p className="text-sm text-center">Sin datos suficientes</p>
 						</div>

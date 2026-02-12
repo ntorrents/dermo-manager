@@ -10,6 +10,7 @@ import { useRecurringConfig } from "./hooks/useRecurringConfig";
 import { useProfile } from "./hooks/useProfile";
 import { useClients } from "./hooks/useClients";
 import { useAppointments } from "./hooks/useAppointments";
+import { useInventoryBatches } from "./hooks/useInventoryBatches";
 import { Toast } from "./components/ui/Toast";
 import { ConfirmModal } from "./components/ui/ConfirmModal";
 import { SessionModal } from "./components/ui/SessionModal";
@@ -37,6 +38,7 @@ const DermoManager = () => {
 	const { clients, loading: clientsLoading, refreshClients } = useClients(user);
 	const { appointments, loading: appointmentsLoading, refreshAppointments } =
 		useAppointments(user?.id);
+	const { batches } = useInventoryBatches(user?.id);
 
 	const dataLoading =
 		inventoryLoading ||
@@ -92,7 +94,8 @@ const DermoManager = () => {
 		clientData,
 		finalPrice,
 		date,
-		extras = []
+		extras = [],
+		internal_notes = ""
 	) => {
 		// 1. Unificamos receta base + extras en una sola lista de consumo
 		const baseRecipe = treatment.recipe || [];
@@ -132,6 +135,7 @@ const DermoManager = () => {
 				finalPrice,
 				date,
 				extras,
+				internal_notes,
 			});
 			showToastMsg(`Sesión guardada (Fecha: ${date})`);
 			setSelectedTreatment(null);
@@ -209,10 +213,10 @@ const DermoManager = () => {
 						user={user}
 						entries={entries}
 						inventory={inventory}
+						batches={batches ?? []}
 						treatments={treatments}
 						appointments={appointments}
 						clients={clients}
-						// Props Globales
 						currentDate={currentDate}
 						setCurrentDate={setCurrentDate}
 						viewMode={viewMode}

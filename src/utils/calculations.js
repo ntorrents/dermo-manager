@@ -3,6 +3,16 @@
  * Los componentes importan desde aquí en lugar de calcular inline.
  */
 
+/** Extrae base imponible y cuota IVA desde un total con IVA incluido (PVP). rate en % (ej: 21). */
+export const calculateTaxReverse = (total, rate = 21) => {
+	const amount = Number(total) || 0;
+	const r = Number(rate) || 0;
+	if (amount <= 0) return { baseAmount: 0, taxAmount: 0 };
+	const baseAmount = Math.round((amount / (1 + r / 100)) * 100) / 100;
+	const taxAmount = Math.round((amount - baseAmount) * 100) / 100;
+	return { baseAmount, taxAmount };
+};
+
 /** Calcula income, expense y net a partir de entries */
 export const calculateStats = (entries = []) => {
 	const income = (entries || [])
@@ -65,3 +75,14 @@ export const getLowStockItems = (inventory = [], defaultMin = 5) =>
 	(inventory || []).filter(
 		(i) => Number(i.stock) <= Number(i.min_stock ?? defaultMin)
 	);
+
+/** Items con al menos un lote caducado (expiry_date < hoy). batches: { inventory_id, expiry_date }[] */
+export const getItemsWithExpiredBatches = (inventory = [], batches = []) => {
+	const today = new Date().toISOString().slice(0, 10);
+	const expiredInventoryIds = new Set(
+		batches
+			.filter((b) => b.expiry_date && b.expiry_date < today)
+			.map((b) => b.inventory_id)
+	);
+	return (inventory || []).filter((i) => expiredInventoryIds.has(i.id));
+};

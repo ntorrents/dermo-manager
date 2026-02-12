@@ -702,7 +702,8 @@ export const FinanceTab = ({
 										required
 										type="number"
 										step="0.01"
-										className="w-full p-4 bg-gray-50 rounded-xl font-black text-rose-500 text-xl"
+										placeholder="0.00 €"
+										className="w-full p-4 bg-gray-50 rounded-xl font-black text-rose-500 text-xl placeholder:text-rose-300"
 										value={formData.amount}
 										onChange={(e) =>
 											setFormData({ ...formData, amount: e.target.value })
@@ -841,7 +842,8 @@ export const FinanceTab = ({
 												type="number"
 												step="0.01"
 												required
-												className="w-full p-3 bg-white border border-gray-100 rounded-xl font-black text-lg"
+												placeholder="0.00 €"
+												className="w-full p-3 bg-white border border-gray-100 rounded-xl font-black text-lg placeholder:text-gray-300"
 												value={exp.amount}
 												onChange={(e) => {
 													const newExps = [...recurringExpenses];

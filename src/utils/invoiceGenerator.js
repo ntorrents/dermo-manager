@@ -109,7 +109,9 @@ export const generateInvoice = async (entry, client, profile, logoUrl = null) =>
 	let yRight = hasLogo ? 38 : 22;
 	const rightColX = pageWidth - 14;
 
-	const invoiceNum = `F-${entry.date.replace(/-/g, "")}-${entry.id.slice(0, 4).toUpperCase()}`;
+	const invoiceNum =
+		entry.invoice_number ||
+		`F-${entry.date.replace(/-/g, "")}-${(entry.id || "").slice(0, 4).toUpperCase()}`;
 
 	doc.setFontSize(14);
 	doc.setTextColor(0);
@@ -122,46 +124,59 @@ export const generateInvoice = async (entry, client, profile, logoUrl = null) =>
 	yRight += 5;
 	doc.text(`Fecha: ${entry.date}`, rightColX, yRight, { align: "right" });
 
-	// --- 3. DATOS DEL CLIENTE (Caja gris) ---
-	// Calculamos dónde debe empezar la caja del cliente.
-	// Debe ser debajo de los datos de la empresa, pero mínimo en la posición 65 para que no quede muy pegado arriba.
+	// --- 3. DATOS DEL CLIENTE (Caja gris) — NIF obligatorio para facturación ---
 	const boxStartY = Math.max(y + 10, 65);
+	const boxHeight = client.address || client.nif ? 32 : 28;
 
-	doc.setFillColor(249, 250, 251); // Gray-50
-	doc.rect(14, boxStartY, pageWidth - 28, 25, "F");
+	doc.setFillColor(249, 250, 251);
+	doc.rect(14, boxStartY, pageWidth - 28, boxHeight, "F");
 
 	doc.setFontSize(9);
-	doc.setTextColor(156, 163, 175); // Gray-400
+	doc.setTextColor(156, 163, 175);
 	doc.text("FACTURAR A:", 18, boxStartY + 8);
 
 	doc.setFontSize(10);
 	doc.setTextColor(0);
 
-	// Nombre Cliente
-	const clientName = `${client.name} ${client.surname || ""}`;
-	doc.text(clientName, 18, boxStartY + 15);
+	const clientName = `${client.name || ""} ${client.surname || ""}`.trim();
+	doc.text(clientName || "—", 18, boxStartY + 15);
 
-	// Dirección Cliente (Si la tuviéramos en el futuro)
+	let clientLineY = boxStartY + 20;
+	if (client.nif) {
+		doc.setFontSize(9);
+		doc.text(`NIF/CIF: ${client.nif}`, 18, clientLineY);
+		clientLineY += 5;
+	} else {
+		doc.setFontSize(8);
+		doc.setTextColor(120);
+		doc.text("NIF/CIF: —", 18, clientLineY);
+		clientLineY += 5;
+		doc.setTextColor(0);
+	}
 	if (client.address) {
-		doc.text(client.address, 18, boxStartY + 20);
+		doc.setFontSize(9);
+		doc.text(client.address, 18, clientLineY);
 	}
 
-	// --- 4. TABLA DE SERVICIOS ---
-	// La tabla empieza 15 puntos por debajo de la caja del cliente
-	const tableStartY = boxStartY + 35;
+	// --- 4. TABLA DE SERVICIOS Y DESGLOSE IVA ---
+	const tableStartY = boxStartY + boxHeight + 12;
+	const totalAmount = Number(entry.total_amount ?? entry.amount ?? 0);
+	const taxBase = Number(entry.tax_base);
+	const taxAmount = Number(entry.tax_amount);
+	const hasTax = entry.tax_rate > 0 && !Number.isNaN(taxBase) && !Number.isNaN(taxAmount);
 
 	const tableBody = [
 		[
 			entry.description || "Servicio de Dermatología",
 			"1",
-			formatCurrency(entry.amount),
-			formatCurrency(entry.amount),
+			hasTax ? formatCurrency(taxBase) : formatCurrency(totalAmount),
+			formatCurrency(totalAmount),
 		],
 	];
 
 	autoTable(doc, {
 		startY: tableStartY,
-		head: [["Descripción", "Cant.", "Precio Unit.", "Total"]],
+		head: [["Descripción", "Cant.", hasTax ? "P. Unit. (Base)" : "Precio Unit.", "Total"]],
 		body: tableBody,
 		theme: "grid",
 		headStyles: { fillColor: [225, 29, 72], textColor: 255, fontStyle: "bold" },
@@ -174,25 +189,60 @@ export const generateInvoice = async (entry, client, profile, logoUrl = null) =>
 		styles: { fontSize: 10, cellPadding: 3 },
 	});
 
-	// --- 5. TOTALES ---
-	const finalY = doc.lastAutoTable.finalY + 10;
+	let finalY = doc.lastAutoTable.finalY + 10;
+
+	if (hasTax) {
+		doc.setFontSize(9);
+		doc.setFont("helvetica", "normal");
+		doc.setTextColor(80);
+		doc.text(`Base imponible: ${formatCurrency(taxBase)}`, pageWidth - 14, finalY, {
+			align: "right",
+		});
+		finalY += 6;
+		doc.text(`Cuota IVA (${entry.tax_rate || 21}%): ${formatCurrency(taxAmount)}`, pageWidth - 14, finalY, {
+			align: "right",
+		});
+		finalY += 6;
+	}
 
 	doc.setFontSize(12);
 	doc.setFont("helvetica", "bold");
 	doc.setTextColor(0);
-	doc.text(`TOTAL: ${formatCurrency(entry.amount)}`, pageWidth - 14, finalY, {
+	doc.text(`TOTAL: ${formatCurrency(totalAmount)}`, pageWidth - 14, finalY, {
 		align: "right",
 	});
+	finalY += 8;
 
 	doc.setFontSize(8);
 	doc.setFont("helvetica", "normal");
 	doc.setTextColor(150);
-	doc.text(
-		"Servicio médico exento de IVA según Art. 20.Uno.3º Ley 37/1992",
-		pageWidth - 14,
-		finalY + 7,
-		{ align: "right" },
-	);
+	if (hasTax) {
+		doc.text(
+			"Factura sujeta y no exenta. Ley 37/1992.",
+			pageWidth - 14,
+			finalY,
+			{ align: "right" },
+		);
+	} else {
+		doc.text(
+			"Servicio médico exento de IVA según Art. 20.Uno.3º Ley 37/1992",
+			pageWidth - 14,
+			finalY,
+			{ align: "right" },
+		);
+	}
+
+	// --- 5. PLACEHOLDER QR VERIFACTU ---
+	const qrSize = 28;
+	const qrX = 14;
+	const qrY = 265;
+	doc.setDrawColor(200, 200, 200);
+	doc.setLineWidth(0.5);
+	doc.rect(qrX, qrY, qrSize, qrSize);
+	doc.setFontSize(6);
+	doc.setTextColor(180);
+	doc.text("QR Verifactu", qrX + qrSize / 2, qrY + qrSize / 2 - 2, { align: "center" });
+	doc.text("(placeholder)", qrX + qrSize / 2, qrY + qrSize / 2 + 3, { align: "center" });
 
 	// --- 6. PIE DE PÁGINA ---
 	doc.setFontSize(8);
