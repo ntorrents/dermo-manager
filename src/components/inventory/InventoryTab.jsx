@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
 	Plus,
 	Search,
@@ -10,6 +10,9 @@ import {
 	ChevronDown,
 	Filter,
 	History,
+	AlertCircle,
+	Copy,
+	Image as ImageIcon,
 } from "lucide-react";
 import { IVA_OPTIONS, formatCurrency, formatDate } from "../../utils/format";
 import { calculateUnitCost } from "../../utils/calculations";
@@ -17,6 +20,13 @@ import { ConfirmModal } from "../ui/ConfirmModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
+import {
+	validateSpanishTaxId,
+	validateFile,
+	normalizeInvoiceNumber,
+	validateInvoiceDateConsistency,
+	getInvoiceSuggestions,
+} from "../../utils/validations";
 import {
 	useCreateMaterial,
 	useUpdateMaterial,
@@ -108,7 +118,16 @@ export const InventoryTab = ({
 		lotNumber: "",
 		expiryDate: "",
 		purchaseDate: new Date().toISOString().split("T")[0],
+		supplier_nif: "",
+		invoice_number: "",
 	});
+	const [restockReceiptFile, setRestockReceiptFile] = useState(null);
+	const [restockReceiptPreview, setRestockReceiptPreview] = useState(null);
+	const [restockNifValidation, setRestockNifValidation] = useState({ valid: true, error: null });
+	const [restockFileValidation, setRestockFileValidation] = useState({ valid: true, error: null });
+	const [restockDateWarning, setRestockDateWarning] = useState(null);
+	const [restockInvoiceSuggestions, setRestockInvoiceSuggestions] = useState([]);
+	const [showRestockSuggestions, setShowRestockSuggestions] = useState(false);
 
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
 	const [itemToDelete, setItemToDelete] = useState(null);
@@ -253,18 +272,152 @@ export const InventoryTab = ({
 			supplier_nif: "",
 			invoice_number: "",
 		});
+		setRestockReceiptFile(null);
+		setRestockReceiptPreview(null);
+		setRestockNifValidation({ valid: true, error: null });
+		setRestockFileValidation({ valid: true, error: null });
+		setRestockDateWarning(null);
+		setRestockInvoiceSuggestions([]);
+		setShowRestockSuggestions(false);
 		setIsRestockModalOpen(true);
+	};
+
+	// Efecto para validar NIF y obtener sugerencias en reposición
+	useEffect(() => {
+		if (restockData.supplier_nif && restockData.supplier_nif.length >= 3) {
+			const validation = validateSpanishTaxId(restockData.supplier_nif);
+			setRestockNifValidation(validation);
+			
+			if (validation.valid && validation.normalized) {
+				setRestockData((prev) => ({ ...prev, supplier_nif: validation.normalized }));
+				const expenseEntries = entries.filter((e) => e.type === "expense" && e.is_deductible);
+				const suggestions = getInvoiceSuggestions(validation.normalized, expenseEntries, 5);
+				setRestockInvoiceSuggestions(suggestions);
+				setShowRestockSuggestions(suggestions.length > 0);
+			} else {
+				setRestockInvoiceSuggestions([]);
+				setShowRestockSuggestions(false);
+			}
+		} else {
+			setRestockNifValidation({ valid: true, error: null });
+			setRestockInvoiceSuggestions([]);
+			setShowRestockSuggestions(false);
+		}
+	}, [restockData.supplier_nif, entries]);
+
+	// Efecto para validar coherencia de fecha en reposición
+	useEffect(() => {
+		if (restockData.supplier_nif && restockData.invoice_number && restockData.purchaseDate) {
+			const expenseEntries = entries.filter((e) => e.type === "expense" && e.is_deductible);
+			const validation = validateInvoiceDateConsistency(
+				restockData.purchaseDate,
+				restockData.supplier_nif,
+				restockData.invoice_number,
+				expenseEntries
+			);
+			setRestockDateWarning(validation);
+		} else {
+			setRestockDateWarning(null);
+		}
+	}, [restockData.purchaseDate, restockData.supplier_nif, restockData.invoice_number, entries]);
+
+	// Función para usar sugerencia de factura en reposición
+	const useRestockInvoiceSuggestion = (suggestion) => {
+		// Buscar si ya existe un archivo para esta factura
+		const expenseEntries = entries.filter((e) => e.type === "expense" && e.is_deductible);
+		const existingEntry = expenseEntries.find(
+			(e) =>
+				e.supplier_nif === suggestion.supplier_nif &&
+				e.invoice_number === suggestion.invoice_number &&
+				e.file_url
+		);
+		
+		setRestockData((prev) => ({
+			...prev,
+			supplier_nif: suggestion.supplier_nif,
+			invoice_number: suggestion.invoice_number,
+			purchaseDate: suggestion.date,
+		}));
+		
+		// Si hay archivo existente, no pedir subir uno nuevo
+		if (existingEntry?.file_url) {
+			setRestockReceiptFile(null);
+			setRestockReceiptPreview(null);
+		}
+		
+		setShowRestockSuggestions(false);
+	};
+
+	const handleRestockFileChange = (e) => {
+		const file = e.target.files?.[0] || null;
+		if (file) {
+			const validation = validateFile(file);
+			setRestockFileValidation(validation);
+			
+			if (validation.valid) {
+				setRestockReceiptFile(file);
+				// Crear preview
+				if (file.type.startsWith("image/")) {
+					const reader = new FileReader();
+					reader.onloadend = () => {
+						setRestockReceiptPreview(reader.result);
+					};
+					reader.readAsDataURL(file);
+				} else {
+					setRestockReceiptPreview(null);
+				}
+			} else {
+				setRestockReceiptFile(null);
+				setRestockReceiptPreview(null);
+				showToast(validation.error, "error");
+			}
+		} else {
+			setRestockReceiptFile(null);
+			setRestockReceiptPreview(null);
+			setRestockFileValidation({ valid: true, error: null });
+		}
 	};
 
 	const handleRestock = async (e) => {
 		e.preventDefault();
+		
+		// Validaciones antes de guardar
+		if (restockData.supplier_nif) {
+			const nifValidation = validateSpanishTaxId(restockData.supplier_nif);
+			if (!nifValidation.valid) {
+				showToast(nifValidation.error, "error");
+				return;
+			}
+		}
+		
+		if (restockData.invoice_number && !restockData.invoice_number.trim()) {
+			showToast("El número de factura no puede estar vacío", "error");
+			return;
+		}
+		
+		if (restockReceiptFile) {
+			const fileValidation = validateFile(restockReceiptFile);
+			if (!fileValidation.valid) {
+				showToast(fileValidation.error, "error");
+				return;
+			}
+		}
+		
 		try {
-			await restockMaterial.mutateAsync({ restockItem, restockData });
+			await restockMaterial.mutateAsync({ 
+				restockItem, 
+				restockData: { 
+					...restockData, 
+					receiptFile: restockReceiptFile,
+					supplier_nif: restockNifValidation.normalized || restockData.supplier_nif,
+					invoice_number: normalizeInvoiceNumber(restockData.invoice_number),
+				}
+			});
 			showToast("Stock actualizado");
 			setIsRestockModalOpen(false);
 			await onRefresh();
-		} catch {
-			showToast("Error al reponer", "error");
+		} catch (err) {
+			showToast(err?.message || "Error al reponer", "error");
 		}
 	};
 
@@ -983,18 +1136,60 @@ export const InventoryTab = ({
 								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
 									NIF/CIF Proveedor *
 								</label>
-								<input
-									required
-									placeholder="Ej: B12345678"
-									className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
-									value={restockData.supplier_nif}
-									onChange={(e) =>
-										setRestockData({
-											...restockData,
-											supplier_nif: e.target.value,
-										})
-									}
-								/>
+								<div className="relative">
+									<input
+										required
+										placeholder="Ej: B12345678"
+										className={`w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border-2 transition-colors ${
+											restockNifValidation.valid
+												? "border-transparent focus:border-blue-300"
+												: "border-red-300 bg-red-50 focus:border-red-400"
+										}`}
+										value={restockData.supplier_nif}
+										onChange={(e) =>
+											setRestockData({
+												...restockData,
+												supplier_nif: e.target.value,
+											})
+										}
+										onFocus={() => setShowRestockSuggestions(restockInvoiceSuggestions.length > 0)}
+									/>
+									{restockNifValidation.error && (
+										<p className="mt-1 text-xs font-bold text-red-600 flex items-center gap-1">
+											<AlertCircle size={12} />
+											{restockNifValidation.error}
+										</p>
+									)}
+									{restockNifValidation.valid && restockNifValidation.type && (
+										<p className="mt-1 text-xs font-bold text-emerald-600">
+											✓ {restockNifValidation.type} válido
+										</p>
+									)}
+								</div>
+								{showRestockSuggestions && restockInvoiceSuggestions.length > 0 && (
+									<div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+										<p className="text-xs font-bold text-blue-800 mb-2">Facturas anteriores de este proveedor:</p>
+										<div className="space-y-2">
+											{restockInvoiceSuggestions.map((sug, idx) => (
+												<button
+													key={idx}
+													type="button"
+													onClick={() => useRestockInvoiceSuggestion(sug)}
+													className="w-full p-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-left flex items-center justify-between group">
+													<div className="flex-1 min-w-0">
+														<p className="text-xs font-bold text-gray-800 truncate">
+															Factura: {sug.invoice_number}
+														</p>
+														<p className="text-[10px] text-gray-500">
+															{sug.date} • {sug.count} material(es)
+														</p>
+													</div>
+													<Copy size={14} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+												</button>
+											))}
+										</div>
+									</div>
+								)}
 							</div>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
@@ -1007,10 +1202,64 @@ export const InventoryTab = ({
 									onChange={(e) =>
 										setRestockData({
 											...restockData,
-											invoice_number: e.target.value,
+											invoice_number: normalizeInvoiceNumber(e.target.value),
 										})
 									}
 								/>
+							</div>
+							{restockDateWarning?.warning && (
+								<div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+									<p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
+										<AlertCircle size={14} />
+										{restockDateWarning.warning}
+									</p>
+									{restockDateWarning.suggestedDate && (
+										<button
+											type="button"
+											onClick={() => setRestockData((prev) => ({ ...prev, purchaseDate: restockDateWarning.suggestedDate }))}
+											className="text-xs font-bold text-amber-700 hover:underline">
+											Usar fecha: {restockDateWarning.suggestedDate}
+										</button>
+									)}
+								</div>
+							)}
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+									Factura (PDF/imagen)
+									<span className="text-xs text-gray-400 ml-2">
+										(Se compartirá con otros materiales de la misma factura)
+									</span>
+								</label>
+								{restockReceiptPreview && (
+									<div className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+										<p className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
+											<ImageIcon size={14} />
+											Vista previa:
+										</p>
+										<img
+											src={restockReceiptPreview}
+											alt="Preview"
+											className="max-w-full h-auto max-h-32 rounded-lg border border-gray-300"
+										/>
+									</div>
+								)}
+								<input
+									type="file"
+									accept="image/jpeg,image/png,image/webp,application/pdf"
+									className="w-full p-3 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:font-bold file:bg-blue-50 file:text-blue-600"
+									onChange={handleRestockFileChange}
+								/>
+								{restockReceiptFile && (
+									<p className="mt-2 text-xs font-bold text-emerald-600">
+										✓ Archivo seleccionado: {restockReceiptFile.name} ({(restockReceiptFile.size / 1024 / 1024).toFixed(2)} MB)
+									</p>
+								)}
+								{restockFileValidation.error && (
+									<p className="mt-2 text-xs font-bold text-red-600 flex items-center gap-1">
+										<AlertCircle size={12} />
+										{restockFileValidation.error}
+									</p>
+								)}
 							</div>
 							<LoadingButton
 								loading={loading}

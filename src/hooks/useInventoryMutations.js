@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { calculateTaxFromTotal } from "../utils/format";
+import { normalizeInvoiceNumber } from "../utils/validations";
 
 export const useCreateMaterial = (userId) => {
 	const queryClient = useQueryClient();
@@ -63,7 +64,7 @@ export const useCreateMaterial = (userId) => {
 					tax_amount: taxAmount,
 					is_deductible: true,
 					supplier_nif: formData.supplier_nif?.trim() || null,
-					invoice_number: formData.invoice_number?.trim() || null,
+					invoice_number: formData.invoice_number ? normalizeInvoiceNumber(formData.invoice_number) : null,
 					date: purchaseDate,
 				},
 			]);
@@ -147,6 +148,15 @@ export const useRestockMaterial = (userId) => {
 			const purchaseDate = restockData.purchaseDate || new Date().toISOString().split("T")[0];
 			const taxRate = restockData.taxRate != null ? Number(restockData.taxRate) : 21;
 			const { baseAmount, taxAmount } = calculateTaxFromTotal(purchaseCost, taxRate);
+			
+			// Crear clave única de factura si hay NIF y número de factura
+			// Esto permite que múltiples materiales de la misma factura compartan el mismo archivo
+			const supplierNif = restockData.supplier_nif?.trim() || null;
+			const invoiceNumber = restockData.invoice_number ? normalizeInvoiceNumber(restockData.invoice_number) : null;
+			const invoiceKey = supplierNif && invoiceNumber 
+				? `${supplierNif}_${invoiceNumber}` 
+				: null;
+			
 			const { error: finError } = await supabase.from("finance_entries").insert([
 				{
 					user_id: userId,
@@ -160,11 +170,57 @@ export const useRestockMaterial = (userId) => {
 					tax_base: baseAmount,
 					tax_amount: taxAmount,
 					is_deductible: true,
-					supplier_nif: restockData.supplier_nif?.trim() || null,
-					invoice_number: restockData.invoice_number?.trim() || null,
+					supplier_nif: supplierNif,
+					invoice_number: invoiceNumber,
 				},
 			]);
 			if (finError) throw finError;
+			
+			// Si hay archivo y invoiceKey, subirlo usando la clave única
+			// Esto permite que múltiples gastos compartan el mismo archivo
+			if (restockData.receiptFile && invoiceKey) {
+				try {
+					const { uploadReceipt } = await import("../services/receiptStorage");
+					const path = await uploadReceipt(userId, null, restockData.receiptFile, invoiceKey);
+					// Actualizar todos los gastos con el mismo invoiceKey para que referencien el mismo archivo
+					await supabase
+						.from("finance_entries")
+						.update({ file_url: path })
+						.eq("user_id", userId)
+						.eq("supplier_nif", supplierNif)
+						.eq("invoice_number", invoiceNumber)
+						.is("file_url", null);
+				} catch (fileErr) {
+					console.error("Error subiendo archivo compartido:", fileErr);
+					// No lanzar error, el gasto ya está guardado
+				}
+			} else if (restockData.receiptFile && !invoiceKey) {
+				// Si hay archivo pero no hay invoiceKey, subirlo normalmente
+				try {
+					const { uploadReceipt } = await import("../services/receiptStorage");
+					const { data: insertedData } = await supabase
+						.from("finance_entries")
+						.select("id")
+						.eq("user_id", userId)
+						.eq("date", purchaseDate)
+						.eq("type", "expense")
+						.eq("category", "Material")
+						.eq("description", `Reposición: ${restockItem.name} (${qtyBought} ${restockItem.unit}) Lote: ${lotNumber}`)
+						.order("created_at", { ascending: false })
+						.limit(1)
+						.single();
+					
+					if (insertedData?.id) {
+						const path = await uploadReceipt(userId, insertedData.id, restockData.receiptFile);
+						await supabase
+							.from("finance_entries")
+							.update({ file_url: path })
+							.eq("id", insertedData.id);
+					}
+				} catch (fileErr) {
+					console.error("Error subiendo archivo:", fileErr);
+				}
+			}
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });

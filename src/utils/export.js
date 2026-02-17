@@ -157,15 +157,43 @@ export const exportTrimestreToZip = async (
 			];
 		});
 		
-		const comprasRows = compras.map((e) => [
-			e.date,
-			e.invoice_number || "",
-			e.description || "",
-			e.supplier_nif || "",
-			Number(e.tax_base ?? e.base_amount ?? e.amount) ?? 0,
-			Number(e.tax_amount) ?? 0,
-			Number(e.total_amount ?? e.amount) ?? 0,
-			e.category || "General",
+		// Agrupar compras por factura (mismo NIF + número) para mostrar totales
+		const groupedCompras = {};
+		compras.forEach((e) => {
+			const key = `${e.supplier_nif || ""}_${e.invoice_number || ""}`;
+			if (!groupedCompras[key]) {
+				groupedCompras[key] = {
+					date: e.date,
+					invoice_number: e.invoice_number || "",
+					supplier_nif: e.supplier_nif || "",
+					description: e.description || "",
+					category: e.category || "General",
+					materials: [e.description || ""],
+					tax_base: Number(e.tax_base ?? e.base_amount ?? e.amount) ?? 0,
+					tax_amount: Number(e.tax_amount) ?? 0,
+					total_amount: Number(e.total_amount ?? e.amount) ?? 0,
+					count: 1,
+				};
+			} else {
+				groupedCompras[key].tax_base += Number(e.tax_base ?? e.base_amount ?? e.amount) ?? 0;
+				groupedCompras[key].tax_amount += Number(e.tax_amount) ?? 0;
+				groupedCompras[key].total_amount += Number(e.total_amount ?? e.amount) ?? 0;
+				groupedCompras[key].count++;
+				if (e.description && !groupedCompras[key].materials.includes(e.description)) {
+					groupedCompras[key].materials.push(e.description);
+				}
+			}
+		});
+		
+		const comprasRows = Object.values(groupedCompras).map((group) => [
+			group.date,
+			group.invoice_number,
+			group.count > 1 ? `${group.materials[0]} (+${group.count - 1} más)` : group.description,
+			group.supplier_nif,
+			group.tax_base,
+			group.tax_amount,
+			group.total_amount,
+			group.category,
 		]);
 		
 		const wsVentas = XLSX.utils.aoa_to_sheet([
@@ -186,22 +214,59 @@ export const exportTrimestreToZip = async (
 		const zip = new JSZip();
 		zip.file(`Exportacion_${year}_T${quarter}.xlsx`, excelBuffer);
 		
-		// Descargar archivos de facturas deducibles
+		// Descargar archivos de facturas deducibles (deduplicar por file_url)
 		const filesToDownload = compras.filter((e) => e.file_url);
-		showToast(`Descargando ${filesToDownload.length} justificantes...`, "info");
+		// Crear un Set para deduplicar por file_url
+		const uniqueFileUrls = [...new Set(filesToDownload.map((e) => e.file_url))];
 		
-		for (const entry of filesToDownload) {
+		showToast(`Descargando ${uniqueFileUrls.length} justificantes únicos...`, "info");
+		
+		// Mapa para rastrear qué archivos ya se han descargado
+		const downloadedFiles = new Map();
+		
+		for (const fileUrl of uniqueFileUrls) {
+			// Si ya lo descargamos, saltarlo
+			if (downloadedFiles.has(fileUrl)) continue;
+			
 			try {
-				const signedUrl = await getReceiptSignedUrl(entry.file_url);
+				const signedUrl = await getReceiptSignedUrl(fileUrl);
+				if (!signedUrl) continue;
+				
 				const response = await fetch(signedUrl);
 				if (!response.ok) continue;
 				
 				const blob = await response.blob();
-				const fileName = entry.file_url.split("/").pop() || `factura_${entry.id}.pdf`;
+				
+				// Buscar la entrada correspondiente para obtener datos de la factura
+				const entry = compras.find((e) => e.file_url === fileUrl);
+				let fileName = `factura.pdf`;
+				
+				if (entry && entry.supplier_nif && entry.invoice_number) {
+					// Nombre descriptivo: Factura_NIF_Numero.pdf
+					const nifClean = entry.supplier_nif.replace(/[^a-zA-Z0-9]/g, "_");
+					const invoiceClean = entry.invoice_number.replace(/[^a-zA-Z0-9]/g, "_");
+					const ext = fileUrl.split(".").pop()?.toLowerCase() || "pdf";
+					fileName = `Factura_${nifClean}_${invoiceClean}.${ext}`;
+				} else {
+					fileName = fileUrl.split("/").pop() || `factura.pdf`;
+				}
+				
 				const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
-				zip.file(`justificantes/${sanitizedFileName}`, blob);
+				
+				// Si el archivo ya existe en el ZIP, añadir sufijo
+				let finalFileName = sanitizedFileName;
+				let counter = 1;
+				while (downloadedFiles.has(finalFileName)) {
+					const ext = sanitizedFileName.split(".").pop();
+					const nameWithoutExt = sanitizedFileName.replace(`.${ext}`, "");
+					finalFileName = `${nameWithoutExt}_${counter}.${ext}`;
+					counter++;
+				}
+				
+				zip.file(`justificantes/${finalFileName}`, blob);
+				downloadedFiles.set(fileUrl, finalFileName);
 			} catch (err) {
-				console.error(`Error descargando ${entry.file_url}:`, err);
+				console.error(`Error descargando ${fileUrl}:`, err);
 			}
 		}
 		

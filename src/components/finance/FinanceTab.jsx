@@ -14,6 +14,9 @@ import {
 	FileText,
 	Download,
 	Receipt,
+	AlertCircle,
+	Copy,
+	Image as ImageIcon,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import {
@@ -24,6 +27,13 @@ import {
 import { exportToCSV, exportTrimestreToExcel } from "../../utils/export";
 import { filterByDate, getDateLabel } from "../../utils/dateUtils";
 import { uploadReceipt, getReceiptUrl, getReceiptSignedUrl } from "../../services/receiptStorage";
+import {
+	validateSpanishTaxId,
+	validateFile,
+	normalizeInvoiceNumber,
+	validateInvoiceDateConsistency,
+	getInvoiceSuggestions,
+} from "../../utils/validations";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
@@ -73,6 +83,12 @@ export const FinanceTab = ({
 		invoice_number: "",
 	});
 	const [receiptFile, setReceiptFile] = useState(null);
+	const [receiptPreview, setReceiptPreview] = useState(null);
+	const [nifValidation, setNifValidation] = useState({ valid: true, error: null });
+	const [fileValidation, setFileValidation] = useState({ valid: true, error: null });
+	const [dateWarning, setDateWarning] = useState(null);
+	const [invoiceSuggestions, setInvoiceSuggestions] = useState([]);
+	const [showSuggestions, setShowSuggestions] = useState(false);
 
 	const taxCalc = useMemo(() => {
 		const { baseAmount, taxAmount } = calculateTaxFromTotal(
@@ -177,16 +193,180 @@ export const FinanceTab = ({
 			});
 		}
 		setReceiptFile(null);
+		setReceiptPreview(null);
+		setNifValidation({ valid: true, error: null });
+		setFileValidation({ valid: true, error: null });
+		setDateWarning(null);
+		setInvoiceSuggestions([]);
+		setShowSuggestions(false);
 		setIsModalOpen(true);
+	};
+
+	// Efecto para validar NIF y obtener sugerencias
+	useEffect(() => {
+		if (formData.is_deductible && formData.supplier_nif) {
+			const validation = validateSpanishTaxId(formData.supplier_nif);
+			setNifValidation(validation);
+			
+			if (validation.valid && validation.normalized) {
+				setFormData((prev) => ({ ...prev, supplier_nif: validation.normalized }));
+				const expenseEntries = entries.filter((e) => e.type === "expense" && e.is_deductible);
+				const suggestions = getInvoiceSuggestions(validation.normalized, expenseEntries, 5);
+				setInvoiceSuggestions(suggestions);
+				setShowSuggestions(suggestions.length > 0 && formData.supplier_nif.length >= 3);
+			} else {
+				setInvoiceSuggestions([]);
+				setShowSuggestions(false);
+			}
+		} else {
+			setNifValidation({ valid: true, error: null });
+			setInvoiceSuggestions([]);
+			setShowSuggestions(false);
+		}
+	}, [formData.supplier_nif, formData.is_deductible, entries]);
+
+	// Efecto separado para detectar archivo existente cuando hay NIF + número de factura
+	useEffect(() => {
+		if (
+			formData.is_deductible &&
+			formData.supplier_nif &&
+			formData.invoice_number &&
+			!receiptFile &&
+			!editingEntry
+		) {
+			const expenseEntries = entries.filter((e) => e.type === "expense" && e.is_deductible);
+			const normalizedNif = nifValidation.normalized || formData.supplier_nif;
+			const normalizedInvoice = normalizeInvoiceNumber(formData.invoice_number);
+			
+			const existingEntry = expenseEntries.find(
+				(e) =>
+					e.supplier_nif === normalizedNif &&
+					normalizeInvoiceNumber(e.invoice_number) === normalizedInvoice &&
+					e.file_url
+			);
+			
+			if (existingEntry?.file_url && !formData.file_url) {
+				setFormData((prev) => ({ ...prev, file_url: existingEntry.file_url }));
+			}
+		}
+	}, [formData.supplier_nif, formData.invoice_number, formData.is_deductible, receiptFile, editingEntry, entries, nifValidation.normalized]);
+
+	// Efecto para validar coherencia de fecha
+	useEffect(() => {
+		if (formData.is_deductible && formData.supplier_nif && formData.invoice_number && formData.date) {
+			const validation = validateInvoiceDateConsistency(
+				formData.date,
+				formData.supplier_nif,
+				formData.invoice_number,
+				entries.filter((e) => e.type === "expense" && e.is_deductible)
+			);
+			setDateWarning(validation);
+		} else {
+			setDateWarning(null);
+		}
+	}, [formData.date, formData.supplier_nif, formData.invoice_number, entries]);
+
+	// Función para usar sugerencia de factura
+	const useInvoiceSuggestion = (suggestion) => {
+		// Buscar si ya existe un archivo para esta factura
+		const existingEntry = entries.find(
+			(e) =>
+				e.type === "expense" &&
+				e.is_deductible &&
+				e.supplier_nif === suggestion.supplier_nif &&
+				e.invoice_number === suggestion.invoice_number &&
+				e.file_url
+		);
+		
+		setFormData((prev) => ({
+			...prev,
+			supplier_nif: suggestion.supplier_nif,
+			invoice_number: suggestion.invoice_number,
+			date: suggestion.date,
+			file_url: existingEntry?.file_url || "",
+		}));
+		
+		// Si hay archivo existente, no pedir subir uno nuevo
+		if (existingEntry?.file_url) {
+			setReceiptFile(null);
+			setReceiptPreview(null);
+		}
+		
+		setShowSuggestions(false);
+	};
+
+	const handleFileChange = (e) => {
+		const file = e.target.files?.[0] || null;
+		if (file) {
+			const validation = validateFile(file);
+			setFileValidation(validation);
+			
+			if (validation.valid) {
+				setReceiptFile(file);
+				// Crear preview
+				if (file.type.startsWith("image/")) {
+					const reader = new FileReader();
+					reader.onloadend = () => {
+						setReceiptPreview(reader.result);
+					};
+					reader.readAsDataURL(file);
+				} else {
+					setReceiptPreview(null);
+				}
+			} else {
+				setReceiptFile(null);
+				setReceiptPreview(null);
+				showToast(validation.error, "error");
+			}
+		} else {
+			setReceiptFile(null);
+			setReceiptPreview(null);
+			setFileValidation({ valid: true, error: null });
+		}
 	};
 
 	const handleSaveEntry = async (e) => {
 		e.preventDefault();
+		
+		// Validaciones antes de guardar
+		if (formData.is_deductible) {
+			// Validar NIF
+			const nifValidation = validateSpanishTaxId(formData.supplier_nif);
+			if (!nifValidation.valid) {
+				showToast(nifValidation.error, "error");
+				return;
+			}
+			
+			// Validar número de factura obligatorio
+			if (!formData.invoice_number?.trim()) {
+				showToast("El número de factura es obligatorio para facturas deducibles", "error");
+				return;
+			}
+			
+			// Validar archivo obligatorio (solo si no hay uno existente)
+			if (!receiptFile && !editingEntry?.file_url && !formData.file_url) {
+				showToast("Debe subir el archivo de la factura", "error");
+				return;
+			}
+			
+			// Validar archivo si hay uno nuevo
+			if (receiptFile) {
+				const fileValidation = validateFile(receiptFile);
+				if (!fileValidation.valid) {
+					showToast(fileValidation.error, "error");
+					return;
+				}
+			}
+		}
+		
 		setSavingEntry(true);
 		try {
 			const taxRate = Number(formData.tax_rate) || 0;
 			const amount = Number(formData.amount);
 			const { baseAmount, taxAmount } = calculateTaxFromTotal(amount, taxRate);
+			
+			// Normalizar número de factura
+			const normalizedInvoiceNumber = formData.invoice_number ? normalizeInvoiceNumber(formData.invoice_number) : null;
 			
 			const payload = {
 				type: formData.type,
@@ -200,10 +380,10 @@ export const FinanceTab = ({
 				date: formData.date,
 				notes: formData.notes || null,
 				is_deductible: formData.is_deductible || false,
-				supplier_nif: formData.is_deductible ? (formData.supplier_nif?.trim() || null) : null,
-				invoice_number: formData.is_deductible ? (formData.invoice_number?.trim() || null) : null,
+				supplier_nif: formData.is_deductible ? (nifValidation.normalized || null) : null,
+				invoice_number: formData.is_deductible ? normalizedInvoiceNumber : null,
 				// Mantener file_url existente si no hay archivo nuevo
-				file_url: receiptFile ? undefined : (editingEntry?.file_url || null),
+				file_url: receiptFile ? undefined : (editingEntry?.file_url || formData.file_url || null),
 				user_id: user.id,
 			};
 
@@ -227,14 +407,44 @@ export const FinanceTab = ({
 				showToast("Movimiento registrado");
 			}
 
-			// Subir archivo si existe y es factura deducible (solo si hay un archivo nuevo)
-			if (formData.is_deductible && receiptFile && insertedId) {
-				try {
-					const path = await uploadReceipt(user.id, insertedId, receiptFile);
-					await supabase.from("finance_entries").update({ file_url: path }).eq("id", insertedId);
-				} catch (fileErr) {
-					console.error("Error subiendo archivo:", fileErr);
-					showToast("Gasto guardado pero error al subir archivo", "error");
+			// Manejar archivo: subir nuevo o reutilizar existente
+			if (formData.is_deductible && insertedId) {
+				if (receiptFile) {
+					// Subir archivo nuevo
+					try {
+						// Crear invoiceKey si hay NIF y número de factura para compartir archivo
+						const invoiceKey = nifValidation.normalized && normalizedInvoiceNumber
+							? `${nifValidation.normalized}_${normalizedInvoiceNumber}`
+							: null;
+						
+						const path = await uploadReceipt(user.id, insertedId, receiptFile, invoiceKey);
+						
+						// Si hay invoiceKey, actualizar todos los gastos con la misma factura
+						if (invoiceKey) {
+							await supabase
+								.from("finance_entries")
+								.update({ file_url: path })
+								.eq("user_id", user.id)
+								.eq("supplier_nif", nifValidation.normalized)
+								.eq("invoice_number", normalizedInvoiceNumber)
+								.is("file_url", null);
+						} else {
+							await supabase.from("finance_entries").update({ file_url: path }).eq("id", insertedId);
+						}
+					} catch (fileErr) {
+						console.error("Error subiendo archivo:", fileErr);
+						showToast("Gasto guardado pero error al subir archivo", "error");
+					}
+				} else if (formData.file_url && !editingEntry) {
+					// Reutilizar archivo existente de otra factura con mismo NIF+número
+					try {
+						await supabase
+							.from("finance_entries")
+							.update({ file_url: formData.file_url })
+							.eq("id", insertedId);
+					} catch (fileErr) {
+						console.error("Error asignando archivo existente:", fileErr);
+					}
 				}
 			}
 
@@ -664,6 +874,17 @@ export const FinanceTab = ({
 												{entry.date} •{" "}
 												<span className="text-rose-400">{entry.category}</span>
 												{entry.is_deductible && " • Factura deducible"}
+												{entry.is_deductible && entry.supplier_nif && entry.invoice_number && (() => {
+													const sameInvoice = periodEntries.filter(
+														(e) =>
+															e.type === "expense" &&
+															e.is_deductible &&
+															e.supplier_nif === entry.supplier_nif &&
+															e.invoice_number === entry.invoice_number &&
+															e.id !== entry.id
+													).length;
+													return sameInvoice > 0 ? ` • ${sameInvoice + 1} materiales` : "";
+												})()}
 											</p>
 										</div>
 										<div className="flex items-center gap-2">
@@ -874,62 +1095,167 @@ export const FinanceTab = ({
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 											NIF/CIF Proveedor *
 										</label>
-										<input
-											required={formData.is_deductible}
-											placeholder="Ej: B12345678"
-											className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
-											value={formData.supplier_nif}
-											onChange={(e) =>
-												setFormData({ ...formData, supplier_nif: e.target.value })
-											}
-										/>
+										<div className="relative">
+											<input
+												required={formData.is_deductible}
+												placeholder="Ej: B12345678"
+												className={`w-full p-4 bg-gray-50 rounded-xl font-bold border-2 outline-none transition-colors ${
+													nifValidation.valid
+														? "border-transparent focus:bg-white focus:border-rose-100"
+														: "border-red-300 bg-red-50 focus:bg-white focus:border-red-400"
+												}`}
+												value={formData.supplier_nif}
+												onChange={(e) =>
+													setFormData({ ...formData, supplier_nif: e.target.value })
+												}
+												onFocus={() => setShowSuggestions(invoiceSuggestions.length > 0)}
+											/>
+											{nifValidation.error && (
+												<p className="mt-1 text-xs font-bold text-red-600 flex items-center gap-1">
+													<AlertCircle size={12} />
+													{nifValidation.error}
+												</p>
+											)}
+											{nifValidation.valid && nifValidation.type && (
+												<p className="mt-1 text-xs font-bold text-emerald-600">
+													✓ {nifValidation.type} válido
+												</p>
+											)}
+										</div>
+										{showSuggestions && invoiceSuggestions.length > 0 && (
+											<div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+												<p className="text-xs font-bold text-blue-800 mb-2">Facturas anteriores de este proveedor:</p>
+												<div className="space-y-2">
+													{invoiceSuggestions.map((sug, idx) => (
+														<button
+															key={idx}
+															type="button"
+															onClick={() => useInvoiceSuggestion(sug)}
+															className="w-full p-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-left flex items-center justify-between group">
+															<div className="flex-1 min-w-0">
+																<p className="text-xs font-bold text-gray-800 truncate">
+																	Factura: {sug.invoice_number}
+																</p>
+																<p className="text-[10px] text-gray-500">
+																	{sug.date} • {sug.count} material(es)
+																</p>
+															</div>
+															<Copy size={14} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+														</button>
+													))}
+												</div>
+											</div>
+										)}
 									</div>
 									<div>
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-											Nº Factura Proveedor
+											Nº Factura Proveedor *
 										</label>
 										<input
+											required={formData.is_deductible}
 											placeholder="Ej: F2026-001"
 											className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
 											value={formData.invoice_number}
 											onChange={(e) =>
-												setFormData({ ...formData, invoice_number: e.target.value })
+												setFormData({ ...formData, invoice_number: normalizeInvoiceNumber(e.target.value) })
 											}
 										/>
 									</div>
+									{dateWarning?.warning && (
+										<div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+											<p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
+												<AlertCircle size={14} />
+												{dateWarning.warning}
+											</p>
+											{dateWarning.suggestedDate && (
+												<button
+													type="button"
+													onClick={() => setFormData((prev) => ({ ...prev, date: dateWarning.suggestedDate }))}
+													className="text-xs font-bold text-amber-700 hover:underline">
+													Usar fecha: {dateWarning.suggestedDate}
+												</button>
+											)}
+										</div>
+									)}
 									<div>
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-											Justificante (foto o PDF) {editingEntry?.file_url ? "" : "*"}
+											Justificante (foto o PDF) {editingEntry?.file_url || formData.file_url ? "" : "*"}
 										</label>
-										{editingEntry?.file_url && !receiptFile && (
-											<div className="mb-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
-												<span className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-													<FileText size={16} />
-													Archivo guardado: {editingEntry.file_url.split("/").pop()}
-												</span>
-												<a
-													href="#"
+										{(editingEntry?.file_url || formData.file_url) && !receiptFile && (
+											<div className="mb-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+												<div className="flex items-center justify-between mb-2">
+													<span className="text-sm font-bold text-emerald-700 flex items-center gap-2">
+														<FileText size={16} />
+														Archivo existente: {(editingEntry?.file_url || formData.file_url).split("/").pop()}
+													</span>
+													<a
+														href="#"
+														onClick={async (e) => {
+															e.preventDefault();
+															const fileUrl = editingEntry?.file_url || formData.file_url;
+															if (fileUrl) {
+																try {
+																	const url = await getReceiptSignedUrl(fileUrl);
+																	if (url) {
+																		window.open(url, "_blank");
+																	} else {
+																		const publicUrl = getReceiptUrl(fileUrl);
+																		if (publicUrl) window.open(publicUrl, "_blank");
+																	}
+																} catch (err) {
+																	showToast("Error al abrir archivo", "error");
+																}
+															}
+														}}
+														className="text-xs font-bold text-emerald-600 hover:underline">
+														Ver
+													</a>
+												</div>
+												<p className="text-xs text-emerald-600 italic">
+													Este archivo se reutilizará. Puedes cambiarlo si lo deseas.
+												</p>
+												<button
+													type="button"
 													onClick={(e) => {
 														e.preventDefault();
 														const input = document.getElementById("receipt-file-input");
 														if (input) input.click();
 													}}
-													className="text-xs font-bold text-emerald-600 hover:underline">
-													Cambiar
-												</a>
+													className="mt-2 text-xs font-bold text-emerald-600 hover:underline">
+													Cambiar archivo
+												</button>
+											</div>
+										)}
+										{receiptPreview && (
+											<div className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+												<p className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
+													<ImageIcon size={14} />
+													Vista previa:
+												</p>
+												<img
+													src={receiptPreview}
+													alt="Preview"
+													className="max-w-full h-auto max-h-32 rounded-lg border border-gray-300"
+												/>
 											</div>
 										)}
 										<input
 											id="receipt-file-input"
-											required={formData.is_deductible && !editingEntry?.file_url}
+											required={formData.is_deductible && !editingEntry?.file_url && !formData.file_url}
 											type="file"
-											accept="image/*,.pdf"
+											accept="image/jpeg,image/png,image/webp,application/pdf"
 											className="w-full p-3 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:font-bold file:bg-rose-50 file:text-rose-600"
-											onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+											onChange={handleFileChange}
 										/>
 										{receiptFile && (
 											<p className="mt-2 text-xs font-bold text-emerald-600">
-												Nuevo archivo seleccionado: {receiptFile.name}
+												✓ Archivo seleccionado: {receiptFile.name} ({(receiptFile.size / 1024 / 1024).toFixed(2)} MB)
+											</p>
+										)}
+										{fileValidation.error && (
+											<p className="mt-2 text-xs font-bold text-red-600 flex items-center gap-1">
+												<AlertCircle size={12} />
+												{fileValidation.error}
 											</p>
 										)}
 									</div>
