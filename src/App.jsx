@@ -256,8 +256,8 @@ const DermoManager = () => {
 					<FinanceTab
 						user={user}
 						entries={entries}
+						clients={clients}
 						recurringConfig={recurringConfig}
-						// Props Globales
 						currentDate={currentDate}
 						setCurrentDate={setCurrentDate}
 						viewMode={viewMode}
@@ -278,7 +278,12 @@ const DermoManager = () => {
 					/>
 				)}
 				{activeTab === "taxes" && (
-					<TaxesTab entries={entries} />
+					<TaxesTab
+						entries={entries}
+						clients={clients}
+						user={user}
+						showToast={showToastMsg}
+					/>
 				)}
 				{activeTab === "settings" && (
 					<SettingsTab user={user} profile={profile} showToast={showToastMsg} />

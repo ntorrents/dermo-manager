@@ -1,45 +1,64 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "../services/supabase";
+
+const fetchHistoryForClient = async (clientId) => {
+	if (!clientId) return [];
+	const { data, error } = await supabase
+		.from("finance_entries")
+		.select("*")
+		.eq("client_id", clientId)
+		.eq("type", "income")
+		.order("date", { ascending: false });
+	if (error) throw error;
+	return data || [];
+};
 
 /**
  * Hook para obtener el historial de tratamientos de un cliente.
- * Solo necesita el ID del cliente.
+ * Solo necesita el ID del cliente. refetch para actualizar tras rectificativas.
  */
 export const useClientHistory = (clientId) => {
 	const [history, setHistory] = useState([]);
 	const [loading, setLoading] = useState(false);
 
+	const refetch = useCallback(async () => {
+		if (!clientId) {
+			setHistory([]);
+			return;
+		}
+		setLoading(true);
+		try {
+			const data = await fetchHistoryForClient(clientId);
+			setHistory(data);
+		} catch (err) {
+			console.error("Error cargando historial:", err.message);
+		} finally {
+			setLoading(false);
+		}
+	}, [clientId]);
+
 	useEffect(() => {
-		// Si no hay ID de cliente seleccionado, limpiamos el historial y salimos
 		if (!clientId) {
 			setHistory([]);
 			setLoading(false);
 			return;
 		}
-
-		const fetchHistory = async () => {
-			setLoading(true);
-			try {
-				// Consultamos la tabla de finanzas filtrando por el client_id
-				// Buscamos solo 'income' que son los servicios realizados
-				const { data, error } = await supabase
-					.from("finance_entries")
-					.select("*")
-					.eq("client_id", clientId)
-					.eq("type", "income")
-					.order("date", { ascending: false });
-
-				if (error) throw error;
-				setHistory(data || []);
-			} catch (error) {
-				console.error("Error cargando historial:", error.message);
-			} finally {
-				setLoading(false);
-			}
+		let cancelled = false;
+		setLoading(true);
+		fetchHistoryForClient(clientId)
+			.then((data) => {
+				if (!cancelled) setHistory(data);
+			})
+			.catch((err) => {
+				if (!cancelled) console.error("Error cargando historial:", err.message);
+			})
+			.finally(() => {
+				if (!cancelled) setLoading(false);
+			});
+		return () => {
+			cancelled = true;
 		};
+	}, [clientId]);
 
-		fetchHistory();
-	}, [clientId]); // Solo se vuelve a ejecutar si cambia el ID del cliente
-
-	return { history, loading };
+	return { history, loading, refetch };
 };

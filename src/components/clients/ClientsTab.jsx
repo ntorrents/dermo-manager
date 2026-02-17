@@ -16,12 +16,16 @@ import {
 	User,
 	Stethoscope,
 	Shield,
+	RotateCcw,
+	MessageCircle,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useClientHistory } from "../../hooks/useClientHistory";
 import { useSessionPhotos } from "../../hooks/useSessionPhotos";
 import { formatCurrency } from "../../utils/format";
 import { generateInvoice } from "../../utils/invoiceGenerator";
+import { calculateTaxReverse } from "../../utils/calculations";
+import { getNextRectifiedInvoiceNumber } from "../../services/invoiceSeries";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { LoadingButton } from "../ui/LoadingButton";
@@ -31,6 +35,14 @@ import { PhotoEditModal } from "../photos/PhotoEditModal";
 import { BeforeAfterViewer } from "../photos/BeforeAfterViewer";
 import { SessionPhotoThumbnail } from "../photos/SessionPhotoThumbnail";
 import { deleteSessionPhoto } from "../../services/photoStorage";
+
+const buildWhatsAppUrl = (phone, firstName, companyName = "C3linic") => {
+	if (!phone || !String(phone).trim()) return null;
+	const digits = String(phone).replace(/\D/g, "");
+	const num = digits.startsWith("34") ? digits : "34" + digits;
+	const msg = `Hola ${firstName || "cliente"}, te escribo desde ${companyName} para recordarte tu cita...`;
+	return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+};
 
 export const ClientsTab = ({
 	user,
@@ -69,8 +81,12 @@ export const ClientsTab = ({
 	const [showPhotoEditModal, setShowPhotoEditModal] = useState(false);
 	const [photoToEdit, setPhotoToEdit] = useState(null);
 	const [viewerSession, setViewerSession] = useState(null);
+	const [showRefundModal, setShowRefundModal] = useState(false);
+	const [sessionToRefund, setSessionToRefund] = useState(null);
+	const [refundAmount, setRefundAmount] = useState("");
+	const [processingRefund, setProcessingRefund] = useState(false);
 
-	const { history, loading: historyLoading } = useClientHistory(
+	const { history, loading: historyLoading, refetch: refetchHistory } = useClientHistory(
 		selectedClient?.id
 	);
 	const { photos, refreshPhotos } = useSessionPhotos(
@@ -220,6 +236,66 @@ export const ClientsTab = ({
 		else showToast("Error al actualizar", "error");
 	};
 
+	const openRefundModal = (session) => {
+		setSessionToRefund(session);
+		setRefundAmount(String(Number(session.amount) || ""));
+		setShowRefundModal(true);
+	};
+
+	const confirmRefund = async () => {
+		if (!sessionToRefund || !selectedClient || !user) return;
+		const amount = Number(refundAmount);
+		const maxRefund = Number(sessionToRefund.amount) || 0;
+		if (!amount || amount <= 0 || amount > maxRefund) {
+			showToast("Importe no válido (máx. " + formatCurrency(maxRefund) + ")", "error");
+			return;
+		}
+		setProcessingRefund(true);
+		try {
+			const { baseAmount, taxAmount } = calculateTaxReverse(amount, 21);
+			const today = new Date().toISOString().slice(0, 10);
+			const year = today.slice(0, 4);
+			let invoiceNumber = null;
+			try {
+				invoiceNumber = await getNextRectifiedInvoiceNumber(user.id, year);
+			} catch {
+				// Serie R no disponible
+			}
+			const { data: inserted, error } = await supabase
+				.from("finance_entries")
+				.insert([
+					{
+						user_id: user.id,
+						date: today,
+						type: "income",
+						category: "Servicio",
+						description: "Abono: " + (sessionToRefund.description || "Sesión"),
+						amount: -amount,
+						total_amount: -amount,
+						tax_rate: 21,
+						tax_base: -baseAmount,
+						tax_amount: -taxAmount,
+						invoice_number: invoiceNumber,
+						client_id: selectedClient.id,
+					},
+				])
+				.select()
+				.single();
+			if (error) throw error;
+			await generateInvoice(inserted, selectedClient, profile, null, { isAbono: true });
+			showToast("Abono generado y guardado");
+			refetchHistory();
+			if (onRefresh) await onRefresh();
+			setShowRefundModal(false);
+			setSessionToRefund(null);
+			setRefundAmount("");
+		} catch (err) {
+			showToast(err?.message || "Error al crear abono", "error");
+		} finally {
+			setProcessingRefund(false);
+		}
+	};
+
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0 h-[calc(100vh-120px)] md:h-auto flex flex-col md:flex-row gap-6">
 			<ConfirmModal
@@ -317,9 +393,22 @@ export const ClientsTab = ({
 													}`}>
 													{client.name} {client.surname}
 												</h4>
-												<p className="text-xs text-gray-400">
-													{client.phone || "Sin tlf"}
-												</p>
+												<div className="flex items-center gap-1.5">
+													<p className="text-xs text-gray-400">
+														{client.phone || "Sin tlf"}
+													</p>
+													{client.phone && (
+														<a
+															href={buildWhatsAppUrl(client.phone, client.name, profile?.company_name)}
+															target="_blank"
+															rel="noopener noreferrer"
+															onClick={(e) => e.stopPropagation()}
+															className="p-1 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
+															title="Abrir WhatsApp">
+															<MessageCircle size={14} />
+														</a>
+													)}
+												</div>
 												<div className="flex items-center gap-2 mt-1.5 flex-wrap">
 													<span
 														className="inline-flex items-center gap-0.5 text-[10px] font-bold"
@@ -391,9 +480,21 @@ export const ClientsTab = ({
 									<h2 className="text-xl xl:text-3xl font-black text-gray-800 tracking-tight">
 										{selectedClient.name} {selectedClient.surname}
 									</h2>
-									<p className="text-sm font-bold text-gray-500">
-										{selectedClient.phone}
-									</p>
+									<div className="flex items-center gap-2 mt-1">
+										<p className="text-sm font-bold text-gray-500">
+											{selectedClient.phone}
+										</p>
+										{selectedClient.phone && (
+											<a
+												href={buildWhatsAppUrl(selectedClient.phone, selectedClient.name, profile?.company_name)}
+												target="_blank"
+												rel="noopener noreferrer"
+												className="p-2 rounded-xl bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
+												title="Abrir WhatsApp">
+												<MessageCircle size={18} />
+											</a>
+										)}
+									</div>
 								</div>
 							</div>
 							<button
@@ -649,6 +750,14 @@ export const ClientsTab = ({
 															title="Generar factura">
 															<FileDown size={18} />
 														</button>
+														{Number(session.amount) > 0 && (
+															<button
+																onClick={() => openRefundModal(session)}
+																className="p-2 text-gray-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
+																title="Rectificar / Devolución">
+																<RotateCcw size={18} />
+															</button>
+														)}
 														<div className="text-right">
 															<span className="block font-black text-gray-800 text-lg xl:text-xl">
 																{formatCurrency(session.amount)}
@@ -889,6 +998,48 @@ export const ClientsTab = ({
 					/>
 				</AdaptiveModal>
 			)}
+
+			<AdaptiveModal
+				isOpen={showRefundModal}
+				onClose={() => {
+					setShowRefundModal(false);
+					setSessionToRefund(null);
+					setRefundAmount("");
+				}}
+				title="Rectificar / Devolución"
+				maxWidth="max-w-sm">
+				{sessionToRefund && (
+					<div className="space-y-4">
+						<p className="text-sm text-gray-600">
+							Factura original: <strong>{sessionToRefund.description?.split("(")[0] || "Sesión"}</strong> — {formatCurrency(sessionToRefund.amount)}
+						</p>
+						<div>
+							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+								¿Cuánto quieres devolver? (máx. {formatCurrency(sessionToRefund.amount)})
+							</label>
+							<input
+								type="number"
+								step="0.01"
+								min="0"
+								max={Number(sessionToRefund.amount) || 0}
+								placeholder="0.00 €"
+								className="w-full p-4 bg-gray-50 rounded-xl font-black text-lg outline-none border-2 border-transparent focus:border-rose-100"
+								value={refundAmount}
+								onChange={(e) => setRefundAmount(e.target.value)}
+							/>
+						</div>
+						<LoadingButton
+							type="button"
+							loading={processingRefund}
+							onClick={confirmRefund}
+							disabled={!refundAmount || Number(refundAmount) <= 0 || Number(refundAmount) > Number(sessionToRefund.amount)}
+							className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-4 rounded-xl"
+						>
+							{processingRefund ? "Procesando..." : "Generar abono y PDF"}
+						</LoadingButton>
+					</div>
+				)}
+			</AdaptiveModal>
 		</div>
 	);
 };

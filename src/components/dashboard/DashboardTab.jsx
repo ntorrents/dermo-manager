@@ -42,6 +42,11 @@ export const DashboardTab = ({
 		return filterByDate(entries, "date", viewMode, currentDate);
 	}, [entries, currentDate, viewMode]);
 
+	const currentExpenses = useMemo(() => {
+		const expenseEntries = entries.filter((e) => e.type === "expense" && e.is_deductible === true);
+		return filterByDate(expenseEntries, "date", viewMode, currentDate);
+	}, [entries, currentDate, viewMode]);
+
 	// Nota: La comparativa "vs mes pasado" solo la mostramos si estamos en modo mensual
 	// para evitar complejidad de cálculo de "trimestre anterior"
 	const previousMonth = useMemo(() => {
@@ -80,13 +85,32 @@ export const DashboardTab = ({
 		() => calculateGrowth(currentStats.income, prevStats.income),
 		[currentStats.income, prevStats.income]
 	);
-	const taxHucha = useMemo(
+	// Ventas sin IVA (base imponible ingresos) y Gastos sin IVA (base imponible tabla expenses)
+	const ventasSinIva = useMemo(
+		() =>
+			currentData
+				.filter((e) => e.type === "income")
+				.reduce((acc, e) => acc + (Number(e.tax_base) ?? Number(e.amount) ?? 0), 0),
+		[currentData]
+	);
+	const gastosSinIva = useMemo(
+		() => currentExpenses.reduce((acc, e) => acc + (Number(e.tax_base) ?? 0), 0),
+		[currentExpenses]
+	);
+	const beneficioFiscal = ventasSinIva - gastosSinIva;
+
+	const ivaVentas = useMemo(
 		() =>
 			currentData
 				.filter((e) => e.type === "income")
 				.reduce((acc, e) => acc + (Number(e.tax_amount) || 0), 0),
 		[currentData]
 	);
+	const ivaGastos = useMemo(
+		() => currentExpenses.reduce((acc, e) => acc + (Number(e.tax_amount) || 0), 0),
+		[currentExpenses]
+	);
+	const taxHucha = ivaVentas - ivaGastos;
 
 	const upcomingAppointments = useMemo(() => {
 		const now = new Date();
@@ -201,17 +225,16 @@ export const DashboardTab = ({
 					</div>
 				</div>
 
-				{/* KPI 2: Hucha de impuestos */}
+				{/* KPI 2: Impuestos a pagar (IVA ventas − IVA gastos) */}
 				<div className="bg-amber-50 border border-amber-100 p-6 rounded-3xl shadow-sm flex flex-col justify-center">
 					<div className="flex justify-between items-center mb-1">
-						<p className="text-amber-800 text-sm font-bold">Hucha de impuestos</p>
-						<span className="text-[10px] font-bold text-amber-600 uppercase">IVA a pagar (est.)</span>
+						<p className="text-amber-800 text-sm font-bold">Impuestos a pagar (est.)</p>
 					</div>
 					<p className="text-2xl font-bold text-amber-900">
 						{formatCurrency(taxHucha)}
 					</p>
 					<p className="text-xs text-amber-700 mt-2">
-						Acumulado en el periodo
+						IVA ventas − IVA compras
 					</p>
 				</div>
 
@@ -253,18 +276,14 @@ export const DashboardTab = ({
 				</div>
 			</div>
 
-			{/* Fila secundaria: Beneficio neto + Ingresos/Gastos */}
+			{/* Fila secundaria: Beneficio fiscal (bases) + Ingresos/Gastos */}
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 				<div className="bg-gray-900 text-white p-6 rounded-3xl shadow-sm flex flex-col justify-center gap-4">
 					<p className="text-gray-400 font-medium flex items-center gap-2">
-						<TrendingUp size={16} /> Beneficio neto
+						<TrendingUp size={16} /> Beneficio (bases imponibles)
 					</p>
-					<p className="text-3xl font-bold">{formatCurrency(currentStats.net)}</p>
-					{viewMode === "month" && prevStats.net !== 0 && (
-						<span className={`text-sm font-bold ${isGrowing ? "text-green-400" : "text-red-400"}`}>
-							{isGrowing ? "+" : ""}{growth.toFixed(1)}% vs mes pasado
-						</span>
-					)}
+					<p className="text-3xl font-bold">{formatCurrency(beneficioFiscal)}</p>
+					<p className="text-xs text-gray-500">Ventas sin IVA − Gastos sin IVA</p>
 				</div>
 				<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center gap-4">
 					<div className="flex justify-between items-center">

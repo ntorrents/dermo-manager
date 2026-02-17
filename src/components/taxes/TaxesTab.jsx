@@ -6,8 +6,10 @@ import {
 	Percent,
 	BarChart3,
 	Calendar,
+	Download,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
+import { exportTrimestreToZip } from "../../utils/export";
 
 const monthNames = [
 	"Enero",
@@ -41,12 +43,13 @@ const filterByQuarter = (entries, year, quarter) => {
 	);
 };
 
-export const TaxesTab = ({ entries = [] }) => {
+export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {} }) => {
 	const currentYear = new Date().getFullYear();
 	const [selectedYear, setSelectedYear] = useState(currentYear);
 	const [selectedQuarter, setSelectedQuarter] = useState(
 		Math.floor((new Date().getMonth() + 3) / 3)
 	);
+	const [exporting, setExporting] = useState(false);
 
 	const years = Array.from(
 		{ length: 5 },
@@ -58,26 +61,26 @@ export const TaxesTab = ({ entries = [] }) => {
 		[entries, selectedYear, selectedQuarter]
 	);
 
-	// Resultado Operativo: Suma bases ingresos - Suma bases gastos
+	// Resultado Operativo: Suma bases ingresos - Suma bases gastos deducibles
 	const resultadoOperativo = useMemo(() => {
 		const incomes = quarterEntries.filter((e) => e.type === "income");
-		const expenses = quarterEntries.filter((e) => e.type === "expense");
+		const expenses = quarterEntries.filter((e) => e.type === "expense" && e.is_deductible === true);
 
 		const sumBaseIncome = incomes.reduce(
-			(acc, e) => acc + (Number(e.base_amount) ?? Number(e.amount) ?? 0),
+			(acc, e) => acc + (Number(e.tax_base) ?? Number(e.base_amount) ?? Number(e.amount) ?? 0),
 			0
 		);
 		const sumBaseExpense = expenses.reduce(
-			(acc, e) => acc + (Number(e.base_amount) ?? Number(e.amount) ?? 0),
+			(acc, e) => acc + (Number(e.tax_base) ?? Number(e.base_amount) ?? Number(e.amount) ?? 0),
 			0
 		);
 		return sumBaseIncome - sumBaseExpense;
 	}, [quarterEntries]);
 
-	// Liquidación IVA 303: IVA Repercutido - IVA Soportado
+	// Liquidación IVA 303: IVA Repercutido - IVA Soportado (solo deducibles)
 	const liquidacionIVA = useMemo(() => {
 		const incomes = quarterEntries.filter((e) => e.type === "income");
-		const expenses = quarterEntries.filter((e) => e.type === "expense");
+		const expenses = quarterEntries.filter((e) => e.type === "expense" && e.is_deductible === true);
 
 		const ivaRepercutido = incomes.reduce(
 			(acc, e) => acc + (Number(e.tax_amount) ?? 0),
@@ -153,6 +156,24 @@ export const TaxesTab = ({ entries = [] }) => {
 						<option value={3}>3T (Jul-Sep)</option>
 						<option value={4}>4T (Oct-Dic)</option>
 					</select>
+					<button
+						onClick={async () => {
+							setExporting(true);
+							await exportTrimestreToZip(
+								entries,
+								clients,
+								selectedYear,
+								selectedQuarter,
+								user?.id,
+								showToast
+							);
+							setExporting(false);
+						}}
+						disabled={exporting}
+						className="px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm">
+						<Download size={18} />
+						{exporting ? "Generando..." : "Descargar Trimestre"}
+					</button>
 				</div>
 			</div>
 

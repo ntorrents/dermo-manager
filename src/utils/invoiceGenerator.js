@@ -27,7 +27,8 @@ const loadImageAsBase64 = (url) => {
 	});
 };
 
-export const generateInvoice = async (entry, client, profile, logoUrl = null) => {
+export const generateInvoice = async (entry, client, profile, logoUrl = null, options = {}) => {
+	const isAbono = options.isAbono === true;
 	let logoDataUrl = null;
 	const logo = logoUrl || profile?.logo_url;
 	if (logo && typeof logo === "string" && logo.startsWith("http")) {
@@ -115,7 +116,7 @@ export const generateInvoice = async (entry, client, profile, logoUrl = null) =>
 
 	doc.setFontSize(14);
 	doc.setTextColor(0);
-	doc.text("FACTURA", rightColX, yRight, { align: "right" });
+	doc.text(isAbono ? "ABONO" : "FACTURA", rightColX, yRight, { align: "right" });
 	yRight += 8;
 
 	doc.setFontSize(10);
@@ -167,7 +168,7 @@ export const generateInvoice = async (entry, client, profile, logoUrl = null) =>
 
 	const tableBody = [
 		[
-			entry.description || "Servicio de Dermatología",
+			entry.description || (isAbono ? "Abono" : "Servicio de Dermatología"),
 			"1",
 			hasTax ? formatCurrency(taxBase) : formatCurrency(totalAmount),
 			formatCurrency(totalAmount),
@@ -216,7 +217,14 @@ export const generateInvoice = async (entry, client, profile, logoUrl = null) =>
 	doc.setFontSize(8);
 	doc.setFont("helvetica", "normal");
 	doc.setTextColor(150);
-	if (hasTax) {
+	if (isAbono) {
+		doc.text(
+			"Factura rectificativa. Ley 37/1992.",
+			pageWidth - 14,
+			finalY,
+			{ align: "right" },
+		);
+	} else if (hasTax) {
 		doc.text(
 			"Factura sujeta y no exenta. Ley 37/1992.",
 			pageWidth - 14,
@@ -253,5 +261,5 @@ export const generateInvoice = async (entry, client, profile, logoUrl = null) =>
 
 	// Guardar PDF
 	const safeName = clientName.replace(/[^a-z0-9]/gi, "_");
-	doc.save(`Factura_${safeName}_${entry.date}.pdf`);
+	doc.save(isAbono ? `Abono_${entry.invoice_number || "R"}_${safeName}.pdf` : `Factura_${safeName}_${entry.date}.pdf`);
 };

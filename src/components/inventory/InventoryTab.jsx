@@ -124,6 +124,8 @@ export const InventoryTab = ({
 		lotNumber: "",
 		expiryDate: "",
 		purchaseDate: new Date().toISOString().split("T")[0],
+		supplier_nif: "",
+		invoice_number: "",
 	});
 
 	const filteredInventory =
@@ -211,6 +213,8 @@ export const InventoryTab = ({
 				lotNumber: "",
 				expiryDate: "",
 				purchaseDate: new Date().toISOString().split("T")[0],
+				supplier_nif: "",
+				invoice_number: "",
 			});
 		}
 		setIsModalOpen(true);
@@ -246,6 +250,8 @@ export const InventoryTab = ({
 			lotNumber: "",
 			expiryDate: "",
 			purchaseDate: new Date().toISOString().split("T")[0],
+			supplier_nif: "",
+			invoice_number: "",
 		});
 		setIsRestockModalOpen(true);
 	};
@@ -831,6 +837,33 @@ export const InventoryTab = ({
 												}
 											/>
 										</div>
+										<div>
+											<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+												NIF/CIF Proveedor *
+											</label>
+											<input
+												required
+												placeholder="Ej: B12345678"
+												className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
+												value={formData.supplier_nif}
+												onChange={(e) =>
+													setFormData({ ...formData, supplier_nif: e.target.value })
+												}
+											/>
+										</div>
+										<div>
+											<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+												Nº Factura Proveedor
+											</label>
+											<input
+												placeholder="Ej: F2026-001"
+												className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
+												value={formData.invoice_number}
+												onChange={(e) =>
+													setFormData({ ...formData, invoice_number: e.target.value })
+												}
+											/>
+										</div>
 									</div>
 								)}
 								<div className="pt-4">
@@ -945,6 +978,39 @@ export const InventoryTab = ({
 										))}
 									</select>
 								</div>
+							</div>
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+									NIF/CIF Proveedor *
+								</label>
+								<input
+									required
+									placeholder="Ej: B12345678"
+									className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
+									value={restockData.supplier_nif}
+									onChange={(e) =>
+										setRestockData({
+											...restockData,
+											supplier_nif: e.target.value,
+										})
+									}
+								/>
+							</div>
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+									Nº Factura Proveedor
+								</label>
+								<input
+									placeholder="Ej: F2026-001"
+									className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
+									value={restockData.invoice_number}
+									onChange={(e) =>
+										setRestockData({
+											...restockData,
+											invoice_number: e.target.value,
+										})
+									}
+								/>
 							</div>
 							<LoadingButton
 								loading={loading}

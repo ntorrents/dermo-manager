@@ -12,6 +12,8 @@ import {
 	Calendar,
 	Edit2,
 	FileText,
+	Download,
+	Receipt,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import {
@@ -19,8 +21,9 @@ import {
 	IVA_OPTIONS,
 	calculateTaxFromTotal,
 } from "../../utils/format";
-import { exportToCSV } from "../../utils/export";
+import { exportToCSV, exportTrimestreToExcel } from "../../utils/export";
 import { filterByDate, getDateLabel } from "../../utils/dateUtils";
+import { uploadReceipt, getReceiptUrl, getReceiptSignedUrl } from "../../services/receiptStorage";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
@@ -29,6 +32,7 @@ import { AdaptiveModal } from "../ui/AdaptiveModal";
 export const FinanceTab = ({
 	user,
 	entries = [],
+	clients = [],
 	currentDate,
 	setCurrentDate,
 	viewMode,
@@ -64,7 +68,11 @@ export const FinanceTab = ({
 		description: "",
 		date: new Date().toISOString().split("T")[0],
 		notes: "",
+		is_deductible: false,
+		supplier_nif: "",
+		invoice_number: "",
 	});
+	const [receiptFile, setReceiptFile] = useState(null);
 
 	const taxCalc = useMemo(() => {
 		const { baseAmount, taxAmount } = calculateTaxFromTotal(
@@ -147,19 +155,28 @@ export const FinanceTab = ({
 				description: entry.description,
 				date: entry.date,
 				notes: entry.notes || "",
+				is_deductible: entry.is_deductible ?? false,
+				supplier_nif: entry.supplier_nif || "",
+				invoice_number: entry.invoice_number || "",
+				file_url: entry.file_url || "",
 			});
 		} else {
 			setEditingEntry(null);
 			setFormData({
 				type,
 				amount: "",
-				tax_rate: 0,
+				tax_rate: type === "expense" ? 21 : 0,
 				category: type === "income" ? "Servicio" : "Material",
 				description: "",
 				date: new Date().toISOString().split("T")[0],
 				notes: "",
+				is_deductible: false,
+				supplier_nif: "",
+				invoice_number: "",
+				file_url: "",
 			});
 		}
+		setReceiptFile(null);
 		setIsModalOpen(true);
 	};
 
@@ -168,35 +185,63 @@ export const FinanceTab = ({
 		setSavingEntry(true);
 		try {
 			const taxRate = Number(formData.tax_rate) || 0;
+			const amount = Number(formData.amount);
+			const { baseAmount, taxAmount } = calculateTaxFromTotal(amount, taxRate);
+			
 			const payload = {
-				...formData,
-				amount: Number(formData.amount),
+				type: formData.type,
+				amount,
+				total_amount: amount,
 				tax_rate: taxRate,
-				tax_amount: taxCalc.tax_amount,
-				base_amount: taxCalc.base_amount,
+				tax_amount: taxAmount,
+				tax_base: baseAmount,
+				category: formData.category,
+				description: formData.description,
+				date: formData.date,
+				notes: formData.notes || null,
+				is_deductible: formData.is_deductible || false,
+				supplier_nif: formData.is_deductible ? (formData.supplier_nif?.trim() || null) : null,
+				invoice_number: formData.is_deductible ? (formData.invoice_number?.trim() || null) : null,
+				// Mantener file_url existente si no hay archivo nuevo
+				file_url: receiptFile ? undefined : (editingEntry?.file_url || null),
 				user_id: user.id,
 			};
-			// tax_rate, base_amount y tax_amount se recalculan en creación Y edición
 
+			let insertedId = null;
 			if (editingEntry) {
 				const { error } = await supabase
 					.from("finance_entries")
 					.update(payload)
 					.eq("id", editingEntry.id);
 				if (error) throw error;
+				insertedId = editingEntry.id;
 				showToast("Movimiento actualizado");
 			} else {
-				const { error } = await supabase
+				const { data, error } = await supabase
 					.from("finance_entries")
-					.insert([payload]);
+					.insert([payload])
+					.select("id")
+					.single();
 				if (error) throw error;
+				insertedId = data.id;
 				showToast("Movimiento registrado");
+			}
+
+			// Subir archivo si existe y es factura deducible (solo si hay un archivo nuevo)
+			if (formData.is_deductible && receiptFile && insertedId) {
+				try {
+					const path = await uploadReceipt(user.id, insertedId, receiptFile);
+					await supabase.from("finance_entries").update({ file_url: path }).eq("id", insertedId);
+				} catch (fileErr) {
+					console.error("Error subiendo archivo:", fileErr);
+					showToast("Gasto guardado pero error al subir archivo", "error");
+				}
 			}
 
 			setIsModalOpen(false);
 			if (onRefresh) await onRefresh();
-		} catch {
-			showToast("Error al guardar", "error");
+		} catch (err) {
+			showToast(err?.message || "Error al guardar", "error");
 		} finally {
 			setSavingEntry(false);
 		}
@@ -284,6 +329,7 @@ export const FinanceTab = ({
 		}
 	};
 
+
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			{/* MODALES DE CONFIRMACIÓN */}
@@ -344,12 +390,12 @@ export const FinanceTab = ({
 						onClick={() =>
 							exportToCSV(periodEntries, `Finanzas_${currentDate}.csv`)
 						}
-						className="bg-emerald-50 text-emerald-700 p-2.5 rounded-xl border border-emerald-100 transition-colors hover:bg-emerald-100">
+						className="bg-emerald-50 text-emerald-700 p-2.5 rounded-xl border border-emerald-100 transition-colors hover:bg-emerald-100"
+						title="Exportar CSV">
 						<FileSpreadsheet size={20} />
 					</button>
 				</div>
 			</div>
-
 			{/* BOTONES DE ACCIÓN RÁPIDA (Siempre arriba) */}
 			<div className="grid grid-cols-2 gap-3 md:gap-6">
 				<button
@@ -406,20 +452,53 @@ export const FinanceTab = ({
 							<div
 								key={entry.id}
 								className="p-4 border-b last:border-0 hover:bg-gray-50 transition-colors flex justify-between items-center group">
-								<div>
-									<p className="font-bold text-gray-800 text-sm">
-										{entry.description}
-									</p>
-									<p className="text-[10px] text-gray-400 font-bold uppercase">
-										{entry.date} • {entry.category}
-									</p>
-									{entry.notes && (
-										<p className="text-[10px] text-gray-400 italic mt-1 flex items-center gap-1">
-											<FileText size={10} /> {entry.notes}
-										</p>
-									)}
-								</div>
-								<div className="flex items-center gap-2">
+										<div>
+											<p className="font-bold text-gray-800 text-sm">
+												{entry.description}
+											</p>
+											<p className="text-[10px] text-gray-400 font-bold uppercase">
+												{entry.date} • {entry.category}
+												{entry.is_deductible && " • Factura deducible"}
+											</p>
+											{entry.notes && (
+												<p className="text-[10px] text-gray-400 italic mt-1 flex items-center gap-1">
+													<FileText size={10} /> {entry.notes}
+												</p>
+											)}
+										</div>
+										<div className="flex items-center gap-2">
+											{entry.type === "expense" && entry.file_url && (
+												<a
+													href="#"
+													onClick={async (e) => {
+														e.preventDefault();
+														try {
+															const url = await getReceiptSignedUrl(entry.file_url);
+															if (url) {
+																window.open(url, "_blank");
+															} else {
+																// Fallback a URL pública
+																const publicUrl = getReceiptUrl(entry.file_url);
+																if (publicUrl) {
+																	window.open(publicUrl, "_blank");
+																} else {
+																	showToast("Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.", "error");
+																}
+															}
+														} catch (err) {
+															console.error("Error descargando archivo:", err);
+															if (err?.message?.includes("Bucket not found") || err?.error === "Bucket not found") {
+																showToast("Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.", "error");
+															} else {
+																showToast("Error al descargar el archivo", "error");
+															}
+														}
+													}}
+													className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+													title="Ver/Descargar justificante">
+													<Download size={16} />
+												</a>
+											)}
 									<span
 										className={`font-black text-sm ${
 											entry.type === "income"
@@ -584,9 +663,42 @@ export const FinanceTab = ({
 											<p className="text-[10px] text-gray-400 font-bold uppercase">
 												{entry.date} •{" "}
 												<span className="text-rose-400">{entry.category}</span>
+												{entry.is_deductible && " • Factura deducible"}
 											</p>
 										</div>
 										<div className="flex items-center gap-2">
+											{entry.file_url && (
+												<a
+													href="#"
+													onClick={async (e) => {
+														e.preventDefault();
+														try {
+															const url = await getReceiptSignedUrl(entry.file_url);
+															if (url) {
+																window.open(url, "_blank");
+															} else {
+																// Fallback a URL pública
+																const publicUrl = getReceiptUrl(entry.file_url);
+																if (publicUrl) {
+																	window.open(publicUrl, "_blank");
+																} else {
+																	showToast("Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.", "error");
+																}
+															}
+														} catch (err) {
+															console.error("Error descargando archivo:", err);
+															if (err?.message?.includes("Bucket not found") || err?.error === "Bucket not found") {
+																showToast("Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.", "error");
+															} else {
+																showToast("Error al descargar el archivo", "error");
+															}
+														}
+													}}
+													className="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
+													title="Ver/Descargar justificante">
+													<Download size={16} />
+												</a>
+											)}
 											<span className="font-black text-rose-500 mr-1">
 												-{formatCurrency(entry.amount)}
 											</span>
@@ -693,6 +805,29 @@ export const FinanceTab = ({
 									}
 								/>
 							</div>
+							{formData.type === "expense" && (
+								<div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
+									<input
+										type="checkbox"
+										id="is_deductible"
+										checked={formData.is_deductible}
+										onChange={(e) => {
+											const checked = e.target.checked;
+											setFormData({
+												...formData,
+												is_deductible: checked,
+												tax_rate: checked ? 21 : 0,
+												supplier_nif: checked ? formData.supplier_nif : "",
+												invoice_number: checked ? formData.invoice_number : "",
+											});
+										}}
+										className="w-5 h-5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+									/>
+									<label htmlFor="is_deductible" className="font-bold text-gray-800 cursor-pointer flex-1">
+										¿Es Factura Deducible?
+									</label>
+								</div>
+							)}
 							<div className="flex gap-4">
 								<div className="flex-1">
 									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
@@ -710,26 +845,95 @@ export const FinanceTab = ({
 										}
 									/>
 								</div>
-								<div className="flex-1">
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-										IVA (%)
-									</label>
-									<select
-										className="w-full p-4 bg-gray-50 rounded-xl font-bold"
-										value={formData.tax_rate}
-										onChange={(e) =>
-											setFormData({ ...formData, tax_rate: Number(e.target.value) })
-										}>
-										{IVA_OPTIONS.map((v) => (
-											<option key={v} value={v}>{v}%</option>
-										))}
-									</select>
-								</div>
+								{formData.type === "expense" && formData.is_deductible && (
+									<div className="flex-1">
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+											IVA (%)
+										</label>
+										<select
+											className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+											value={formData.tax_rate}
+											onChange={(e) =>
+												setFormData({ ...formData, tax_rate: Number(e.target.value) })
+											}>
+											{IVA_OPTIONS.map((v) => (
+												<option key={v} value={v}>{v}%</option>
+											))}
+										</select>
+									</div>
+								)}
 							</div>
-							{(formData.tax_rate > 0 && formData.amount) && (
+							{formData.type === "expense" && formData.is_deductible && formData.amount && (
 								<div className="text-xs font-bold text-gray-500 bg-gray-50 p-3 rounded-xl">
 									Base: {formatCurrency(taxCalc.base_amount)} | Cuota IVA: {formatCurrency(taxCalc.tax_amount)}
 								</div>
+							)}
+							{formData.type === "expense" && formData.is_deductible && (
+								<>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+											NIF/CIF Proveedor *
+										</label>
+										<input
+											required={formData.is_deductible}
+											placeholder="Ej: B12345678"
+											className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
+											value={formData.supplier_nif}
+											onChange={(e) =>
+												setFormData({ ...formData, supplier_nif: e.target.value })
+											}
+										/>
+									</div>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+											Nº Factura Proveedor
+										</label>
+										<input
+											placeholder="Ej: F2026-001"
+											className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
+											value={formData.invoice_number}
+											onChange={(e) =>
+												setFormData({ ...formData, invoice_number: e.target.value })
+											}
+										/>
+									</div>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+											Justificante (foto o PDF) {editingEntry?.file_url ? "" : "*"}
+										</label>
+										{editingEntry?.file_url && !receiptFile && (
+											<div className="mb-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+												<span className="text-sm font-bold text-emerald-700 flex items-center gap-2">
+													<FileText size={16} />
+													Archivo guardado: {editingEntry.file_url.split("/").pop()}
+												</span>
+												<a
+													href="#"
+													onClick={(e) => {
+														e.preventDefault();
+														const input = document.getElementById("receipt-file-input");
+														if (input) input.click();
+													}}
+													className="text-xs font-bold text-emerald-600 hover:underline">
+													Cambiar
+												</a>
+											</div>
+										)}
+										<input
+											id="receipt-file-input"
+											required={formData.is_deductible && !editingEntry?.file_url}
+											type="file"
+											accept="image/*,.pdf"
+											className="w-full p-3 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:font-bold file:bg-rose-50 file:text-rose-600"
+											onChange={(e) => setReceiptFile(e.target.files?.[0] || null)}
+										/>
+										{receiptFile && (
+											<p className="mt-2 text-xs font-bold text-emerald-600">
+												Nuevo archivo seleccionado: {receiptFile.name}
+											</p>
+										)}
+									</div>
+								</>
 							)}
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
@@ -873,6 +1077,7 @@ export const FinanceTab = ({
 							</button>
 						</form>
 			</AdaptiveModal>
+
 		</div>
 	);
 };
