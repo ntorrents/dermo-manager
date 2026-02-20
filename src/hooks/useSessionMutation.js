@@ -17,6 +17,7 @@ export const useSessionMutation = (userId, inventory = []) => {
 			date,
 			extras = [],
 			internal_notes = "",
+			planAmigo = false,
 		}) => {
 			const baseRecipe = treatment.recipe || [];
 			const totalConsumption = [...baseRecipe, ...extras];
@@ -42,14 +43,16 @@ export const useSessionMutation = (userId, inventory = []) => {
 
 			const totalAmount = Number(finalPrice);
 			const { baseAmount, taxAmount } = calculateTaxReverse(totalAmount, DEFAULT_TAX_RATE);
-			const year = date ? parseInt(date.slice(0, 4), 10) : new Date().getFullYear();
 
+			// Plan Amigo: no se genera factura ni se consume número de serie (no Verifactu)
 			let invoice_number = null;
-			try {
-				invoice_number = await getNextInvoiceNumber(userId, year);
-			} catch {
-				// RPC get_next_invoice_number no existe aún (migración no ejecutada). Guardamos sin número.
-				// El PDF usará fallback F-YYYYMMDD-id. Ejecuta el SQL en Supabase para activar series.
+			if (!planAmigo) {
+				const year = date ? parseInt(date.slice(0, 4), 10) : new Date().getFullYear();
+				try {
+					invoice_number = await getNextInvoiceNumber(userId, year);
+				} catch {
+					// RPC no existe aún. Guardamos sin número.
+				}
 			}
 
 			const { error } = await supabase.from("finance_entries").insert([
@@ -68,6 +71,7 @@ export const useSessionMutation = (userId, inventory = []) => {
 					related_cost: Number(cost),
 					client_id: clientData.id || null,
 					internal_notes: internal_notes?.trim() || null,
+					plan_amigo: !!planAmigo,
 				},
 			]);
 			if (error) throw error;

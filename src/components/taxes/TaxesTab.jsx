@@ -61,9 +61,9 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 		[entries, selectedYear, selectedQuarter]
 	);
 
-	// Resultado Operativo: Suma bases ingresos - Suma bases gastos deducibles
+	// Resultado Operativo: Suma bases ingresos - Suma bases gastos deducibles (excl. Plan Amigo)
 	const resultadoOperativo = useMemo(() => {
-		const incomes = quarterEntries.filter((e) => e.type === "income");
+		const incomes = quarterEntries.filter((e) => e.type === "income" && !e.plan_amigo);
 		const expenses = quarterEntries.filter((e) => e.type === "expense" && e.is_deductible === true);
 
 		const sumBaseIncome = incomes.reduce(
@@ -77,9 +77,9 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 		return sumBaseIncome - sumBaseExpense;
 	}, [quarterEntries]);
 
-	// Liquidación IVA 303: IVA Repercutido - IVA Soportado (solo deducibles)
+	// Liquidación IVA 303: IVA Repercutido - IVA Soportado (excl. Plan Amigo)
 	const liquidacionIVA = useMemo(() => {
-		const incomes = quarterEntries.filter((e) => e.type === "income");
+		const incomes = quarterEntries.filter((e) => e.type === "income" && !e.plan_amigo);
 		const expenses = quarterEntries.filter((e) => e.type === "expense" && e.is_deductible === true);
 
 		const ivaRepercutido = incomes.reduce(
@@ -109,9 +109,9 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 				byMonth[month] = { income: 0, expense: 0 };
 			}
 			const amt = Number(e.amount) || 0;
-			if (e.type === "income") {
+			if (e.type === "income" && !e.plan_amigo) {
 				byMonth[month].income += amt;
-			} else {
+			} else if (e.type === "expense") {
 				byMonth[month].expense += amt;
 			}
 		});

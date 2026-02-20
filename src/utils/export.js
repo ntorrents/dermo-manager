@@ -137,8 +137,8 @@ export const exportTrimestreToZip = async (
 			(e) => e.date >= startDate && e.date <= endDate
 		);
 		
-		// Separar ingresos y gastos deducibles
-		const ventas = quarterEntries.filter((e) => e.type === "income" && Number(e.amount) > 0);
+		// Separar ingresos (excl. Plan Amigo) y gastos deducibles
+		const ventas = quarterEntries.filter((e) => e.type === "income" && Number(e.amount) > 0 && !e.plan_amigo);
 		const compras = quarterEntries.filter((e) => e.type === "expense" && e.is_deductible === true);
 		
 		// Crear Excel
