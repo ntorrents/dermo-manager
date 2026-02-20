@@ -488,8 +488,9 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 					<AlertTriangle size={20} className="text-amber-600" /> Zona de Datos
 				</h3>
 				<p className="text-sm text-amber-800/80 mb-4">
-					Exporta todos tus datos (clientes, tratamientos, historial financiero, citas, inventario) 
-					en un archivo JSON. Las fotos no se incluyen para reducir el tamaño.
+					Exporta todos tus datos (clientes, tratamientos, historial financiero,
+					citas, inventario) en un archivo JSON. Las fotos no se incluyen para
+					reducir el tamaño.
 				</p>
 				<button
 					onClick={handleDownloadBackup}

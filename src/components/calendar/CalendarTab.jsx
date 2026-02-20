@@ -81,7 +81,7 @@ export const CalendarTab = ({
 
 	const events = useMemo(
 		() => mergeCalendarEvents(entries, appointments, clients),
-		[entries, appointments, clients]
+		[entries, appointments, clients],
 	);
 
 	const openModalForSlot = (slotInfo) => {
@@ -157,7 +157,9 @@ export const CalendarTab = ({
 	};
 
 	const getPayload = () => {
-		let startAt, endAt, all_day = false;
+		let startAt,
+			endAt,
+			all_day = false;
 		if (formData.type === "task" && formData.allDay) {
 			startAt = new Date(`${formData.startAt}T00:00:00`);
 			endAt = new Date(`${formData.startAt}T23:59:59`);
@@ -195,9 +197,7 @@ export const CalendarTab = ({
 				if (error) throw error;
 				showToast("Cita actualizada");
 			} else {
-				const { error } = await supabase
-					.from("appointments")
-					.insert([payload]);
+				const { error } = await supabase.from("appointments").insert([payload]);
 				if (error) throw error;
 				showToast(formData.type === "task" ? "Tarea creada" : "Cita creada");
 			}
@@ -262,7 +262,8 @@ export const CalendarTab = ({
 		if (isSession) {
 			return { style: { backgroundColor: "#f43f5e" } };
 		}
-		const status = event.status || event.resource?.appointment?.status || "pending";
+		const status =
+			event.status || event.resource?.appointment?.status || "pending";
 		const bg = STATUS_COLORS[status] || STATUS_COLORS.pending;
 		return {
 			style: {
@@ -272,7 +273,6 @@ export const CalendarTab = ({
 			},
 		};
 	};
-
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
@@ -593,9 +593,13 @@ function SessionDetail({ entry, clients }) {
 				</span>
 				<p className="font-bold text-gray-800 mt-1">
 					{entry.date
-						? format(new Date(entry.date + "T12:00:00"), "EEEE d 'de' MMMM yyyy", {
-								locale: es,
-							})
+						? format(
+								new Date(entry.date + "T12:00:00"),
+								"EEEE d 'de' MMMM yyyy",
+								{
+									locale: es,
+								},
+							)
 						: "—"}
 				</p>
 			</div>
@@ -648,7 +652,9 @@ function AppointmentDetail({ appointment, clients, treatments }) {
 				<span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
 					Título
 				</span>
-				<p className="font-bold text-gray-800 mt-1">{appointment.title || "—"}</p>
+				<p className="font-bold text-gray-800 mt-1">
+					{appointment.title || "—"}
+				</p>
 			</div>
 			{appointment.type === "appointment" && clientName && (
 				<div>

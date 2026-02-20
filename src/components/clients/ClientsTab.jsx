@@ -86,19 +86,21 @@ export const ClientsTab = ({
 	const [refundAmount, setRefundAmount] = useState("");
 	const [processingRefund, setProcessingRefund] = useState(false);
 
-	const { history, loading: historyLoading, refetch: refetchHistory } = useClientHistory(
-		selectedClient?.id
-	);
+	const {
+		history,
+		loading: historyLoading,
+		refetch: refetchHistory,
+	} = useClientHistory(selectedClient?.id);
 	const { photos, refreshPhotos } = useSessionPhotos(
 		selectedClient?.id,
-		user?.id
+		user?.id,
 	);
 
 	const filteredClients = clients.filter(
 		(c) =>
 			c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
 			c.surname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			c.phone?.includes(searchTerm)
+			c.phone?.includes(searchTerm),
 	);
 
 	const handleOpenModal = (client = null) => {
@@ -247,7 +249,10 @@ export const ClientsTab = ({
 		const amount = Number(refundAmount);
 		const maxRefund = Number(sessionToRefund.amount) || 0;
 		if (!amount || amount <= 0 || amount > maxRefund) {
-			showToast("Importe no válido (máx. " + formatCurrency(maxRefund) + ")", "error");
+			showToast(
+				"Importe no válido (máx. " + formatCurrency(maxRefund) + ")",
+				"error",
+			);
 			return;
 		}
 		setProcessingRefund(true);
@@ -282,7 +287,9 @@ export const ClientsTab = ({
 				.select()
 				.single();
 			if (error) throw error;
-			await generateInvoice(inserted, selectedClient, profile, null, { isAbono: true });
+			await generateInvoice(inserted, selectedClient, profile, null, {
+				isAbono: true,
+			});
 			showToast("Abono generado y guardado");
 			refetchHistory();
 			if (onRefresh) await onRefresh();
@@ -399,7 +406,11 @@ export const ClientsTab = ({
 													</p>
 													{client.phone && (
 														<a
-															href={buildWhatsAppUrl(client.phone, client.name, profile?.company_name)}
+															href={buildWhatsAppUrl(
+																client.phone,
+																client.name,
+																profile?.company_name,
+															)}
 															target="_blank"
 															rel="noopener noreferrer"
 															onClick={(e) => e.stopPropagation()}
@@ -486,7 +497,11 @@ export const ClientsTab = ({
 										</p>
 										{selectedClient.phone && (
 											<a
-												href={buildWhatsAppUrl(selectedClient.phone, selectedClient.name, profile?.company_name)}
+												href={buildWhatsAppUrl(
+													selectedClient.phone,
+													selectedClient.name,
+													profile?.company_name,
+												)}
 												target="_blank"
 												rel="noopener noreferrer"
 												className="p-2 rounded-xl bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
@@ -536,43 +551,65 @@ export const ClientsTab = ({
 									</h3>
 									<dl className="space-y-3 text-sm">
 										<div>
-											<dt className="text-[10px] font-black text-gray-400 uppercase">Nombre</dt>
-											<dd className="font-bold text-gray-800">{selectedClient.name} {selectedClient.surname}</dd>
+											<dt className="text-[10px] font-black text-gray-400 uppercase">
+												Nombre
+											</dt>
+											<dd className="font-bold text-gray-800">
+												{selectedClient.name} {selectedClient.surname}
+											</dd>
 										</div>
 										{selectedClient.phone && (
 											<div>
-												<dt className="text-[10px] font-black text-gray-400 uppercase">Teléfono</dt>
-												<dd className="font-bold text-gray-800">{selectedClient.phone}</dd>
+												<dt className="text-[10px] font-black text-gray-400 uppercase">
+													Teléfono
+												</dt>
+												<dd className="font-bold text-gray-800">
+													{selectedClient.phone}
+												</dd>
 											</div>
 										)}
 										{selectedClient.email && (
 											<div>
-												<dt className="text-[10px] font-black text-gray-400 uppercase">Email</dt>
-												<dd className="font-bold text-gray-800">{selectedClient.email}</dd>
+												<dt className="text-[10px] font-black text-gray-400 uppercase">
+													Email
+												</dt>
+												<dd className="font-bold text-gray-800">
+													{selectedClient.email}
+												</dd>
 											</div>
 										)}
 										<div>
-											<dt className="text-[10px] font-black text-gray-400 uppercase">NIF/CIF</dt>
-											<dd className="font-bold text-gray-800">{selectedClient.nif || "—"}</dd>
+											<dt className="text-[10px] font-black text-gray-400 uppercase">
+												NIF/CIF
+											</dt>
+											<dd className="font-bold text-gray-800">
+												{selectedClient.nif || "—"}
+											</dd>
 										</div>
 										<div>
-											<dt className="text-[10px] font-black text-gray-400 uppercase">Origen</dt>
+											<dt className="text-[10px] font-black text-gray-400 uppercase">
+												Origen
+											</dt>
 											<dd className="font-bold text-gray-800">
 												{selectedClient.origin === "instagram"
 													? "Instagram"
 													: selectedClient.origin === "google"
-													? "Google"
-													: selectedClient.origin === "recommendation"
-													? "Recomendación"
-													: selectedClient.origin === "other"
-													? "Otro"
-													: selectedClient.origin || "—"}
+														? "Google"
+														: selectedClient.origin === "recommendation"
+															? "Recomendación"
+															: selectedClient.origin === "other"
+																? "Otro"
+																: selectedClient.origin || "—"}
 											</dd>
 										</div>
 										{selectedClient.notes && (
 											<div>
-												<dt className="text-[10px] font-black text-gray-400 uppercase">Notas</dt>
-												<dd className="font-medium text-gray-700">{selectedClient.notes}</dd>
+												<dt className="text-[10px] font-black text-gray-400 uppercase">
+													Notas
+												</dt>
+												<dd className="font-medium text-gray-700">
+													{selectedClient.notes}
+												</dd>
 											</div>
 										)}
 									</dl>
@@ -585,7 +622,9 @@ export const ClientsTab = ({
 										<Stethoscope size={14} /> Datos médicos
 									</h3>
 									<div>
-										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">Alergias</dt>
+										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">
+											Alergias
+										</dt>
 										<dd
 											className={`p-4 rounded-2xl text-sm font-medium ${
 												selectedClient.allergies
@@ -596,7 +635,9 @@ export const ClientsTab = ({
 										</dd>
 									</div>
 									<div>
-										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">Antecedentes</dt>
+										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">
+											Antecedentes
+										</dt>
 										<dd className="p-4 bg-gray-50 rounded-2xl text-sm font-medium text-gray-700 border border-gray-100 min-h-[80px]">
 											{selectedClient.medical_history || "—"}
 										</dd>
@@ -612,27 +653,36 @@ export const ClientsTab = ({
 									<div className="flex flex-col gap-4">
 										<div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
 											{selectedClient.has_consent ? (
-												<Check size={22} className="text-emerald-500 shrink-0" />
+												<Check
+													size={22}
+													className="text-emerald-500 shrink-0"
+												/>
 											) : (
 												<X size={22} className="text-gray-400 shrink-0" />
 											)}
-											<span className="font-bold text-gray-800">RGPD firmada</span>
+											<span className="font-bold text-gray-800">
+												RGPD firmada
+											</span>
 										</div>
 										<div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
 											{selectedClient.has_image_rights ? (
-												<Check size={22} className="text-emerald-500 shrink-0" />
+												<Check
+													size={22}
+													className="text-emerald-500 shrink-0"
+												/>
 											) : (
 												<X size={22} className="text-gray-400 shrink-0" />
 											)}
-											<span className="font-bold text-gray-800">Derechos de imagen</span>
+											<span className="font-bold text-gray-800">
+												Derechos de imagen
+											</span>
 										</div>
 										{selectedClient.drive_url && (
 											<a
 												href={selectedClient.drive_url}
 												target="_blank"
 												rel="noopener noreferrer"
-												className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700"
-											>
+												className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700">
 												<ExternalLink size={16} /> Carpeta Drive
 											</a>
 										)}
@@ -646,138 +696,149 @@ export const ClientsTab = ({
 										<Clock size={14} /> Tratamientos previos
 									</h3>
 
-							{historyLoading ? (
-								<div className="space-y-4">
-									{[1, 2].map((i) => (
-										<div
-											key={i}
-											className="h-24 bg-gray-100 rounded-2xl animate-pulse"
-										/>
-									))}
-								</div>
-							) : history.length > 0 ? (
-								<div className="space-y-4">
-									{history.map((session) => {
-										const sessionPhotos = photos.filter(
-											(p) => p.finance_entry_id === session.id
-										);
-										const beforePhoto = sessionPhotos.find((p) => p.type === "before");
-										const afterPhoto = sessionPhotos.find((p) => p.type === "after");
+									{historyLoading ? (
+										<div className="space-y-4">
+											{[1, 2].map((i) => (
+												<div
+													key={i}
+													className="h-24 bg-gray-100 rounded-2xl animate-pulse"
+												/>
+											))}
+										</div>
+									) : history.length > 0 ? (
+										<div className="space-y-4">
+											{history.map((session) => {
+												const sessionPhotos = photos.filter(
+													(p) => p.finance_entry_id === session.id,
+												);
+												const beforePhoto = sessionPhotos.find(
+													(p) => p.type === "before",
+												);
+												const afterPhoto = sessionPhotos.find(
+													(p) => p.type === "after",
+												);
 
-										return (
-											<div
-												key={session.id}
-												className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-rose-100 transition-all">
-												<div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-													<div className="flex items-start gap-4 flex-1 min-w-0">
-														<div className="flex flex-col items-center justify-center w-12 h-12 bg-rose-50 rounded-xl text-rose-500 font-bold border border-rose-100 shrink-0">
-															<span className="text-sm leading-none">
-																{new Date(session.date).getDate()}
-															</span>
-															<span className="text-[9px] uppercase">
-																{new Date(session.date).toLocaleString("es-ES", {
-																	month: "short",
-																})}
-															</span>
-														</div>
-														<div className="min-w-0 flex-1">
-															<h4 className="font-bold text-gray-800 text-sm xl:text-lg">
-																{session.description?.split("(")[0] || "Sesión"}
-															</h4>
-															<p className="text-[10px] text-gray-400 font-medium uppercase">
-																{session.date}
-															</p>
-															{/* Miniaturas de fotos integradas */}
-															<div className="flex items-center gap-2 mt-3 flex-wrap">
-																{beforePhoto && (
-																	<SessionPhotoThumbnail
-																		photo={beforePhoto}
-																		label="Antes"
-																		onView={() =>
-																			setViewerSession({
-																				session,
-																				before: beforePhoto,
-																				after: afterPhoto,
-																			})
-																		}
-																		onEdit={handlePhotoEdit}
-																		onDelete={handlePhotoDelete}
-																	/>
-																)}
-																{afterPhoto && (
-																	<SessionPhotoThumbnail
-																		photo={afterPhoto}
-																		label="Después"
-																		onView={() =>
-																			setViewerSession({
-																				session,
-																				before: beforePhoto,
-																				after: afterPhoto,
-																			})
-																		}
-																		onEdit={handlePhotoEdit}
-																		onDelete={handlePhotoDelete}
-																	/>
-																)}
+												return (
+													<div
+														key={session.id}
+														className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-rose-100 transition-all">
+														<div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+															<div className="flex items-start gap-4 flex-1 min-w-0">
+																<div className="flex flex-col items-center justify-center w-12 h-12 bg-rose-50 rounded-xl text-rose-500 font-bold border border-rose-100 shrink-0">
+																	<span className="text-sm leading-none">
+																		{new Date(session.date).getDate()}
+																	</span>
+																	<span className="text-[9px] uppercase">
+																		{new Date(session.date).toLocaleString(
+																			"es-ES",
+																			{
+																				month: "short",
+																			},
+																		)}
+																	</span>
+																</div>
+																<div className="min-w-0 flex-1">
+																	<h4 className="font-bold text-gray-800 text-sm xl:text-lg">
+																		{session.description?.split("(")[0] ||
+																			"Sesión"}
+																	</h4>
+																	<p className="text-[10px] text-gray-400 font-medium uppercase">
+																		{session.date}
+																	</p>
+																	{/* Miniaturas de fotos integradas */}
+																	<div className="flex items-center gap-2 mt-3 flex-wrap">
+																		{beforePhoto && (
+																			<SessionPhotoThumbnail
+																				photo={beforePhoto}
+																				label="Antes"
+																				onView={() =>
+																					setViewerSession({
+																						session,
+																						before: beforePhoto,
+																						after: afterPhoto,
+																					})
+																				}
+																				onEdit={handlePhotoEdit}
+																				onDelete={handlePhotoDelete}
+																			/>
+																		)}
+																		{afterPhoto && (
+																			<SessionPhotoThumbnail
+																				photo={afterPhoto}
+																				label="Después"
+																				onView={() =>
+																					setViewerSession({
+																						session,
+																						before: beforePhoto,
+																						after: afterPhoto,
+																					})
+																				}
+																				onEdit={handlePhotoEdit}
+																				onDelete={handlePhotoDelete}
+																			/>
+																		)}
+																		<button
+																			onClick={() => {
+																				setPhotoUploadSession(session);
+																				setShowPhotoUploadModal(true);
+																			}}
+																			className="w-16 h-20 rounded-lg border-2 border-dashed border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors shrink-0"
+																			title="Añadir foto">
+																			<Camera size={20} />
+																		</button>
+																	</div>
+																</div>
+															</div>
+															<div className="flex items-center gap-3 shrink-0">
 																<button
-																	onClick={() => {
-																		setPhotoUploadSession(session);
-																		setShowPhotoUploadModal(true);
+																	onClick={async () => {
+																		try {
+																			await generateInvoice(
+																				session,
+																				selectedClient,
+																				profile,
+																				profile?.logo_url,
+																			);
+																			showToast("Factura generada");
+																		} catch {
+																			showToast(
+																				"Error al generar factura",
+																				"error",
+																			);
+																		}
 																	}}
-																	className="w-16 h-20 rounded-lg border-2 border-dashed border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors shrink-0"
-																	title="Añadir foto">
-																	<Camera size={20} />
+																	className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
+																	title="Generar factura">
+																	<FileDown size={18} />
 																</button>
+																{Number(session.amount) > 0 && (
+																	<button
+																		onClick={() => openRefundModal(session)}
+																		className="p-2 text-gray-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
+																		title="Rectificar / Devolución">
+																		<RotateCcw size={18} />
+																	</button>
+																)}
+																<div className="text-right">
+																	<span className="block font-black text-gray-800 text-lg xl:text-xl">
+																		{formatCurrency(session.amount)}
+																	</span>
+																	<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
+																		Pagado
+																	</span>
+																</div>
 															</div>
 														</div>
 													</div>
-													<div className="flex items-center gap-3 shrink-0">
-														<button
-															onClick={async () => {
-																try {
-																	await generateInvoice(
-																		session,
-																		selectedClient,
-																		profile,
-																		profile?.logo_url
-																	);
-																	showToast("Factura generada");
-																} catch {
-																	showToast("Error al generar factura", "error");
-																}
-															}}
-															className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
-															title="Generar factura">
-															<FileDown size={18} />
-														</button>
-														{Number(session.amount) > 0 && (
-															<button
-																onClick={() => openRefundModal(session)}
-																className="p-2 text-gray-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
-																title="Rectificar / Devolución">
-																<RotateCcw size={18} />
-															</button>
-														)}
-														<div className="text-right">
-															<span className="block font-black text-gray-800 text-lg xl:text-xl">
-																{formatCurrency(session.amount)}
-															</span>
-															<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
-																Pagado
-															</span>
-														</div>
-													</div>
-												</div>
-											</div>
-										);
-									})}
-								</div>
-							) : (
-								<div className="flex flex-col items-center justify-center h-40 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
-									<FileText size={32} className="mb-2 opacity-50" />
-									<p className="font-bold text-sm">Sin historial previo</p>
-								</div>
-							)}
+												);
+											})}
+										</div>
+									) : (
+										<div className="flex flex-col items-center justify-center h-40 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
+											<FileText size={32} className="mb-2 opacity-50" />
+											<p className="font-bold text-sm">Sin historial previo</p>
+										</div>
+									)}
 								</>
 							)}
 						</div>
@@ -840,9 +901,7 @@ export const ClientsTab = ({
 						className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
 						placeholder="NIF/CIF (obligatorio para facturación)"
 						value={formData.nif}
-						onChange={(e) =>
-							setFormData({ ...formData, nif: e.target.value })
-						}
+						onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
 					/>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
@@ -955,8 +1014,8 @@ export const ClientsTab = ({
 						type="submit"
 						className="w-full bg-surface-dark text-white font-black py-4 rounded-[1.5rem] shadow-xl text-lg mt-4">
 						{savingClient ? "Guardando..." : "Guardar Cliente"}
-							</LoadingButton>
-						</form>
+					</LoadingButton>
+				</form>
 			</AdaptiveModal>
 
 			<PhotoUploadModal
@@ -1011,11 +1070,16 @@ export const ClientsTab = ({
 				{sessionToRefund && (
 					<div className="space-y-4">
 						<p className="text-sm text-gray-600">
-							Factura original: <strong>{sessionToRefund.description?.split("(")[0] || "Sesión"}</strong> — {formatCurrency(sessionToRefund.amount)}
+							Factura original:{" "}
+							<strong>
+								{sessionToRefund.description?.split("(")[0] || "Sesión"}
+							</strong>{" "}
+							— {formatCurrency(sessionToRefund.amount)}
 						</p>
 						<div>
 							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
-								¿Cuánto quieres devolver? (máx. {formatCurrency(sessionToRefund.amount)})
+								¿Cuánto quieres devolver? (máx.{" "}
+								{formatCurrency(sessionToRefund.amount)})
 							</label>
 							<input
 								type="number"
@@ -1032,9 +1096,12 @@ export const ClientsTab = ({
 							type="button"
 							loading={processingRefund}
 							onClick={confirmRefund}
-							disabled={!refundAmount || Number(refundAmount) <= 0 || Number(refundAmount) > Number(sessionToRefund.amount)}
-							className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-4 rounded-xl"
-						>
+							disabled={
+								!refundAmount ||
+								Number(refundAmount) <= 0 ||
+								Number(refundAmount) > Number(sessionToRefund.amount)
+							}
+							className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-4 rounded-xl">
 							{processingRefund ? "Procesando..." : "Generar abono y PDF"}
 						</LoadingButton>
 					</div>

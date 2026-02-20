@@ -38,41 +38,47 @@ const getQuarterDateRange = (year, quarter) => {
 const filterByQuarter = (entries, year, quarter) => {
 	if (!entries || entries.length === 0) return [];
 	const { startDate, endDate } = getQuarterDateRange(year, quarter);
-	return entries.filter(
-		(e) => e.date >= startDate && e.date <= endDate
-	);
+	return entries.filter((e) => e.date >= startDate && e.date <= endDate);
 };
 
-export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {} }) => {
+export const TaxesTab = ({
+	entries = [],
+	clients = [],
+	user,
+	showToast = () => {},
+}) => {
 	const currentYear = new Date().getFullYear();
 	const [selectedYear, setSelectedYear] = useState(currentYear);
 	const [selectedQuarter, setSelectedQuarter] = useState(
-		Math.floor((new Date().getMonth() + 3) / 3)
+		Math.floor((new Date().getMonth() + 3) / 3),
 	);
 	const [exporting, setExporting] = useState(false);
 
-	const years = Array.from(
-		{ length: 5 },
-		(_, i) => currentYear - i
-	);
+	const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
 	const quarterEntries = useMemo(
 		() => filterByQuarter(entries, selectedYear, selectedQuarter),
-		[entries, selectedYear, selectedQuarter]
+		[entries, selectedYear, selectedQuarter],
 	);
 
 	// Resultado Operativo: Suma bases ingresos - Suma bases gastos deducibles
 	const resultadoOperativo = useMemo(() => {
 		const incomes = quarterEntries.filter((e) => e.type === "income");
-		const expenses = quarterEntries.filter((e) => e.type === "expense" && e.is_deductible === true);
+		const expenses = quarterEntries.filter(
+			(e) => e.type === "expense" && e.is_deductible === true,
+		);
 
 		const sumBaseIncome = incomes.reduce(
-			(acc, e) => acc + (Number(e.tax_base) ?? Number(e.base_amount) ?? Number(e.amount) ?? 0),
-			0
+			(acc, e) =>
+				acc +
+				(Number(e.tax_base) ?? Number(e.base_amount) ?? Number(e.amount) ?? 0),
+			0,
 		);
 		const sumBaseExpense = expenses.reduce(
-			(acc, e) => acc + (Number(e.tax_base) ?? Number(e.base_amount) ?? Number(e.amount) ?? 0),
-			0
+			(acc, e) =>
+				acc +
+				(Number(e.tax_base) ?? Number(e.base_amount) ?? Number(e.amount) ?? 0),
+			0,
 		);
 		return sumBaseIncome - sumBaseExpense;
 	}, [quarterEntries]);
@@ -80,15 +86,17 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 	// Liquidación IVA 303: IVA Repercutido - IVA Soportado (solo deducibles)
 	const liquidacionIVA = useMemo(() => {
 		const incomes = quarterEntries.filter((e) => e.type === "income");
-		const expenses = quarterEntries.filter((e) => e.type === "expense" && e.is_deductible === true);
+		const expenses = quarterEntries.filter(
+			(e) => e.type === "expense" && e.is_deductible === true,
+		);
 
 		const ivaRepercutido = incomes.reduce(
 			(acc, e) => acc + (Number(e.tax_amount) ?? 0),
-			0
+			0,
 		);
 		const ivaSoportado = expenses.reduce(
 			(acc, e) => acc + (Number(e.tax_amount) ?? 0),
-			0
+			0,
 		);
 		return ivaRepercutido - ivaSoportado;
 	}, [quarterEntries]);
@@ -165,7 +173,7 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 								selectedYear,
 								selectedQuarter,
 								user?.id,
-								showToast
+								showToast,
 							);
 							setExporting(false);
 						}}
@@ -193,9 +201,7 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 					</p>
 					<p
 						className={`text-3xl font-black ${
-							resultadoOperativo >= 0
-								? "text-emerald-600"
-								: "text-rose-500"
+							resultadoOperativo >= 0 ? "text-emerald-600" : "text-rose-500"
 						}`}>
 						{formatCurrency(resultadoOperativo)}
 					</p>
@@ -216,9 +222,7 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 					</p>
 					<p
 						className={`text-3xl font-black ${
-							liquidacionIVA >= 0
-								? "text-blue-600"
-								: "text-rose-500"
+							liquidacionIVA >= 0 ? "text-blue-600" : "text-rose-500"
 						}`}>
 						{formatCurrency(liquidacionIVA)}
 					</p>
@@ -226,8 +230,8 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 						{liquidacionIVA > 0
 							? "A favor de Hacienda"
 							: liquidacionIVA < 0
-							? "A devolver por Hacienda"
-							: "Neutro"}
+								? "A devolver por Hacienda"
+								: "Neutro"}
 					</p>
 				</div>
 
@@ -237,9 +241,7 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 						<div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center">
 							<Percent size={24} />
 						</div>
-						<h3 className="font-black text-gray-800 text-lg">
-							IRPF (130)
-						</h3>
+						<h3 className="font-black text-gray-800 text-lg">IRPF (130)</h3>
 					</div>
 					<p className="text-xs text-gray-500 mb-2">
 						20% del Resultado Operativo
@@ -264,11 +266,7 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 				{monthlyBreakdown.length > 0 ? (
 					<div className="space-y-4">
 						{monthlyBreakdown.map((row) => {
-							const maxVal = Math.max(
-								row.income,
-								row.expense,
-								1
-							);
+							const maxVal = Math.max(row.income, row.expense, 1);
 							const incomePct = (row.income / maxVal) * 100;
 							const expensePct = (row.expense / maxVal) * 100;
 							return (
@@ -302,9 +300,7 @@ export const TaxesTab = ({ entries = [], clients = [], user, showToast = () => {
 											</span>
 											<span
 												className={`font-bold sm:block ${
-													row.profit >= 0
-														? "text-emerald-600"
-														: "text-rose-500"
+													row.profit >= 0 ? "text-emerald-600" : "text-rose-500"
 												}`}>
 												{row.profit >= 0 ? "+" : ""}
 												{formatCurrency(row.profit)}

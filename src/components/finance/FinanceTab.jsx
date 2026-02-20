@@ -26,7 +26,11 @@ import {
 } from "../../utils/format";
 import { exportToCSV, exportTrimestreToExcel } from "../../utils/export";
 import { filterByDate, getDateLabel } from "../../utils/dateUtils";
-import { uploadReceipt, getReceiptUrl, getReceiptSignedUrl } from "../../services/receiptStorage";
+import {
+	uploadReceipt,
+	getReceiptUrl,
+	getReceiptSignedUrl,
+} from "../../services/receiptStorage";
 import {
 	validateSpanishTaxId,
 	validateFile,
@@ -84,8 +88,14 @@ export const FinanceTab = ({
 	});
 	const [receiptFile, setReceiptFile] = useState(null);
 	const [receiptPreview, setReceiptPreview] = useState(null);
-	const [nifValidation, setNifValidation] = useState({ valid: true, error: null });
-	const [fileValidation, setFileValidation] = useState({ valid: true, error: null });
+	const [nifValidation, setNifValidation] = useState({
+		valid: true,
+		error: null,
+	});
+	const [fileValidation, setFileValidation] = useState({
+		valid: true,
+		error: null,
+	});
 	const [dateWarning, setDateWarning] = useState(null);
 	const [invoiceSuggestions, setInvoiceSuggestions] = useState([]);
 	const [showSuggestions, setShowSuggestions] = useState(false);
@@ -93,7 +103,7 @@ export const FinanceTab = ({
 	const taxCalc = useMemo(() => {
 		const { baseAmount, taxAmount } = calculateTaxFromTotal(
 			formData.amount,
-			formData.tax_rate
+			formData.tax_rate,
 		);
 		return { base_amount: baseAmount, tax_amount: taxAmount };
 	}, [formData.amount, formData.tax_rate]);
@@ -135,7 +145,7 @@ export const FinanceTab = ({
 			.filter(
 				(e) =>
 					e.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-					e.category?.toLowerCase().includes(searchTerm.toLowerCase())
+					e.category?.toLowerCase().includes(searchTerm.toLowerCase()),
 			)
 			.sort((a, b) => new Date(b.date) - new Date(a.date));
 	}, [periodEntries, searchTerm, typeFilter]);
@@ -155,7 +165,7 @@ export const FinanceTab = ({
 			.find(
 				(e) =>
 					e.category === "Fijo" &&
-					e.description.toLowerCase().includes(expense.category.toLowerCase())
+					e.description.toLowerCase().includes(expense.category.toLowerCase()),
 			);
 		return found ? { paid: true, date: found.date } : { paid: false };
 	};
@@ -207,13 +217,24 @@ export const FinanceTab = ({
 		if (formData.is_deductible && formData.supplier_nif) {
 			const validation = validateSpanishTaxId(formData.supplier_nif);
 			setNifValidation(validation);
-			
+
 			if (validation.valid && validation.normalized) {
-				setFormData((prev) => ({ ...prev, supplier_nif: validation.normalized }));
-				const expenseEntries = entries.filter((e) => e.type === "expense" && e.is_deductible);
-				const suggestions = getInvoiceSuggestions(validation.normalized, expenseEntries, 5);
+				setFormData((prev) => ({
+					...prev,
+					supplier_nif: validation.normalized,
+				}));
+				const expenseEntries = entries.filter(
+					(e) => e.type === "expense" && e.is_deductible,
+				);
+				const suggestions = getInvoiceSuggestions(
+					validation.normalized,
+					expenseEntries,
+					5,
+				);
 				setInvoiceSuggestions(suggestions);
-				setShowSuggestions(suggestions.length > 0 && formData.supplier_nif.length >= 3);
+				setShowSuggestions(
+					suggestions.length > 0 && formData.supplier_nif.length >= 3,
+				);
 			} else {
 				setInvoiceSuggestions([]);
 				setShowSuggestions(false);
@@ -234,31 +255,46 @@ export const FinanceTab = ({
 			!receiptFile &&
 			!editingEntry
 		) {
-			const expenseEntries = entries.filter((e) => e.type === "expense" && e.is_deductible);
+			const expenseEntries = entries.filter(
+				(e) => e.type === "expense" && e.is_deductible,
+			);
 			const normalizedNif = nifValidation.normalized || formData.supplier_nif;
 			const normalizedInvoice = normalizeInvoiceNumber(formData.invoice_number);
-			
+
 			const existingEntry = expenseEntries.find(
 				(e) =>
 					e.supplier_nif === normalizedNif &&
 					normalizeInvoiceNumber(e.invoice_number) === normalizedInvoice &&
-					e.file_url
+					e.file_url,
 			);
-			
+
 			if (existingEntry?.file_url && !formData.file_url) {
 				setFormData((prev) => ({ ...prev, file_url: existingEntry.file_url }));
 			}
 		}
-	}, [formData.supplier_nif, formData.invoice_number, formData.is_deductible, receiptFile, editingEntry, entries, nifValidation.normalized]);
+	}, [
+		formData.supplier_nif,
+		formData.invoice_number,
+		formData.is_deductible,
+		receiptFile,
+		editingEntry,
+		entries,
+		nifValidation.normalized,
+	]);
 
 	// Efecto para validar coherencia de fecha
 	useEffect(() => {
-		if (formData.is_deductible && formData.supplier_nif && formData.invoice_number && formData.date) {
+		if (
+			formData.is_deductible &&
+			formData.supplier_nif &&
+			formData.invoice_number &&
+			formData.date
+		) {
 			const validation = validateInvoiceDateConsistency(
 				formData.date,
 				formData.supplier_nif,
 				formData.invoice_number,
-				entries.filter((e) => e.type === "expense" && e.is_deductible)
+				entries.filter((e) => e.type === "expense" && e.is_deductible),
 			);
 			setDateWarning(validation);
 		} else {
@@ -275,9 +311,9 @@ export const FinanceTab = ({
 				e.is_deductible &&
 				e.supplier_nif === suggestion.supplier_nif &&
 				e.invoice_number === suggestion.invoice_number &&
-				e.file_url
+				e.file_url,
 		);
-		
+
 		setFormData((prev) => ({
 			...prev,
 			supplier_nif: suggestion.supplier_nif,
@@ -285,13 +321,13 @@ export const FinanceTab = ({
 			date: suggestion.date,
 			file_url: existingEntry?.file_url || "",
 		}));
-		
+
 		// Si hay archivo existente, no pedir subir uno nuevo
 		if (existingEntry?.file_url) {
 			setReceiptFile(null);
 			setReceiptPreview(null);
 		}
-		
+
 		setShowSuggestions(false);
 	};
 
@@ -300,7 +336,7 @@ export const FinanceTab = ({
 		if (file) {
 			const validation = validateFile(file);
 			setFileValidation(validation);
-			
+
 			if (validation.valid) {
 				setReceiptFile(file);
 				// Crear preview
@@ -327,7 +363,7 @@ export const FinanceTab = ({
 
 	const handleSaveEntry = async (e) => {
 		e.preventDefault();
-		
+
 		// Validaciones antes de guardar
 		if (formData.is_deductible) {
 			// Validar NIF
@@ -336,19 +372,22 @@ export const FinanceTab = ({
 				showToast(nifValidation.error, "error");
 				return;
 			}
-			
+
 			// Validar número de factura obligatorio
 			if (!formData.invoice_number?.trim()) {
-				showToast("El número de factura es obligatorio para facturas deducibles", "error");
+				showToast(
+					"El número de factura es obligatorio para facturas deducibles",
+					"error",
+				);
 				return;
 			}
-			
+
 			// Validar archivo obligatorio (solo si no hay uno existente)
 			if (!receiptFile && !editingEntry?.file_url && !formData.file_url) {
 				showToast("Debe subir el archivo de la factura", "error");
 				return;
 			}
-			
+
 			// Validar archivo si hay uno nuevo
 			if (receiptFile) {
 				const fileValidation = validateFile(receiptFile);
@@ -358,16 +397,18 @@ export const FinanceTab = ({
 				}
 			}
 		}
-		
+
 		setSavingEntry(true);
 		try {
 			const taxRate = Number(formData.tax_rate) || 0;
 			const amount = Number(formData.amount);
 			const { baseAmount, taxAmount } = calculateTaxFromTotal(amount, taxRate);
-			
+
 			// Normalizar número de factura
-			const normalizedInvoiceNumber = formData.invoice_number ? normalizeInvoiceNumber(formData.invoice_number) : null;
-			
+			const normalizedInvoiceNumber = formData.invoice_number
+				? normalizeInvoiceNumber(formData.invoice_number)
+				: null;
+
 			const payload = {
 				type: formData.type,
 				amount,
@@ -380,10 +421,14 @@ export const FinanceTab = ({
 				date: formData.date,
 				notes: formData.notes || null,
 				is_deductible: formData.is_deductible || false,
-				supplier_nif: formData.is_deductible ? (nifValidation.normalized || null) : null,
+				supplier_nif: formData.is_deductible
+					? nifValidation.normalized || null
+					: null,
 				invoice_number: formData.is_deductible ? normalizedInvoiceNumber : null,
 				// Mantener file_url existente si no hay archivo nuevo
-				file_url: receiptFile ? undefined : (editingEntry?.file_url || formData.file_url || null),
+				file_url: receiptFile
+					? undefined
+					: editingEntry?.file_url || formData.file_url || null,
 				user_id: user.id,
 			};
 
@@ -413,12 +458,18 @@ export const FinanceTab = ({
 					// Subir archivo nuevo
 					try {
 						// Crear invoiceKey si hay NIF y número de factura para compartir archivo
-						const invoiceKey = nifValidation.normalized && normalizedInvoiceNumber
-							? `${nifValidation.normalized}_${normalizedInvoiceNumber}`
-							: null;
-						
-						const path = await uploadReceipt(user.id, insertedId, receiptFile, invoiceKey);
-						
+						const invoiceKey =
+							nifValidation.normalized && normalizedInvoiceNumber
+								? `${nifValidation.normalized}_${normalizedInvoiceNumber}`
+								: null;
+
+						const path = await uploadReceipt(
+							user.id,
+							insertedId,
+							receiptFile,
+							invoiceKey,
+						);
+
 						// Si hay invoiceKey, actualizar todos los gastos con la misma factura
 						if (invoiceKey) {
 							await supabase
@@ -429,7 +480,10 @@ export const FinanceTab = ({
 								.eq("invoice_number", normalizedInvoiceNumber)
 								.is("file_url", null);
 						} else {
-							await supabase.from("finance_entries").update({ file_url: path }).eq("id", insertedId);
+							await supabase
+								.from("finance_entries")
+								.update({ file_url: path })
+								.eq("id", insertedId);
 						}
 					} catch (fileErr) {
 						console.error("Error subiendo archivo:", fileErr);
@@ -539,7 +593,6 @@ export const FinanceTab = ({
 		}
 	};
 
-
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			{/* MODALES DE CONFIRMACIÓN */}
@@ -638,8 +691,8 @@ export const FinanceTab = ({
 							{type === "all"
 								? "Todo"
 								: type === "income"
-								? "Ingresos"
-								: "Gastos"}
+									? "Ingresos"
+									: "Gastos"}
 						</button>
 					))}
 				</div>
@@ -662,53 +715,62 @@ export const FinanceTab = ({
 							<div
 								key={entry.id}
 								className="p-4 border-b last:border-0 hover:bg-gray-50 transition-colors flex justify-between items-center group">
-										<div>
-											<p className="font-bold text-gray-800 text-sm">
-												{entry.description}
-											</p>
-											<p className="text-[10px] text-gray-400 font-bold uppercase">
-												{entry.date} • {entry.category}
-												{entry.is_deductible && " • Factura deducible"}
-											</p>
-											{entry.notes && (
-												<p className="text-[10px] text-gray-400 italic mt-1 flex items-center gap-1">
-													<FileText size={10} /> {entry.notes}
-												</p>
-											)}
-										</div>
-										<div className="flex items-center gap-2">
-											{entry.type === "expense" && entry.file_url && (
-												<a
-													href="#"
-													onClick={async (e) => {
-														e.preventDefault();
-														try {
-															const url = await getReceiptSignedUrl(entry.file_url);
-															if (url) {
-																window.open(url, "_blank");
-															} else {
-																// Fallback a URL pública
-																const publicUrl = getReceiptUrl(entry.file_url);
-																if (publicUrl) {
-																	window.open(publicUrl, "_blank");
-																} else {
-																	showToast("Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.", "error");
-																}
-															}
-														} catch (err) {
-															console.error("Error descargando archivo:", err);
-															if (err?.message?.includes("Bucket not found") || err?.error === "Bucket not found") {
-																showToast("Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.", "error");
-															} else {
-																showToast("Error al descargar el archivo", "error");
-															}
+								<div>
+									<p className="font-bold text-gray-800 text-sm">
+										{entry.description}
+									</p>
+									<p className="text-[10px] text-gray-400 font-bold uppercase">
+										{entry.date} • {entry.category}
+										{entry.is_deductible && " • Factura deducible"}
+									</p>
+									{entry.notes && (
+										<p className="text-[10px] text-gray-400 italic mt-1 flex items-center gap-1">
+											<FileText size={10} /> {entry.notes}
+										</p>
+									)}
+								</div>
+								<div className="flex items-center gap-2">
+									{entry.type === "expense" && entry.file_url && (
+										<a
+											href="#"
+											onClick={async (e) => {
+												e.preventDefault();
+												try {
+													const url = await getReceiptSignedUrl(entry.file_url);
+													if (url) {
+														window.open(url, "_blank");
+													} else {
+														// Fallback a URL pública
+														const publicUrl = getReceiptUrl(entry.file_url);
+														if (publicUrl) {
+															window.open(publicUrl, "_blank");
+														} else {
+															showToast(
+																"Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.",
+																"error",
+															);
 														}
-													}}
-													className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-													title="Ver/Descargar justificante">
-													<Download size={16} />
-												</a>
-											)}
+													}
+												} catch (err) {
+													console.error("Error descargando archivo:", err);
+													if (
+														err?.message?.includes("Bucket not found") ||
+														err?.error === "Bucket not found"
+													) {
+														showToast(
+															"Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.",
+															"error",
+														);
+													} else {
+														showToast("Error al descargar el archivo", "error");
+													}
+												}
+											}}
+											className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+											title="Ver/Descargar justificante">
+											<Download size={16} />
+										</a>
+									)}
 									<span
 										className={`font-black text-sm ${
 											entry.type === "income"
@@ -874,17 +936,22 @@ export const FinanceTab = ({
 												{entry.date} •{" "}
 												<span className="text-rose-400">{entry.category}</span>
 												{entry.is_deductible && " • Factura deducible"}
-												{entry.is_deductible && entry.supplier_nif && entry.invoice_number && (() => {
-													const sameInvoice = periodEntries.filter(
-														(e) =>
-															e.type === "expense" &&
-															e.is_deductible &&
-															e.supplier_nif === entry.supplier_nif &&
-															e.invoice_number === entry.invoice_number &&
-															e.id !== entry.id
-													).length;
-													return sameInvoice > 0 ? ` • ${sameInvoice + 1} materiales` : "";
-												})()}
+												{entry.is_deductible &&
+													entry.supplier_nif &&
+													entry.invoice_number &&
+													(() => {
+														const sameInvoice = periodEntries.filter(
+															(e) =>
+																e.type === "expense" &&
+																e.is_deductible &&
+																e.supplier_nif === entry.supplier_nif &&
+																e.invoice_number === entry.invoice_number &&
+																e.id !== entry.id,
+														).length;
+														return sameInvoice > 0
+															? ` • ${sameInvoice + 1} materiales`
+															: "";
+													})()}
 											</p>
 										</div>
 										<div className="flex items-center gap-2">
@@ -894,7 +961,9 @@ export const FinanceTab = ({
 													onClick={async (e) => {
 														e.preventDefault();
 														try {
-															const url = await getReceiptSignedUrl(entry.file_url);
+															const url = await getReceiptSignedUrl(
+																entry.file_url,
+															);
 															if (url) {
 																window.open(url, "_blank");
 															} else {
@@ -903,15 +972,27 @@ export const FinanceTab = ({
 																if (publicUrl) {
 																	window.open(publicUrl, "_blank");
 																} else {
-																	showToast("Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.", "error");
+																	showToast(
+																		"Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.",
+																		"error",
+																	);
 																}
 															}
 														} catch (err) {
 															console.error("Error descargando archivo:", err);
-															if (err?.message?.includes("Bucket not found") || err?.error === "Bucket not found") {
-																showToast("Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.", "error");
+															if (
+																err?.message?.includes("Bucket not found") ||
+																err?.error === "Bucket not found"
+															) {
+																showToast(
+																	"Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.",
+																	"error",
+																);
 															} else {
-																showToast("Error al descargar el archivo", "error");
+																showToast(
+																	"Error al descargar el archivo",
+																	"error",
+																);
 															}
 														}
 													}}
@@ -1006,324 +1087,361 @@ export const FinanceTab = ({
 					editingEntry
 						? "Editar Movimiento"
 						: formData.type === "income"
-						? "Registrar Ingreso"
-						: "Registrar Gasto"
+							? "Registrar Ingreso"
+							: "Registrar Gasto"
 				}
 				maxWidth="max-w-md">
-				<form
-					onSubmit={handleSaveEntry}
-					className="space-y-5">
+				<form onSubmit={handleSaveEntry} className="space-y-5">
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Descripción
+						</label>
+						<input
+							required
+							className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-gray-200 outline-none"
+							value={formData.description}
+							onChange={(e) =>
+								setFormData({ ...formData, description: e.target.value })
+							}
+						/>
+					</div>
+					{formData.type === "expense" && (
+						<div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
+							<input
+								type="checkbox"
+								id="is_deductible"
+								checked={formData.is_deductible}
+								onChange={(e) => {
+									const checked = e.target.checked;
+									setFormData({
+										...formData,
+										is_deductible: checked,
+										tax_rate: checked ? 21 : 0,
+										supplier_nif: checked ? formData.supplier_nif : "",
+										invoice_number: checked ? formData.invoice_number : "",
+									});
+								}}
+								className="w-5 h-5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+							/>
+							<label
+								htmlFor="is_deductible"
+								className="font-bold text-gray-800 cursor-pointer flex-1">
+								¿Es Factura Deducible?
+							</label>
+						</div>
+					)}
+					<div className="flex gap-4">
+						<div className="flex-1">
+							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+								Importe Total (€)
+							</label>
+							<input
+								required
+								type="number"
+								step="0.01"
+								placeholder="0.00 €"
+								className="w-full p-4 bg-gray-50 rounded-xl font-black text-rose-500 text-xl placeholder:text-rose-300"
+								value={formData.amount}
+								onChange={(e) =>
+									setFormData({ ...formData, amount: e.target.value })
+								}
+							/>
+						</div>
+						{formData.type === "expense" && formData.is_deductible && (
+							<div className="flex-1">
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									IVA (%)
+								</label>
+								<select
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+									value={formData.tax_rate}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											tax_rate: Number(e.target.value),
+										})
+									}>
+									{IVA_OPTIONS.map((v) => (
+										<option key={v} value={v}>
+											{v}%
+										</option>
+									))}
+								</select>
+							</div>
+						)}
+					</div>
+					{formData.type === "expense" &&
+						formData.is_deductible &&
+						formData.amount && (
+							<div className="text-xs font-bold text-gray-500 bg-gray-50 p-3 rounded-xl">
+								Base: {formatCurrency(taxCalc.base_amount)} | Cuota IVA:{" "}
+								{formatCurrency(taxCalc.tax_amount)}
+							</div>
+						)}
+					{formData.type === "expense" && formData.is_deductible && (
+						<>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									Descripción
+									NIF/CIF Proveedor *
 								</label>
-								<input
-									required
-									className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-gray-200 outline-none"
-									value={formData.description}
-									onChange={(e) =>
-										setFormData({ ...formData, description: e.target.value })
-									}
-								/>
-							</div>
-							{formData.type === "expense" && (
-								<div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
+								<div className="relative">
 									<input
-										type="checkbox"
-										id="is_deductible"
-										checked={formData.is_deductible}
-										onChange={(e) => {
-											const checked = e.target.checked;
-											setFormData({
-												...formData,
-												is_deductible: checked,
-												tax_rate: checked ? 21 : 0,
-												supplier_nif: checked ? formData.supplier_nif : "",
-												invoice_number: checked ? formData.invoice_number : "",
-											});
-										}}
-										className="w-5 h-5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
-									/>
-									<label htmlFor="is_deductible" className="font-bold text-gray-800 cursor-pointer flex-1">
-										¿Es Factura Deducible?
-									</label>
-								</div>
-							)}
-							<div className="flex gap-4">
-								<div className="flex-1">
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-										Importe Total (€)
-									</label>
-									<input
-										required
-										type="number"
-										step="0.01"
-										placeholder="0.00 €"
-										className="w-full p-4 bg-gray-50 rounded-xl font-black text-rose-500 text-xl placeholder:text-rose-300"
-										value={formData.amount}
+										required={formData.is_deductible}
+										placeholder="Ej: B12345678"
+										className={`w-full p-4 bg-gray-50 rounded-xl font-bold border-2 outline-none transition-colors ${
+											nifValidation.valid
+												? "border-transparent focus:bg-white focus:border-rose-100"
+												: "border-red-300 bg-red-50 focus:bg-white focus:border-red-400"
+										}`}
+										value={formData.supplier_nif}
 										onChange={(e) =>
-											setFormData({ ...formData, amount: e.target.value })
+											setFormData({ ...formData, supplier_nif: e.target.value })
+										}
+										onFocus={() =>
+											setShowSuggestions(invoiceSuggestions.length > 0)
 										}
 									/>
+									{nifValidation.error && (
+										<p className="mt-1 text-xs font-bold text-red-600 flex items-center gap-1">
+											<AlertCircle size={12} />
+											{nifValidation.error}
+										</p>
+									)}
+									{nifValidation.valid && nifValidation.type && (
+										<p className="mt-1 text-xs font-bold text-emerald-600">
+											✓ {nifValidation.type} válido
+										</p>
+									)}
 								</div>
-								{formData.type === "expense" && formData.is_deductible && (
-									<div className="flex-1">
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-											IVA (%)
-										</label>
-										<select
-											className="w-full p-4 bg-gray-50 rounded-xl font-bold"
-											value={formData.tax_rate}
-											onChange={(e) =>
-												setFormData({ ...formData, tax_rate: Number(e.target.value) })
-											}>
-											{IVA_OPTIONS.map((v) => (
-												<option key={v} value={v}>{v}%</option>
+								{showSuggestions && invoiceSuggestions.length > 0 && (
+									<div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+										<p className="text-xs font-bold text-blue-800 mb-2">
+											Facturas anteriores de este proveedor:
+										</p>
+										<div className="space-y-2">
+											{invoiceSuggestions.map((sug, idx) => (
+												<button
+													key={idx}
+													type="button"
+													onClick={() => useInvoiceSuggestion(sug)}
+													className="w-full p-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-left flex items-center justify-between group">
+													<div className="flex-1 min-w-0">
+														<p className="text-xs font-bold text-gray-800 truncate">
+															Factura: {sug.invoice_number}
+														</p>
+														<p className="text-[10px] text-gray-500">
+															{sug.date} • {sug.count} material(es)
+														</p>
+													</div>
+													<Copy
+														size={14}
+														className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+													/>
+												</button>
 											))}
-										</select>
+										</div>
 									</div>
 								)}
 							</div>
-							{formData.type === "expense" && formData.is_deductible && formData.amount && (
-								<div className="text-xs font-bold text-gray-500 bg-gray-50 p-3 rounded-xl">
-									Base: {formatCurrency(taxCalc.base_amount)} | Cuota IVA: {formatCurrency(taxCalc.tax_amount)}
-								</div>
-							)}
-							{formData.type === "expense" && formData.is_deductible && (
-								<>
-									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-											NIF/CIF Proveedor *
-										</label>
-										<div className="relative">
-											<input
-												required={formData.is_deductible}
-												placeholder="Ej: B12345678"
-												className={`w-full p-4 bg-gray-50 rounded-xl font-bold border-2 outline-none transition-colors ${
-													nifValidation.valid
-														? "border-transparent focus:bg-white focus:border-rose-100"
-														: "border-red-300 bg-red-50 focus:bg-white focus:border-red-400"
-												}`}
-												value={formData.supplier_nif}
-												onChange={(e) =>
-													setFormData({ ...formData, supplier_nif: e.target.value })
-												}
-												onFocus={() => setShowSuggestions(invoiceSuggestions.length > 0)}
-											/>
-											{nifValidation.error && (
-												<p className="mt-1 text-xs font-bold text-red-600 flex items-center gap-1">
-													<AlertCircle size={12} />
-													{nifValidation.error}
-												</p>
-											)}
-											{nifValidation.valid && nifValidation.type && (
-												<p className="mt-1 text-xs font-bold text-emerald-600">
-													✓ {nifValidation.type} válido
-												</p>
-											)}
-										</div>
-										{showSuggestions && invoiceSuggestions.length > 0 && (
-											<div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-												<p className="text-xs font-bold text-blue-800 mb-2">Facturas anteriores de este proveedor:</p>
-												<div className="space-y-2">
-													{invoiceSuggestions.map((sug, idx) => (
-														<button
-															key={idx}
-															type="button"
-															onClick={() => useInvoiceSuggestion(sug)}
-															className="w-full p-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-left flex items-center justify-between group">
-															<div className="flex-1 min-w-0">
-																<p className="text-xs font-bold text-gray-800 truncate">
-																	Factura: {sug.invoice_number}
-																</p>
-																<p className="text-[10px] text-gray-500">
-																	{sug.date} • {sug.count} material(es)
-																</p>
-															</div>
-															<Copy size={14} className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-														</button>
-													))}
-												</div>
-											</div>
-										)}
-									</div>
-									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-											Nº Factura Proveedor *
-										</label>
-										<input
-											required={formData.is_deductible}
-											placeholder="Ej: F2026-001"
-											className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
-											value={formData.invoice_number}
-											onChange={(e) =>
-												setFormData({ ...formData, invoice_number: normalizeInvoiceNumber(e.target.value) })
-											}
-										/>
-									</div>
-									{dateWarning?.warning && (
-										<div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
-											<p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
-												<AlertCircle size={14} />
-												{dateWarning.warning}
-											</p>
-											{dateWarning.suggestedDate && (
-												<button
-													type="button"
-													onClick={() => setFormData((prev) => ({ ...prev, date: dateWarning.suggestedDate }))}
-													className="text-xs font-bold text-amber-700 hover:underline">
-													Usar fecha: {dateWarning.suggestedDate}
-												</button>
-											)}
-										</div>
-									)}
-									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-											Justificante (foto o PDF) {editingEntry?.file_url || formData.file_url ? "" : "*"}
-										</label>
-										{(editingEntry?.file_url || formData.file_url) && !receiptFile && (
-											<div className="mb-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-												<div className="flex items-center justify-between mb-2">
-													<span className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-														<FileText size={16} />
-														Archivo existente: {(editingEntry?.file_url || formData.file_url).split("/").pop()}
-													</span>
-													<a
-														href="#"
-														onClick={async (e) => {
-															e.preventDefault();
-															const fileUrl = editingEntry?.file_url || formData.file_url;
-															if (fileUrl) {
-																try {
-																	const url = await getReceiptSignedUrl(fileUrl);
-																	if (url) {
-																		window.open(url, "_blank");
-																	} else {
-																		const publicUrl = getReceiptUrl(fileUrl);
-																		if (publicUrl) window.open(publicUrl, "_blank");
-																	}
-																} catch (err) {
-																	showToast("Error al abrir archivo", "error");
-																}
-															}
-														}}
-														className="text-xs font-bold text-emerald-600 hover:underline">
-														Ver
-													</a>
-												</div>
-												<p className="text-xs text-emerald-600 italic">
-													Este archivo se reutilizará. Puedes cambiarlo si lo deseas.
-												</p>
-												<button
-													type="button"
-													onClick={(e) => {
-														e.preventDefault();
-														const input = document.getElementById("receipt-file-input");
-														if (input) input.click();
-													}}
-													className="mt-2 text-xs font-bold text-emerald-600 hover:underline">
-													Cambiar archivo
-												</button>
-											</div>
-										)}
-										{receiptPreview && (
-											<div className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-xl">
-												<p className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
-													<ImageIcon size={14} />
-													Vista previa:
-												</p>
-												<img
-													src={receiptPreview}
-													alt="Preview"
-													className="max-w-full h-auto max-h-32 rounded-lg border border-gray-300"
-												/>
-											</div>
-										)}
-										<input
-											id="receipt-file-input"
-											required={formData.is_deductible && !editingEntry?.file_url && !formData.file_url}
-											type="file"
-											accept="image/jpeg,image/png,image/webp,application/pdf"
-											className="w-full p-3 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:font-bold file:bg-rose-50 file:text-rose-600"
-											onChange={handleFileChange}
-										/>
-										{receiptFile && (
-											<p className="mt-2 text-xs font-bold text-emerald-600">
-												✓ Archivo seleccionado: {receiptFile.name} ({(receiptFile.size / 1024 / 1024).toFixed(2)} MB)
-											</p>
-										)}
-										{fileValidation.error && (
-											<p className="mt-2 text-xs font-bold text-red-600 flex items-center gap-1">
-												<AlertCircle size={12} />
-												{fileValidation.error}
-											</p>
-										)}
-									</div>
-								</>
-							)}
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									Fecha
+									Nº Factura Proveedor *
 								</label>
 								<input
-									required
-									type="date"
-									className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm"
-									value={formData.date}
+									required={formData.is_deductible}
+									placeholder="Ej: F2026-001"
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
+									value={formData.invoice_number}
 									onChange={(e) =>
-										setFormData({ ...formData, date: e.target.value })
+										setFormData({
+											...formData,
+											invoice_number: normalizeInvoiceNumber(e.target.value),
+										})
 									}
 								/>
 							</div>
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									Categoría
-								</label>
-								<select
-									className="w-full p-4 bg-gray-50 rounded-2xl font-bold"
-									value={formData.category}
-									onChange={(e) =>
-										setFormData({ ...formData, category: e.target.value })
-									}>
-									{formData.type === "income" ? (
-										<>
-											<option>Servicio</option>
-											<option>Producto</option>
-											<option>Otros</option>
-										</>
-									) : (
-										<>
-											<option>Material</option>
-											<option>Alquiler</option>
-											<option>Marketing</option>
-											<option>Suministros</option>
-											<option>Otros</option>
-										</>
+							{dateWarning?.warning && (
+								<div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+									<p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
+										<AlertCircle size={14} />
+										{dateWarning.warning}
+									</p>
+									{dateWarning.suggestedDate && (
+										<button
+											type="button"
+											onClick={() =>
+												setFormData((prev) => ({
+													...prev,
+													date: dateWarning.suggestedDate,
+												}))
+											}
+											className="text-xs font-bold text-amber-700 hover:underline">
+											Usar fecha: {dateWarning.suggestedDate}
+										</button>
 									)}
-								</select>
-							</div>
+								</div>
+							)}
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									Notas
+									Justificante (foto o PDF){" "}
+									{editingEntry?.file_url || formData.file_url ? "" : "*"}
 								</label>
-								<textarea
-									rows="2"
-									className="w-full p-4 bg-gray-50 rounded-2xl font-bold resize-none"
-									value={formData.notes}
-									onChange={(e) =>
-										setFormData({ ...formData, notes: e.target.value })
+								{(editingEntry?.file_url || formData.file_url) &&
+									!receiptFile && (
+										<div className="mb-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+											<div className="flex items-center justify-between mb-2">
+												<span className="text-sm font-bold text-emerald-700 flex items-center gap-2">
+													<FileText size={16} />
+													Archivo existente:{" "}
+													{(editingEntry?.file_url || formData.file_url)
+														.split("/")
+														.pop()}
+												</span>
+												<a
+													href="#"
+													onClick={async (e) => {
+														e.preventDefault();
+														const fileUrl =
+															editingEntry?.file_url || formData.file_url;
+														if (fileUrl) {
+															try {
+																const url = await getReceiptSignedUrl(fileUrl);
+																if (url) {
+																	window.open(url, "_blank");
+																} else {
+																	const publicUrl = getReceiptUrl(fileUrl);
+																	if (publicUrl)
+																		window.open(publicUrl, "_blank");
+																}
+															} catch (err) {
+																showToast("Error al abrir archivo", "error");
+															}
+														}
+													}}
+													className="text-xs font-bold text-emerald-600 hover:underline">
+													Ver
+												</a>
+											</div>
+											<p className="text-xs text-emerald-600 italic">
+												Este archivo se reutilizará. Puedes cambiarlo si lo
+												deseas.
+											</p>
+											<button
+												type="button"
+												onClick={(e) => {
+													e.preventDefault();
+													const input =
+														document.getElementById("receipt-file-input");
+													if (input) input.click();
+												}}
+												className="mt-2 text-xs font-bold text-emerald-600 hover:underline">
+												Cambiar archivo
+											</button>
+										</div>
+									)}
+								{receiptPreview && (
+									<div className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+										<p className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
+											<ImageIcon size={14} />
+											Vista previa:
+										</p>
+										<img
+											src={receiptPreview}
+											alt="Preview"
+											className="max-w-full h-auto max-h-32 rounded-lg border border-gray-300"
+										/>
+									</div>
+								)}
+								<input
+									id="receipt-file-input"
+									required={
+										formData.is_deductible &&
+										!editingEntry?.file_url &&
+										!formData.file_url
 									}
+									type="file"
+									accept="image/jpeg,image/png,image/webp,application/pdf"
+									className="w-full p-3 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:font-bold file:bg-rose-50 file:text-rose-600"
+									onChange={handleFileChange}
 								/>
+								{receiptFile && (
+									<p className="mt-2 text-xs font-bold text-emerald-600">
+										✓ Archivo seleccionado: {receiptFile.name} (
+										{(receiptFile.size / 1024 / 1024).toFixed(2)} MB)
+									</p>
+								)}
+								{fileValidation.error && (
+									<p className="mt-2 text-xs font-bold text-red-600 flex items-center gap-1">
+										<AlertCircle size={12} />
+										{fileValidation.error}
+									</p>
+								)}
 							</div>
-							<LoadingButton
-								loading={savingEntry}
-								type="submit"
-								className={`w-full py-4 rounded-xl font-black text-white shadow-lg ${
-									formData.type === "income" ? "bg-emerald-500" : "bg-rose-500"
-								}`}>
-								{savingEntry ? "Guardando..." : "Guardar"}
-							</LoadingButton>
-						</form>
+						</>
+					)}
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Fecha
+						</label>
+						<input
+							required
+							type="date"
+							className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm"
+							value={formData.date}
+							onChange={(e) =>
+								setFormData({ ...formData, date: e.target.value })
+							}
+						/>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Categoría
+						</label>
+						<select
+							className="w-full p-4 bg-gray-50 rounded-2xl font-bold"
+							value={formData.category}
+							onChange={(e) =>
+								setFormData({ ...formData, category: e.target.value })
+							}>
+							{formData.type === "income" ? (
+								<>
+									<option>Servicio</option>
+									<option>Producto</option>
+									<option>Otros</option>
+								</>
+							) : (
+								<>
+									<option>Material</option>
+									<option>Alquiler</option>
+									<option>Marketing</option>
+									<option>Suministros</option>
+									<option>Otros</option>
+								</>
+							)}
+						</select>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Notas
+						</label>
+						<textarea
+							rows="2"
+							className="w-full p-4 bg-gray-50 rounded-2xl font-bold resize-none"
+							value={formData.notes}
+							onChange={(e) =>
+								setFormData({ ...formData, notes: e.target.value })
+							}
+						/>
+					</div>
+					<LoadingButton
+						loading={savingEntry}
+						type="submit"
+						className={`w-full py-4 rounded-xl font-black text-white shadow-lg ${
+							formData.type === "income" ? "bg-emerald-500" : "bg-rose-500"
+						}`}>
+						{savingEntry ? "Guardando..." : "Guardar"}
+					</LoadingButton>
+				</form>
 			</AdaptiveModal>
 
 			<AdaptiveModal
@@ -1331,79 +1449,76 @@ export const FinanceTab = ({
 				onClose={() => setIsConfigOpen(false)}
 				title="Gastos Fijos"
 				maxWidth="max-w-md">
-				<form
-					onSubmit={handleSaveConfig}
-					className="space-y-6">
-							<div className="max-h-[400px] overflow-y-auto space-y-6 pr-2 custom-scrollbar">
-								{recurringExpenses.map((exp, idx) => (
-									<div
-										key={idx}
-										className="space-y-3 p-4 bg-gray-50 rounded-[1.5rem] relative group border border-transparent hover:border-gray-200 transition-all">
-										<button
-											type="button"
-											onClick={() =>
-												setRecurringExpenses(
-													recurringExpenses.filter((_, i) => i !== idx)
-												)
-											}
-											className="absolute -top-2 -right-2 bg-white text-gray-300 hover:text-rose-500 p-1 rounded-full shadow-sm border border-gray-100">
-											<X size={14} />
-										</button>
-										<div>
-											<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
-												Concepto
-											</label>
-											<input
-												required
-												className="w-full p-3 bg-white border border-gray-100 rounded-xl font-bold text-sm"
-												value={exp.category}
-												onChange={(e) => {
-													const newExps = [...recurringExpenses];
-													newExps[idx].category = e.target.value;
-													setRecurringExpenses(newExps);
-												}}
-											/>
-										</div>
-										<div>
-											<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
-												Importe (€)
-											</label>
-											<input
-												type="number"
-												step="0.01"
-												required
-												placeholder="0.00 €"
-												className="w-full p-3 bg-white border border-gray-100 rounded-xl font-black text-lg placeholder:text-gray-300"
-												value={exp.amount}
-												onChange={(e) => {
-													const newExps = [...recurringExpenses];
-													newExps[idx].amount = e.target.value;
-													setRecurringExpenses(newExps);
-												}}
-											/>
-										</div>
-									</div>
-								))}
+				<form onSubmit={handleSaveConfig} className="space-y-6">
+					<div className="max-h-[400px] overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+						{recurringExpenses.map((exp, idx) => (
+							<div
+								key={idx}
+								className="space-y-3 p-4 bg-gray-50 rounded-[1.5rem] relative group border border-transparent hover:border-gray-200 transition-all">
 								<button
 									type="button"
 									onClick={() =>
-										setRecurringExpenses([
-											...recurringExpenses,
-											{ category: "", amount: 0 },
-										])
+										setRecurringExpenses(
+											recurringExpenses.filter((_, i) => i !== idx),
+										)
 									}
-									className="w-full py-3 border-2 border-dashed border-gray-100 text-gray-400 rounded-2xl font-black text-[10px] uppercase hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
-									<Plus size={14} /> Añadir concepto
+									className="absolute -top-2 -right-2 bg-white text-gray-300 hover:text-rose-500 p-1 rounded-full shadow-sm border border-gray-100">
+									<X size={14} />
 								</button>
+								<div>
+									<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
+										Concepto
+									</label>
+									<input
+										required
+										className="w-full p-3 bg-white border border-gray-100 rounded-xl font-bold text-sm"
+										value={exp.category}
+										onChange={(e) => {
+											const newExps = [...recurringExpenses];
+											newExps[idx].category = e.target.value;
+											setRecurringExpenses(newExps);
+										}}
+									/>
+								</div>
+								<div>
+									<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
+										Importe (€)
+									</label>
+									<input
+										type="number"
+										step="0.01"
+										required
+										placeholder="0.00 €"
+										className="w-full p-3 bg-white border border-gray-100 rounded-xl font-black text-lg placeholder:text-gray-300"
+										value={exp.amount}
+										onChange={(e) => {
+											const newExps = [...recurringExpenses];
+											newExps[idx].amount = e.target.value;
+											setRecurringExpenses(newExps);
+										}}
+									/>
+								</div>
 							</div>
-							<button
-								type="submit"
-								className="w-full bg-surface-dark text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg mt-4">
-								Guardar
-							</button>
-						</form>
+						))}
+						<button
+							type="button"
+							onClick={() =>
+								setRecurringExpenses([
+									...recurringExpenses,
+									{ category: "", amount: 0 },
+								])
+							}
+							className="w-full py-3 border-2 border-dashed border-gray-100 text-gray-400 rounded-2xl font-black text-[10px] uppercase hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
+							<Plus size={14} /> Añadir concepto
+						</button>
+					</div>
+					<button
+						type="submit"
+						className="w-full bg-surface-dark text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg mt-4">
+						Guardar
+					</button>
+				</form>
 			</AdaptiveModal>
-
 		</div>
 	);
 };
