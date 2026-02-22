@@ -28,10 +28,10 @@ export const useSessionMutation = (userId, inventory = []) => {
 				return acc;
 			}, {});
 
-			// Descontar stock (FIFO por lotes)
+			// Descontar stock solo para materiales (las máquinas no tienen stock)
 			for (const [matId, qty] of Object.entries(combinedQuantities)) {
 				const item = inventory.find((i) => i.id === matId);
-				if (item) {
+				if (item && (item.item_type || "material") === "material") {
 					await consumeFromBatchesFIFO(matId, qty);
 				}
 			}

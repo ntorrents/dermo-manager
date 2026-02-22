@@ -288,6 +288,7 @@ export const TreatmentsTab = ({
 													{inventory.map((inv) => (
 														<option key={inv.id} value={inv.id}>
 															{inv.name}
+															{(inv.item_type || "material") === "maquina" ? " (Máquina)" : ""}
 														</option>
 													))}
 												</select>

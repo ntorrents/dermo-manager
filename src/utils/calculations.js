@@ -70,10 +70,12 @@ export const getTopTreatments = (entries, treatments, limit = 5) => {
 		.slice(0, limit);
 };
 
-/** Items con stock bajo (stock <= min_stock) */
+/** Items con stock bajo (stock <= min_stock). Excluye máquinas (sin stock). */
 export const getLowStockItems = (inventory = [], defaultMin = 5) =>
 	(inventory || []).filter(
-		(i) => Number(i.stock) <= Number(i.min_stock ?? defaultMin)
+		(i) =>
+			(i.item_type || "material") === "material" &&
+			Number(i.stock) <= Number(i.min_stock ?? defaultMin)
 	);
 
 /** Items con al menos un lote caducado (expiry_date < hoy). batches: { inventory_id, expiry_date }[] */

@@ -7,6 +7,28 @@ export const useCreateMaterial = (userId) => {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ formData, taxCalc }) => {
+			const isMaquina = formData.item_type === "maquina";
+
+			if (isMaquina) {
+				const costPerUse = Number(formData.costPerUse);
+				if (costPerUse < 0 || Number.isNaN(costPerUse))
+					throw new Error("El coste por uso debe ser un número válido (ej. 10)");
+				const payload = {
+					name: formData.name,
+					stock: 0,
+					unit: "sesión",
+					unit_cost: costPerUse,
+					min_stock: 0,
+					item_type: "maquina",
+					user_id: userId,
+				};
+				const { error: invError } = await supabase
+					.from("inventory")
+					.insert([payload]);
+				if (invError) throw invError;
+				return;
+			}
+
 			const stockNum = Number(formData.stock);
 			const totalCostNum = Number(formData.totalCost);
 			if (stockNum <= 0) throw new Error("El stock debe ser mayor a 0");
@@ -24,6 +46,7 @@ export const useCreateMaterial = (userId) => {
 				unit: formData.unit,
 				unit_cost: calculatedUnitCost,
 				min_stock: Number(formData.min_stock),
+				item_type: "material",
 				user_id: userId,
 			};
 			const { data: inserted, error: invError } = await supabase
@@ -82,6 +105,23 @@ export const useUpdateMaterial = (userId) => {
 	const queryClient = useQueryClient();
 	return useMutation({
 		mutationFn: async ({ editingItem, formData }) => {
+			const isMaquina = editingItem?.item_type === "maquina" || formData.item_type === "maquina";
+			if (isMaquina) {
+				const costPerUse = Number(formData.costPerUse);
+				if (costPerUse < 0 || Number.isNaN(costPerUse))
+					throw new Error("El coste por uso debe ser un número válido");
+				const payload = {
+					name: formData.name,
+					unit_cost: costPerUse,
+					user_id: userId,
+				};
+				const { error } = await supabase
+					.from("inventory")
+					.update(payload)
+					.eq("id", editingItem.id);
+				if (error) throw error;
+				return;
+			}
 			const stockNum = Number(formData.stock);
 			const totalCostNum = Number(formData.totalCost);
 			const calculatedUnitCost = totalCostNum / stockNum;

@@ -85,11 +85,17 @@ export const DashboardTab = ({
 		() => calculateGrowth(currentStats.income, prevStats.income),
 		[currentStats.income, prevStats.income]
 	);
-	// Ventas sin IVA (base imponible ingresos) y Gastos sin IVA (base imponible tabla expenses)
-	const ventasSinIva = useMemo(
+	// Beneficio total (caja): todos los ingresos − todos los gastos
+	const beneficioTotal = useMemo(
+		() => currentStats.income - currentStats.expense,
+		[currentStats.income, currentStats.expense]
+	);
+
+	// Ventas sin IVA (solo facturables, excl. Plan Amigo) y gastos deducibles sin IVA
+	const ventasSinIvaFiscal = useMemo(
 		() =>
 			currentData
-				.filter((e) => e.type === "income")
+				.filter((e) => e.type === "income" && !e.plan_amigo)
 				.reduce((acc, e) => acc + (Number(e.tax_base) ?? Number(e.amount) ?? 0), 0),
 		[currentData]
 	);
@@ -97,12 +103,12 @@ export const DashboardTab = ({
 		() => currentExpenses.reduce((acc, e) => acc + (Number(e.tax_base) ?? 0), 0),
 		[currentExpenses]
 	);
-	const beneficioFiscal = ventasSinIva - gastosSinIva;
+	const beneficioFiscal = ventasSinIvaFiscal - gastosSinIva;
 
 	const ivaVentas = useMemo(
 		() =>
 			currentData
-				.filter((e) => e.type === "income")
+				.filter((e) => e.type === "income" && !e.plan_amigo)
 				.reduce((acc, e) => acc + (Number(e.tax_amount) || 0), 0),
 		[currentData]
 	);
@@ -276,14 +282,21 @@ export const DashboardTab = ({
 				</div>
 			</div>
 
-			{/* Fila secundaria: Beneficio fiscal (bases) + Ingresos/Gastos */}
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+			{/* Fila secundaria: Beneficio total (caja) + Beneficio fiscal (bases) + Ingresos/Gastos */}
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+				<div className="bg-emerald-600 text-white p-6 rounded-3xl shadow-sm flex flex-col justify-center gap-4">
+					<p className="text-emerald-100 font-medium flex items-center gap-2">
+						<TrendingUp size={16} /> Beneficio total (caja)
+					</p>
+					<p className="text-3xl font-bold">{formatCurrency(beneficioTotal)}</p>
+					<p className="text-xs text-emerald-200">Ingresos − Gastos (todo el periodo)</p>
+				</div>
 				<div className="bg-gray-900 text-white p-6 rounded-3xl shadow-sm flex flex-col justify-center gap-4">
 					<p className="text-gray-400 font-medium flex items-center gap-2">
-						<TrendingUp size={16} /> Beneficio (bases imponibles)
+						<TrendingUp size={16} /> Beneficio fiscal (bases)
 					</p>
 					<p className="text-3xl font-bold">{formatCurrency(beneficioFiscal)}</p>
-					<p className="text-xs text-gray-500">Ventas sin IVA − Gastos sin IVA</p>
+					<p className="text-xs text-gray-500">Bases facturables − Gastos deducibles (Hacienda)</p>
 				</div>
 				<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex flex-col justify-center gap-4">
 					<div className="flex justify-between items-center">

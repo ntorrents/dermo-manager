@@ -155,6 +155,8 @@ export const InventoryTab = ({
 		totalCost: "",
 		tax_rate: 21,
 		min_stock: "5",
+		item_type: "material",
+		costPerUse: "",
 		lotNumber: "",
 		expiryDate: "",
 		purchaseDate: new Date().toISOString().split("T")[0],
@@ -218,15 +220,19 @@ export const InventoryTab = ({
 	};
 
 	const lowStockCount =
-		inventory?.filter((item) => Number(item.stock) <= Number(item.min_stock))
-			.length || 0;
+		inventory?.filter(
+			(item) =>
+				(item.item_type || "material") === "material" &&
+				Number(item.stock) <= Number(item.min_stock)
+		)?.length || 0;
 
 	const openModal = (item = null) => {
 		if (item) {
 			setEditingItem(item);
-			const calculatedTotal = (
-				Number(item.stock) * Number(item.unit_cost)
-			).toFixed(2);
+			const isMaquina = item.item_type === "maquina";
+			const calculatedTotal = isMaquina
+				? ""
+				: (Number(item.stock) * Number(item.unit_cost)).toFixed(2);
 			setFormData({
 				name: item.name,
 				stock: item.stock,
@@ -234,9 +240,16 @@ export const InventoryTab = ({
 				totalCost: calculatedTotal,
 				tax_rate: 21,
 				min_stock: item.min_stock,
+				item_type: item.item_type || "material",
+				costPerUse: isMaquina ? String(item.unit_cost ?? "") : "",
+				lotNumber: "",
+				expiryDate: "",
+				purchaseDate: new Date().toISOString().split("T")[0],
+				supplier_nif: "",
+				invoice_number: "",
 			});
 			setEditBatches([]);
-			fetchBatchesForMaterial(item.id).then(setEditBatches);
+			if (!isMaquina) fetchBatchesForMaterial(item.id).then(setEditBatches);
 		} else {
 			setEditingItem(null);
 			setFormData({
@@ -246,6 +259,8 @@ export const InventoryTab = ({
 				totalCost: "",
 				tax_rate: 21,
 				min_stock: "5",
+				item_type: "material",
+				costPerUse: "",
 				lotNumber: "",
 				expiryDate: "",
 				purchaseDate: new Date().toISOString().split("T")[0],
@@ -258,17 +273,22 @@ export const InventoryTab = ({
 
 	const handleSave = async (e) => {
 		e.preventDefault();
-		if (Number(formData.stock) <= 0) {
+		const isMaquina = formData.item_type === "maquina";
+		if (!isMaquina && Number(formData.stock) <= 0) {
 			showToast("El stock debe ser mayor a 0", "error");
+			return;
+		}
+		if (isMaquina && (Number(formData.costPerUse) < 0 || formData.costPerUse === "")) {
+			showToast("Indica el coste por uso (ej. 10 €/sesión)", "error");
 			return;
 		}
 		try {
 			if (editingItem) {
 				await updateMaterial.mutateAsync({ editingItem, formData });
-				showToast("Material actualizado");
+				showToast(isMaquina ? "Máquina actualizada" : "Material actualizado");
 			} else {
 				await createMaterial.mutateAsync({ formData, taxCalc: {} });
-				showToast("Material creado y gasto registrado");
+				showToast(isMaquina ? "Máquina creada" : "Material creado y gasto registrado");
 			}
 			setIsModalOpen(false);
 			await onRefresh();
@@ -503,7 +523,7 @@ export const InventoryTab = ({
 				<button
 					onClick={() => openModal()}
 					className="bg-primary hover:bg-primary-hover text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-rose-100 transition-all w-full md:w-auto justify-center">
-					<Plus size={20} /> Nuevo Material
+					<Plus size={20} /> Nuevo Material o Máquina
 				</button>
 			</div>
 
@@ -547,9 +567,13 @@ export const InventoryTab = ({
 											<h4 className="font-bold text-gray-800">{item.name}</h4>
 											<p className="text-xs text-gray-400 font-medium">
 												{item.unit_cost.toFixed(2)} € /{" "}
-												{item.unit_consumption || item.unit || "uds"}
+												{(item.item_type || "material") === "maquina"
+													? "sesión"
+													: item.unit_consumption || item.unit || "uds"}
 											</p>
-											{(item.unit_purchase || item.unit_consumption) && (
+											{(item.item_type || "material") === "maquina" ? (
+												<p className="text-[10px] text-amber-600 font-medium">Máquina (coste por uso)</p>
+											) : (item.unit_purchase || item.unit_consumption) && (
 												<p className="text-[10px] text-gray-400">
 													Compra: {item.unit_purchase || item.unit || "uds"}
 												</p>
@@ -560,13 +584,13 @@ export const InventoryTab = ({
 										<button
 											onClick={() => openModal(item)}
 											className="p-2 bg-gray-50 text-gray-400 rounded-lg"
-											title="Editar material">
+											title={item.item_type === "maquina" ? "Editar máquina" : "Editar material"}>
 											<Edit2 size={16} />
 										</button>
 										<button
 											onClick={() => handleDeleteClick(item)}
 											className="p-2 bg-red-50 text-red-500 rounded-lg"
-											title="Eliminar material">
+											title="Eliminar">
 											<Trash2 size={16} />
 										</button>
 									</div>
@@ -575,25 +599,28 @@ export const InventoryTab = ({
 								<div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl">
 									<div className="flex flex-col">
 										<span className="text-[10px] uppercase font-bold text-gray-400">
-											Stock Actual
+											{(item.item_type || "material") === "maquina" ? "Coste por uso" : "Stock Actual"}
 										</span>
 										<span
 											className={`font-black text-lg ${
-												item.stock <= item.min_stock
-													? "text-red-500"
-													: "text-gray-800"
+												(item.item_type || "material") === "maquina"
+													? "text-gray-800"
+													: item.stock <= item.min_stock
+														? "text-red-500"
+														: "text-gray-800"
 											}`}>
-											{item.stock}{" "}
-											<span className="text-xs font-normal text-gray-400">
-												{item.unit}
-											</span>
+											{(item.item_type || "material") === "maquina"
+												? `${Number(item.unit_cost).toFixed(2)} €/sesión`
+												: `${item.stock} ${item.unit}`}
 										</span>
 									</div>
-									<button
-										onClick={() => openRestockModal(item)}
-										className="bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-200 transition-colors">
-										<Plus size={14} /> Reponer
-									</button>
+									{(item.item_type || "material") !== "maquina" && (
+										<button
+											onClick={() => openRestockModal(item)}
+											className="bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-200 transition-colors">
+											<Plus size={14} /> Reponer
+										</button>
+									)}
 								</div>
 							</div>
 						))}
@@ -636,59 +663,77 @@ export const InventoryTab = ({
 											<div>
 												<p className="font-bold text-gray-900 text-lg leading-tight">
 													{item.name}
+													{(item.item_type || "material") === "maquina" && (
+														<span className="ml-2 text-[10px] font-medium text-amber-600 uppercase">Máquina</span>
+													)}
 												</p>
 												<p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
-													{item.unit_purchase || item.unit_consumption
-														? `Compra: ${item.unit_purchase || item.unit || "uds"} · Consumo: ${item.unit_consumption || item.unit || "uds"}`
-														: item.unit || "uds"}
+													{(item.item_type || "material") === "maquina"
+														? "Coste por uso"
+														: item.unit_purchase || item.unit_consumption
+															? `Compra: ${item.unit_purchase || item.unit || "uds"} · Consumo: ${item.unit_consumption || item.unit || "uds"}`
+															: item.unit || "uds"}
 												</p>
 											</div>
 										</div>
 									</td>
 									<td className="p-6 text-center">
-										<span
-											className={`px-4 py-1.5 rounded-full text-sm font-black shadow-sm ${
-												Number(item.stock) <= Number(item.min_stock)
-													? "bg-rose-50 text-rose-600 border border-rose-100"
-													: "bg-emerald-50 text-emerald-600 border border-emerald-100"
-											}`}>
-											{item.stock}
-										</span>
+										{(item.item_type || "material") === "maquina" ? (
+											<span className="text-gray-300">—</span>
+										) : (
+											<span
+												className={`px-4 py-1.5 rounded-full text-sm font-black shadow-sm ${
+													Number(item.stock) <= Number(item.min_stock)
+														? "bg-rose-50 text-rose-600 border border-rose-100"
+														: "bg-emerald-50 text-emerald-600 border border-emerald-100"
+												}`}>
+												{item.stock}
+											</span>
+										)}
 									</td>
 									<td className="p-6 text-center">
-										{(() => {
-											const next = getEarliestExpiry(item.id);
-											if (!next)
-												return <span className="text-gray-300">—</span>;
-											const isExpiringSoon =
-												new Date(next.expiry_date) - new Date() <
-												90 * 24 * 60 * 60 * 1000;
-											return (
-												<span
-													title={`Lote ${next.lot_number}`}
-													className={
-														isExpiringSoon
-															? "text-amber-600 font-bold text-sm"
-															: "text-gray-500 text-sm"
-													}>
-													{formatDate(next.expiry_date)}
-												</span>
-											);
-										})()}
+										{(item.item_type || "material") === "maquina" ? (
+											<span className="text-gray-300">—</span>
+										) : (
+											(() => {
+												const next = getEarliestExpiry(item.id);
+												if (!next)
+													return <span className="text-gray-300">—</span>;
+												const isExpiringSoon =
+													new Date(next.expiry_date) - new Date() <
+													90 * 24 * 60 * 60 * 1000;
+												return (
+													<span
+														title={`Lote ${next.lot_number}`}
+														className={
+															isExpiringSoon
+																? "text-amber-600 font-bold text-sm"
+																: "text-gray-500 text-sm"
+														}>
+														{formatDate(next.expiry_date)}
+													</span>
+												);
+											})()
+										)}
 									</td>
 									<td className="p-6 text-center">
 										<span className="font-bold text-gray-600 text-lg">
 											{Number(item.unit_cost).toFixed(2)} €
+											{(item.item_type || "material") === "maquina" && (
+												<span className="text-xs font-normal text-gray-400">/sesión</span>
+											)}
 										</span>
 									</td>
 									<td className="p-6 text-right">
 										<div className="flex justify-end gap-2">
-											<button
-												onClick={() => openRestockModal(item)}
-												className="p-2.5 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-500 hover:text-white transition-all shadow-sm"
-												title="Reponer Stock">
-												<Plus size={18} />
-											</button>
+											{(item.item_type || "material") !== "maquina" && (
+												<button
+													onClick={() => openRestockModal(item)}
+													className="p-2.5 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-500 hover:text-white transition-all shadow-sm"
+													title="Reponer Stock">
+													<Plus size={18} />
+												</button>
+											)}
 											<button
 												onClick={() => openModal(item)}
 												className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-200 transition-all shadow-sm"
@@ -875,16 +920,44 @@ export const InventoryTab = ({
 			<AdaptiveModal
 				isOpen={isModalOpen}
 				onClose={() => setIsModalOpen(false)}
-				title={editingItem ? "Editar Material" : "Nuevo Material"}
+				title={
+					editingItem
+						? formData.item_type === "maquina"
+							? "Editar Máquina"
+							: "Editar Material"
+						: formData.item_type === "maquina"
+							? "Nueva Máquina"
+							: "Nuevo Material"
+				}
 				maxWidth="max-w-lg">
 				<form onSubmit={handleSave} className="space-y-6">
+					{!editingItem && (
+						<div>
+							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+								Tipo
+							</label>
+							<select
+								className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold appearance-none cursor-pointer"
+								value={formData.item_type}
+								onChange={(e) =>
+									setFormData({
+										...formData,
+										item_type: e.target.value,
+										costPerUse: formData.costPerUse || "",
+									})
+								}>
+								<option value="material">Material (consumible con stock)</option>
+								<option value="maquina">Máquina (coste por uso, ej. alquiler)</option>
+							</select>
+						</div>
+					)}
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-							Nombre del Producto
+							{formData.item_type === "maquina" ? "Nombre de la máquina" : "Nombre del Producto"}
 						</label>
 						<input
 							required
-							placeholder="Ej: Agujas 30G"
+							placeholder={formData.item_type === "maquina" ? "Ej: Diatermia" : "Ej: Agujas 30G"}
 							className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-gray-200 focus:bg-white rounded-2xl outline-none font-bold"
 							value={formData.name}
 							onChange={(e) =>
@@ -892,6 +965,28 @@ export const InventoryTab = ({
 							}
 						/>
 					</div>
+					{formData.item_type === "maquina" ? (
+						<div>
+							<label className="text-[11px] font-black text-rose-500 uppercase tracking-widest mb-2 block ml-1">
+								Coste por uso (€/sesión)
+							</label>
+							<input
+								type="number"
+								step="0.01"
+								min="0"
+								placeholder="Ej: 10"
+								className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-rose-500 placeholder-rose-300"
+								value={formData.costPerUse}
+								onChange={(e) =>
+									setFormData({ ...formData, costPerUse: e.target.value })
+								}
+							/>
+							<p className="text-xs text-gray-500 mt-2 ml-1">
+								Se sumará al coste del tratamiento cada vez que uses esta máquina en una sesión.
+							</p>
+						</div>
+					) : (
+						<>
 					<div className="grid grid-cols-2 gap-4">
 						<div>
 							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
@@ -1097,12 +1192,14 @@ export const InventoryTab = ({
 							</div>
 						</div>
 					)}
+						</>
+					)}
 					<div className="pt-4">
 						<LoadingButton
 							loading={loading}
 							type="submit"
 							className="w-full bg-surface-dark text-white font-black py-4 rounded-xl shadow-lg">
-							{loading ? "Guardando..." : "Guardar Material"}
+							{loading ? "Guardando..." : formData.item_type === "maquina" ? "Guardar Máquina" : "Guardar Material"}
 						</LoadingButton>
 					</div>
 				</form>
