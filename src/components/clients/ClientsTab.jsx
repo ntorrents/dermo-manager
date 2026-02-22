@@ -18,10 +18,12 @@ import {
 	Shield,
 	RotateCcw,
 	MessageCircle,
+	Ticket,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useClientHistory } from "../../hooks/useClientHistory";
 import { useSessionPhotos } from "../../hooks/useSessionPhotos";
+import { useClientBonos } from "../../hooks/useBonos";
 import { formatCurrency } from "../../utils/format";
 import { generateInvoice } from "../../utils/invoiceGenerator";
 import { calculateTaxReverse } from "../../utils/calculations";
@@ -94,6 +96,10 @@ export const ClientsTab = ({
 	const { photos, refreshPhotos } = useSessionPhotos(
 		selectedClient?.id,
 		user?.id,
+	);
+	const { data: clientBonos = [], isLoading: bonosLoading } = useClientBonos(
+		user?.id,
+		selectedClient?.id,
 	);
 
 	const filteredClients = clients.filter(
@@ -526,6 +532,7 @@ export const ClientsTab = ({
 								{ id: "filiacion", label: "Filiación", icon: User },
 								{ id: "medico", label: "Médico", icon: Stethoscope },
 								{ id: "legal", label: "Legal", icon: Shield },
+								{ id: "bonos", label: "Bonos", icon: Ticket },
 								{ id: "historial", label: "Historial", icon: Clock },
 							].map(({ id, label, icon: Icon }) => (
 								<button
@@ -687,6 +694,78 @@ export const ClientsTab = ({
 											</a>
 										)}
 									</div>
+								</div>
+							)}
+
+							{clientDetailTab === "bonos" && (
+								<div className="space-y-6">
+									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
+										<Ticket size={14} /> Bonos adquiridos
+									</h3>
+									{bonosLoading ? (
+										<div className="space-y-3">
+											{[1, 2].map((i) => (
+												<div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />
+											))}
+										</div>
+									) : clientBonos.length === 0 ? (
+										<div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 text-center">
+											<p className="text-sm font-medium text-gray-500">
+												Este paciente no tiene bonos registrados.
+											</p>
+											<p className="text-xs text-gray-400 mt-1">
+												Vende un bono desde la pestaña Bonos.
+											</p>
+										</div>
+									) : (
+										<div className="space-y-3">
+											{clientBonos.map((bono) => {
+												const name = bono.bonus_templates?.name ?? "Bono";
+												const treatmentName = bono.treatments?.name ?? "";
+												const used = Number(bono.used_sessions) ?? 0;
+												const total = Number(bono.total_sessions) ?? 0;
+												const isExhausted = bono.status === "exhausted";
+												const pct = total > 0 ? Math.round((used / total) * 100) : 0;
+												return (
+													<div
+														key={bono.id}
+														className={`p-4 rounded-2xl border shadow-sm ${
+															isExhausted
+																? "bg-gray-50 border-gray-100"
+																: "bg-white border-rose-100"
+														}`}>
+														<div className="flex justify-between items-start gap-2">
+															<div>
+																<p className="font-bold text-gray-900">{name}</p>
+																{treatmentName && (
+																	<p className="text-xs text-gray-500">{treatmentName}</p>
+																)}
+															</div>
+															<span
+																className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+																	isExhausted
+																		? "bg-gray-200 text-gray-600"
+																		: "bg-rose-100 text-rose-700"
+																}`}>
+																{isExhausted ? "Agotado" : "Activo"}
+															</span>
+														</div>
+														<p className="text-xs font-medium text-gray-600 mt-2">
+															Consumidas: {used} de {total} sesiones
+														</p>
+														<div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
+															<div
+																className={`h-full rounded-full transition-all ${
+																	isExhausted ? "bg-gray-400" : "bg-rose-500"
+																}`}
+																style={{ width: `${Math.min(pct, 100)}%` }}
+															/>
+														</div>
+													</div>
+												);
+											})}
+										</div>
+									)}
 								</div>
 							)}
 

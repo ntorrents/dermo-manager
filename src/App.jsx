@@ -11,6 +11,7 @@ import { useProfile } from "./hooks/useProfile";
 import { useClients } from "./hooks/useClients";
 import { useAppointments } from "./hooks/useAppointments";
 import { useInventoryBatches } from "./hooks/useInventoryBatches";
+import { useConsumeBono } from "./hooks/useBonos";
 import { Toast } from "./components/ui/Toast";
 import { ConfirmModal } from "./components/ui/ConfirmModal";
 import { SessionModal } from "./components/ui/SessionModal";
@@ -25,6 +26,7 @@ import { SettingsTab } from "./components/settings/SettingsTab";
 import { ClientsTab } from "./components/clients/ClientsTab";
 import { CalendarTab } from "./components/calendar/CalendarTab";
 import { TaxesTab } from "./components/taxes/TaxesTab";
+import { BonosTab } from "./components/bonos/BonosTab";
 
 const DermoManager = () => {
 	const { user, loading: authLoading } = useAuth();
@@ -72,6 +74,7 @@ const DermoManager = () => {
 	const [selectedTreatment, setSelectedTreatment] = useState(null);
 
 	const sessionMutation = useSessionMutation(user?.id, inventory);
+	const consumeBonoMutation = useConsumeBono(user);
 
 	// Favicon dinámico según logo del perfil
 	useEffect(() => {
@@ -96,7 +99,8 @@ const DermoManager = () => {
 		date,
 		extras = [],
 		internal_notes = "",
-		planAmigo = false
+		planAmigo = false,
+		consumeBonoId = null
 	) => {
 		// 1. Unificamos receta base + extras en una sola lista de consumo
 		const baseRecipe = treatment.recipe || [];
@@ -139,7 +143,12 @@ const DermoManager = () => {
 				internal_notes,
 				planAmigo,
 			});
-			showToastMsg(planAmigo ? `Sesión guardada (Plan Amigo, sin factura)` : `Sesión guardada (Fecha: ${date})`);
+			if (consumeBonoId) {
+				await consumeBonoMutation.mutateAsync(consumeBonoId);
+				showToastMsg("Sesión guardada y sesión de bono consumida");
+			} else {
+				showToastMsg(planAmigo ? `Sesión guardada (Plan Amigo, sin factura)` : `Sesión guardada (Fecha: ${date})`);
+			}
 			setSelectedTreatment(null);
 			await refreshData();
 		} catch (e) {
@@ -184,6 +193,7 @@ const DermoManager = () => {
 			/>
 			<SessionModal
 				isOpen={!!selectedTreatment}
+				user={user}
 				treatment={selectedTreatment}
 				clients={clients}
 				inventory={inventory}
@@ -242,6 +252,15 @@ const DermoManager = () => {
 						inventory={inventory}
 						showToast={showToastMsg}
 						onSelectTreatment={setSelectedTreatment}
+						onRefresh={refreshData}
+					/>
+				)}
+				{activeTab === "bonos" && (
+					<BonosTab
+						user={user}
+						clients={clients}
+						treatments={treatments}
+						showToast={showToastMsg}
 						onRefresh={refreshData}
 					/>
 				)}

@@ -9,6 +9,7 @@ import {
 	Users,
 	Landmark,
 	Calendar,
+	Ticket,
 } from "lucide-react";
 import { GlobalSearch } from "./GlobalSearch";
 
@@ -16,6 +17,7 @@ const NAV_ITEMS = [
 	{ id: "dashboard", l: "Resumen", i: BarChart3 },
 	{ id: "clients", l: "Clientes", i: Users },
 	{ id: "treatments", l: "Tratamientos", i: Syringe },
+	{ id: "bonos", l: "Bonos", i: Ticket },
 	{ id: "inventory", l: "Stock", i: Package },
 	{ id: "calendar", l: "Agenda", i: Calendar },
 	{ id: "finance", l: "Finanzas", i: DollarSign },

@@ -1,8 +1,9 @@
 import React, { useEffect } from "react";
-import { Euro, Landmark, Settings, X, Calendar } from "lucide-react";
+import { Euro, Landmark, Settings, X, Calendar, Ticket } from "lucide-react";
 
 const DRAWER_ITEMS = [
 	{ id: "calendar", label: "Agenda", icon: Calendar },
+	{ id: "bonos", label: "Bonos", icon: Ticket },
 	{ id: "finance", label: "Finanzas", icon: Euro },
 	{ id: "taxes", label: "Fiscalidad", icon: Landmark },
 	{ id: "settings", label: "Ajustes", icon: Settings },

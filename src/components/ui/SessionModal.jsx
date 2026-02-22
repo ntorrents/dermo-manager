@@ -11,10 +11,13 @@ import {
 	Loader2,
 	FileText,
 	Heart,
+	Sparkles,
 } from "lucide-react";
+import { useActiveBonoForSession } from "../../hooks/useBonos";
 
 export const SessionModal = ({
 	isOpen,
+	user,
 	treatment,
 	clients,
 	inventory,
@@ -36,6 +39,16 @@ export const SessionModal = ({
 	const [activeRecipe, setActiveRecipe] = useState([]);
 	const [internalNotes, setInternalNotes] = useState("");
 	const [planAmigo, setPlanAmigo] = useState(false);
+	const [consumeBono, setConsumeBono] = useState(false);
+
+	const { data: activeBono } = useActiveBonoForSession(
+		user?.id,
+		selectedClient?.id,
+		treatment?.id
+	);
+	const remainingSessions = activeBono
+		? (activeBono.total_sessions ?? 0) - (activeBono.used_sessions ?? 0)
+		: 0;
 
 	useEffect(() => {
 		if (isOpen && treatment) {
@@ -47,8 +60,15 @@ export const SessionModal = ({
 			setActiveRecipe(treatment.recipe ? [...treatment.recipe] : []);
 			setInternalNotes("");
 			setPlanAmigo(false);
+			setConsumeBono(false);
 		}
 	}, [isOpen, treatment]);
+
+	useEffect(() => {
+		if (consumeBono && activeBono) {
+			setFinalPrice("0");
+		}
+	}, [consumeBono, activeBono]);
 
 	if (!isOpen || !treatment) return null;
 
@@ -85,7 +105,8 @@ export const SessionModal = ({
 			selectedDate,
 			extras,
 			internalNotes,
-			planAmigo
+			planAmigo,
+			consumeBono && activeBono ? activeBono.id : undefined
 		);
 	};
 
@@ -190,6 +211,27 @@ export const SessionModal = ({
 							</div>
 						)}
 					</div>
+
+					{/* Bono activo: banner + toggle consumir sesión */}
+					{activeBono && remainingSessions > 0 && (
+						<div className="p-4 bg-amber-50/80 border border-amber-100 rounded-2xl space-y-3">
+							<p className="text-sm font-bold text-amber-900 flex items-center gap-2">
+								<Sparkles size={16} className="text-amber-500" />
+								Este paciente tiene un bono activo para este tratamiento ({remainingSessions} de {activeBono.total_sessions} sesiones disponibles).
+							</p>
+							<label className="flex items-start gap-3 cursor-pointer">
+								<input
+									type="checkbox"
+									checked={consumeBono}
+									onChange={(e) => setConsumeBono(e.target.checked)}
+									className="mt-1 w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+								/>
+								<span className="text-sm font-medium text-amber-800">
+									Consumir sesión del bono (precio 0 €; el importe se puede ajustar si hay extras).
+								</span>
+							</label>
+						</div>
+					)}
 
 					{/* 2. FECHA Y PRECIO */}
 					<div className="grid grid-cols-2 gap-4">
