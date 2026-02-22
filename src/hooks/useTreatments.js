@@ -6,7 +6,7 @@ const fetchTreatments = async (userId) => {
 	if (!userId) return [];
 	const { data, error } = await supabase
 		.from("treatments")
-		.select("*")
+		.select("*, treatment_groups(id, name, sort_order)")
 		.eq("user_id", userId)
 		.order("name");
 	if (error) throw error;
