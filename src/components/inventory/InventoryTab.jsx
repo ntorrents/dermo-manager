@@ -1311,11 +1311,10 @@ export const InventoryTab = ({
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							NIF/CIF Proveedor *
+							NIF/CIF Proveedor <span className="text-gray-400 font-normal">(opcional)</span>
 						</label>
 						<div className="relative">
 							<input
-								required
 								placeholder="Ej: B12345678"
 								className={`w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border-2 transition-colors ${
 									restockNifValidation.valid
@@ -1379,7 +1378,7 @@ export const InventoryTab = ({
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Nº Factura Proveedor
+							Nº Factura Proveedor <span className="text-gray-400 font-normal">(opcional)</span>
 						</label>
 						<input
 							placeholder="Ej: F2026-001"
@@ -1416,9 +1415,9 @@ export const InventoryTab = ({
 					)}
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Factura (PDF/imagen)
-							<span className="text-xs text-gray-400 ml-2">
-								(Se compartirá con otros materiales de la misma factura)
+							Factura (PDF/imagen) <span className="text-gray-400 font-normal">(opcional)</span>
+							<span className="text-xs text-gray-400 ml-2 block mt-0.5">
+								Se compartirá con otros materiales de la misma factura si la subes
 							</span>
 						</label>
 						{restockReceiptPreview && (
