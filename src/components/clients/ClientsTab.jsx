@@ -731,9 +731,7 @@ export const ClientsTab = ({
 																	<span className="text-[9px] uppercase">
 																		{new Date(session.date).toLocaleString(
 																			"es-ES",
-																			{
-																				month: "short",
-																			},
+																			{ month: "short" },
 																		)}
 																	</span>
 																</div>
@@ -744,6 +742,7 @@ export const ClientsTab = ({
 																	</h4>
 																	<p className="text-[10px] text-gray-400 font-medium uppercase">
 																		{session.date}
+																		{session.plan_amigo && " • Plan Amigo (sin factura)"}
 																	</p>
 																	{/* Miniaturas de fotos integradas */}
 																	<div className="flex items-center gap-2 mt-3 flex-wrap">
@@ -790,27 +789,29 @@ export const ClientsTab = ({
 																</div>
 															</div>
 															<div className="flex items-center gap-3 shrink-0">
-																<button
-																	onClick={async () => {
-																		try {
-																			await generateInvoice(
-																				session,
-																				selectedClient,
-																				profile,
-																				profile?.logo_url,
-																			);
-																			showToast("Factura generada");
-																		} catch {
-																			showToast(
-																				"Error al generar factura",
-																				"error",
-																			);
-																		}
-																	}}
-																	className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
-																	title="Generar factura">
-																	<FileDown size={18} />
-																</button>
+																{!session.plan_amigo && (
+																	<button
+																		onClick={async () => {
+																			try {
+																				await generateInvoice(
+																					session,
+																					selectedClient,
+																					profile,
+																					profile?.logo_url,
+																				);
+																				showToast("Factura generada");
+																			} catch {
+																				showToast(
+																					"Error al generar factura",
+																					"error",
+																				);
+																			}
+																		}}
+																		className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
+																		title="Generar factura">
+																		<FileDown size={18} />
+																	</button>
+																)}
 																{Number(session.amount) > 0 && (
 																	<button
 																		onClick={() => openRefundModal(session)}

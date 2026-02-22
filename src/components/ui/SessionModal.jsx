@@ -10,6 +10,7 @@ import {
 	Trash2,
 	Loader2,
 	FileText,
+	Heart,
 } from "lucide-react";
 
 export const SessionModal = ({
@@ -34,6 +35,7 @@ export const SessionModal = ({
 	// Receta activa editable (permite eliminar ingredientes por sesión)
 	const [activeRecipe, setActiveRecipe] = useState([]);
 	const [internalNotes, setInternalNotes] = useState("");
+	const [planAmigo, setPlanAmigo] = useState(false);
 
 	useEffect(() => {
 		if (isOpen && treatment) {
@@ -44,6 +46,7 @@ export const SessionModal = ({
 			setExtras([]);
 			setActiveRecipe(treatment.recipe ? [...treatment.recipe] : []);
 			setInternalNotes("");
+			setPlanAmigo(false);
 		}
 	}, [isOpen, treatment]);
 
@@ -81,7 +84,8 @@ export const SessionModal = ({
 			Number(finalPrice),
 			selectedDate,
 			extras,
-			internalNotes
+			internalNotes,
+			planAmigo
 		);
 	};
 
@@ -321,6 +325,25 @@ export const SessionModal = ({
 							value={internalNotes}
 							onChange={(e) => setInternalNotes(e.target.value)}
 						/>
+					</div>
+
+					{/* Plan Amigo: sin factura (familia/amigos, no Verifactu) */}
+					<div className="flex items-start gap-3 p-4 bg-amber-50/70 border border-amber-100 rounded-2xl">
+						<input
+							id="session-plan-amigo"
+							type="checkbox"
+							checked={planAmigo}
+							onChange={(e) => setPlanAmigo(e.target.checked)}
+							className="mt-1 w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+						/>
+						<label htmlFor="session-plan-amigo" className="flex-1 cursor-pointer">
+							<span className="flex items-center gap-2 font-bold text-amber-900">
+								<Heart size={16} className="text-amber-500" /> Plan Amigo
+							</span>
+							<p className="text-xs text-amber-800/80 mt-0.5">
+								Registrar sesión sin generar factura (ej. familiar o amigo). Cuenta en historial y finanzas, pero no en fiscalidad ni Verifactu.
+							</p>
+						</label>
 					</div>
 				</div>
 

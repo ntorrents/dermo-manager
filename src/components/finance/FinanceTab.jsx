@@ -722,6 +722,7 @@ export const FinanceTab = ({
 									<p className="text-[10px] text-gray-400 font-bold uppercase">
 										{entry.date} • {entry.category}
 										{entry.is_deductible && " • Factura deducible"}
+										{entry.plan_amigo && " • Plan Amigo (sin factura)"}
 									</p>
 									{entry.notes && (
 										<p className="text-[10px] text-gray-400 italic mt-1 flex items-center gap-1">
@@ -740,7 +741,6 @@ export const FinanceTab = ({
 													if (url) {
 														window.open(url, "_blank");
 													} else {
-														// Fallback a URL pública
 														const publicUrl = getReceiptUrl(entry.file_url);
 														if (publicUrl) {
 															window.open(publicUrl, "_blank");
@@ -875,6 +875,7 @@ export const FinanceTab = ({
 											</p>
 											<p className="text-[10px] text-gray-400 font-bold uppercase">
 												{entry.date}
+												{entry.plan_amigo && " • Plan Amigo"}
 											</p>
 										</div>
 										<div className="flex items-center gap-2">

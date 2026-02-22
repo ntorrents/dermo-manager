@@ -95,7 +95,8 @@ const DermoManager = () => {
 		finalPrice,
 		date,
 		extras = [],
-		internal_notes = ""
+		internal_notes = "",
+		planAmigo = false
 	) => {
 		// 1. Unificamos receta base + extras en una sola lista de consumo
 		const baseRecipe = treatment.recipe || [];
@@ -136,8 +137,9 @@ const DermoManager = () => {
 				date,
 				extras,
 				internal_notes,
+				planAmigo,
 			});
-			showToastMsg(`Sesión guardada (Fecha: ${date})`);
+			showToastMsg(planAmigo ? `Sesión guardada (Plan Amigo, sin factura)` : `Sesión guardada (Fecha: ${date})`);
 			setSelectedTreatment(null);
 			await refreshData();
 		} catch (e) {
