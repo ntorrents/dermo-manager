@@ -7,6 +7,7 @@ import {
 	BarChart3,
 	Calendar,
 	Download,
+	Banknote,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
 import { exportTrimestreToZip } from "../../utils/export";
@@ -107,6 +108,13 @@ export const TaxesTab = ({
 		return Math.round(resultadoOperativo * 0.2 * 100) / 100;
 	}, [resultadoOperativo]);
 
+	// Retenciones a ingresar (Modelo 111/115): suma de irpf_amount de gastos del trimestre
+	const retencionesIngresar = useMemo(() => {
+		return quarterEntries
+			.filter((e) => e.type === "expense")
+			.reduce((acc, e) => acc + (Number(e.irpf_amount) ?? 0), 0);
+	}, [quarterEntries]);
+
 	// Desglose mensual: agrupa por mes
 	const monthlyBreakdown = useMemo(() => {
 		const byMonth = {};
@@ -185,7 +193,7 @@ export const TaxesTab = ({
 				</div>
 			</div>
 
-			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+			<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
 				{/* Tarjeta 1: Resultado Operativo */}
 				<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
 					<div className="flex items-center gap-3 mb-4">
@@ -252,6 +260,29 @@ export const TaxesTab = ({
 					{resultadoOperativo <= 0 && (
 						<p className="text-[10px] text-gray-400 mt-2 italic">
 							Sin pago (resultado negativo)
+						</p>
+					)}
+				</div>
+
+				{/* Tarjeta 4: Retenciones a ingresar (Modelo 111/115) */}
+				<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+					<div className="flex items-center gap-3 mb-4">
+						<div className="w-12 h-12 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center">
+							<Banknote size={24} />
+						</div>
+						<h3 className="font-black text-gray-800 text-lg">
+							Retenciones a ingresar
+						</h3>
+					</div>
+					<p className="text-xs text-gray-500 mb-2">
+						Modelo 111/115 (IRPF retenido)
+					</p>
+					<p className="text-3xl font-black text-violet-600">
+						{formatCurrency(retencionesIngresar)}
+					</p>
+					{retencionesIngresar > 0 && (
+						<p className="text-[10px] text-gray-400 mt-2 italic">
+							Suma de retenciones de gastos del trimestre
 						</p>
 					)}
 				</div>

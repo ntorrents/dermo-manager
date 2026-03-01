@@ -22,8 +22,10 @@ import { supabase } from "../../services/supabase";
 import {
 	formatCurrency,
 	IVA_OPTIONS,
+	IRPF_OPTIONS,
 	calculateTaxFromTotal,
 } from "../../utils/format";
+import { calculateTaxReverseGrossToNet } from "../../utils/calculations";
 import { exportToCSV, exportTrimestreToExcel } from "../../utils/export";
 import { filterByDate, getDateLabel } from "../../utils/dateUtils";
 import {
@@ -78,6 +80,7 @@ export const FinanceTab = ({
 		type: "expense",
 		amount: "",
 		tax_rate: 0,
+		irpf_rate: 0,
 		category: "General",
 		description: "",
 		date: new Date().toISOString().split("T")[0],
@@ -101,12 +104,32 @@ export const FinanceTab = ({
 	const [showSuggestions, setShowSuggestions] = useState(false);
 
 	const taxCalc = useMemo(() => {
+		if (
+			formData.type === "expense" &&
+			formData.is_deductible &&
+			Number(formData.amount) > 0
+		) {
+			const { baseAmount, taxAmount, irpfAmount } = calculateTaxReverseGrossToNet(
+				formData.amount,
+				Number(formData.tax_rate) || 21,
+				Number(formData.irpf_rate) || 0,
+			);
+			return {
+				base_amount: baseAmount,
+				tax_amount: taxAmount,
+				irpf_amount: irpfAmount,
+			};
+		}
 		const { baseAmount, taxAmount } = calculateTaxFromTotal(
 			formData.amount,
 			formData.tax_rate,
 		);
-		return { base_amount: baseAmount, tax_amount: taxAmount };
-	}, [formData.amount, formData.tax_rate]);
+		return {
+			base_amount: baseAmount,
+			tax_amount: taxAmount,
+			irpf_amount: 0,
+		};
+	}, [formData.amount, formData.tax_rate, formData.irpf_rate, formData.type, formData.is_deductible]);
 
 	const fetchConfig = async () => {
 		try {
@@ -177,6 +200,7 @@ export const FinanceTab = ({
 				type: entry.type,
 				amount: entry.amount,
 				tax_rate: entry.tax_rate ?? 0,
+				irpf_rate: entry.irpf_rate ?? 0,
 				category: entry.category,
 				description: entry.description,
 				date: entry.date,
@@ -192,6 +216,7 @@ export const FinanceTab = ({
 				type,
 				amount: "",
 				tax_rate: type === "expense" ? 21 : 0,
+				irpf_rate: 0,
 				category: type === "income" ? "Servicio" : "Material",
 				description: "",
 				date: new Date().toISOString().split("T")[0],
@@ -401,8 +426,24 @@ export const FinanceTab = ({
 		setSavingEntry(true);
 		try {
 			const taxRate = Number(formData.tax_rate) || 0;
+			const irpfRate = Number(formData.irpf_rate) || 0;
 			const amount = Number(formData.amount);
-			const { baseAmount, taxAmount } = calculateTaxFromTotal(amount, taxRate);
+			let baseAmount, taxAmount, irpfAmount;
+			if (
+				formData.type === "expense" &&
+				formData.is_deductible &&
+				amount > 0
+			) {
+				const calc = calculateTaxReverseGrossToNet(amount, taxRate, irpfRate);
+				baseAmount = calc.baseAmount;
+				taxAmount = calc.taxAmount;
+				irpfAmount = calc.irpfAmount;
+			} else {
+				const calc = calculateTaxFromTotal(amount, taxRate);
+				baseAmount = calc.baseAmount;
+				taxAmount = calc.taxAmount;
+				irpfAmount = 0;
+			}
 
 			// Normalizar número de factura
 			const normalizedInvoiceNumber = formData.invoice_number
@@ -416,6 +457,8 @@ export const FinanceTab = ({
 				tax_rate: taxRate,
 				tax_amount: taxAmount,
 				tax_base: baseAmount,
+				irpf_rate: irpfRate,
+				irpf_amount: irpfAmount,
 				category: formData.category,
 				description: formData.description,
 				date: formData.date,
@@ -1118,6 +1161,7 @@ export const FinanceTab = ({
 										...formData,
 										is_deductible: checked,
 										tax_rate: checked ? 21 : 0,
+										irpf_rate: checked ? formData.irpf_rate : 0,
 										supplier_nif: checked ? formData.supplier_nif : "",
 										invoice_number: checked ? formData.invoice_number : "",
 									});
@@ -1134,7 +1178,7 @@ export const FinanceTab = ({
 					<div className="flex gap-4">
 						<div className="flex-1">
 							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-								Importe Total (€)
+								Total a Pagar (€)
 							</label>
 							<input
 								required
@@ -1149,34 +1193,59 @@ export const FinanceTab = ({
 							/>
 						</div>
 						{formData.type === "expense" && formData.is_deductible && (
-							<div className="flex-1">
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									IVA (%)
-								</label>
-								<select
-									className="w-full p-4 bg-gray-50 rounded-xl font-bold"
-									value={formData.tax_rate}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											tax_rate: Number(e.target.value),
-										})
-									}>
-									{IVA_OPTIONS.map((v) => (
-										<option key={v} value={v}>
-											{v}%
-										</option>
-									))}
-								</select>
-							</div>
+							<>
+								<div className="flex-1">
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+										IVA (%)
+									</label>
+									<select
+										className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+										value={formData.tax_rate}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												tax_rate: Number(e.target.value),
+											})
+										}>
+										{IVA_OPTIONS.map((v) => (
+											<option key={v} value={v}>
+												{v}%
+											</option>
+										))}
+									</select>
+								</div>
+								<div className="flex-1">
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+										IRPF (%)
+									</label>
+									<select
+										className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+										value={formData.irpf_rate}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												irpf_rate: Number(e.target.value),
+											})
+										}>
+										{IRPF_OPTIONS.map((v) => (
+											<option key={v} value={v}>
+												{v}%
+											</option>
+										))}
+									</select>
+								</div>
+							</>
 						)}
 					</div>
 					{formData.type === "expense" &&
 						formData.is_deductible &&
 						formData.amount && (
 							<div className="text-xs font-bold text-gray-500 bg-gray-50 p-3 rounded-xl">
-								Base: {formatCurrency(taxCalc.base_amount)} | Cuota IVA:{" "}
+								Base: {formatCurrency(taxCalc.base_amount)} | IVA: +
 								{formatCurrency(taxCalc.tax_amount)}
+								{Number(taxCalc.irpf_amount) > 0 && (
+									<> | IRPF: −{formatCurrency(taxCalc.irpf_amount)}</>
+								)}
 							</div>
 						)}
 					{formData.type === "expense" && formData.is_deductible && (
