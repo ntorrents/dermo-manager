@@ -69,8 +69,6 @@ export const FinanceTab = ({
 	// ESTADOS PARA CONFIRMACIONES
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
 	const [itemToDelete, setItemToDelete] = useState(null);
-	const [showPayModal, setShowPayModal] = useState(false);
-	const [itemToPay, setItemToPay] = useState(null);
 	const [savingEntry, setSavingEntry] = useState(false);
 
 	// NUEVO: Filtro para la vista móvil (Gasto por defecto)
@@ -88,7 +86,10 @@ export const FinanceTab = ({
 		is_deductible: false,
 		supplier_nif: "",
 		invoice_number: "",
+		recurring_id: null,
+		months_paid: 1,
 	});
+	const [recurringBaseAmount, setRecurringBaseAmount] = useState(null);
 	const [receiptFile, setReceiptFile] = useState(null);
 	const [receiptPreview, setReceiptPreview] = useState(null);
 	const [nifValidation, setNifValidation] = useState({
@@ -182,14 +183,29 @@ export const FinanceTab = ({
 		.reduce((acc, curr) => acc + Number(curr.amount), 0);
 	const netProfit = totalIncome - totalExpense;
 
+	/** Mes YYYY-MM cae dentro del rango de un pago (date + months_paid)? */
+	const monthInRange = (yyyyMm, paymentDate, monthsPaid) => {
+		const start = paymentDate.slice(0, 7);
+		const [y, m] = start.split("-").map(Number);
+		const n = monthsPaid || 1;
+		const endMonth1Based = m + n - 1;
+		const endYear = y + Math.floor((endMonth1Based - 1) / 12);
+		const endMonth = ((endMonth1Based - 1) % 12) + 1;
+		const end = `${endYear}-${String(endMonth).padStart(2, "0")}`;
+		return yyyyMm >= start && yyyyMm <= end;
+	};
+
 	const getFixedStatus = (expense) => {
-		const found = entries
-			.filter((e) => e.date.startsWith(currentDate))
-			.find(
-				(e) =>
-					e.category === "Fijo" &&
-					e.description.toLowerCase().includes(expense.category.toLowerCase()),
-			);
+		if (!expense?.id) {
+			return { paid: false };
+		}
+		const currentMonth = currentDate.length >= 7 ? currentDate.slice(0, 7) : currentDate;
+		const found = entries.find(
+			(e) =>
+				e.type === "expense" &&
+				e.recurring_id === expense.id &&
+				monthInRange(currentMonth, e.date, e.months_paid ?? 1),
+		);
 		return found ? { paid: true, date: found.date } : { paid: false };
 	};
 
@@ -209,7 +225,10 @@ export const FinanceTab = ({
 				supplier_nif: entry.supplier_nif || "",
 				invoice_number: entry.invoice_number || "",
 				file_url: entry.file_url || "",
+				recurring_id: entry.recurring_id ?? null,
+				months_paid: entry.months_paid ?? 1,
 			});
+			setRecurringBaseAmount(null);
 		} else {
 			setEditingEntry(null);
 			setFormData({
@@ -225,8 +244,44 @@ export const FinanceTab = ({
 				supplier_nif: "",
 				invoice_number: "",
 				file_url: "",
+				recurring_id: null,
+				months_paid: 1,
 			});
+			setRecurringBaseAmount(null);
 		}
+		setReceiptFile(null);
+		setReceiptPreview(null);
+		setNifValidation({ valid: true, error: null });
+		setFileValidation({ valid: true, error: null });
+		setDateWarning(null);
+		setInvoiceSuggestions([]);
+		setShowSuggestions(false);
+		setIsModalOpen(true);
+	};
+
+	const openPayRecurringModal = (expense) => {
+		const base = Number(expense.amount) || 0;
+		setEditingEntry(null);
+		setRecurringBaseAmount(base);
+		setFormData({
+			type: "expense",
+			amount: String(base),
+			tax_rate: Number(expense.tax_rate) ?? 21,
+			irpf_rate: Number(expense.irpf_rate) ?? 0,
+			category: expense.category || "",
+			description: expense.category || "",
+			date:
+				currentDate.length === 7
+					? `${currentDate}-01`
+					: new Date().toISOString().split("T")[0],
+			notes: "",
+			is_deductible: expense.is_deductible ?? false,
+			supplier_nif: "",
+			invoice_number: "",
+			file_url: "",
+			recurring_id: expense.id,
+			months_paid: 1,
+		});
 		setReceiptFile(null);
 		setReceiptPreview(null);
 		setNifValidation({ valid: true, error: null });
@@ -468,10 +523,11 @@ export const FinanceTab = ({
 					? nifValidation.normalized || null
 					: null,
 				invoice_number: formData.is_deductible ? normalizedInvoiceNumber : null,
-				// Mantener file_url existente si no hay archivo nuevo
 				file_url: receiptFile
 					? undefined
 					: editingEntry?.file_url || formData.file_url || null,
+				recurring_id: formData.recurring_id || null,
+				months_paid: formData.recurring_id ? (Number(formData.months_paid) || 1) : 1,
 				user_id: user.id,
 			};
 
@@ -555,37 +611,7 @@ export const FinanceTab = ({
 	};
 
 	const handlePayClick = (expense) => {
-		setItemToPay(expense);
-		setShowPayModal(true);
-	};
-
-	const confirmPay = async () => {
-		if (!itemToPay) return;
-		try {
-			const selectedDate =
-				currentDate === new Date().toISOString().slice(0, 7)
-					? new Date().toISOString().split("T")[0]
-					: `${currentDate}-01`;
-			const { error } = await supabase.from("finance_entries").insert([
-				{
-					user_id: user.id,
-					type: "expense",
-					amount: Number(itemToPay.amount),
-					category: "Fijo",
-					description: itemToPay.category,
-					date: selectedDate,
-					notes: "Pago recurrente automático",
-				},
-			]);
-			if (error) throw error;
-			showToast(`Pago de ${itemToPay.category} registrado ✅`);
-			if (onRefresh) await onRefresh();
-		} catch {
-			showToast("Error al registrar pago", "error");
-		} finally {
-			setShowPayModal(false);
-			setItemToPay(null);
-		}
+		openPayRecurringModal(expense);
 	};
 
 	const handleDeleteClick = (id) => {
@@ -614,24 +640,58 @@ export const FinanceTab = ({
 	const handleSaveConfig = async (e) => {
 		e.preventDefault();
 		try {
-			await supabase.from("recurring_config").delete().eq("user_id", user.id);
-			const toInsert = recurringExpenses
-				.filter((exp) => exp.category && exp.amount > 0)
-				.map((exp) => ({
-					user_id: user.id,
-					category: exp.category,
-					amount: Number(exp.amount),
-				}));
-			if (toInsert.length > 0) {
-				const { error } = await supabase
+			const valid = recurringExpenses.filter(
+				(exp) => exp.category?.trim() && Number(exp.amount) > 0,
+			);
+			const withId = valid.filter((exp) => exp.id);
+			const withoutId = valid.filter((exp) => !exp.id);
+			const idsToKeep = withId.map((exp) => exp.id);
+
+			if (idsToKeep.length > 0) {
+				const { data: existing } = await supabase
 					.from("recurring_config")
-					.insert(toInsert);
+					.select("id")
+					.eq("user_id", user.id);
+				const toRemove = (existing || []).filter((r) => !idsToKeep.includes(r.id));
+				for (const r of toRemove) {
+					await supabase.from("recurring_config").delete().eq("id", r.id);
+				}
+			} else {
+				await supabase.from("recurring_config").delete().eq("user_id", user.id);
+			}
+
+			for (const exp of withId) {
+				await supabase
+					.from("recurring_config")
+					.update({
+						category: exp.category.trim(),
+						amount: Number(exp.amount),
+						is_deductible: exp.is_deductible ?? false,
+						tax_rate: Number(exp.tax_rate) ?? 21,
+						irpf_rate: Number(exp.irpf_rate) ?? 0,
+					})
+					.eq("id", exp.id)
+					.eq("user_id", user.id);
+			}
+
+			if (withoutId.length > 0) {
+				const toInsert = withoutId.map((exp) => ({
+					user_id: user.id,
+					category: exp.category.trim(),
+					amount: Number(exp.amount),
+					is_deductible: exp.is_deductible ?? false,
+					tax_rate: Number(exp.tax_rate) ?? 21,
+					irpf_rate: Number(exp.irpf_rate) ?? 0,
+				}));
+				const { error } = await supabase.from("recurring_config").insert(toInsert);
 				if (error) throw error;
 			}
+
 			showToast("Configuración guardada");
 			setIsConfigOpen(false);
 			fetchConfig();
-		} catch {
+		} catch (err) {
+			console.error(err);
 			showToast("Error al configurar", "error");
 		}
 	};
@@ -646,16 +706,6 @@ export const FinanceTab = ({
 				onConfirm={confirmDelete}
 				onCancel={() => setShowDeleteModal(false)}
 				isDestructive={true}
-			/>
-
-			<ConfirmModal
-				isOpen={showPayModal}
-				title="Confirmar Pago Recurrente"
-				message={`¿Quieres registrar el pago de ${
-					itemToPay?.category
-				} por ${formatCurrency(itemToPay?.amount)}?`}
-				onConfirm={confirmPay}
-				onCancel={() => setShowPayModal(false)}
 			/>
 
 			{/* HEADER: BALANCE Y SELECTORES */}
@@ -860,9 +910,10 @@ export const FinanceTab = ({
 					<div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-3">
 						{recurringExpenses.map((exp, idx) => {
 							const status = getFixedStatus(exp);
+							const canPay = !!exp.id;
 							return (
 								<div
-									key={idx}
+									key={exp.id ?? `mobile-${idx}`}
 									className={`flex justify-between items-center p-4 rounded-2xl border transition-all ${
 										status.paid
 											? "bg-emerald-50 border-emerald-100"
@@ -878,12 +929,14 @@ export const FinanceTab = ({
 									</div>
 									{status.paid ? (
 										<CheckCircle2 size={20} className="text-emerald-500" />
-									) : (
+									) : canPay ? (
 										<button
 											onClick={() => handlePayClick(exp)}
 											className="bg-primary hover:bg-primary-hover text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-colors">
 											Pagar
 										</button>
+									) : (
+										<span className="text-[10px] text-gray-400 italic">Guardar primero</span>
 									)}
 								</div>
 							);
@@ -1092,9 +1145,10 @@ export const FinanceTab = ({
 					<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 space-y-3">
 						{recurringExpenses.map((exp, idx) => {
 							const status = getFixedStatus(exp);
+							const canPay = !!exp.id;
 							return (
 								<div
-									key={idx}
+									key={exp.id ?? `desktop-${idx}`}
 									className={`flex justify-between items-center p-4 rounded-2xl border transition-all ${
 										status.paid
 											? "bg-emerald-50/30 border-emerald-100 shadow-none"
@@ -1110,12 +1164,14 @@ export const FinanceTab = ({
 									</div>
 									{status.paid ? (
 										<CheckCircle2 size={22} className="text-emerald-500" />
-									) : (
+									) : canPay ? (
 										<button
 											onClick={() => handlePayClick(exp)}
 											className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md transition-all active:scale-95">
 											Pagar
 										</button>
+									) : (
+										<span className="text-xs text-gray-400 italic">Guardar primero</span>
 									)}
 								</div>
 							);
@@ -1130,9 +1186,11 @@ export const FinanceTab = ({
 				title={
 					editingEntry
 						? "Editar Movimiento"
-						: formData.type === "income"
-							? "Registrar Ingreso"
-							: "Registrar Gasto"
+						: formData.recurring_id
+							? "Registrar pago recurrente"
+							: formData.type === "income"
+								? "Registrar Ingreso"
+								: "Registrar Gasto"
 				}
 				maxWidth="max-w-md">
 				<form onSubmit={handleSaveEntry} className="space-y-5">
@@ -1248,6 +1306,30 @@ export const FinanceTab = ({
 								)}
 							</div>
 						)}
+					{formData.type === "expense" && formData.recurring_id && recurringBaseAmount != null && (
+						<div>
+							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+								Nº de meses a pagar
+							</label>
+							<input
+								type="number"
+								min={1}
+								className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+								value={formData.months_paid}
+								onChange={(e) => {
+									const m = Math.max(1, parseInt(e.target.value, 10) || 1);
+									setFormData({
+										...formData,
+										months_paid: m,
+										amount: String(recurringBaseAmount * m),
+									});
+								}}
+							/>
+							<p className="text-[10px] text-gray-400 mt-1">
+								Total: {formatCurrency(recurringBaseAmount * (formData.months_paid || 1))} (importe × meses)
+							</p>
+						</div>
+					)}
 					{formData.type === "expense" && formData.is_deductible && (
 						<>
 							<div>
@@ -1467,28 +1549,40 @@ export const FinanceTab = ({
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 							Categoría
 						</label>
-						<select
-							className="w-full p-4 bg-gray-50 rounded-2xl font-bold"
-							value={formData.category}
-							onChange={(e) =>
-								setFormData({ ...formData, category: e.target.value })
-							}>
-							{formData.type === "income" ? (
-								<>
-									<option>Servicio</option>
-									<option>Producto</option>
-									<option>Otros</option>
-								</>
-							) : (
-								<>
-									<option>Material</option>
-									<option>Alquiler</option>
-									<option>Marketing</option>
-									<option>Suministros</option>
-									<option>Otros</option>
-								</>
-							)}
-						</select>
+						{formData.recurring_id ? (
+							<input
+								required
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold border-2 border-transparent focus:bg-white focus:border-gray-200 outline-none"
+								value={formData.category}
+								onChange={(e) =>
+									setFormData({ ...formData, category: e.target.value })
+								}
+								placeholder="Ej: Cuota autónomos"
+							/>
+						) : (
+							<select
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold"
+								value={formData.category}
+								onChange={(e) =>
+									setFormData({ ...formData, category: e.target.value })
+								}>
+								{formData.type === "income" ? (
+									<>
+										<option>Servicio</option>
+										<option>Producto</option>
+										<option>Otros</option>
+									</>
+								) : (
+									<>
+										<option>Material</option>
+										<option>Alquiler</option>
+										<option>Marketing</option>
+										<option>Suministros</option>
+										<option>Otros</option>
+									</>
+								)}
+							</select>
+						)}
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
@@ -1523,7 +1617,7 @@ export const FinanceTab = ({
 					<div className="max-h-[400px] overflow-y-auto space-y-6 pr-2 custom-scrollbar">
 						{recurringExpenses.map((exp, idx) => (
 							<div
-								key={idx}
+								key={exp.id ?? `new-${idx}`}
 								className="space-y-3 p-4 bg-gray-50 rounded-[1.5rem] relative group border border-transparent hover:border-gray-200 transition-all">
 								<button
 									type="button"
@@ -1537,22 +1631,23 @@ export const FinanceTab = ({
 								</button>
 								<div>
 									<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
-										Concepto
+										Categoría / Concepto
 									</label>
 									<input
 										required
 										className="w-full p-3 bg-white border border-gray-100 rounded-xl font-bold text-sm"
-										value={exp.category}
+										value={exp.category ?? ""}
 										onChange={(e) => {
 											const newExps = [...recurringExpenses];
-											newExps[idx].category = e.target.value;
+											newExps[idx] = { ...newExps[idx], category: e.target.value };
 											setRecurringExpenses(newExps);
 										}}
+										placeholder="Ej: Cuota autónomos, Alquiler"
 									/>
 								</div>
 								<div>
 									<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
-										Importe (€)
+										Importe (€/mes)
 									</label>
 									<input
 										type="number"
@@ -1560,14 +1655,69 @@ export const FinanceTab = ({
 										required
 										placeholder="0.00 €"
 										className="w-full p-3 bg-white border border-gray-100 rounded-xl font-black text-lg placeholder:text-gray-300"
-										value={exp.amount}
+										value={exp.amount ?? ""}
 										onChange={(e) => {
 											const newExps = [...recurringExpenses];
-											newExps[idx].amount = e.target.value;
+											newExps[idx] = { ...newExps[idx], amount: e.target.value };
 											setRecurringExpenses(newExps);
 										}}
 									/>
 								</div>
+								<div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
+									<input
+										type="checkbox"
+										id={`recurring-deductible-${idx}`}
+										checked={exp.is_deductible ?? false}
+										onChange={(e) => {
+											const newExps = [...recurringExpenses];
+											newExps[idx] = {
+												...newExps[idx],
+												is_deductible: e.target.checked,
+												tax_rate: e.target.checked ? (newExps[idx].tax_rate ?? 21) : 0,
+												irpf_rate: e.target.checked ? (newExps[idx].irpf_rate ?? 0) : 0,
+											};
+											setRecurringExpenses(newExps);
+										}}
+										className="w-4 h-4 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+									/>
+									<label htmlFor={`recurring-deductible-${idx}`} className="text-xs font-bold text-gray-700">
+										Es deducible
+									</label>
+								</div>
+								{(exp.is_deductible ?? false) && (
+									<div className="grid grid-cols-2 gap-2">
+										<div>
+											<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">IVA (%)</label>
+											<select
+												className="w-full p-2 bg-white border border-gray-100 rounded-lg font-bold text-sm"
+												value={exp.tax_rate ?? 21}
+												onChange={(e) => {
+													const newExps = [...recurringExpenses];
+													newExps[idx] = { ...newExps[idx], tax_rate: Number(e.target.value) };
+													setRecurringExpenses(newExps);
+												}}>
+												{IVA_OPTIONS.map((v) => (
+													<option key={v} value={v}>{v}%</option>
+												))}
+											</select>
+										</div>
+										<div>
+											<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">IRPF (%)</label>
+											<select
+												className="w-full p-2 bg-white border border-gray-100 rounded-lg font-bold text-sm"
+												value={exp.irpf_rate ?? 0}
+												onChange={(e) => {
+													const newExps = [...recurringExpenses];
+													newExps[idx] = { ...newExps[idx], irpf_rate: Number(e.target.value) };
+													setRecurringExpenses(newExps);
+												}}>
+												{IRPF_OPTIONS.map((v) => (
+													<option key={v} value={v}>{v}%</option>
+												))}
+											</select>
+										</div>
+									</div>
+								)}
 							</div>
 						))}
 						<button
@@ -1575,7 +1725,7 @@ export const FinanceTab = ({
 							onClick={() =>
 								setRecurringExpenses([
 									...recurringExpenses,
-									{ category: "", amount: 0 },
+									{ category: "", amount: 0, is_deductible: false, tax_rate: 21, irpf_rate: 0 },
 								])
 							}
 							className="w-full py-3 border-2 border-dashed border-gray-100 text-gray-400 rounded-2xl font-black text-[10px] uppercase hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
