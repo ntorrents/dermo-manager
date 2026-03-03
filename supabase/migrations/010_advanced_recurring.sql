@@ -13,9 +13,11 @@ COMMENT ON COLUMN recurring_config.irpf_rate IS 'IRPF % por defecto (ej: 0, 7, 1
 -- finance_entries: enlace al gasto fijo y soporte multi-mes
 ALTER TABLE finance_entries
 ADD COLUMN IF NOT EXISTS recurring_id uuid REFERENCES recurring_config(id) ON DELETE SET NULL,
-ADD COLUMN IF NOT EXISTS months_paid integer DEFAULT 1;
+ADD COLUMN IF NOT EXISTS months_paid integer DEFAULT 1,
+ADD COLUMN IF NOT EXISTS coverage_start_date date;
 
 COMMENT ON COLUMN finance_entries.recurring_id IS 'Gasto fijo que originó este pago (enlace fuerte por UUID)';
-COMMENT ON COLUMN finance_entries.months_paid IS 'Meses cubiertos por este pago (ej: 3 = cubre 3 meses desde date)';
+COMMENT ON COLUMN finance_entries.months_paid IS 'Meses cubiertos por este pago (ej: 3 = cubre 3 meses desde coverage_start_date o date)';
+COMMENT ON COLUMN finance_entries.coverage_start_date IS 'Fecha del primer mes cubierto por el pago (solo fijos; si null se usa date)';
 
 CREATE INDEX IF NOT EXISTS idx_finance_entries_recurring_id ON finance_entries(recurring_id);

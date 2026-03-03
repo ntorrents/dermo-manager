@@ -88,6 +88,7 @@ export const FinanceTab = ({
 		invoice_number: "",
 		recurring_id: null,
 		months_paid: 1,
+		coverage_start_month: "",
 	});
 	const [recurringBaseAmount, setRecurringBaseAmount] = useState(null);
 	const [receiptFile, setReceiptFile] = useState(null);
@@ -184,8 +185,8 @@ export const FinanceTab = ({
 	const netProfit = totalIncome - totalExpense;
 
 	/** Mes YYYY-MM cae dentro del rango de un pago (date + months_paid)? */
-	const monthInRange = (yyyyMm, paymentDate, monthsPaid) => {
-		const start = paymentDate.slice(0, 7);
+	const monthInRange = (yyyyMm, startDate, monthsPaid) => {
+		const start = startDate.slice(0, 7);
 		const [y, m] = start.split("-").map(Number);
 		const n = monthsPaid || 1;
 		const endMonth1Based = m + n - 1;
@@ -200,12 +201,11 @@ export const FinanceTab = ({
 			return { paid: false };
 		}
 		const currentMonth = currentDate.length >= 7 ? currentDate.slice(0, 7) : currentDate;
-		const found = entries.find(
-			(e) =>
-				e.type === "expense" &&
-				e.recurring_id === expense.id &&
-				monthInRange(currentMonth, e.date, e.months_paid ?? 1),
-		);
+		const found = entries.find((e) => {
+			if (e.type !== "expense" || e.recurring_id !== expense.id) return false;
+			const startDate = e.coverage_start_date || e.date;
+			return monthInRange(currentMonth, startDate, e.months_paid ?? 1);
+		});
 		return found ? { paid: true, date: found.date } : { paid: false };
 	};
 
@@ -227,6 +227,9 @@ export const FinanceTab = ({
 				file_url: entry.file_url || "",
 				recurring_id: entry.recurring_id ?? null,
 				months_paid: entry.months_paid ?? 1,
+				coverage_start_month: entry.coverage_start_date
+					? entry.coverage_start_date.slice(0, 7)
+					: "",
 			});
 			setRecurringBaseAmount(null);
 		} else {
@@ -246,6 +249,7 @@ export const FinanceTab = ({
 				file_url: "",
 				recurring_id: null,
 				months_paid: 1,
+				coverage_start_month: "",
 			});
 			setRecurringBaseAmount(null);
 		}
@@ -261,6 +265,10 @@ export const FinanceTab = ({
 
 	const openPayRecurringModal = (expense) => {
 		const base = Number(expense.amount) || 0;
+		const defaultMonth =
+			currentDate.length === 7
+				? currentDate
+				: new Date().toISOString().slice(0, 7);
 		setEditingEntry(null);
 		setRecurringBaseAmount(base);
 		setFormData({
@@ -281,6 +289,7 @@ export const FinanceTab = ({
 			file_url: "",
 			recurring_id: expense.id,
 			months_paid: 1,
+			coverage_start_month: defaultMonth,
 		});
 		setReceiptFile(null);
 		setReceiptPreview(null);
@@ -527,7 +536,13 @@ export const FinanceTab = ({
 					? undefined
 					: editingEntry?.file_url || formData.file_url || null,
 				recurring_id: formData.recurring_id || null,
-				months_paid: formData.recurring_id ? (Number(formData.months_paid) || 1) : 1,
+				months_paid: formData.recurring_id
+					? Number(formData.months_paid) || 1
+					: 1,
+				coverage_start_date:
+					formData.recurring_id && formData.coverage_start_month
+						? `${formData.coverage_start_month}-01`
+						: null,
 				user_id: user.id,
 			};
 
@@ -1306,30 +1321,58 @@ export const FinanceTab = ({
 								)}
 							</div>
 						)}
-					{formData.type === "expense" && formData.recurring_id && recurringBaseAmount != null && (
-						<div>
-							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-								Nº de meses a pagar
-							</label>
-							<input
-								type="number"
-								min={1}
-								className="w-full p-4 bg-gray-50 rounded-xl font-bold"
-								value={formData.months_paid}
-								onChange={(e) => {
-									const m = Math.max(1, parseInt(e.target.value, 10) || 1);
-									setFormData({
-										...formData,
-										months_paid: m,
-										amount: String(recurringBaseAmount * m),
-									});
-								}}
-							/>
-							<p className="text-[10px] text-gray-400 mt-1">
-								Total: {formatCurrency(recurringBaseAmount * (formData.months_paid || 1))} (importe × meses)
-							</p>
-						</div>
-					)}
+					{formData.type === "expense" &&
+						formData.recurring_id &&
+						recurringBaseAmount != null && (
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+								<div>
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+										Nº de meses a pagar
+									</label>
+									<input
+										type="number"
+										min={1}
+										className="w-full p-3 bg-gray-50 rounded-xl font-bold"
+										value={formData.months_paid}
+										onChange={(e) => {
+											const m = Math.max(1, parseInt(e.target.value, 10) || 1);
+											setFormData({
+												...formData,
+												months_paid: m,
+												amount: String(recurringBaseAmount * m),
+											});
+										}}
+									/>
+									<p className="text-[10px] text-gray-400 mt-1">
+										Total:{" "}
+										{formatCurrency(
+											recurringBaseAmount * (formData.months_paid || 1),
+										)}{" "}
+										(importe × meses)
+									</p>
+								</div>
+								<div>
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+										Mes de inicio de cobertura
+									</label>
+									<input
+										type="month"
+										className="w-full p-3 bg-gray-50 rounded-xl font-bold"
+										value={formData.coverage_start_month || ""}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												coverage_start_month: e.target.value,
+											})
+										}
+									/>
+									<p className="text-[10px] text-gray-400 mt-1">
+										Se considerará pagado desde ese mes durante{" "}
+										{formData.months_paid || 1} mes(es).
+									</p>
+								</div>
+							</div>
+						)}
 					{formData.type === "expense" && formData.is_deductible && (
 						<>
 							<div>
