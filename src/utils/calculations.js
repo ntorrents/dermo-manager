@@ -13,6 +13,25 @@ export const calculateTaxReverse = (total, rate = 21) => {
 	return { baseAmount, taxAmount };
 };
 
+/**
+ * Cálculo inverso Gross-to-Net: dado el Total (lo que sale del banco), IVA % e IRPF %,
+ * devuelve Base Imponible, cuota IVA y cuota IRPF.
+ * Fórmula: Base = Total / (1 + (ivaRate/100) - (irpfRate/100))
+ * Redondeo a 2 decimales para evitar errores de coma flotante.
+ */
+export const calculateTaxReverseGrossToNet = (total, ivaRate = 21, irpfRate = 0) => {
+	const amount = Number(total) || 0;
+	const iva = Number(ivaRate) || 0;
+	const irpf = Number(irpfRate) || 0;
+	if (amount <= 0) return { baseAmount: 0, taxAmount: 0, irpfAmount: 0 };
+	const divisor = 1 + iva / 100 - irpf / 100;
+	if (divisor <= 0) return { baseAmount: 0, taxAmount: 0, irpfAmount: 0 };
+	const baseAmount = Math.round((amount / divisor) * 100) / 100;
+	const taxAmount = Math.round(baseAmount * (iva / 100) * 100) / 100;
+	const irpfAmount = Math.round(baseAmount * (irpf / 100) * 100) / 100;
+	return { baseAmount, taxAmount, irpfAmount };
+};
+
 /** Calcula income, expense y net a partir de entries */
 export const calculateStats = (entries = []) => {
 	const income = (entries || [])

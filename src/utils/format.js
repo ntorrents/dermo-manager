@@ -1,6 +1,7 @@
 // /Users/nilto/Documents/GitHub/DermoManager/src/utils/format.js
 
 export const IVA_OPTIONS = [0, 4, 10, 21];
+export const IRPF_OPTIONS = [0, 7, 15, 19];
 
 export const calculateTaxFromTotal = (totalAmount, taxRate = 0) => {
 	const amount = Number(totalAmount) || 0;
