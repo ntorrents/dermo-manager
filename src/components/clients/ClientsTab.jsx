@@ -25,6 +25,7 @@ import { useClientHistory } from "../../hooks/useClientHistory";
 import { useSessionPhotos } from "../../hooks/useSessionPhotos";
 import { useClientBonos } from "../../hooks/useBonos";
 import { formatCurrency } from "../../utils/format";
+import { getAge } from "../../utils/dateUtils";
 import { generateInvoice } from "../../utils/invoiceGenerator";
 import { calculateTaxReverse } from "../../utils/calculations";
 import { getNextRectifiedInvoiceNumber } from "../../services/invoiceSeries";
@@ -70,6 +71,8 @@ export const ClientsTab = ({
 		has_consent: false,
 		has_image_rights: false,
 		drive_url: "",
+		fecha_nacimiento: "",
+		notas_privadas: "",
 	});
 
 	// ESTADOS PARA EL MODAL DE BORRADO
@@ -124,6 +127,8 @@ export const ClientsTab = ({
 				has_consent: client.has_consent ?? false,
 				has_image_rights: client.has_image_rights ?? false,
 				drive_url: client.drive_url || "",
+				fecha_nacimiento: client.fecha_nacimiento || "",
+				notas_privadas: client.notas_privadas || "",
 			});
 			setSelectedClient(client);
 		} else {
@@ -140,6 +145,8 @@ export const ClientsTab = ({
 				has_consent: false,
 				has_image_rights: false,
 				drive_url: "",
+				fecha_nacimiento: "",
+				notas_privadas: "",
 			});
 			setSelectedClient(null);
 		}
@@ -160,6 +167,8 @@ export const ClientsTab = ({
 				has_consent: formData.has_consent,
 				has_image_rights: formData.has_image_rights,
 				drive_url: formData.drive_url?.trim() || null,
+				fecha_nacimiento: formData.fecha_nacimiento?.trim() || null,
+				notas_privadas: formData.notas_privadas?.trim() || null,
 			};
 			if (selectedClient && isModalOpen) {
 				const { error } = await supabase
@@ -593,6 +602,21 @@ export const ClientsTab = ({
 												{selectedClient.nif || "—"}
 											</dd>
 										</div>
+										{selectedClient.fecha_nacimiento && (
+											<div>
+												<dt className="text-[10px] font-black text-gray-400 uppercase">
+													Fecha nacimiento
+												</dt>
+												<dd className="font-bold text-gray-800">
+													{selectedClient.fecha_nacimiento}
+													{getAge(selectedClient.fecha_nacimiento) != null && (
+														<span className="text-gray-500 font-medium ml-2">
+															({getAge(selectedClient.fecha_nacimiento)} años)
+														</span>
+													)}
+												</dd>
+											</div>
+										)}
 										<div>
 											<dt className="text-[10px] font-black text-gray-400 uppercase">
 												Origen
@@ -616,6 +640,16 @@ export const ClientsTab = ({
 												</dt>
 												<dd className="font-medium text-gray-700">
 													{selectedClient.notes}
+												</dd>
+											</div>
+										)}
+										{selectedClient.notas_privadas && (
+											<div className="pt-3 mt-3 border-t border-gray-100">
+												<dt className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-1">
+													<Shield size={12} /> Notas privadas (HC)
+												</dt>
+												<dd className="font-medium text-gray-700 mt-1 p-3 bg-amber-50/50 rounded-xl border border-amber-100">
+													{selectedClient.notas_privadas}
 												</dd>
 											</div>
 										)}
@@ -985,6 +1019,19 @@ export const ClientsTab = ({
 					/>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Fecha de nacimiento
+						</label>
+						<input
+							type="date"
+							className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
+							value={formData.fecha_nacimiento || ""}
+							onChange={(e) =>
+								setFormData({ ...formData, fecha_nacimiento: e.target.value })
+							}
+						/>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 							Origen
 						</label>
 						<select
@@ -1003,12 +1050,26 @@ export const ClientsTab = ({
 					<textarea
 						rows="2"
 						className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold resize-none"
-						placeholder="Notas privadas..."
+						placeholder="Notas (visibles en perfil)"
 						value={formData.notes}
 						onChange={(e) =>
 							setFormData({ ...formData, notes: e.target.value })
 						}
 					/>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Notas privadas (historia clínica)
+						</label>
+						<textarea
+							rows="2"
+							className="w-full p-4 bg-amber-50/50 border-2 border-amber-100 focus:bg-white focus:border-amber-200 rounded-2xl outline-none font-bold resize-none placeholder:text-gray-400"
+							placeholder="Solo visibles en el perfil del cliente..."
+							value={formData.notas_privadas || ""}
+							onChange={(e) =>
+								setFormData({ ...formData, notas_privadas: e.target.value })
+							}
+						/>
+					</div>
 					<div>
 						<label className="text-[11px] font-black text-rose-600 uppercase tracking-widest mb-1 block ml-1">
 							Alergias
