@@ -12,10 +12,11 @@ Entre cada bloque **parar** para pruebas, commit y luego continuar con el siguie
 
 ---
 
-## Bloque 2 – Generador de Consentimientos Informados en PDF
+## Bloque 2 – Generador de Consentimientos Informados en PDF ✅
 - **BD:** Nueva tabla `plantillas_consentimiento` vinculada a tratamientos (y migración).
 - **Funcionalidad:** En vista cliente, opción "Generar Consentimiento" → modal: seleccionar tratamiento, cargar plantilla, reemplazar variables ({{NOMBRE}}, {{DNI}}, {{TRATAMIENTO}}, {{FECHA}}) y generar PDF (jsPDF).
-- **Acción BD:** Ejecutar migración de `plantillas_consentimiento`.
+- **Acción BD:** Ejecutar migración `012_plantillas_consentimiento.sql`.
+- **Implementado:** Hook useConsentTemplates, consentGenerator.js, modal en ClientsTab, sección Plantillas en Ajustes.
 
 ---
 
