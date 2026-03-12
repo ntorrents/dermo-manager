@@ -19,13 +19,20 @@ import {
 	RotateCcw,
 	MessageCircle,
 	Ticket,
+	FileCheck,
+	Upload,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useClientHistory } from "../../hooks/useClientHistory";
 import { useSessionPhotos } from "../../hooks/useSessionPhotos";
 import { useClientBonos } from "../../hooks/useBonos";
+import { useTreatments } from "../../hooks/useTreatments";
+import { useConsentTemplates } from "../../hooks/useConsentTemplates";
+import { useSignedConsents } from "../../hooks/useSignedConsents";
 import { formatCurrency } from "../../utils/format";
+import { getAge } from "../../utils/dateUtils";
 import { generateInvoice } from "../../utils/invoiceGenerator";
+import { generateConsentPDF } from "../../utils/consentGenerator";
 import { calculateTaxReverse } from "../../utils/calculations";
 import { getNextRectifiedInvoiceNumber } from "../../services/invoiceSeries";
 import { ConfirmModal } from "../ui/ConfirmModal";
@@ -37,6 +44,10 @@ import { PhotoEditModal } from "../photos/PhotoEditModal";
 import { BeforeAfterViewer } from "../photos/BeforeAfterViewer";
 import { SessionPhotoThumbnail } from "../photos/SessionPhotoThumbnail";
 import { deleteSessionPhoto } from "../../services/photoStorage";
+import {
+	uploadSignedConsent,
+	getSignedConsentDownloadUrl,
+} from "../../services/signedConsentStorage";
 
 const buildWhatsAppUrl = (phone, firstName, companyName = "C3linic") => {
 	if (!phone || !String(phone).trim()) return null;
@@ -70,6 +81,8 @@ export const ClientsTab = ({
 		has_consent: false,
 		has_image_rights: false,
 		drive_url: "",
+		fecha_nacimiento: "",
+		notas_privadas: "",
 	});
 
 	// ESTADOS PARA EL MODAL DE BORRADO
@@ -87,7 +100,14 @@ export const ClientsTab = ({
 	const [sessionToRefund, setSessionToRefund] = useState(null);
 	const [refundAmount, setRefundAmount] = useState("");
 	const [processingRefund, setProcessingRefund] = useState(false);
+	const [showConsentModal, setShowConsentModal] = useState(false);
+	const [consentTreatmentId, setConsentTreatmentId] = useState("");
+	const [consentTemplateId, setConsentTemplateId] = useState("");
+	const [consentLogoDataUrl, setConsentLogoDataUrl] = useState("");
+	const [consentSignatureDataUrl, setConsentSignatureDataUrl] = useState("");
 
+	const { treatments = [] } = useTreatments(user);
+	const { consentTemplates = [] } = useConsentTemplates(user);
 	const {
 		history,
 		loading: historyLoading,
@@ -101,6 +121,14 @@ export const ClientsTab = ({
 		user?.id,
 		selectedClient?.id,
 	);
+	const {
+		signedConsents,
+		loading: signedConsentsLoading,
+		refetch: refetchSignedConsents,
+	} = useSignedConsents(selectedClient?.id);
+	const [signedConsentTreatmentId, setSignedConsentTreatmentId] = useState("");
+	const [signedConsentFile, setSignedConsentFile] = useState(null);
+	const [uploadingSignedConsent, setUploadingSignedConsent] = useState(false);
 
 	const filteredClients = clients.filter(
 		(c) =>
@@ -124,6 +152,8 @@ export const ClientsTab = ({
 				has_consent: client.has_consent ?? false,
 				has_image_rights: client.has_image_rights ?? false,
 				drive_url: client.drive_url || "",
+				fecha_nacimiento: client.fecha_nacimiento || "",
+				notas_privadas: client.notas_privadas || "",
 			});
 			setSelectedClient(client);
 		} else {
@@ -140,6 +170,8 @@ export const ClientsTab = ({
 				has_consent: false,
 				has_image_rights: false,
 				drive_url: "",
+				fecha_nacimiento: "",
+				notas_privadas: "",
 			});
 			setSelectedClient(null);
 		}
@@ -160,6 +192,8 @@ export const ClientsTab = ({
 				has_consent: formData.has_consent,
 				has_image_rights: formData.has_image_rights,
 				drive_url: formData.drive_url?.trim() || null,
+				fecha_nacimiento: formData.fecha_nacimiento?.trim() || null,
+				notas_privadas: formData.notas_privadas?.trim() || null,
 			};
 			if (selectedClient && isModalOpen) {
 				const { error } = await supabase
@@ -518,12 +552,25 @@ export const ClientsTab = ({
 									</div>
 								</div>
 							</div>
-							<button
-								onClick={() => handleOpenModal(selectedClient)}
-								className="p-3 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-rose-600 transition-all shadow-sm"
-								title="Editar cliente">
-								<Edit2 size={18} />
-							</button>
+							<div className="flex items-center gap-2">
+								<button
+									onClick={() => {
+										setConsentTreatmentId("");
+										setConsentTemplateId("");
+										setShowConsentModal(true);
+									}}
+									className="p-3 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-rose-600 transition-all shadow-sm flex items-center gap-2"
+									title="Generar consentimiento informado">
+									<FileText size={18} />
+									<span className="hidden sm:inline text-sm font-bold">Consentimiento</span>
+								</button>
+								<button
+									onClick={() => handleOpenModal(selectedClient)}
+									className="p-3 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-rose-600 transition-all shadow-sm"
+									title="Editar cliente">
+									<Edit2 size={18} />
+								</button>
+							</div>
 						</div>
 
 						{/* Pestañas perfil 360º */}
@@ -534,6 +581,11 @@ export const ClientsTab = ({
 								{ id: "legal", label: "Legal", icon: Shield },
 								{ id: "bonos", label: "Bonos", icon: Ticket },
 								{ id: "historial", label: "Historial", icon: Clock },
+								{
+									id: "consentimientos",
+									label: "Consentimientos",
+									icon: FileCheck,
+								},
 							].map(({ id, label, icon: Icon }) => (
 								<button
 									key={id}
@@ -593,6 +645,21 @@ export const ClientsTab = ({
 												{selectedClient.nif || "—"}
 											</dd>
 										</div>
+										{selectedClient.fecha_nacimiento && (
+											<div>
+												<dt className="text-[10px] font-black text-gray-400 uppercase">
+													Fecha nacimiento
+												</dt>
+												<dd className="font-bold text-gray-800">
+													{selectedClient.fecha_nacimiento}
+													{getAge(selectedClient.fecha_nacimiento) != null && (
+														<span className="text-gray-500 font-medium ml-2">
+															({getAge(selectedClient.fecha_nacimiento)} años)
+														</span>
+													)}
+												</dd>
+											</div>
+										)}
 										<div>
 											<dt className="text-[10px] font-black text-gray-400 uppercase">
 												Origen
@@ -616,6 +683,16 @@ export const ClientsTab = ({
 												</dt>
 												<dd className="font-medium text-gray-700">
 													{selectedClient.notes}
+												</dd>
+											</div>
+										)}
+										{selectedClient.notas_privadas && (
+											<div className="pt-3 mt-3 border-t border-gray-100">
+												<dt className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-1">
+													<Shield size={12} /> Notas privadas (HC)
+												</dt>
+												<dd className="font-medium text-gray-700 mt-1 p-3 bg-amber-50/50 rounded-xl border border-amber-100">
+													{selectedClient.notas_privadas}
 												</dd>
 											</div>
 										)}
@@ -921,6 +998,160 @@ export const ClientsTab = ({
 									)}
 								</>
 							)}
+
+							{clientDetailTab === "consentimientos" && (
+								<>
+									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+										<FileCheck size={14} /> Consentimientos firmados
+									</h3>
+
+									{/* Subir nuevo */}
+									<div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6">
+										<p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+											Subir consentimiento firmado (PDF)
+										</p>
+										<div className="flex flex-wrap items-end gap-3">
+											<div className="min-w-[200px] flex-1">
+												<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+													Tratamiento
+												</label>
+												<select
+													value={signedConsentTreatmentId}
+													onChange={(e) =>
+														setSignedConsentTreatmentId(e.target.value)
+													}
+													className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium">
+													<option value="">— Seleccionar —</option>
+													{treatments.map((t) => (
+														<option key={t.id} value={t.id}>
+															{t.name}
+														</option>
+													))}
+												</select>
+											</div>
+											<div className="min-w-[180px] flex-1">
+												<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+													Archivo PDF
+												</label>
+												<input
+													type="file"
+													accept=".pdf,application/pdf"
+													onChange={(e) =>
+														setSignedConsentFile(e.target.files?.[0] || null)
+													}
+													className="w-full p-2 text-sm border border-gray-200 rounded-xl bg-gray-50 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-rose-50 file:text-rose-600"
+												/>
+											</div>
+											<LoadingButton
+												loading={uploadingSignedConsent}
+												disabled={
+													!signedConsentTreatmentId ||
+													!signedConsentFile ||
+													!user?.id
+												}
+												onClick={async () => {
+													if (
+														!signedConsentTreatmentId ||
+														!signedConsentFile ||
+														!selectedClient?.id ||
+														!user?.id
+													)
+														return;
+													const treatment = treatments.find(
+														(t) => t.id === signedConsentTreatmentId,
+													);
+													setUploadingSignedConsent(true);
+													try {
+														await uploadSignedConsent({
+															userId: user.id,
+															clientId: selectedClient.id,
+															treatmentId: signedConsentTreatmentId,
+															treatmentName: treatment?.name || "Tratamiento",
+															file: signedConsentFile,
+														});
+														refetchSignedConsents();
+														setSignedConsentTreatmentId("");
+														setSignedConsentFile(null);
+														showToast("Consentimiento subido correctamente");
+													} catch (err) {
+														showToast(
+															err?.message || "Error al subir",
+															"error",
+														);
+													} finally {
+														setUploadingSignedConsent(false);
+													}
+												}}>
+												<Upload size={16} className="mr-1.5" />
+												Subir
+											</LoadingButton>
+										</div>
+									</div>
+
+									{signedConsentsLoading ? (
+										<div className="space-y-4">
+											{[1, 2].map((i) => (
+												<div
+													key={i}
+													className="h-20 bg-gray-100 rounded-2xl animate-pulse"
+												/>
+											))}
+										</div>
+									) : signedConsents.length > 0 ? (
+										<div className="space-y-3">
+											{signedConsents.map((consent) => (
+												<div
+													key={consent.id}
+													className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-3">
+													<div>
+														<p className="font-bold text-gray-800">
+															{consent.treatment_name}
+														</p>
+														<p className="text-xs text-gray-500">
+															Subido{" "}
+															{new Date(consent.uploaded_at).toLocaleDateString(
+																"es-ES",
+																{
+																	day: "numeric",
+																	month: "short",
+																	year: "numeric",
+																},
+															)}
+														</p>
+													</div>
+													<button
+														type="button"
+														onClick={async () => {
+															try {
+																const url = await getSignedConsentDownloadUrl(
+																	consent.storage_path,
+																);
+																if (url) window.open(url, "_blank");
+																else showToast("No se pudo generar el enlace", "error");
+															} catch {
+																showToast("Error al descargar", "error");
+															}
+														}}
+														className="p-2.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-sm flex items-center gap-2">
+														<FileDown size={16} />
+														Descargar
+													</button>
+												</div>
+											))}
+										</div>
+									) : (
+										<div className="flex flex-col items-center justify-center h-32 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
+											<FileCheck size={28} className="mb-2 opacity-50" />
+											<p className="font-bold text-sm">
+												Ningún consentimiento firmado aún
+											</p>
+											<p className="text-xs text-gray-400 mt-1">
+												Sube un PDF firmado arriba
+											</p>
+										</div>
+									)}
+								</>
+							)}
 						</div>
 					</>
 				) : (
@@ -985,6 +1216,19 @@ export const ClientsTab = ({
 					/>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Fecha de nacimiento
+						</label>
+						<input
+							type="date"
+							className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
+							value={formData.fecha_nacimiento || ""}
+							onChange={(e) =>
+								setFormData({ ...formData, fecha_nacimiento: e.target.value })
+							}
+						/>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 							Origen
 						</label>
 						<select
@@ -1003,12 +1247,26 @@ export const ClientsTab = ({
 					<textarea
 						rows="2"
 						className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold resize-none"
-						placeholder="Notas privadas..."
+						placeholder="Notas (visibles en perfil)"
 						value={formData.notes}
 						onChange={(e) =>
 							setFormData({ ...formData, notes: e.target.value })
 						}
 					/>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Notas privadas (historia clínica)
+						</label>
+						<textarea
+							rows="2"
+							className="w-full p-4 bg-amber-50/50 border-2 border-amber-100 focus:bg-white focus:border-amber-200 rounded-2xl outline-none font-bold resize-none placeholder:text-gray-400"
+							placeholder="Solo visibles en el perfil del cliente..."
+							value={formData.notas_privadas || ""}
+							onChange={(e) =>
+								setFormData({ ...formData, notas_privadas: e.target.value })
+							}
+						/>
+					</div>
 					<div>
 						<label className="text-[11px] font-black text-rose-600 uppercase tracking-widest mb-1 block ml-1">
 							Alergias
@@ -1137,6 +1395,128 @@ export const ClientsTab = ({
 					/>
 				</AdaptiveModal>
 			)}
+
+			<AdaptiveModal
+				isOpen={showConsentModal}
+				onClose={() => {
+					setShowConsentModal(false);
+					setConsentTreatmentId("");
+					setConsentTemplateId("");
+					setConsentLogoDataUrl("");
+					setConsentSignatureDataUrl("");
+				}}
+				title="Generar consentimiento informado"
+				maxWidth="max-w-lg">
+				{selectedClient && (
+					<div className="space-y-4">
+						{consentTemplates.length === 0 ? (
+							<div className="p-4 bg-amber-50 border border-amber-100 rounded-xl text-sm text-amber-800">
+								<p className="font-bold mb-1">No hay plantillas de consentimiento</p>
+								<p className="text-amber-700">
+									Añade plantillas en <strong>Ajustes → Plantillas de consentimiento</strong> y asígnale un tratamiento. Usa variables: {"{{NOMBRE}}"}, {"{{APELLIDOS}}"}, {"{{DNI}}"}, {"{{TRATAMIENTO}}"}, {"{{FECHA}}"}.
+								</p>
+							</div>
+						) : (
+							<>
+								<div>
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Tratamiento</label>
+									<select
+										className="w-full p-3 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
+										value={consentTreatmentId}
+										onChange={(e) => {
+											setConsentTreatmentId(e.target.value);
+											setConsentTemplateId("");
+										}}>
+										<option value="">— Cualquiera / Genérico —</option>
+										{treatments.map((t) => (
+											<option key={t.id} value={t.id}>{t.name}</option>
+										))}
+									</select>
+								</div>
+								<div>
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Plantilla</label>
+									<select
+										className="w-full p-3 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
+										value={consentTemplateId}
+										onChange={(e) => setConsentTemplateId(e.target.value)}>
+										<option value="">— Seleccionar plantilla —</option>
+										{consentTemplates
+											.filter(
+												(tpl) =>
+													!consentTreatmentId ||
+													tpl.treatment_id === consentTreatmentId ||
+													tpl.treatment_id == null
+											)
+											.map((tpl) => (
+												<option key={tpl.id} value={tpl.id}>
+													{tpl.nombre}
+													{tpl.treatments?.name ? ` (${tpl.treatments.name})` : " (genérica)"}
+												</option>
+											))}
+									</select>
+								</div>
+								<div className="grid grid-cols-2 gap-3">
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Logo (opcional)</label>
+										<input
+											type="file"
+											accept="image/*"
+											className="w-full text-sm text-gray-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-700 file:font-bold"
+											onChange={(e) => {
+												const f = e.target.files?.[0];
+												if (f) {
+													const r = new FileReader();
+													r.onload = () => setConsentLogoDataUrl(r.result ?? "");
+													r.readAsDataURL(f);
+												} else setConsentLogoDataUrl("");
+											}}
+										/>
+									</div>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Firma (opcional)</label>
+										<input
+											type="file"
+											accept="image/*"
+											className="w-full text-sm text-gray-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-700 file:font-bold"
+											onChange={(e) => {
+												const f = e.target.files?.[0];
+												if (f) {
+													const r = new FileReader();
+													r.onload = () => setConsentSignatureDataUrl(r.result ?? "");
+													r.readAsDataURL(f);
+												} else setConsentSignatureDataUrl("");
+											}}
+										/>
+									</div>
+								</div>
+								<button
+									type="button"
+									disabled={!consentTemplateId}
+									onClick={async () => {
+										const tpl = consentTemplates.find((c) => c.id === consentTemplateId);
+										if (!tpl) return;
+										const treatmentName = tpl.treatments?.name ?? treatments.find((t) => t.id === tpl.treatment_id)?.name ?? "";
+										await generateConsentPDF(selectedClient, treatmentName, tpl.contenido, tpl.nombre, {
+											profile: profile ?? undefined,
+											logoImage: consentLogoDataUrl || undefined,
+											signatureImage: consentSignatureDataUrl || undefined,
+										});
+										showToast("PDF generado");
+										setShowConsentModal(false);
+										setConsentTreatmentId("");
+										setConsentTemplateId("");
+										setConsentLogoDataUrl("");
+										setConsentSignatureDataUrl("");
+									}}
+									className="w-full py-4 bg-rose-500 hover:bg-rose-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2">
+									<FileDown size={20} />
+									Generar PDF
+								</button>
+							</>
+						)}
+					</div>
+				)}
+			</AdaptiveModal>
 
 			<AdaptiveModal
 				isOpen={showRefundModal}

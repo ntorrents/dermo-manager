@@ -58,3 +58,20 @@ export const getDateLabel = (currentDateStr, viewMode) => {
 	// Month
 	return `${monthNames[date.getMonth()]} ${year}`;
 };
+
+/**
+ * Calcula la edad en años a partir de la fecha de nacimiento (string YYYY-MM-DD o Date).
+ * Devuelve null si no hay fecha o no es válida.
+ */
+export const getAge = (fechaNacimiento) => {
+	if (!fechaNacimiento) return null;
+	const birth = new Date(fechaNacimiento);
+	if (Number.isNaN(birth.getTime())) return null;
+	const today = new Date();
+	let age = today.getFullYear() - birth.getFullYear();
+	const monthDiff = today.getMonth() - birth.getMonth();
+	if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+		age -= 1;
+	}
+	return age >= 0 ? age : null;
+};
