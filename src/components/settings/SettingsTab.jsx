@@ -27,6 +27,7 @@ import { useConsentTemplates } from "../../hooks/useConsentTemplates";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import ConsentEditor from "../consent/ConsentEditor";
 import { CONSENT_VARIABLES } from "../../utils/consentGenerator";
+import { uploadProfileAsset } from "../../services/profileAssetStorage";
 
 export const SettingsTab = ({ user, profile, showToast }) => {
 	const [formData, setFormData] = useState({
@@ -39,6 +40,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 		address: "",
 		city: "",
 		logo_url: "",
+		consent_signature_url: "",
 	});
 
 	// Estados para seguridad
@@ -88,6 +90,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 				address: profile.address || "",
 				city: profile.city || "",
 				logo_url: profile.logo_url || "",
+				consent_signature_url: profile.consent_signature_url || "",
 			});
 		}
 	}, [profile]);
@@ -106,6 +109,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 				address: formData.address,
 				city: formData.city,
 				logo_url: formData.logo_url || null,
+				consent_signature_url: formData.consent_signature_url || null,
 				email: user.email,
 				updated_at: new Date(),
 			};
@@ -289,6 +293,77 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 								</div>
 							)}
 						</div>
+						<p className="text-[10px] text-gray-500 mt-1">
+							Puedes pegar una URL o subir desde el botón (se guarda en almacenamiento y rellena la URL).
+						</p>
+						<input
+							type="file"
+							accept="image/*"
+							className="mt-2 text-sm text-gray-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-700 file:font-bold"
+							onChange={async (e) => {
+								const f = e.target.files?.[0];
+								if (!f || !user?.id) return;
+								try {
+									const url = await uploadProfileAsset(user.id, f, "logo");
+									if (url) {
+										setFormData({ ...formData, logo_url: url });
+										showToast("Logo subido; pulsa Guardar para persistir");
+									}
+								} catch (err) {
+									showToast(err?.message || "Error al subir logo", "error");
+								}
+								e.target.value = "";
+							}}
+						/>
+					</div>
+					<div className="md:col-span-2">
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							Firma profesional (consentimientos PDF)
+						</label>
+						<p className="text-[10px] text-gray-500 mt-0.5 mb-1">
+							Se usa en todos los consentimientos generados, encima de la línea «Firma Profesional».
+						</p>
+						<div className="flex gap-4 items-start mt-1">
+							<input
+								className="flex-1 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
+								value={formData.consent_signature_url}
+								onChange={(e) =>
+									setFormData({ ...formData, consent_signature_url: e.target.value })
+								}
+								placeholder="https://... (o sube imagen abajo)"
+							/>
+							{formData.consent_signature_url && (
+								<div className="shrink-0 w-20 h-14 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+									<img
+										src={formData.consent_signature_url}
+										alt="Firma"
+										className="w-full h-full object-contain"
+										onError={(e) => {
+											e.target.style.display = "none";
+										}}
+									/>
+								</div>
+							)}
+						</div>
+						<input
+							type="file"
+							accept="image/*"
+							className="mt-2 text-sm text-gray-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-700 file:font-bold"
+							onChange={async (e) => {
+								const f = e.target.files?.[0];
+								if (!f || !user?.id) return;
+								try {
+									const url = await uploadProfileAsset(user.id, f, "signature");
+									if (url) {
+										setFormData({ ...formData, consent_signature_url: url });
+										showToast("Firma subida; pulsa Guardar para persistir");
+									}
+								} catch (err) {
+									showToast(err?.message || "Error al subir firma", "error");
+								}
+								e.target.value = "";
+							}}
+						/>
 					</div>
 					<div className="md:col-span-2">
 						<label className="text-xs font-bold text-gray-500 uppercase">

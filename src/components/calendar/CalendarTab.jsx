@@ -5,7 +5,7 @@ import { format, parse, startOfWeek, getDay, addHours } from "date-fns";
 import { es } from "date-fns/locale";
 import { Plus, Trash2, Edit2 } from "lucide-react";
 import { supabase } from "../../services/supabase";
-import { mergeCalendarEvents, STATUS_COLORS } from "../../utils/calendarUtils";
+import { mergeCalendarEvents, STATUS_COLORS, SEGUIMIENTO_COLOR } from "../../utils/calendarUtils";
 import { formatCurrency } from "../../utils/format";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { LoadingButton } from "../ui/LoadingButton";
@@ -54,6 +54,7 @@ export const CalendarTab = ({
 	entries = [],
 	appointments = [],
 	clients = [],
+	seguimientos = [],
 	treatments = [],
 	showToast,
 	onRefresh,
@@ -80,8 +81,8 @@ export const CalendarTab = ({
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
 	const events = useMemo(
-		() => mergeCalendarEvents(entries, appointments, clients),
-		[entries, appointments, clients],
+		() => mergeCalendarEvents(entries, appointments, clients, seguimientos),
+		[entries, appointments, clients, seguimientos],
 	);
 
 	const openModalForSlot = (slotInfo) => {
@@ -124,7 +125,7 @@ export const CalendarTab = ({
 	};
 
 	const handleSelectEvent = (event) => {
-		if (event.resource?.type === "session") {
+		if (event.resource?.type === "session" || event.resource?.type === "seguimiento") {
 			setSelectedEvent(event);
 			setShowDetailModal(true);
 			return;
@@ -261,6 +262,9 @@ export const CalendarTab = ({
 		const isSession = event.resource?.type === "session";
 		if (isSession) {
 			return { style: { backgroundColor: "#f43f5e" } };
+		}
+		if (event.resource?.type === "seguimiento") {
+			return { style: { backgroundColor: SEGUIMIENTO_COLOR } };
 		}
 		const status =
 			event.status || event.resource?.appointment?.status || "pending";
@@ -533,9 +537,11 @@ export const CalendarTab = ({
 				title={
 					selectedEvent?.resource?.type === "session"
 						? "Detalle de sesión"
-						: selectedEvent?.resource?.appointment?.type === "task"
-							? "Detalle de tarea"
-							: "Detalle de cita"
+						: selectedEvent?.resource?.type === "seguimiento"
+							? "Recordatorio de seguimiento"
+							: selectedEvent?.resource?.appointment?.type === "task"
+								? "Detalle de tarea"
+								: "Detalle de cita"
 				}
 				maxWidth="max-w-md">
 				{selectedEvent?.resource?.type === "session" && (
@@ -543,6 +549,9 @@ export const CalendarTab = ({
 						entry={selectedEvent.resource.entry}
 						clients={clients}
 					/>
+				)}
+				{selectedEvent?.resource?.type === "seguimiento" && (
+					<SeguimientoDetail seguimiento={selectedEvent.resource.seguimiento} client={selectedEvent.resource.client} />
 				)}
 				{selectedEvent?.resource?.type === "appointment" && (
 					<>
@@ -621,6 +630,39 @@ function SessionDetail({ entry, clients }) {
 					</p>
 				</div>
 			)}
+		</div>
+	);
+}
+
+function SeguimientoDetail({ seguimiento, client }) {
+	const clientName = client ? `${client.name} ${client.surname || ""}`.trim() : "—";
+	const dateStr = seguimiento?.fecha_proximo_contacto
+		? format(new Date(seguimiento.fecha_proximo_contacto + "T12:00:00"), "EEEE d 'de' MMMM yyyy", { locale: es })
+		: "—";
+
+	return (
+		<div className="space-y-4">
+			<div>
+				<span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Cliente</span>
+				<p className="font-bold text-gray-800 mt-1">{clientName}</p>
+			</div>
+			{seguimiento?.tratamientos_interes && (
+				<div>
+					<span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Tratamientos de interés</span>
+					<p className="font-bold text-gray-800 mt-1">{seguimiento.tratamientos_interes}</p>
+				</div>
+			)}
+			<div>
+				<span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Próximo contacto</span>
+				<p className="font-bold text-amber-600 mt-1">{dateStr}</p>
+			</div>
+			{seguimiento?.notas && (
+				<div>
+					<span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Notas</span>
+					<p className="font-medium text-gray-700 mt-1 text-sm whitespace-pre-wrap">{seguimiento.notas}</p>
+				</div>
+			)}
+			<p className="text-[10px] text-gray-500 mt-2">Este recordatorio viene de la pestaña Seguimiento del cliente. Para editarlo o eliminarlo, abre el cliente en Clientes.</p>
 		</div>
 	);
 }

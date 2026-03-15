@@ -97,3 +97,30 @@ body {
 .animate-in.zoom-in-95 {
 	animation: zoomIn 0.2s ease-out forwards;
 }
+
+/* Editor de consentimientos (TipTap / ProseMirror): viñetas y listas numeradas visibles */
+.ProseMirror ul {
+	list-style-type: disc;
+	list-style-position: outside;
+	padding-left: 1.5em;
+	margin: 0.5em 0;
+}
+.ProseMirror ol {
+	list-style-type: decimal;
+	list-style-position: outside;
+	padding-left: 1.5em;
+	margin: 0.5em 0;
+}
+.ProseMirror li {
+	display: list-item;
+	margin-bottom: 0.25em;
+}
+.ProseMirror ul ul {
+	list-style-type: circle;
+}
+/* Línea en blanco visible entre bloques (Enter dos veces) */
+.ProseMirror p:empty,
+.ProseMirror p:has(> br:only-child) {
+	min-height: 1.15em;
+	margin-bottom: 0.5em;
+}

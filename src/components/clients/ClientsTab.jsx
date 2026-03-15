@@ -21,6 +21,9 @@ import {
 	Ticket,
 	FileCheck,
 	Upload,
+	CalendarCheck,
+	ChevronDown,
+	ChevronUp,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useClientHistory } from "../../hooks/useClientHistory";
@@ -29,6 +32,7 @@ import { useClientBonos } from "../../hooks/useBonos";
 import { useTreatments } from "../../hooks/useTreatments";
 import { useConsentTemplates } from "../../hooks/useConsentTemplates";
 import { useSignedConsents } from "../../hooks/useSignedConsents";
+import { useClientSeguimientos } from "../../hooks/useClientSeguimientos";
 import { formatCurrency } from "../../utils/format";
 import { getAge } from "../../utils/dateUtils";
 import { generateInvoice } from "../../utils/invoiceGenerator";
@@ -66,7 +70,7 @@ export const ClientsTab = ({
 }) => {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedClient, setSelectedClient] = useState(null);
-	const [clientDetailTab, setClientDetailTab] = useState("filiacion");
+	const [clientDetailTab, setClientDetailTab] = useState("seguimiento");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [formData, setFormData] = useState({
 		name: "",
@@ -103,8 +107,6 @@ export const ClientsTab = ({
 	const [showConsentModal, setShowConsentModal] = useState(false);
 	const [consentTreatmentId, setConsentTreatmentId] = useState("");
 	const [consentTemplateId, setConsentTemplateId] = useState("");
-	const [consentLogoDataUrl, setConsentLogoDataUrl] = useState("");
-	const [consentSignatureDataUrl, setConsentSignatureDataUrl] = useState("");
 
 	const { treatments = [] } = useTreatments(user);
 	const { consentTemplates = [] } = useConsentTemplates(user);
@@ -126,6 +128,20 @@ export const ClientsTab = ({
 		loading: signedConsentsLoading,
 		refetch: refetchSignedConsents,
 	} = useSignedConsents(selectedClient?.id);
+	const {
+		seguimientos,
+		loading: seguimientosLoading,
+		addSeguimiento,
+		deleteSeguimiento,
+		adding: addingSeguimiento,
+		deleting: deletingSeguimiento,
+	} = useClientSeguimientos(selectedClient?.id, user?.id);
+	const [seguimientoForm, setSeguimientoForm] = useState({
+		tratamientos_interes: "",
+		fecha_proximo_contacto: "",
+		notas: "",
+	});
+	const [seguimientoFormOpen, setSeguimientoFormOpen] = useState(false);
 	const [signedConsentTreatmentId, setSignedConsentTreatmentId] = useState("");
 	const [signedConsentFile, setSignedConsentFile] = useState(null);
 	const [uploadingSignedConsent, setUploadingSignedConsent] = useState(false);
@@ -573,9 +589,10 @@ export const ClientsTab = ({
 							</div>
 						</div>
 
-						{/* Pestañas perfil 360º */}
+						{/* Pestañas perfil 360º - Seguimiento primero */}
 						<div className="flex border-b border-gray-100 bg-white px-4 gap-1 overflow-x-auto">
 							{[
+								{ id: "seguimiento", label: "Seguimiento", icon: CalendarCheck },
 								{ id: "filiacion", label: "Filiación", icon: User },
 								{ id: "medico", label: "Médico", icon: Stethoscope },
 								{ id: "legal", label: "Legal", icon: Shield },
@@ -603,6 +620,182 @@ export const ClientsTab = ({
 						</div>
 
 						<div className="flex-1 overflow-y-auto p-6 xl:p-8 custom-scrollbar bg-gray-50/30">
+							{clientDetailTab === "seguimiento" && (
+								<>
+									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+										<CalendarCheck size={14} /> Seguimiento
+									</h3>
+
+									{/* Formulario nuevo seguimiento (colapsable para ganar espacio) */}
+									<div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+										<button
+											type="button"
+											onClick={() => setSeguimientoFormOpen(!seguimientoFormOpen)}
+											className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-gray-50/80 transition-colors">
+											<span className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+												<Plus size={14} />
+												Nuevo registro de seguimiento
+											</span>
+											{seguimientoFormOpen ? (
+												<ChevronUp size={18} className="text-gray-400 shrink-0" />
+											) : (
+												<ChevronDown size={18} className="text-gray-400 shrink-0" />
+											)}
+										</button>
+										{seguimientoFormOpen && (
+											<div className="px-4 pb-4 pt-0 border-t border-gray-100 space-y-3">
+												<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+													<div>
+														<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+															Tratamientos de interés
+														</label>
+														<input
+															type="text"
+															className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium"
+															placeholder="Ej: Bótox, Relleno labios..."
+															value={seguimientoForm.tratamientos_interes}
+															onChange={(e) =>
+																setSeguimientoForm({
+																	...seguimientoForm,
+																	tratamientos_interes: e.target.value,
+																})
+															}
+														/>
+													</div>
+													<div>
+														<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+															Próximo contacto / recordatorio
+														</label>
+														<input
+															type="date"
+															className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium"
+															value={seguimientoForm.fecha_proximo_contacto}
+															onChange={(e) =>
+																setSeguimientoForm({
+																	...seguimientoForm,
+																	fecha_proximo_contacto: e.target.value,
+																})
+															}
+														/>
+													</div>
+												</div>
+												<div>
+													<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+														Notas
+													</label>
+													<textarea
+														rows={2}
+														className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium resize-none"
+														placeholder="Notas de seguimiento..."
+														value={seguimientoForm.notas}
+														onChange={(e) =>
+															setSeguimientoForm({
+																...seguimientoForm,
+																notas: e.target.value,
+															})
+														}
+													/>
+												</div>
+												<button
+													type="button"
+													disabled={
+														addingSeguimiento ||
+														(!seguimientoForm.tratamientos_interes?.trim() &&
+															!seguimientoForm.fecha_proximo_contacto &&
+															!seguimientoForm.notas?.trim())
+													}
+													onClick={async () => {
+														try {
+															await addSeguimiento({
+																tratamientos_interes: seguimientoForm.tratamientos_interes?.trim() || null,
+																fecha_proximo_contacto: seguimientoForm.fecha_proximo_contacto || null,
+																notas: seguimientoForm.notas?.trim() || null,
+															});
+															setSeguimientoForm({
+																tratamientos_interes: "",
+																fecha_proximo_contacto: "",
+																notas: "",
+															});
+															setSeguimientoFormOpen(false);
+															showToast("Seguimiento añadido");
+														} catch (err) {
+															showToast(err?.message || "Error al guardar", "error");
+														}
+													}}
+													className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm">
+													<Plus size={16} />
+													Añadir seguimiento
+												</button>
+											</div>
+										)}
+									</div>
+
+									{seguimientosLoading ? (
+										<div className="space-y-3">
+											{[1, 2, 3].map((i) => (
+												<div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />
+											))}
+										</div>
+									) : seguimientos.length > 0 ? (
+										<div className="space-y-3">
+											{seguimientos.map((seg) => (
+												<div
+													key={seg.id}
+													className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+													<div className="min-w-0 flex-1">
+														{seg.tratamientos_interes && (
+															<p className="font-bold text-gray-800 text-sm">
+																{seg.tratamientos_interes}
+															</p>
+														)}
+														{seg.fecha_proximo_contacto && (
+															<p className="text-xs text-rose-600 font-medium mt-0.5 flex items-center gap-1">
+																<CalendarCheck size={12} />
+																{new Date(seg.fecha_proximo_contacto).toLocaleDateString("es-ES", {
+																	day: "numeric",
+																	month: "short",
+																	year: "numeric",
+																})}
+															</p>
+														)}
+														{seg.notas && (
+															<p className="text-xs text-gray-600 mt-1">{seg.notas}</p>
+														)}
+														{!seg.tratamientos_interes && !seg.fecha_proximo_contacto && !seg.notas && (
+															<p className="text-xs text-gray-400">Sin detalles</p>
+														)}
+													</div>
+													<button
+														type="button"
+														onClick={async () => {
+															if (deletingSeguimiento) return;
+															try {
+																await deleteSeguimiento(seg.id);
+																showToast("Seguimiento eliminado");
+															} catch (err) {
+																showToast(err?.message || "Error al eliminar", "error");
+															}
+														}}
+														disabled={deletingSeguimiento}
+														className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
+														title="Eliminar">
+														<Trash2 size={16} />
+													</button>
+												</div>
+											))}
+										</div>
+									) : (
+										<div className="flex flex-col items-center justify-center h-32 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
+											<CalendarCheck size={28} className="mb-2 opacity-50" />
+											<p className="font-bold text-sm">Sin seguimientos aún</p>
+											<p className="text-xs text-gray-400 mt-1">
+												Añade uno arriba (tratamientos de interés, próxima fecha, notas)
+											</p>
+										</div>
+									)}
+								</>
+							)}
+
 							{clientDetailTab === "filiacion" && (
 								<div className="space-y-6">
 									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
@@ -1402,8 +1595,6 @@ export const ClientsTab = ({
 					setShowConsentModal(false);
 					setConsentTreatmentId("");
 					setConsentTemplateId("");
-					setConsentLogoDataUrl("");
-					setConsentSignatureDataUrl("");
 				}}
 				title="Generar consentimiento informado"
 				maxWidth="max-w-lg">
@@ -1455,40 +1646,9 @@ export const ClientsTab = ({
 											))}
 									</select>
 								</div>
-								<div className="grid grid-cols-2 gap-3">
-									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Logo (opcional)</label>
-										<input
-											type="file"
-											accept="image/*"
-											className="w-full text-sm text-gray-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-700 file:font-bold"
-											onChange={(e) => {
-												const f = e.target.files?.[0];
-												if (f) {
-													const r = new FileReader();
-													r.onload = () => setConsentLogoDataUrl(r.result ?? "");
-													r.readAsDataURL(f);
-												} else setConsentLogoDataUrl("");
-											}}
-										/>
-									</div>
-									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Firma (opcional)</label>
-										<input
-											type="file"
-											accept="image/*"
-											className="w-full text-sm text-gray-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-700 file:font-bold"
-											onChange={(e) => {
-												const f = e.target.files?.[0];
-												if (f) {
-													const r = new FileReader();
-													r.onload = () => setConsentSignatureDataUrl(r.result ?? "");
-													r.readAsDataURL(f);
-												} else setConsentSignatureDataUrl("");
-											}}
-										/>
-									</div>
-								</div>
+								<p className="text-[10px] text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+									Logo y firma profesional se configuran en <strong>Ajustes → Datos de Facturación</strong> y se aplican a todos los PDF.
+								</p>
 								<button
 									type="button"
 									disabled={!consentTemplateId}
@@ -1498,15 +1658,11 @@ export const ClientsTab = ({
 										const treatmentName = tpl.treatments?.name ?? treatments.find((t) => t.id === tpl.treatment_id)?.name ?? "";
 										await generateConsentPDF(selectedClient, treatmentName, tpl.contenido, tpl.nombre, {
 											profile: profile ?? undefined,
-											logoImage: consentLogoDataUrl || undefined,
-											signatureImage: consentSignatureDataUrl || undefined,
 										});
 										showToast("PDF generado");
 										setShowConsentModal(false);
 										setConsentTreatmentId("");
 										setConsentTemplateId("");
-										setConsentLogoDataUrl("");
-										setConsentSignatureDataUrl("");
 									}}
 									className="w-full py-4 bg-rose-500 hover:bg-rose-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2">
 									<FileDown size={20} />

@@ -10,7 +10,8 @@ import { getAge } from "./dateUtils";
  * - Bloque de datos del paciente: Paciente, Fecha de nacimiento, Correo electrónico, NIF/CIF,
  *   Tratamiento, Fecha. Para añadir o quitar líneas, editar el bloque "Bloque de datos del paciente"
  *   en generateConsentPDF en este archivo.
- * - Pie: imagen de firma (opcional), línea y texto "Firma del paciente".
+ * - Pie: "Firmado el {fecha} en Terrassa.", luego dos columnas: Firma Profesional (imagen subida encima de su línea)
+ *   y Firma del paciente (línea en blanco para firmar).
  */
 const MARGIN = 20;
 const PAGE_WIDTH = 210;
@@ -19,10 +20,19 @@ const MAX_WIDTH = PAGE_WIDTH - MARGIN * 2;
 /** Ancho del contenido HTML en px (equivalente a ~170mm a 96dpi) para renderizar antes de meter en PDF */
 const HTML_CONTENT_WIDTH_PX = 640;
 const HTML2CANVAS_SCALE = 2;
-const LOGO_MAX_WIDTH_MM = 45;
-const LOGO_MAX_HEIGHT_MM = 18;
-const SIGNATURE_MAX_WIDTH_MM = 40;
-const SIGNATURE_MAX_HEIGHT_MM = 12;
+/**
+ * Tamaño máximo del logo en la cabecera del PDF (mm). Subir valores = logo más grande.
+ * Ubicación única para ajustar en el futuro.
+ */
+const LOGO_MAX_WIDTH_MM = 58;
+const LOGO_MAX_HEIGHT_MM = 24;
+/**
+ * Firma profesional en PDF (mm). Mismo archivo: constantes arriba del todo.
+ * Si la firma no aparece, revisar que la URL sea accesible (CORS) y que el archivo sea PNG/JPEG;
+ * SVG puede fallar al rasterizar; subir de nuevo como PNG desde Ajustes.
+ */
+const SIGNATURE_MAX_WIDTH_MM = 65;
+const SIGNATURE_MAX_HEIGHT_MM = 28;
 
 /** Lista de variables disponibles para documentación en UI */
 export const CONSENT_VARIABLES = [
@@ -88,14 +98,23 @@ export const replaceConsentVariables = (content, client, treatmentName = "") => 
 
 /**
  * Convierte HTML a texto plano conservando párrafos y saltos de línea (fallback cuando no hay DOM).
+ * No colapsa saltos de línea: primero normaliza <br> y bloques a \n, luego quita tags.
  */
 const htmlToPlainText = (html) => {
 	if (!html || !html.trim()) return "";
-	const div = typeof document !== "undefined" ? document.createElement("div") : null;
-	if (!div) return String(html).replace(/<[^>]+>/g, " ");
-	div.innerHTML = html;
-	const text = div.innerText || div.textContent || "";
-	return text.replace(/\s+/g, " ").replace(/\n\s*\n/g, "\n\n").trim();
+	let s = String(html);
+	// Bloques y saltos explícitos → nueva línea antes de quitar tags
+	s = s.replace(/<br\s*\/?>/gi, "\n");
+	s = s.replace(/<\/p>/gi, "\n\n");
+	s = s.replace(/<\/div>/gi, "\n");
+	s = s.replace(/<\/li>/gi, "\n");
+	s = s.replace(/<[^>]+>/g, "");
+	// Decodificar entidades mínimas
+	s = s.replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+	// Colapsar solo espacios en la misma línea, no \n
+	const lines = s.split("\n");
+	const normalized = lines.map((line) => line.replace(/[ \t]+/g, " ").trimEnd());
+	return normalized.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 };
 
 const isHTML = (str) => typeof str === "string" && /<[a-z][\s\S]*>/i.test(str);
@@ -126,13 +145,48 @@ const loadImageForPDF = (dataUrl, maxWidthMm, maxHeightMm) => {
 	});
 };
 
-/** CSS para que los párrafos y listas tengan espacio (doble salto visual) en el PDF */
+/**
+ * CSS para el HTML renderizado en PDF (html2canvas).
+ * - Párrafos vacíos / solo <br>: altura mínima para conservar líneas en blanco entre bloques.
+ * - Listas: list-style explícito + display list-item para que salgan viñetas/números, no solo sangría.
+ */
 const CONSENT_CONTENT_STYLES = `
-.consent-content p { margin: 0 0 0.75em 0; }
+.consent-content { word-wrap: break-word; }
+.consent-content p {
+  margin: 0 0 0.85em 0;
+  min-height: 0;
+}
+/* Párrafo vacío o solo salto: ocupa una línea (TipTap suele guardar <p><br></p>) */
+.consent-content p:empty,
+.consent-content p:has(> br:only-child) {
+  min-height: 1.15em;
+  margin-bottom: 0.85em;
+}
 .consent-content p:last-child { margin-bottom: 0; }
-.consent-content ul, .consent-content ol { margin: 0.5em 0 0.75em 0; padding-left: 1.5em; }
-.consent-content li { margin-bottom: 0.25em; }
-.consent-content h1, .consent-content h2, .consent-content h3 { margin: 0.6em 0 0.35em 0; }
+/* Listas con viñeta/número visibles (evita que en PDF solo se vea tabulador) */
+.consent-content ul {
+  list-style-type: disc;
+  list-style-position: outside;
+  margin: 0.5em 0 0.85em 0;
+  padding-left: 1.35em;
+}
+.consent-content ol {
+  list-style-type: decimal;
+  list-style-position: outside;
+  margin: 0.5em 0 0.85em 0;
+  padding-left: 1.5em;
+}
+.consent-content li {
+  display: list-item;
+  margin-bottom: 0.35em;
+  padding-left: 0.25em;
+}
+.consent-content ul ul { list-style-type: circle; }
+.consent-content h1, .consent-content h2, .consent-content h3 { margin: 0.65em 0 0.4em 0; }
+.consent-content .consent-blank-line {
+  min-height: 1.15em;
+  margin-bottom: 0.85em;
+}
 `;
 
 /**
@@ -140,11 +194,25 @@ const CONSENT_CONTENT_STYLES = `
  * El div se monta fuera de pantalla y se elimina después.
  * Aplica estilos para separación entre párrafos (doble salto).
  */
+/**
+ * Normaliza HTML de TipTap para que las líneas en blanco ocupen altura en el canvas.
+ * Sustituye <p></p> y <p><br></p> por un párrafo con espacio no separable.
+ */
+const normalizeConsentHtmlForPdf = (html) => {
+	if (!html) return "";
+	let out = html;
+	// Párrafos vacíos o solo BR → párrafo con altura garantizada
+	out = out.replace(/<p>\s*<\/p>/gi, '<p class="consent-blank-line">&nbsp;</p>');
+	out = out.replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '<p class="consent-blank-line">&nbsp;</p>');
+	return out;
+};
+
 const renderHTMLToCanvas = (html) => {
 	if (typeof document === "undefined") return Promise.resolve(null);
+	const bodyHtml = normalizeConsentHtmlForPdf(html || "");
 	const wrap = document.createElement("div");
 	wrap.style.cssText = "position:fixed;left:-9999px;top:0;width:" + HTML_CONTENT_WIDTH_PX + "px;box-sizing:border-box;padding:12px;font-family:Helvetica,Arial,sans-serif;font-size:11px;line-height:1.4;color:#000;background:#fff;";
-	wrap.innerHTML = "<style>" + CONSENT_CONTENT_STYLES + "</style><div class=\"consent-content\">" + (html || "") + "</div>";
+	wrap.innerHTML = "<style>" + CONSENT_CONTENT_STYLES + "</style><div class=\"consent-content\">" + bodyHtml + "</div>";
 	document.body.appendChild(wrap);
 	return html2canvas(wrap, {
 		scale: HTML2CANVAS_SCALE,
@@ -162,7 +230,55 @@ const renderHTMLToCanvas = (html) => {
 };
 
 /**
- * Añade el canvas del contenido al PDF, repartiendo en varias páginas si hace falta.
+ * Busca un corte "limpio" en el canvas: filas mayormente blancas hacia arriba desde el límite deseado,
+ * para no partir una línea de texto por la mitad entre páginas.
+ * @param {HTMLCanvasElement} canvas
+ * @param {number} sourceY - inicio del trozo en px
+ * @param {number} maxSlicePx - altura máxima deseada del trozo en px
+ * @returns {number} altura del trozo en px (>= minSlice si hay contenido)
+ */
+const findCleanSliceHeight = (canvas, sourceY, maxSlicePx) => {
+	const minSlice = Math.min(maxSlicePx, 40);
+	if (maxSlicePx <= minSlice) return maxSlicePx;
+	const ctx = canvas.getContext("2d");
+	const w = canvas.width;
+	const scanFrom = sourceY + maxSlicePx - 1;
+	const scanTo = Math.max(sourceY + minSlice, sourceY + maxSlicePx - Math.floor(maxSlicePx * 0.35));
+	const rowStep = 2;
+	const whiteThreshold = 248;
+	let consecutiveQuiet = 0;
+	const needQuietRows = 3;
+	for (let row = scanFrom; row >= scanTo; row -= rowStep) {
+		const imageData = ctx.getImageData(0, row, w, 1);
+		const data = imageData.data;
+		let dark = 0;
+		for (let i = 0; i < data.length; i += 16) {
+			const r = data[i],
+				g = data[i + 1],
+				b = data[i + 2];
+			if (r < whiteThreshold || g < whiteThreshold || b < whiteThreshold) dark++;
+		}
+		const ratio = dark / (w / 4);
+		if (ratio < 0.08) {
+			consecutiveQuiet++;
+			if (consecutiveQuiet >= needQuietRows) {
+				const cutY = row - needQuietRows * rowStep;
+				const height = Math.max(minSlice, cutY - sourceY);
+				if (height <= maxSlicePx && height >= minSlice) return height;
+			}
+		} else {
+			consecutiveQuiet = 0;
+		}
+	}
+	// Alinear a múltiplo de ~media línea (line-height ~15–16px a escala 2 ≈ 30px) para reducir cortes a mitad
+	const lineStep = 28;
+	const aligned = Math.floor(maxSlicePx / lineStep) * lineStep;
+	return Math.max(minSlice, aligned > minSlice ? aligned : maxSlicePx);
+};
+
+/**
+ * Añade el canvas del contenido al PDF repartiendo en páginas.
+ * Los cortes intentan caer en zonas en blanco para no partir frases.
  */
 const addContentCanvasToPDF = (doc, canvas, startY) => {
 	const pageHeight = doc.internal.pageSize.height;
@@ -174,8 +290,13 @@ const addContentCanvasToPDF = (doc, canvas, startY) => {
 	let remainingPx = canvas.height;
 	let firstPage = true;
 	while (remainingPx > 0) {
-		const availableMm = firstPage ? (maxYPerPage - startY) : (maxYPerPage - MARGIN);
-		const slicePx = Math.min(remainingPx, Math.ceil(availableMm * mmToPx));
+		const availableMm = firstPage ? maxYPerPage - startY : maxYPerPage - MARGIN;
+		const maxSlicePx = Math.min(remainingPx, Math.ceil(availableMm * mmToPx));
+		let slicePx = findCleanSliceHeight(canvas, sourceY, maxSlicePx);
+		if (slicePx < remainingPx && slicePx < maxSlicePx * 0.25) {
+			slicePx = Math.min(remainingPx, maxSlicePx);
+		}
+		if (slicePx <= 0) slicePx = Math.min(remainingPx, maxSlicePx);
 		const sliceCanvas = document.createElement("canvas");
 		sliceCanvas.width = canvas.width;
 		sliceCanvas.height = slicePx;
@@ -202,15 +323,24 @@ const addContentCanvasToPDF = (doc, canvas, startY) => {
  * Solo devuelve si el contenido es realmente una imagen; si es HTML/error, devuelve null.
  * Puede fallar por CORS; en ese caso devuelve null.
  */
+/**
+ * Carga imagen desde URL pública a data URL. Acepta blob sin type o octet-stream
+ * (Supabase a veces devuelve application/octet-stream aunque sea PNG/JPEG).
+ */
 const fetchImageAsDataUrl = (url) => {
 	if (!url || typeof fetch === "undefined") return Promise.resolve(null);
+	const looksLikeImage =
+		/\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(url) || /format=png|format=jpeg/i.test(url);
 	return fetch(url, { mode: "cors" })
 		.then((r) => {
 			if (!r.ok) return null;
 			return r.blob();
 		})
 		.then((blob) => {
-			if (!blob || !blob.type.startsWith("image/")) return null;
+			if (!blob) return null;
+			const type = blob.type || "";
+			if (!type.startsWith("image/") && type !== "application/octet-stream" && !looksLikeImage)
+				return null;
 			return new Promise((resolve, reject) => {
 				const r = new FileReader();
 				r.onload = () => resolve(r.result);
@@ -234,17 +364,28 @@ const getImageFormat = (dataUrl) => {
  * el resto (PNG, WebP, etc.) se redibuja a canvas y se exporta como PNG para evitar "wrong PNG signature".
  * @returns {Promise<{ dataUrl: string, format: "PNG" | "JPEG" }>}
  */
+/**
+ * Convierte a PNG/JPEG que jsPDF acepta. Si el canvas falla (SVG, tamaño 0, tainted),
+ * devuelve null; el llamador puede usar el dataUrl original con addImage como último recurso.
+ */
 const normalizeImageForJsPDF = (dataUrl) => {
 	if (!dataUrl || typeof document === "undefined") return Promise.resolve(null);
 	const format = getImageFormat(dataUrl);
 	if (format === "JPEG") return Promise.resolve({ dataUrl, format: "JPEG" });
 	return new Promise((resolve) => {
 		const img = new Image();
+		img.crossOrigin = "anonymous";
 		img.onload = () => {
 			try {
+				const w = img.naturalWidth || img.width;
+				const h = img.naturalHeight || img.height;
+				if (!w || !h) {
+					resolve(null);
+					return;
+				}
 				const canvas = document.createElement("canvas");
-				canvas.width = img.naturalWidth;
-				canvas.height = img.naturalHeight;
+				canvas.width = w;
+				canvas.height = h;
 				const ctx = canvas.getContext("2d");
 				ctx.drawImage(img, 0, 0);
 				const pngDataUrl = canvas.toDataURL("image/png");
@@ -259,10 +400,19 @@ const normalizeImageForJsPDF = (dataUrl) => {
 };
 
 /**
+ * Si normalize falla, intenta cargar dimensiones con la imagen original y usar dataUrl tal cual
+ * (addImage a veces acepta PNG data URL sin pasar por canvas).
+ */
+const loadImageForPDFFallback = (dataUrl, maxW, maxH) => {
+	if (!dataUrl) return Promise.resolve(null);
+	return loadImageForPDF(dataUrl, maxW, maxH);
+};
+
+/**
  * Genera un PDF de consentimiento informado a partir de la plantilla con variables reemplazadas.
  * Cabecera y pie se construyen aquí; el contenido viene de la plantilla.
- * Opcional: options.profile (perfil de Ajustes: company_name, name, surname, collegiate_number, logo_url),
- *           options.logoImage y options.signatureImage (data URLs).
+ * Logo y firma: solo desde perfil (logo_url, consent_signature_url). options.logoImage / signatureImage
+ * siguen existiendo por compatibilidad pero el modal ya no los envía.
  * @param {object} [options] - { profile?: object, logoImage?: string, signatureImage?: string }
  * @returns {Promise<void>}
  */
@@ -272,16 +422,17 @@ export const generateConsentPDF = async (client, treatmentName, templateContent,
 	let y = MARGIN;
 	const profile = options.profile || null;
 
-	// Logo: primero el subido en el modal; si no, el del perfil (Ajustes). Normalizamos a PNG/JPEG para jsPDF.
+	// Logo: perfil (Ajustes); opcional override por options.logoImage.
 	let logoDataUrl = options.logoImage || null;
 	if (!logoDataUrl && profile?.logo_url) {
 		logoDataUrl = await fetchImageAsDataUrl(profile.logo_url);
 	}
 	if (logoDataUrl) {
 		const normalized = await normalizeImageForJsPDF(logoDataUrl);
-		logoDataUrl = normalized ? normalized.dataUrl : null;
+		if (normalized) logoDataUrl = normalized.dataUrl;
+		// Si normalize falla (p. ej. SVG), loadImageForPDF con original aún puede funcionar para JPEG
 	}
-	const logoImg = logoDataUrl ? await loadImageForPDF(logoDataUrl, LOGO_MAX_WIDTH_MM, LOGO_MAX_HEIGHT_MM) : null;
+	const logoImg = logoDataUrl ? await loadImageForPDFFallback(logoDataUrl, LOGO_MAX_WIDTH_MM, LOGO_MAX_HEIGHT_MM) : null;
 	if (logoImg) {
 		const xLogo = (PAGE_WIDTH - logoImg.widthMm) / 2;
 		doc.addImage(logoImg.dataUrl, logoImg.format || "PNG", xLogo, y, logoImg.widthMm, logoImg.heightMm);
@@ -354,58 +505,134 @@ export const generateConsentPDF = async (client, treatmentName, templateContent,
 			y = addContentCanvasToPDF(doc, canvas, y);
 		} else {
 			const plainText = htmlToPlainText(fullText);
-			const paragraphs = plainText.split(/\n\n+/);
-			for (const para of paragraphs) {
-				const lines = wrapText(doc, String(para).trim());
-				for (const line of lines) {
+			const rawLines = plainText.split("\n");
+			for (const rawLine of rawLines) {
+				const line = String(rawLine).trimEnd();
+				if (line === "") {
+					y += LINE_HEIGHT * 0.6;
+					continue;
+				}
+				const wrapped = wrapText(doc, line);
+				for (const w of wrapped) {
 					if (y > pageHeight - 25) {
 						doc.addPage();
 						y = MARGIN;
 					}
-					doc.text(line, MARGIN, y);
+					doc.text(w, MARGIN, y);
 					y += LINE_HEIGHT;
 				}
-				y += 4;
 			}
 		}
 	} else {
 		const plainText = isHTML(fullText) ? htmlToPlainText(fullText) : fullText;
-		const paragraphs = plainText.split(/\n\n+/);
-		for (const para of paragraphs) {
-			const lines = wrapText(doc, String(para).trim());
-			for (const line of lines) {
+		// Conservar líneas en blanco: trocear por \n y pintar cada línea (vacía = solo avance)
+		const rawLines = plainText.split("\n");
+		for (const rawLine of rawLines) {
+			const line = String(rawLine).trimEnd();
+			if (line === "") {
+				y += LINE_HEIGHT * 0.6;
+				continue;
+			}
+			const wrapped = wrapText(doc, line);
+			for (const w of wrapped) {
 				if (y > pageHeight - 25) {
 					doc.addPage();
 					y = MARGIN;
 				}
-				doc.text(line, MARGIN, y);
+				doc.text(w, MARGIN, y);
 				y += LINE_HEIGHT;
 			}
-			y += 4;
 		}
 	}
 
-	// Espacio para firma (opcional: imagen de firma + línea + texto)
-	y += 10;
-	if (y > pageHeight - 40) {
-		doc.addPage();
-		y = MARGIN;
-	}
+	// Bloque de firmas: solo nueva página si no cabe el bloque entero; si hay sitio, a continuación del texto
+	const fechaFirma = new Date().toLocaleDateString("es-ES", {
+		day: "2-digit",
+		month: "long",
+		year: "numeric",
+	});
+
+	// Firma profesional: perfil consent_signature_url o override (cargar antes para calcular altura)
 	let signatureDataUrl = options.signatureImage || null;
+	if (!signatureDataUrl && profile?.consent_signature_url) {
+		signatureDataUrl = await fetchImageAsDataUrl(profile.consent_signature_url);
+	}
+	let signatureImg = null;
 	if (signatureDataUrl) {
 		const normalized = await normalizeImageForJsPDF(signatureDataUrl);
-		signatureDataUrl = normalized ? normalized.dataUrl : null;
+		const urlForLoad = normalized ? normalized.dataUrl : signatureDataUrl;
+		signatureImg = await loadImageForPDF(urlForLoad, SIGNATURE_MAX_WIDTH_MM, SIGNATURE_MAX_HEIGHT_MM);
+		// Si loadImageForPDF devolvió null (p. ej. onerror), intentar addImage directo con JPEG
+		if (!signatureImg && getImageFormat(signatureDataUrl) === "JPEG") {
+			signatureImg = await loadImageForPDF(signatureDataUrl, SIGNATURE_MAX_WIDTH_MM, SIGNATURE_MAX_HEIGHT_MM);
+		}
 	}
-	const signatureImg = signatureDataUrl ? await loadImageForPDF(signatureDataUrl, SIGNATURE_MAX_WIDTH_MM, SIGNATURE_MAX_HEIGHT_MM) : null;
+
+	// Altura aproximada del bloque: margen + línea fecha + imagen opcional + líneas + etiquetas
+	const gapBeforeBlock = 8;
+	const fechaLineH = 10;
+	const lineAndLabelH = 14;
+	const signatureBlockH =
+		gapBeforeBlock +
+		fechaLineH +
+		(signatureImg ? signatureImg.heightMm + 5 : 0) +
+		lineAndLabelH;
+	const footerReserve = 20;
+	if (y + signatureBlockH > pageHeight - footerReserve) {
+		doc.addPage();
+		y = MARGIN;
+	} else {
+		y += gapBeforeBlock;
+	}
+
+	doc.setFontSize(9);
+	doc.setFont("helvetica", "normal");
+	doc.setTextColor(60);
+	doc.text(`Firmado el ${fechaFirma} en Terrassa.`, MARGIN, y);
+	y += fechaLineH;
+
+	// Dos columnas: izquierda profesional (imagen opcional + línea), derecha paciente
+	const colW = (MAX_WIDTH - 10) / 2;
+	const xProf = MARGIN;
+	const xPac = MARGIN + colW + 10;
+	const lineW = Math.min(75, colW - 5);
+
+	const yBlockStart = y;
+	// Columna profesional: imagen justo encima de la línea
 	if (signatureImg) {
-		doc.addImage(signatureImg.dataUrl, signatureImg.format || "PNG", MARGIN, y, signatureImg.widthMm, signatureImg.heightMm);
-		y += signatureImg.heightMm + 4;
+		try {
+			doc.addImage(
+				signatureImg.dataUrl,
+				signatureImg.format || "PNG",
+				xProf,
+				y,
+				signatureImg.widthMm,
+				signatureImg.heightMm,
+			);
+		} catch {
+			// Último recurso: JPEG sin pasar por canvas
+			if (getImageFormat(signatureImg.dataUrl) === "JPEG") {
+				try {
+					doc.addImage(signatureImg.dataUrl, "JPEG", xProf, y, signatureImg.widthMm, signatureImg.heightMm);
+				} catch {
+					/* ignore */
+				}
+			}
+		}
+		y = yBlockStart + signatureImg.heightMm + 3;
 	}
-	doc.setDrawColor(200);
-	doc.line(MARGIN, y + 2, MARGIN + 80, y + 2);
+	doc.setDrawColor(180);
+	doc.line(xProf, y + 2, xProf + lineW, y + 2);
 	doc.setFontSize(8);
-	doc.setTextColor(120);
-	doc.text("Firma del paciente", MARGIN, y + 8);
+	doc.setTextColor(100);
+	doc.text("Firma Profesional", xProf, y + 8);
+
+	// Columna paciente: línea en blanco para firmar (misma altura visual que bloque prof. si hay imagen)
+	const yPacLine = signatureImg ? yBlockStart + signatureImg.heightMm + 3 : yBlockStart;
+	doc.line(xPac, yPacLine + 2, xPac + lineW, yPacLine + 2);
+	doc.text("Firma del paciente", xPac, yPacLine + 8);
+
+	y = Math.max(y + 10, yPacLine + 14);
 
 	const safeName = (client?.name || "cliente").replace(/[^a-z0-9]/gi, "_");
 	const fileName = `Consentimiento_${templateName.replace(/[^a-z0-9]/gi, "_")}_${safeName}.pdf`;
