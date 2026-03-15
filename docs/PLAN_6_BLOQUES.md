@@ -20,11 +20,11 @@ Entre cada bloque **parar** para pruebas, commit y luego continuar con el siguie
 
 ---
 
-## Bloque 3 – Pestaña Seguimiento (Follow-up) de Clientes
+## Bloque 3 – Pestaña Seguimiento (Follow-up) de Clientes ✅
 - **BD:** Nueva tabla `seguimientos_cliente` (cliente_id, tratamientos_interes, fecha_proximo_contacto, notas, user_id, etc.).
-- **UI:** Nueva pestaña "Seguimiento" en detalle del cliente (junto a Filiación, Médico, Legal, Bonos, Historial).
-- **Funcionalidad:** Registrar tratamientos de interés, fecha próximo contacto/recordatorio, notas de seguimiento.
-- **Acción BD:** Ejecutar migración de `seguimientos_cliente`.
+- **UI:** Nueva pestaña **"Seguimiento"** como **primera** pestaña en detalle del cliente (antes de Filiación, Médico, Legal, Bonos, Historial, Consentimientos).
+- **Funcionalidad:** Registrar tratamientos de interés, fecha próximo contacto/recordatorio, notas de seguimiento. Listado con opción de eliminar.
+- **Acción BD:** Ejecutar migración `015_seguimientos_cliente.sql`.
 
 ---
 
