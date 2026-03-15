@@ -110,7 +110,7 @@ const DermoManager = () => {
 		// Convertimos la lista en un array plano de objetos { materialId, quantity }
 		const totalConsumption = [...baseRecipe, ...extras];
 
-		// VALIDACIÓN: Verificar si hay stock suficiente para TODO (receta + extras)
+		// VALIDACIÓN: Verificar stock solo para materiales (las máquinas no consumen stock)
 		// Agrupamos por materialId por si el mismo material está en receta y en extras
 		const combinedQuantities = totalConsumption.reduce((acc, item) => {
 			const qty = Number(item.quantity) || 0;
@@ -122,7 +122,10 @@ const DermoManager = () => {
 		const missing = Object.entries(combinedQuantities).find(
 			([matId, qtyNeeded]) => {
 				const item = inventory.find((i) => i.id === matId);
-				return !item || Number(item.stock) < qtyNeeded;
+				if (!item) return true;
+				// Máquinas (diatermia, etc.) no tienen stock; solo precio por sesión → no bloquear
+				if ((item.item_type || "material") === "maquina") return false;
+				return Number(item.stock) < qtyNeeded;
 			}
 		);
 
