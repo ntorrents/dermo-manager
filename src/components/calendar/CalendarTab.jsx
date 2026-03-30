@@ -198,7 +198,9 @@ export const CalendarTab = ({
 				if (error) throw error;
 				showToast("Cita actualizada");
 			} else {
-				const { error } = await supabase.from("appointments").insert([payload]);
+				const { error } = await supabase
+					.from("appointments")
+					.insert([{ ...payload, activo: true }]);
 				if (error) throw error;
 				showToast(formData.type === "task" ? "Tarea creada" : "Cita creada");
 			}
@@ -220,10 +222,11 @@ export const CalendarTab = ({
 		try {
 			const { error } = await supabase
 				.from("appointments")
-				.delete()
-				.eq("id", appointmentId);
+				.update({ activo: false })
+				.eq("id", appointmentId)
+				.eq("user_id", user.id);
 			if (error) throw error;
-			showToast("Cita eliminada");
+			showToast("Cita archivada");
 			setShowModal(false);
 			setShowDeleteConfirm(false);
 			setSelectedEvent(null);
@@ -521,8 +524,8 @@ export const CalendarTab = ({
 
 			<ConfirmModal
 				isOpen={showDeleteConfirm}
-				title="Eliminar cita"
-				message="¿Estás seguro de que quieres eliminar esta cita?"
+				title="Archivar cita"
+				message="La cita dejará de mostrarse en la agenda. Los datos se conservan en base de datos."
 				onConfirm={handleDeleteAppointment}
 				onCancel={() => setShowDeleteConfirm(false)}
 				isDestructive

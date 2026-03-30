@@ -8,6 +8,7 @@ const fetchClients = async (userId) => {
 		.from("clients")
 		.select("*")
 		.eq("user_id", userId)
+		.eq("activo", true)
 		.order("name", { ascending: true });
 	if (error) throw error;
 	return data || [];

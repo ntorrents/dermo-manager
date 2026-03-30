@@ -89,6 +89,7 @@ export const useCreateMaterial = (userId) => {
 					supplier_nif: formData.supplier_nif?.trim() || null,
 					invoice_number: formData.invoice_number ? normalizeInvoiceNumber(formData.invoice_number) : null,
 					date: purchaseDate,
+					activo: true,
 				},
 			]);
 			if (finError) throw finError;
@@ -212,6 +213,7 @@ export const useRestockMaterial = (userId) => {
 					is_deductible: true,
 					supplier_nif: supplierNif,
 					invoice_number: invoiceNumber,
+					activo: true,
 				},
 			]);
 			if (finError) throw finError;

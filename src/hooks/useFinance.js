@@ -8,6 +8,7 @@ const fetchFinanceEntries = async (userId) => {
 		.from("finance_entries")
 		.select("*")
 		.eq("user_id", userId)
+		.eq("activo", true)
 		.order("date", { ascending: false });
 	if (error) throw error;
 	return data || [];

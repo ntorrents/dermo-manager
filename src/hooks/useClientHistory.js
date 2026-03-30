@@ -8,6 +8,7 @@ const fetchHistoryForClient = async (clientId) => {
 		.select("*")
 		.eq("client_id", clientId)
 		.eq("type", "income")
+		.eq("activo", true)
 		.order("date", { ascending: false });
 	if (error) throw error;
 	return data || [];

@@ -18,7 +18,7 @@ const MAIN_NAV_ITEMS = [
 export const MobileNav = ({ activeTab, setActiveTab }) => {
 	const [drawerOpen, setDrawerOpen] = useState(false);
 
-	const isInDrawer = ["calendar", "bonos", "finance", "taxes", "settings"].includes(activeTab);
+	const isInDrawer = ["calendar", "bonos", "budgets", "finance", "taxes", "settings"].includes(activeTab);
 
 	return (
 		<>

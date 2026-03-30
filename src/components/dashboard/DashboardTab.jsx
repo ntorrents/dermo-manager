@@ -31,6 +31,7 @@ import {
 	SPAN_MIN,
 	SPAN_MAX,
 } from "./widgets";
+import { WidgetAlerts } from "./widgets/WidgetAlerts";
 
 /** Top clientes por número de sesiones (entries tipo income con client_id) */
 function useTopClients(entries = [], clients = [], viewMode, currentDate) {
@@ -429,6 +430,10 @@ export const DashboardTab = ({
 						)}
 					</button>
 				</div>
+			</div>
+
+			<div className="w-full h-auto shrink-0">
+				<WidgetAlerts lowStockItems={lowStockItems} expiredStockItems={expiredStockItems} />
 			</div>
 
 			<DndContext
