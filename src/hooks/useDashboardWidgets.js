@@ -14,7 +14,14 @@ function normalizeWidgets(saved) {
 	if (!Array.isArray(saved) || saved.length === 0) {
 		return DEFAULT_WIDGETS.slice(0, MAX_WIDGETS);
 	}
-	return saved.slice(0, MAX_WIDGETS).map((item) => {
+	const withoutAlerts = saved.filter((item) => {
+		const id = typeof item === "string" ? item : item?.id;
+		return id !== "alerts";
+	});
+	if (withoutAlerts.length === 0) {
+		return DEFAULT_WIDGETS.slice(0, MAX_WIDGETS);
+	}
+	return withoutAlerts.slice(0, MAX_WIDGETS).map((item) => {
 		if (typeof item === "string") {
 			const config = getWidgetById(item);
 			return {

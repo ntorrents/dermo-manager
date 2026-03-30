@@ -92,7 +92,9 @@ export const TreatmentsTab = ({
 				if (error) throw error;
 				showToast("Tratamiento actualizado");
 			} else {
-				const { error } = await supabase.from("treatments").insert([payload]);
+				const { error } = await supabase
+					.from("treatments")
+					.insert([{ ...payload, activo: true }]);
 				if (error) throw error;
 				showToast("Tratamiento creado");
 			}
@@ -156,9 +158,10 @@ export const TreatmentsTab = ({
 		try {
 			await supabase
 				.from("treatments")
-				.delete()
-				.eq("id", treatmentToDelete.id);
-			showToast("Tratamiento eliminado");
+				.update({ activo: false })
+				.eq("id", treatmentToDelete.id)
+				.eq("user_id", user.id);
+			showToast("Tratamiento archivado");
 			if (onRefresh) await onRefresh();
 		} catch {
 			showToast("Error al eliminar", "error");
@@ -225,8 +228,8 @@ export const TreatmentsTab = ({
 		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
 			<ConfirmModal
 				isOpen={showDeleteModal}
-				title="Eliminar Tratamiento"
-				message={`¿Borrar "${treatmentToDelete?.name}"?`}
+				title="Archivar tratamiento"
+				message={`¿Archivar "${treatmentToDelete?.name}"? Dejará de mostrarse en listas y sesiones nuevas.`}
 				onConfirm={confirmDeleteTreatment}
 				onCancel={() => { setShowDeleteModal(false); setTreatmentToDelete(null); }}
 				isDestructive

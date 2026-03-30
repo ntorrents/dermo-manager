@@ -169,6 +169,7 @@ export const useSellBono = (user) => {
 					tax_base: baseAmount,
 					tax_amount: taxAmount,
 					client_id: clientId,
+					activo: true,
 				},
 			]);
 			if (finError) throw finError;

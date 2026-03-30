@@ -5,7 +5,7 @@ export const WidgetAlerts = ({ lowStockItems = [], expiredStockItems = [] }) => 
 	const hasAlerts = lowStockItems.length > 0 || expiredStockItems.length > 0;
 	return (
 		<div
-			className={`p-4 rounded-2xl shadow-sm border min-h-[120px] flex items-center ${
+			className={`p-4 rounded-2xl shadow-sm border h-auto min-h-0 flex items-center ${
 				hasAlerts
 					? "bg-red-50 border-red-100 animate-in slide-in-from-top-2"
 					: "bg-gray-50 border-gray-100"

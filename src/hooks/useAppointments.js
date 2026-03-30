@@ -8,6 +8,7 @@ const fetchAppointments = async (userId) => {
 		.from("appointments")
 		.select("*")
 		.eq("user_id", userId)
+		.eq("activo", true)
 		.order("start_at", { ascending: true });
 
 	if (error) throw error;

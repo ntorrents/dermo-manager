@@ -8,6 +8,7 @@ const fetchTreatments = async (userId) => {
 		.from("treatments")
 		.select("*, treatment_groups(id, name, sort_order)")
 		.eq("user_id", userId)
+		.eq("activo", true)
 		.order("name");
 	if (error) throw error;
 	return data || [];

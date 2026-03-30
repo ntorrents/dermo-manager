@@ -1,5 +1,4 @@
 /* eslint-disable react-refresh/only-export-components -- Este archivo exporta config y constantes, no solo componentes */
-import { WidgetAlerts } from "./WidgetAlerts";
 import { WidgetKpiFacturacion } from "./WidgetKpiFacturacion";
 import { WidgetKpiImpuestos } from "./WidgetKpiImpuestos";
 import { WidgetProximosEventos } from "./WidgetProximosEventos";
@@ -10,9 +9,8 @@ import { WidgetChartActividad } from "./WidgetChartActividad";
 import { WidgetTopTratamientos } from "./WidgetTopTratamientos";
 import { WidgetTopClientes } from "./WidgetTopClientes";
 
-/** Orden por defecto (objetos con id, colSpan, rowSpan). Máximo MAX_WIDGETS. */
+/** Orden por defecto (objetos con id, colSpan, rowSpan). Máximo MAX_WIDGETS. Alertas de stock van fijas arriba del dashboard, no aquí. */
 export const DEFAULT_WIDGETS = [
-	{ id: "alerts", colSpan: 3, rowSpan: 1 },
 	{ id: "kpi-facturacion", colSpan: 1, rowSpan: 1 },
 	{ id: "kpi-impuestos", colSpan: 1, rowSpan: 1 },
 	{ id: "kpi-proximos-eventos", colSpan: 1, rowSpan: 1 },
@@ -54,13 +52,6 @@ export function getGridSpanClasses(colSpan, rowSpan) {
  * id, title (nombre en desplegable), defaultColSpan, defaultRowSpan, component.
  */
 export const WIDGET_CONFIG = [
-	{
-		id: "alerts",
-		title: "Alertas de stock",
-		defaultColSpan: 3,
-		defaultRowSpan: 1,
-		component: WidgetAlerts,
-	},
 	{
 		id: "kpi-facturacion",
 		title: "Facturación",

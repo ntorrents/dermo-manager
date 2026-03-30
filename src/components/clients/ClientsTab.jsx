@@ -220,7 +220,7 @@ export const ClientsTab = ({
 				showToast("Cliente actualizado");
 				setSelectedClient({ ...selectedClient, ...payload });
 			} else {
-				const { error } = await supabase.from("clients").insert([payload]);
+				const { error } = await supabase.from("clients").insert([{ ...payload, activo: true }]);
 				if (error) throw error;
 				showToast("Cliente creado");
 			}
@@ -244,10 +244,11 @@ export const ClientsTab = ({
 		try {
 			const { error } = await supabase
 				.from("clients")
-				.delete()
-				.eq("id", clientToDelete.id);
+				.update({ activo: false })
+				.eq("id", clientToDelete.id)
+				.eq("user_id", user.id);
 			if (error) throw error;
-			showToast("Cliente eliminado");
+			showToast("Cliente archivado");
 			if (selectedClient?.id === clientToDelete.id) setSelectedClient(null);
 			if (onRefresh) await onRefresh();
 		} catch {
@@ -338,6 +339,7 @@ export const ClientsTab = ({
 						tax_amount: -taxAmount,
 						invoice_number: invoiceNumber,
 						client_id: selectedClient.id,
+						activo: true,
 					},
 				])
 				.select()
@@ -363,8 +365,8 @@ export const ClientsTab = ({
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0 h-[calc(100vh-120px)] md:h-auto flex flex-col md:flex-row gap-6">
 			<ConfirmModal
 				isOpen={showDeleteModal}
-				title="Eliminar Cliente"
-				message={`¿Seguro que quieres eliminar a ${clientToDelete?.name}? Se perderá todo su historial.`}
+				title="Archivar cliente"
+				message={`¿Archivar a ${clientToDelete?.name}? Dejará de aparecer en la lista; el historial se conserva en la base de datos.`}
 				onConfirm={confirmDelete}
 				onCancel={() => setShowDeleteModal(false)}
 				isDestructive={true}
@@ -515,7 +517,7 @@ export const ClientsTab = ({
 										<button
 											onClick={(e) => handleDeleteClick(e, client)}
 											className="p-2 text-gray-300 hover:text-rose-500 shrink-0"
-											title="Eliminar cliente">
+											title="Archivar cliente">
 											<Trash2 size={16} />
 										</button>
 									</div>

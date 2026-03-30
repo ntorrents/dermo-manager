@@ -558,7 +558,7 @@ export const FinanceTab = ({
 			} else {
 				const { data, error } = await supabase
 					.from("finance_entries")
-					.insert([payload])
+					.insert([{ ...payload, activo: true }])
 					.select("id")
 					.single();
 				if (error) throw error;
@@ -639,10 +639,11 @@ export const FinanceTab = ({
 		try {
 			const { error } = await supabase
 				.from("finance_entries")
-				.delete()
-				.eq("id", itemToDelete);
+				.update({ activo: false })
+				.eq("id", itemToDelete)
+				.eq("user_id", user.id);
 			if (error) throw error;
-			showToast("Eliminado");
+			showToast("Movimiento archivado");
 			if (onRefresh) await onRefresh();
 		} catch (e) {
 			console.error(e);
@@ -716,8 +717,8 @@ export const FinanceTab = ({
 			{/* MODALES DE CONFIRMACIÓN */}
 			<ConfirmModal
 				isOpen={showDeleteModal}
-				title="Eliminar Movimiento"
-				message="¿Estás seguro de que quieres eliminar este registro? Esto afectará a tus estadísticas."
+				title="Archivar movimiento"
+				message="El registro dejará de mostrarse en listados y estadísticas visibles, pero se conserva en base de datos."
 				onConfirm={confirmDelete}
 				onCancel={() => setShowDeleteModal(false)}
 				isDestructive={true}

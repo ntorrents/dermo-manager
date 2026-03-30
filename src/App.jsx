@@ -28,6 +28,7 @@ import { ClientsTab } from "./components/clients/ClientsTab";
 import { CalendarTab } from "./components/calendar/CalendarTab";
 import { TaxesTab } from "./components/taxes/TaxesTab";
 import { BonosTab } from "./components/bonos/BonosTab";
+import { BudgetsTab } from "./components/budgets/BudgetsTab";
 
 const DermoManager = () => {
 	const { user, loading: authLoading } = useAuth();
@@ -290,6 +291,15 @@ const DermoManager = () => {
 						setViewMode={setViewMode}
 						showToast={showToastMsg}
 						onRefresh={refreshData}
+					/>
+				)}
+				{activeTab === "budgets" && (
+					<BudgetsTab
+						user={user}
+						clients={clients}
+						treatments={treatments}
+						profile={profile}
+						showToast={showToastMsg}
 					/>
 				)}
 				{activeTab === "calendar" && (

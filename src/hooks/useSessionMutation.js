@@ -72,6 +72,7 @@ export const useSessionMutation = (userId, inventory = []) => {
 					client_id: clientData.id || null,
 					internal_notes: internal_notes?.trim() || null,
 					plan_amigo: !!planAmigo,
+					activo: true,
 				},
 			]);
 			if (error) throw error;
