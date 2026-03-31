@@ -1,0 +1,2 @@
+-- Datos de desarrollo opcionales (supabase db reset los aplica tras migraciones).
+-- Vacío a propósito; añade INSERTs aquí si quieres semillas locales.

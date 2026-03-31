@@ -7,7 +7,16 @@
 		"dev": "vite",
 		"build": "vite build",
 		"lint": "eslint .",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"db:link": "supabase link --project-ref zturfaxtcbhvyllwirrj",
+		"db:pull": "supabase db pull",
+		"db:push": "supabase db push",
+		"db:diff": "supabase db diff",
+		"db:reset": "supabase db reset",
+		"db:start": "supabase start",
+		"db:stop": "supabase stop",
+		"db:status": "supabase status",
+		"db:types": "supabase gen types typescript --linked --schema public > src/types/database.types.ts"
 	},
 	"dependencies": {
 		"@dnd-kit/core": "^6.3.1",
@@ -48,6 +57,7 @@
 		"globals": "^16.5.0",
 		"init": "^0.1.2",
 		"postcss": "^8.5.6",
+		"supabase": "^2.84.5",
 		"tailwindcss": "^4.1.18",
 		"vite": "^7.3.1"
 	}
