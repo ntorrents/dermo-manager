@@ -17,6 +17,12 @@ dist-ssr
 .env.test.local
 .env.production.local
 
+# Supabase CLI / credenciales (nunca en git)
+.supabase/
+supabase/.env
+supabase/.env.*
+!supabase/.env.example
+
 .sql
 
 # Editor directories and files
@@ -29,3 +35,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Skills CLI crea enlaces para otros editores; solo usas Cursor → ignora si se regeneran
+.claude/
+.trae/
+.windsurf/
