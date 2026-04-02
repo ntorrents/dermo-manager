@@ -6,6 +6,7 @@ import { ConfirmModal } from "../ui/ConfirmModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { useTenant } from "../../context/TenantContext";
 
 const UNGROUPED_KEY = "__ungrouped__";
 
@@ -17,6 +18,7 @@ export const TreatmentsTab = ({
 	onSelectTreatment,
 	onRefresh,
 }) => {
+	const { canDeleteOperational } = useTenant();
 	const { groups, create: createGroup, update: updateGroup, delete: deleteGroup, isCreating: isCreatingGroup } = useTreatmentGroups(user);
 
 	const [isModalOpen, setIsModalOpen] = useState(false);
@@ -190,13 +192,15 @@ export const TreatmentsTab = ({
 							title="Editar">
 							<Edit2 size={14} />
 						</button>
-						<button
-							type="button"
-							onClick={() => { setTreatmentToDelete(t); setShowDeleteModal(true); }}
-							className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg"
-							title="Eliminar">
-							<Trash2 size={14} />
-						</button>
+						{canDeleteOperational && (
+							<button
+								type="button"
+								onClick={() => { setTreatmentToDelete(t); setShowDeleteModal(true); }}
+								className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg"
+								title="Eliminar">
+								<Trash2 size={14} />
+							</button>
+						)}
 					</div>
 				</div>
 				<div className="flex items-baseline gap-1 mb-2">
@@ -243,20 +247,21 @@ export const TreatmentsTab = ({
 			/>
 			{/* HEADER */}
 			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-				<h2 className="text-2xl xl:text-3xl font-black text-gray-800 tracking-tight italic">
+				<h2 className="text-2xl xl:text-3xl font-bold text-gray-900 tracking-tight">
 					Tratamientos
 				</h2>
-				<div className="flex flex-wrap gap-2">
+				<div className="flex flex-wrap gap-2 w-full sm:w-auto">
 					<button
 						type="button"
 						onClick={openGroupsModal}
-						className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all text-sm">
+						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 transition-colors">
 						<FolderOpen size={16} /> Grupos
 					</button>
 					<button
+						type="button"
 						onClick={() => openModal()}
-						className="bg-primary hover:bg-primary-hover text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg transition-all w-full sm:w-auto justify-center">
-						<Plus size={18} /> Nuevo Tratamiento
+						className="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors">
+						<Plus size={18} /> Nuevo tratamiento
 					</button>
 				</div>
 			</div>
@@ -354,13 +359,15 @@ export const TreatmentsTab = ({
 										title="Editar grupo">
 										<Edit2 size={14} />
 									</button>
-									<button
-										type="button"
-										onClick={() => { setGroupToDelete(g); setShowDeleteGroupModal(true); }}
-										className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg"
-										title="Eliminar grupo">
-										<Trash2 size={14} />
-									</button>
+									{canDeleteOperational && (
+										<button
+											type="button"
+											onClick={() => { setGroupToDelete(g); setShowDeleteGroupModal(true); }}
+											className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg"
+											title="Eliminar grupo">
+											<Trash2 size={14} />
+										</button>
+									)}
 								</div>
 							</div>
 						))

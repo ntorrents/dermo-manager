@@ -35,9 +35,9 @@ export const DocumentsTab = ({ user, clients = [], treatments = [], profile, sho
 								key={t.id}
 								type="button"
 								onClick={() => setActiveDocTab(t.id)}
-								className={`px-4 py-2 rounded-xl font-bold text-sm border transition-colors flex items-center gap-2 ${
+								className={`px-4 py-2.5 rounded-xl font-bold text-sm border transition-colors flex items-center gap-2 ${
 									active
-										? "bg-gray-900 text-white border-gray-900"
+										? "bg-rose-500 text-white border-rose-500 shadow-sm"
 										: "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
 								}`}>
 								<Icon size={16} />

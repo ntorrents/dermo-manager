@@ -19,6 +19,7 @@ import {
 	ChevronRight,
 	Users,
 	UserPlus,
+	ScrollText,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { updateUserPassword, logout } from "../../services/auth";
@@ -26,6 +27,8 @@ import { exportUserBackup, downloadBackup } from "../../services/backupExport";
 import { uploadProfileAsset } from "../../services/profileAssetStorage";
 import { useTenant } from "../../context/TenantContext";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { useAuditLog } from "../../hooks/useAuditLog";
+import { auditActionLabel, auditEntityLabel, auditChangesLines } from "../../utils/auditLabels";
 
 const SETTINGS_VIEWS = {
 	hub: "hub",
@@ -33,6 +36,7 @@ const SETTINGS_VIEWS = {
 	me: "me",
 	team: "team",
 	security: "security",
+	audit: "audit",
 };
 
 const ROLE_OPTIONS = [
@@ -41,7 +45,13 @@ const ROLE_OPTIONS = [
 	{ value: "recepcion", label: "Recepción" },
 ];
 
-export const SettingsTab = ({ user, profile, showToast }) => {
+export const SettingsTab = ({
+	user,
+	profile,
+	showToast,
+	navigateAnchor,
+	onNavigateAnchorConsumed,
+}) => {
 	const { clinicId, clinic, isAdmin, refreshTenant } = useTenant();
 
 	const initialClinicForm = useMemo(
@@ -68,6 +78,52 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 	);
 
 	const [view, setView] = useState(SETTINGS_VIEWS.hub);
+
+	const {
+		rows: auditRows,
+		loading: auditLoading,
+		error: auditError,
+		refresh: refreshAudit,
+	} = useAuditLog(clinicId, { limit: 200, enabled: isAdmin && view === SETTINGS_VIEWS.audit });
+
+	const [auditActorLabels, setAuditActorLabels] = useState({});
+
+	const auditUserIdsKey = useMemo(() => {
+		const u = new Set();
+		(auditRows || []).forEach((r) => {
+			if (r.user_id) u.add(r.user_id);
+		});
+		return [...u].sort().join("|");
+	}, [auditRows]);
+
+	useEffect(() => {
+		if (!isAdmin || view !== SETTINGS_VIEWS.audit) {
+			if (view !== SETTINGS_VIEWS.audit) setAuditActorLabels({});
+			return;
+		}
+		const ids = auditUserIdsKey.split("|").filter(Boolean);
+		if (ids.length === 0) {
+			setAuditActorLabels({});
+			return;
+		}
+		let cancelled = false;
+		(async () => {
+			const { data, error } = await supabase
+				.from("profiles")
+				.select("id, name, surname, email")
+				.in("id", ids);
+			if (cancelled || error) return;
+			const next = {};
+			(data || []).forEach((p) => {
+				next[p.id] =
+					[p.name, p.surname].filter(Boolean).join(" ").trim() || p.email || p.id;
+			});
+			setAuditActorLabels(next);
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [isAdmin, view, auditUserIdsKey]);
 
 	const [clinicForm, setClinicForm] = useState(initialClinicForm);
 	const [profileForm, setProfileForm] = useState(initialProfileForm);
@@ -149,6 +205,17 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 	useEffect(() => {
 		if (!isAdmin && view === SETTINGS_VIEWS.team) setView(SETTINGS_VIEWS.hub);
 	}, [isAdmin, view]);
+
+	useEffect(() => {
+		if (!isAdmin && view === SETTINGS_VIEWS.audit) setView(SETTINGS_VIEWS.hub);
+	}, [isAdmin, view]);
+
+	useEffect(() => {
+		if (navigateAnchor === "audit" && isAdmin) {
+			setView(SETTINGS_VIEWS.audit);
+			onNavigateAnchorConsumed?.();
+		}
+	}, [navigateAnchor, isAdmin, onNavigateAnchorConsumed]);
 
 	const goHub = () => setView(SETTINGS_VIEWS.hub);
 
@@ -368,6 +435,11 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 					</div>
 					<p className="text-sm text-gray-500 -mt-2">
 						Elige un apartado. Los datos de clínica son comunes para todo el personal.
+						{!isAdmin && (
+							<span className="block mt-1 text-xs text-gray-400">
+								La auditoría de cambios solo está disponible para administradores.
+							</span>
+						)}
 					</p>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						{hubCard({
@@ -404,6 +476,14 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 							desc: "Correo, contraseña, copia de seguridad y sesión.",
 							onClick: () => setView(SETTINGS_VIEWS.security),
 						})}
+						{isAdmin &&
+							hubCard({
+								id: "audit",
+								icon: ScrollText,
+								title: "Auditoría",
+								desc: "Registro de altas, cambios y bajas en datos clave.",
+								onClick: () => setView(SETTINGS_VIEWS.audit),
+							})}
 					</div>
 				</>
 			)}
@@ -838,6 +918,134 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 							className="text-rose-500 font-bold flex items-center gap-2 mx-auto hover:bg-rose-50 px-8 py-3 rounded-xl border border-transparent hover:border-rose-100">
 							<LogOut size={18} /> Cerrar sesión
 						</button>
+					</div>
+				</>
+			)}
+
+			{view === SETTINGS_VIEWS.audit && isAdmin && (
+				<>
+					{subHeader("Auditoría")}
+					<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+						<p className="text-sm text-gray-500 mb-4">
+							Historial generado automáticamente al crear, modificar o eliminar registros en clientes,
+							finanzas, citas, tratamientos, stock, equipo y datos de clínica. Solo administradores
+							pueden ver esta lista.{" "}
+							<strong className="text-gray-600">
+								No incluye acciones anteriores a activar la auditoría:
+							</strong>{" "}
+							haz cualquier cambio de prueba (por ejemplo editar y guardar un cliente) y pulsa Actualizar.
+						</p>
+						{auditError?.message && (
+							<div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+								<p className="font-bold">No se pudo leer la auditoría</p>
+								<p className="mt-1 font-mono text-xs break-all">{auditError.message}</p>
+								<p className="mt-2 text-xs text-amber-800">
+									Comprueba en Supabase → Table Editor que existe la tabla{" "}
+									<code className="bg-white/80 px-1 rounded">audit_log</code> y revisa la consola del
+									navegador (pestaña Red) por si la API devuelve 401 u otro error.
+								</p>
+							</div>
+						)}
+						<div className="flex justify-end mb-4">
+							<button
+								type="button"
+								onClick={() => refreshAudit()}
+								disabled={auditLoading}
+								className="text-sm font-bold text-rose-600 hover:bg-rose-50 px-4 py-2 rounded-xl border border-rose-100 disabled:opacity-50">
+								{auditLoading ? "Cargando…" : "Actualizar"}
+							</button>
+						</div>
+						<div className="rounded-xl border border-gray-100 overflow-x-auto max-h-[560px] overflow-y-auto custom-scrollbar">
+							{auditLoading && auditRows.length === 0 && !auditError ? (
+								<p className="p-8 text-center text-gray-400 text-sm">Cargando eventos…</p>
+							) : auditRows.length === 0 && !auditError ? (
+								<div className="p-8 text-center text-gray-400 text-sm space-y-2">
+									<p>
+										Aún no hay filas en el registro: es normal justo después de crear la tabla.
+									</p>
+									<p>
+										Los triggers solo guardan cambios{" "}
+										<strong className="text-gray-600">a partir de ahora</strong>. Prueba a editar
+										cualquier cliente o cita, vuelve aquí y pulsa Actualizar.
+									</p>
+								</div>
+							) : auditRows.length === 0 && auditError ? (
+								<p className="p-8 text-center text-gray-400 text-sm">Revisa el mensaje de error arriba.</p>
+							) : (
+								<table className="w-full min-w-[720px] text-left text-sm">
+									<thead className="bg-gray-50 text-[10px] font-black uppercase text-gray-500 sticky top-0 z-[1]">
+										<tr>
+											<th className="px-3 py-2 whitespace-nowrap">Cuándo</th>
+											<th className="px-3 py-2 whitespace-nowrap">Usuario</th>
+											<th className="px-3 py-2 whitespace-nowrap">Acción</th>
+											<th className="px-3 py-2 whitespace-nowrap">Entidad</th>
+											<th className="px-3 py-2 min-w-[10rem]">Registro</th>
+											<th className="px-3 py-2 min-w-[14rem]">Cambios</th>
+										</tr>
+									</thead>
+									<tbody>
+										{auditRows.map((r) => {
+											const changeLines = auditChangesLines(r.metadata);
+											const labelText =
+												r.metadata?.label && String(r.metadata.label).trim()
+													? r.metadata.label
+													: r.summary;
+											return (
+												<tr key={r.id} className="border-t border-gray-100 hover:bg-gray-50/80 align-top">
+													<td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+														{new Date(r.created_at).toLocaleString("es-ES")}
+													</td>
+													<td className="px-3 py-2 text-xs text-gray-700">
+														{r.user_id ? (
+															<>
+																<span className="font-medium text-gray-800">
+																	{auditActorLabels[r.user_id] || "…"}
+																</span>
+																<span className="mt-0.5 block text-[10px] text-gray-400 font-mono break-all">
+																	{r.user_id}
+																</span>
+															</>
+														) : (
+															<span className="text-gray-400">—</span>
+														)}
+													</td>
+													<td className="px-3 py-2 text-xs font-semibold text-rose-600 whitespace-nowrap">
+														{auditActionLabel(r.action)}
+													</td>
+													<td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">
+														{auditEntityLabel(r.entity_type)}
+													</td>
+													<td className="px-3 py-2 text-xs text-gray-600">
+														<p className="font-medium text-gray-800">{labelText}</p>
+														{r.entity_id ? (
+															<p className="mt-0.5 text-[10px] text-gray-400 font-mono break-all">
+																ID: {r.entity_id}
+															</p>
+														) : null}
+														{r.summary && r.summary !== labelText ? (
+															<p className="mt-1 text-[11px] text-gray-500">{r.summary}</p>
+														) : null}
+													</td>
+													<td className="px-3 py-2 text-xs text-gray-600">
+														{changeLines.length > 0 ? (
+															<ul className="list-disc space-y-1 pl-4 text-[11px] leading-snug">
+																{changeLines.map((line, i) => (
+																	<li key={i}>{line}</li>
+																))}
+															</ul>
+														) : (
+															<span className="text-gray-400">
+																{r.action === "update" ? "Sin diff (sin cambios reales)" : "—"}
+															</span>
+														)}
+													</td>
+												</tr>
+											);
+										})}
+									</tbody>
+								</table>
+							)}
+						</div>
 					</div>
 				</>
 			)}

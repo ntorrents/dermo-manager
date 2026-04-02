@@ -7,7 +7,9 @@ export const GlobalSearch = ({
 	inventory = [],
 	activeTab,
 	setActiveTab,
+	variant = "sidebar",
 }) => {
+	const isToolbar = variant === "toolbar";
 	const [query, setQuery] = useState("");
 	const [isOpen, setIsOpen] = useState(false);
 
@@ -36,7 +38,7 @@ export const GlobalSearch = ({
 		results.inventory.length > 0;
 
 	return (
-		<div className="relative px-4 pb-4">
+		<div className={`relative ${isToolbar ? "" : "px-4 pb-4"}`}>
 			<div className="relative">
 				<Search
 					className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
@@ -44,7 +46,7 @@ export const GlobalSearch = ({
 				/>
 				<input
 					type="text"
-					placeholder="Buscar..."
+					placeholder="Buscar cliente, tratamiento o material…"
 					value={query}
 					onChange={(e) => {
 						setQuery(e.target.value);
@@ -52,7 +54,11 @@ export const GlobalSearch = ({
 					}}
 					onFocus={() => setIsOpen(true)}
 					onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-					className="w-full pl-9 pr-8 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-200"
+					className={`w-full pl-9 pr-8 outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-200 ${
+						isToolbar
+							? "py-2 text-sm font-medium bg-white border border-gray-200 rounded-xl shadow-sm"
+							: "py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-medium"
+					}`}
 				/>
 				{query && (
 					<button
@@ -64,7 +70,10 @@ export const GlobalSearch = ({
 				)}
 			</div>
 			{isOpen && query.length >= 2 && (
-				<div className="absolute top-full left-2 right-2 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 py-2">
+				<div
+					className={`absolute top-full mt-2 bg-white border border-gray-100 rounded-xl shadow-xl max-h-64 overflow-y-auto z-50 py-2 ${
+						isToolbar ? "left-0 right-0" : "left-2 right-2"
+					}`}>
 					{hasResults ? (
 						<>
 							{results.clients.length > 0 && (

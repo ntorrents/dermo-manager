@@ -38,6 +38,7 @@ import {
 	useInventoryBatches,
 	fetchBatchesForMaterial,
 } from "../../hooks/useInventoryBatches";
+import { useTenant } from "../../context/TenantContext";
 
 function BatchEditRow({ batch, onSave, showToast }) {
 	const [lotNumber, setLotNumber] = useState(batch.lot_number);
@@ -96,6 +97,7 @@ export const InventoryTab = ({
 	const deleteMaterial = useDeleteMaterial(user?.id);
 	const updateBatch = useUpdateBatch(user?.id);
 	const { batches } = useInventoryBatches(user?.id);
+	const { canDeleteOperational } = useTenant();
 
 	const loading =
 		createMaterial.isPending ||
@@ -510,20 +512,21 @@ export const InventoryTab = ({
 				isDestructive={true}
 			/>
 
-			<div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-				<div className="relative flex-1 w-full md:max-w-md">
-					<Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
+			<div className="flex flex-col md:flex-row gap-3 md:gap-4 justify-between items-stretch md:items-center">
+				<div className="relative flex-1 w-full md:max-w-md min-w-0">
+					<Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
 					<input
-						placeholder="Buscar material..."
-						className="w-full pl-12 p-3.5 bg-white border border-gray-200 rounded-2xl shadow-sm outline-none focus:ring-2 ring-rose-100 font-bold"
+						placeholder="Buscar material o máquina…"
+						className="w-full pl-12 pr-3 py-3 bg-white border border-gray-200 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-rose-100 font-bold text-gray-800"
 						value={searchTerm}
 						onChange={(e) => setSearchTerm(e.target.value)}
 					/>
 				</div>
 				<button
+					type="button"
 					onClick={() => openModal()}
-					className="bg-primary hover:bg-primary-hover text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-rose-100 transition-all w-full md:w-auto justify-center">
-					<Plus size={20} /> Nuevo Material o Máquina
+					className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors w-full md:w-auto shrink-0">
+					<Plus size={20} /> Nuevo material o máquina
 				</button>
 			</div>
 
@@ -587,12 +590,14 @@ export const InventoryTab = ({
 											title={item.item_type === "maquina" ? "Editar máquina" : "Editar material"}>
 											<Edit2 size={16} />
 										</button>
-										<button
-											onClick={() => handleDeleteClick(item)}
-											className="p-2 bg-red-50 text-red-500 rounded-lg"
-											title="Eliminar">
-											<Trash2 size={16} />
-										</button>
+										{canDeleteOperational && (
+											<button
+												onClick={() => handleDeleteClick(item)}
+												className="p-2 bg-red-50 text-red-500 rounded-lg"
+												title="Eliminar">
+												<Trash2 size={16} />
+											</button>
+										)}
 									</div>
 								</div>
 
@@ -740,12 +745,14 @@ export const InventoryTab = ({
 												title="Editar material">
 												<Edit2 size={18} />
 											</button>
-											<button
-												onClick={() => handleDeleteClick(item)}
-												className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm"
-												title="Eliminar material">
-												<Trash2 size={18} />
-											</button>
+											{canDeleteOperational && (
+												<button
+													onClick={() => handleDeleteClick(item)}
+													className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-red-500 transition-all shadow-sm"
+													title="Eliminar material">
+													<Trash2 size={18} />
+												</button>
+											)}
 										</div>
 									</td>
 								</tr>

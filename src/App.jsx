@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Loader2, LogOut } from "lucide-react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { useTenant } from "./context/TenantContext";
 import { logout } from "./services/auth";
@@ -20,6 +20,7 @@ import { SessionModal } from "./components/ui/SessionModal";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { Sidebar } from "./components/layout/Sidebar";
 import { MobileNav } from "./components/layout/MobileNav";
+import { AppHeader } from "./components/layout/AppHeader";
 import { DashboardTab } from "./components/dashboard/DashboardTab";
 import { TreatmentsTab } from "./components/treatments/TreatmentsTab";
 import { InventoryTab } from "./components/inventory/InventoryTab";
@@ -31,6 +32,22 @@ import { TaxesTab } from "./components/taxes/TaxesTab";
 import { BonosTab } from "./components/bonos/BonosTab";
 import { RequirePlan } from "./components/guards/RequirePlan";
 import { DocumentsTab } from "./components/documents/DocumentsTab";
+import { getReportingRange } from "./utils/dateUtils";
+
+const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
+
+const TAB_META = {
+	dashboard: { title: "Resumen", subtitle: "Indicadores y widgets" },
+	clients: { title: "Clientes", subtitle: "Ficha, historial y documentos" },
+	treatments: { title: "Tratamientos", subtitle: "Servicios y sesiones" },
+	bonos: { title: "Bonos", subtitle: "Plantillas y bonos de clientes" },
+	documents: { title: "Documentos", subtitle: "Presupuestos y plantillas" },
+	inventory: { title: "Stock", subtitle: "Materiales y lotes" },
+	calendar: { title: "Agenda", subtitle: "Citas y recordatorios" },
+	finance: { title: "Finanzas", subtitle: "Ingresos, gastos y fijos" },
+	taxes: { title: "Fiscalidad", subtitle: "Resúmenes fiscales" },
+	settings: { title: "Configuración", subtitle: "Clínica, perfil y seguridad" },
+};
 
 const DermoManager = () => {
 	const { user, loading: authLoading } = useAuth();
@@ -39,8 +56,7 @@ const DermoManager = () => {
 	const { inventory, loading: inventoryLoading, refreshInventory } = useInventory(user);
 	const { treatments, loading: treatmentsLoading, refreshTreatments } = useTreatments(user);
 	const { entries, loading: financeLoading, refreshFinance } = useFinance(user);
-	const { recurringConfig, loading: recurringLoading, refreshRecurringConfig } =
-		useRecurringConfig(user);
+	const { loading: recurringLoading, refreshRecurringConfig } = useRecurringConfig(user);
 	const profile = useProfile(user);
 	const { clients, loading: clientsLoading, refreshClients } = useClients(user);
 	const { appointments, loading: appointmentsLoading, refreshAppointments } =
@@ -67,6 +83,33 @@ const DermoManager = () => {
 	};
 
 	const [activeTab, setActiveTab] = useState("dashboard");
+	const [settingsAnchor, setSettingsAnchor] = useState(null);
+	const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+		try {
+			return typeof localStorage !== "undefined" && localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+		} catch {
+			return false;
+		}
+	});
+
+	const toggleSidebarCollapsed = useCallback(() => {
+		setSidebarCollapsed((c) => {
+			const next = !c;
+			try {
+				localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? "1" : "0");
+			} catch {
+				/* ignore */
+			}
+			return next;
+		});
+	}, []);
+
+	const mainPadClass = sidebarCollapsed ? "md:pl-[4.5rem]" : "md:pl-60 lg:pl-64";
+
+	const pageMeta = TAB_META[activeTab] || { title: "DermoManager", subtitle: null };
+
+	const goSettings = useCallback(() => setActiveTab("settings"), []);
+	const clearSettingsAnchor = useCallback(() => setSettingsAnchor(null), []);
 
 	useEffect(() => {
 		if (!user || tenantLoading) return;
@@ -75,12 +118,28 @@ const DermoManager = () => {
 		if (!allowsPresupuestosBonos && activeTab === "bonos") setActiveTab("dashboard");
 	}, [user, tenantLoading, allowsPresupuestosBonos, activeTab]);
 
-	// --- ESTADO ELEVADO (GLOBAL) ---
-	const [viewMode, setViewMode] = useState("month"); // 'month', 'quarter', 'year'
-	const [currentDate, setCurrentDate] = useState(
-		new Date().toISOString().slice(0, 7) // "YYYY-MM"
+	const [reportingPreset, setReportingPreset] = useState("month");
+	const [reportingAnchorYm, setReportingAnchorYm] = useState(() =>
+		new Date().toISOString().slice(0, 7),
 	);
-	// -------------------------------
+	const [reportingCustomFrom, setReportingCustomFrom] = useState(() => {
+		const d = new Date();
+		d.setMonth(d.getMonth() - 1);
+		return d.toISOString().slice(0, 10);
+	});
+	const [reportingCustomTo, setReportingCustomTo] = useState(() =>
+		new Date().toISOString().slice(0, 10),
+	);
+	const reportingRange = useMemo(
+		() =>
+			getReportingRange(
+				reportingPreset,
+				reportingAnchorYm,
+				reportingCustomFrom,
+				reportingCustomTo,
+			),
+		[reportingPreset, reportingAnchorYm, reportingCustomFrom, reportingCustomTo],
+	);
 
 	const [toast, setToast] = useState(null);
 	const [showLogout, setShowLogout] = useState(false);
@@ -189,7 +248,8 @@ const DermoManager = () => {
 	if (!user) return <LoginScreen />;
 
 	return (
-		<div className="min-h-[100dvh] bg-gray-50 pb-24 md:pb-0 font-sans text-gray-800 overflow-x-hidden pl-0 md:pl-20 lg:pl-64">
+		<div
+			className={`min-h-[100dvh] bg-gray-50 pb-24 md:pb-0 font-sans text-gray-800 overflow-x-hidden pl-0 ${mainPadClass} antialiased text-[15px] leading-snug`}>
 			{toast && (
 				<Toast
 					message={toast.message}
@@ -221,22 +281,28 @@ const DermoManager = () => {
 			<Sidebar
 				activeTab={activeTab}
 				setActiveTab={setActiveTab}
-				onLogout={() => setShowLogout(true)}
 				companyName={clinic?.name}
+				collapsed={sidebarCollapsed}
+			/>
+			<AppHeader
+				title={pageMeta.title}
+				subtitle={pageMeta.subtitle}
+				activeTab={activeTab}
+				setActiveTab={setActiveTab}
+				sidebarCollapsed={sidebarCollapsed}
+				onToggleSidebar={toggleSidebarCollapsed}
 				clients={clients}
 				treatments={treatments}
 				inventory={inventory}
+				appointments={appointments}
+				batches={batches ?? []}
+				user={user}
+				profile={profile}
+				clinic={clinic}
+				onLogout={() => setShowLogout(true)}
+				onOpenSettings={goSettings}
 			/>
-			<div className="md:hidden h-16 bg-white border-b sticky top-0 z-40 px-4 flex items-center justify-between shadow-sm">
-				{/* Header móvil visible hasta XL */}
-				<span className="font-bold text-xl text-rose-500 uppercase tracking-tighter">
-					{clinic?.name || "DermoManager"}
-				</span>
-				<button onClick={() => setShowLogout(true)} className="p-2">
-					<LogOut size={18} className="text-gray-400" />
-				</button>
-			</div>
-			<main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-6 max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-6 min-h-screen">
+			<main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-5 max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-5 min-h-[calc(100dvh-8rem)]">
 				{activeTab === "dashboard" && (
 					<DashboardTab
 						user={user}
@@ -246,10 +312,15 @@ const DermoManager = () => {
 						treatments={treatments}
 						appointments={appointments}
 						clients={clients}
-						currentDate={currentDate}
-						setCurrentDate={setCurrentDate}
-						viewMode={viewMode}
-						setViewMode={setViewMode}
+						reportingRange={reportingRange}
+						reportingPreset={reportingPreset}
+						setReportingPreset={setReportingPreset}
+						reportingAnchorYm={reportingAnchorYm}
+						setReportingAnchorYm={setReportingAnchorYm}
+						reportingCustomFrom={reportingCustomFrom}
+						setReportingCustomFrom={setReportingCustomFrom}
+						reportingCustomTo={reportingCustomTo}
+						setReportingCustomTo={setReportingCustomTo}
 						userName={profile?.name}
 					/>
 				)}
@@ -297,11 +368,15 @@ const DermoManager = () => {
 						user={user}
 						entries={entries}
 						clients={clients}
-						recurringConfig={recurringConfig}
-						currentDate={currentDate}
-						setCurrentDate={setCurrentDate}
-						viewMode={viewMode}
-						setViewMode={setViewMode}
+						reportingRange={reportingRange}
+						reportingPreset={reportingPreset}
+						setReportingPreset={setReportingPreset}
+						reportingAnchorYm={reportingAnchorYm}
+						setReportingAnchorYm={setReportingAnchorYm}
+						reportingCustomFrom={reportingCustomFrom}
+						setReportingCustomFrom={setReportingCustomFrom}
+						reportingCustomTo={reportingCustomTo}
+						setReportingCustomTo={setReportingCustomTo}
 						showToast={showToastMsg}
 						onRefresh={refreshData}
 					/>
@@ -336,7 +411,13 @@ const DermoManager = () => {
 					/>
 				)}
 				{activeTab === "settings" && (
-					<SettingsTab user={user} profile={profile} showToast={showToastMsg} />
+					<SettingsTab
+						user={user}
+						profile={profile}
+						showToast={showToastMsg}
+						navigateAnchor={settingsAnchor}
+						onNavigateAnchorConsumed={clearSettingsAnchor}
+					/>
 				)}
 			</main>
 			<MobileNav
