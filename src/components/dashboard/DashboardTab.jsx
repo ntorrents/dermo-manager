@@ -12,9 +12,20 @@ import {
 	useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, Pencil, X, Plus, GripVertical, ChevronDown as ChevronDownIcon } from "lucide-react";
-import { getDateLabel } from "../../utils/dateUtils";
-import { filterByDate } from "../../utils/dateUtils";
+import {
+	Pencil,
+	X,
+	Plus,
+	GripVertical,
+	ChevronDown as ChevronDownIcon,
+	TrendingUp,
+	TrendingDown,
+	Euro,
+	Users,
+	CalendarDays,
+} from "lucide-react";
+import { filterByReportingRange } from "../../utils/dateUtils";
+import { ReportingPeriodToolbar } from "../ui/ReportingPeriodToolbar";
 import {
 	calculateStats,
 	calculateGrowth,
@@ -34,9 +45,9 @@ import {
 import { WidgetAlerts } from "./widgets/WidgetAlerts";
 
 /** Top clientes por número de sesiones (entries tipo income con client_id) */
-function useTopClients(entries = [], clients = [], viewMode, currentDate) {
+function useTopClients(entries = [], clients = [], startStr, endStr) {
 	return useMemo(() => {
-		const filtered = filterByDate(entries, "date", viewMode, currentDate);
+		const filtered = filterByReportingRange(entries, "date", startStr, endStr);
 		const byClient = {};
 		filtered
 			.filter((e) => e.type === "income" && e.client_id)
@@ -53,7 +64,7 @@ function useTopClients(entries = [], clients = [], viewMode, currentDate) {
 			})
 			.sort((a, b) => b.count - a.count)
 			.slice(0, 5);
-	}, [entries, clients, viewMode, currentDate]);
+	}, [entries, clients, startStr, endStr]);
 }
 
 /** Ítem sortable con drag handle y controles de tamaño */
@@ -155,10 +166,15 @@ export const DashboardTab = ({
 	treatments = [],
 	appointments = [],
 	clients = [],
-	currentDate,
-	setCurrentDate,
-	viewMode,
-	setViewMode,
+	reportingRange,
+	reportingPreset,
+	setReportingPreset,
+	reportingAnchorYm,
+	setReportingAnchorYm,
+	reportingCustomFrom,
+	setReportingCustomFrom,
+	reportingCustomTo,
+	setReportingCustomTo,
 	userName,
 }) => {
 	const [isEditing, setIsEditing] = useState(false);
@@ -166,26 +182,30 @@ export const DashboardTab = ({
 	const addDropdownRef = useRef(null);
 	const { widgets, setWidgets, saveWidgets } = useDashboardWidgets(user?.id);
 
+	const rangeStart = reportingRange?.start ?? "";
+	const rangeEnd = reportingRange?.end ?? "";
+
 	const currentData = useMemo(
-		() => filterByDate(entries, "date", viewMode, currentDate),
-		[entries, currentDate, viewMode]
+		() => filterByReportingRange(entries, "date", rangeStart, rangeEnd),
+		[entries, rangeStart, rangeEnd]
 	);
 	const currentExpenses = useMemo(() => {
 		const expenseEntries = entries.filter(
 			(e) => e.type === "expense" && e.is_deductible === true
 		);
-		return filterByDate(expenseEntries, "date", viewMode, currentDate);
-	}, [entries, currentDate, viewMode]);
-	const previousMonth = useMemo(() => {
-		if (viewMode !== "month" || !currentDate) return "";
-		const date = new Date(currentDate + "-01");
-		date.setMonth(date.getMonth() - 1);
-		return date.toISOString().slice(0, 7);
-	}, [currentDate, viewMode]);
+		return filterByReportingRange(expenseEntries, "date", rangeStart, rangeEnd);
+	}, [entries, rangeStart, rangeEnd]);
+	const previousMonthYm = useMemo(() => {
+		if (reportingPreset !== "month" || !reportingRange?.refMonthYm) return "";
+		const parts = reportingRange.refMonthYm.split("-").map(Number);
+		const d = new Date(parts[0], parts[1] - 1, 1);
+		d.setMonth(d.getMonth() - 1);
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+	}, [reportingPreset, reportingRange?.refMonthYm]);
 	const previousData = useMemo(() => {
-		if (viewMode !== "month") return [];
-		return entries.filter((e) => e.date && e.date.startsWith(previousMonth));
-	}, [entries, previousMonth, viewMode]);
+		if (reportingPreset !== "month" || !previousMonthYm) return [];
+		return entries.filter((e) => e.date && e.date.startsWith(previousMonthYm));
+	}, [entries, previousMonthYm, reportingPreset]);
 
 	const currentStats = useMemo(() => calculateStats(currentData), [currentData]);
 	const prevStats = useMemo(() => calculateStats(previousData), [previousData]);
@@ -197,7 +217,7 @@ export const DashboardTab = ({
 		() => getTopTreatments(currentData, treatments, 5),
 		[currentData, treatments]
 	);
-	const topClients = useTopClients(entries, clients, viewMode, currentDate);
+	const topClients = useTopClients(entries, clients, rangeStart, rangeEnd);
 	const lowStockItems = useMemo(() => getLowStockItems(inventory, 5), [inventory]);
 	const expiredStockItems = useMemo(
 		() => getItemsWithExpiredBatches(inventory, batches),
@@ -250,11 +270,17 @@ export const DashboardTab = ({
 			.sort((a, b) => new Date(a.start_at) - new Date(b.start_at))
 			.slice(0, 6);
 	}, [appointments]);
+	const activeClientsCount = useMemo(
+		() => (clients || []).filter((c) => c.activo !== false).length,
+		[clients],
+	);
+
+	const chartMonthYm = reportingRange?.refMonthYm ?? "";
 
 	const widgetData = useMemo(
 		() => ({
-			viewMode,
-			currentDate,
+			reportingPreset,
+			chartMonthYm,
 			currentData,
 			currentStats,
 			prevStats,
@@ -270,8 +296,8 @@ export const DashboardTab = ({
 			expiredStockItems,
 		}),
 		[
-			viewMode,
-			currentDate,
+			reportingPreset,
+			chartMonthYm,
 			currentData,
 			currentStats,
 			prevStats,
@@ -370,53 +396,38 @@ export const DashboardTab = ({
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
-			<div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
+			<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 				<div>
-					<h2 className="text-2xl font-bold text-gray-800">
-						Hola, <span className="text-rose-500">{userName || "Nil"}</span> 👋
+					<h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+						Hola, <span className="text-rose-500">{userName || "Nil"}</span>
 					</h2>
-					<p className="text-gray-400 text-sm">
-						Resumen de{" "}
-						<span className="font-bold text-gray-600">
-							{getDateLabel(currentDate, viewMode)}
-						</span>
+					<p className="text-gray-500 text-sm font-medium mt-0.5">
+						Resumen del periodo seleccionado (compartido con Finanzas).
 					</p>
 				</div>
-
-				<div className="flex items-center gap-2">
-					<div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-100 gap-2 items-center">
-						<div className="relative">
-							<Calendar
-								className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-								size={16}
-							/>
-							<input
-								type="month"
-								value={currentDate}
-								onChange={(e) => setCurrentDate(e.target.value)}
-								className="pl-9 pr-2 py-2 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none hover:bg-gray-100 transition-colors cursor-pointer border-none"
-							/>
-						</div>
-						<div className="h-6 w-px bg-gray-200"></div>
-						<select
-							value={viewMode}
-							onChange={(e) => setViewMode(e.target.value)}
-							className="py-2 pl-2 pr-8 bg-gray-50 rounded-lg text-sm font-bold text-gray-700 outline-none hover:bg-gray-100 transition-colors appearance-none cursor-pointer border-none">
-							<option value="month">Mensual</option>
-							<option value="quarter">Trimestral</option>
-							<option value="year">Anual</option>
-						</select>
+				<div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:max-w-2xl lg:shrink-0">
+					<div className="flex-1 min-w-0">
+						<ReportingPeriodToolbar
+							preset={reportingPreset}
+							onPresetChange={setReportingPreset}
+							anchorYm={reportingAnchorYm}
+							onAnchorYmChange={setReportingAnchorYm}
+							customFrom={reportingCustomFrom}
+							customTo={reportingCustomTo}
+							onCustomFromChange={setReportingCustomFrom}
+							onCustomToChange={setReportingCustomTo}
+							rangeLabel={reportingRange?.label}
+						/>
 					</div>
-
 					<button
 						type="button"
 						onClick={() => (isEditing ? handleExitEdit() : setIsEditing(true))}
-						className={`inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-colors sm:justify-start ${
+						className={`inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors shrink-0 ${
 							isEditing
 								? "bg-emerald-600 text-white hover:bg-emerald-700"
 								: "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50"
 						}`}
-						title={isEditing ? "Guardar y cerrar" : "Editar Widgets"}>
+						title={isEditing ? "Guardar y cerrar" : "Editar widgets"}>
 						{isEditing ? (
 							<>
 								<X size={16} className="shrink-0" />
@@ -425,10 +436,50 @@ export const DashboardTab = ({
 						) : (
 							<>
 								<Pencil size={16} className="shrink-0" />
-								<span className="hidden sm:inline">Editar Widgets</span>
+								<span className="hidden sm:inline">Editar widgets</span>
 							</>
 						)}
 					</button>
+				</div>
+			</div>
+
+			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
+					<div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+						<Euro size={14} className="text-emerald-500" /> Ingresos período
+					</div>
+					<p className="text-xl font-bold text-gray-900 tabular-nums">
+						{currentStats.income.toLocaleString("es-ES", { maximumFractionDigits: 0 })} €
+					</p>
+					<p className={`text-xs font-semibold flex items-center gap-1 ${incomeGrowth >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+						{incomeGrowth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+						{reportingPreset === "month"
+							? `${incomeGrowth >= 0 ? "+" : ""}${Math.round(incomeGrowth)}% vs mes ant.`
+							: "Comparativa mensual no aplica"}
+					</p>
+				</div>
+				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
+					<div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+						<TrendingDown size={14} className="text-rose-500" /> Gastos período
+					</div>
+					<p className="text-xl font-bold text-gray-900 tabular-nums">
+						{currentStats.expense.toLocaleString("es-ES", { maximumFractionDigits: 0 })} €
+					</p>
+					<p className="text-xs text-gray-500">Incluye costes operativos del rango</p>
+				</div>
+				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
+					<div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+						<CalendarDays size={14} className="text-blue-500" /> Próximas citas
+					</div>
+					<p className="text-xl font-bold text-gray-900">{upcomingAppointments.length}</p>
+					<p className="text-xs text-gray-500">En la agenda desde hoy</p>
+				</div>
+				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
+					<div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+						<Users size={14} className="text-violet-500" /> Clientes activos
+					</div>
+					<p className="text-xl font-bold text-gray-900">{activeClientsCount}</p>
+					<p className="text-xs text-gray-500">No archivados</p>
 				</div>
 			</div>
 

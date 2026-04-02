@@ -69,8 +69,7 @@ export const ClientsTab = ({
 	showToast,
 	onRefresh,
 }) => {
-	const { clinicId } = useTenant();
-	const { clinic } = useTenant();
+	const { clinicId, clinic, canDeleteOperational } = useTenant();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedClient, setSelectedClient] = useState(null);
 	const [clientDetailTab, setClientDetailTab] = useState("seguimiento");
@@ -396,23 +395,25 @@ export const ClientsTab = ({
 							{clients.length}
 						</span>
 					</div>
-					<div className="flex gap-2">
-						<div className="relative flex-1">
+					<div className="flex flex-col sm:flex-row gap-2 sm:items-stretch">
+						<div className="relative flex-1 min-w-0">
 							<Search
-								className="absolute left-3 top-3 text-gray-400"
+								className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
 								size={18}
 							/>
 							<input
-								placeholder="Buscar..."
-								className="w-full pl-10 p-3 bg-gray-50 border border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold text-gray-700"
+								placeholder="Buscar cliente…"
+								className="w-full pl-10 pr-3 py-3 bg-gray-50 border border-gray-100 focus:bg-white focus:border-rose-200 rounded-xl outline-none font-bold text-gray-700"
 								value={searchTerm}
 								onChange={(e) => setSearchTerm(e.target.value)}
 							/>
 						</div>
 						<button
+							type="button"
 							onClick={() => handleOpenModal()}
-							className="bg-gray-900 text-white p-3 rounded-xl hover:bg-black shadow-lg">
+							className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors shrink-0">
 							<Plus size={20} />
+							<span className="hidden sm:inline">Nuevo cliente</span>
 						</button>
 					</div>
 				</div>
@@ -516,12 +517,14 @@ export const ClientsTab = ({
 												</div>
 											</div>
 										</div>
-										<button
-											onClick={(e) => handleDeleteClick(e, client)}
-											className="p-2 text-gray-300 hover:text-rose-500 shrink-0"
-											title="Archivar cliente">
-											<Trash2 size={16} />
-										</button>
+										{canDeleteOperational && (
+											<button
+												onClick={(e) => handleDeleteClick(e, client)}
+												className="p-2 text-gray-300 hover:text-rose-500 shrink-0"
+												title="Archivar cliente">
+												<Trash2 size={16} />
+											</button>
+										)}
 									</div>
 								</div>
 							))}

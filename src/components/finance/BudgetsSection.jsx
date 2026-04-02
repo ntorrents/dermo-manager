@@ -168,7 +168,7 @@ export const BudgetsSection = ({ user, clients = [], treatments = [], profile, s
 		<div className="space-y-6 animate-in fade-in">
 			<div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
 				<div>
-					<h2 className="text-xl font-black text-gray-800">Presupuestos</h2>
+					<h2 className="text-xl font-bold text-gray-900">Presupuestos</h2>
 					<p className="text-sm text-gray-500 mt-1">
 						Cotizaciones con PDF informativo (sin numeración fiscal).
 					</p>
@@ -176,7 +176,7 @@ export const BudgetsSection = ({ user, clients = [], treatments = [], profile, s
 				<button
 					type="button"
 					onClick={openNew}
-					className="flex items-center gap-2 px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-2xl font-bold shadow-lg transition-colors">
+					className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors">
 					<Plus size={20} /> Nuevo presupuesto
 				</button>
 			</div>
@@ -220,7 +220,7 @@ export const BudgetsSection = ({ user, clients = [], treatments = [], profile, s
 								<div className="min-w-0">
 									<p className="font-bold text-gray-800">{title ? `${title} · ${name}` : name}</p>
 									<p className="text-xs text-gray-500 mt-0.5">{dateStr}</p>
-									<p className="text-sm font-black text-amber-700 mt-1">{formatCurrency(total)}</p>
+									<p className="text-sm font-bold text-rose-600 mt-1">{formatCurrency(total)}</p>
 									{totalDiscount > 0 && (
 										<p className="text-[11px] text-gray-500 mt-0.5">
 											DTO total: <span className="font-bold text-gray-700">{formatCurrency(totalDiscount)}</span>

@@ -85,13 +85,23 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 
 	return (
 		<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-			<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-				<FileText size={20} className="text-rose-500" /> Plantillas de consentimiento informado
-			</h3>
-			<p className="text-sm text-gray-500 mb-4">
-				Plantillas para generar PDFs desde la ficha del cliente. Puedes escribir con formato (negrita, listas) o
-				importar un Word (.docx) con variables tipo {"{{NOMBRE}}"}, {"{{FECHA}}"}, etc.
-			</p>
+			<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+				<div>
+					<h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+						<FileText size={20} className="text-rose-500" /> Plantillas de consentimiento
+					</h3>
+					<p className="text-sm text-gray-500 mt-1 max-w-2xl">
+						Genera PDFs desde la ficha del cliente. Formato enriquecido o importa un .docx con variables como{" "}
+						{"{{NOMBRE}}"}, {"{{FECHA}}"}, etc.
+					</p>
+				</div>
+				<button
+					type="button"
+					onClick={() => open()}
+					className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors shrink-0 self-start">
+					<Plus size={18} /> Nueva plantilla
+				</button>
+			</div>
 
 			<div className="space-y-2">
 				{consentTemplates.length === 0 ? (
@@ -129,13 +139,6 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 					))
 				)}
 			</div>
-
-			<button
-				type="button"
-				onClick={() => open()}
-				className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-100 transition-colors">
-				<Plus size={18} /> Añadir plantilla
-			</button>
 
 			<AdaptiveModal
 				isOpen={showModal}

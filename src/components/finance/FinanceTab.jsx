@@ -9,7 +9,6 @@ import {
 	Trash2,
 	CheckCircle2,
 	X,
-	Calendar,
 	Edit2,
 	FileText,
 	Download,
@@ -27,7 +26,8 @@ import {
 } from "../../utils/format";
 import { calculateTaxReverseGrossToNet } from "../../utils/calculations";
 import { exportToCSV, exportTrimestreToExcel } from "../../utils/export";
-import { filterByDate, getDateLabel } from "../../utils/dateUtils";
+import { filterByReportingRange } from "../../utils/dateUtils";
+import { ReportingPeriodToolbar } from "../ui/ReportingPeriodToolbar";
 import {
 	uploadReceipt,
 	getReceiptUrl,
@@ -50,14 +50,19 @@ export const FinanceTab = ({
 	user,
 	entries = [],
 	clients = [],
-	currentDate,
-	setCurrentDate,
-	viewMode,
-	setViewMode,
+	reportingRange,
+	reportingPreset,
+	setReportingPreset,
+	reportingAnchorYm,
+	setReportingAnchorYm,
+	reportingCustomFrom,
+	setReportingCustomFrom,
+	reportingCustomTo,
+	setReportingCustomTo,
 	showToast,
 	onRefresh,
 }) => {
-	const { clinicId } = useTenant();
+	const { clinicId, isAdmin } = useTenant();
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isConfigOpen, setIsConfigOpen] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
@@ -152,10 +157,14 @@ export const FinanceTab = ({
 		if (user) fetchConfig();
 	}, [user]);
 
+	const rangeStart = reportingRange?.start ?? "";
+	const rangeEnd = reportingRange?.end ?? "";
+	const refMonthYm = reportingRange?.refMonthYm ?? "";
+
 	// Entradas filtradas solo por fecha para cálculos globales
 	const periodEntries = useMemo(() => {
-		return filterByDate(entries, "date", viewMode, currentDate);
-	}, [entries, currentDate, viewMode]);
+		return filterByReportingRange(entries, "date", rangeStart, rangeEnd);
+	}, [entries, rangeStart, rangeEnd]);
 
 	// Entradas filtradas para la lista (incluye búsqueda y el filtro de tipo móvil)
 	const filteredEntries = useMemo(() => {
@@ -199,7 +208,7 @@ export const FinanceTab = ({
 		if (!expense?.id) {
 			return { paid: false };
 		}
-		const currentMonth = currentDate.length >= 7 ? currentDate.slice(0, 7) : currentDate;
+		const currentMonth = refMonthYm.length >= 7 ? refMonthYm.slice(0, 7) : refMonthYm;
 		const found = entries.find((e) => {
 			if (e.type !== "expense" || e.recurring_id !== expense.id) return false;
 			const startDate = e.coverage_start_date || e.date;
@@ -265,9 +274,7 @@ export const FinanceTab = ({
 	const openPayRecurringModal = (expense) => {
 		const base = Number(expense.amount) || 0;
 		const defaultMonth =
-			currentDate.length === 7
-				? currentDate
-				: new Date().toISOString().slice(0, 7);
+			refMonthYm.length === 7 ? refMonthYm : new Date().toISOString().slice(0, 7);
 		setEditingEntry(null);
 		setRecurringBaseAmount(base);
 		setFormData({
@@ -278,8 +285,8 @@ export const FinanceTab = ({
 			category: expense.category || "",
 			description: expense.category || "",
 			date:
-				currentDate.length === 7
-					? `${currentDate}-01`
+				refMonthYm.length === 7
+					? `${refMonthYm}-01`
 					: new Date().toISOString().split("T")[0],
 			notes: "",
 			is_deductible: expense.is_deductible ?? false,
@@ -661,9 +668,14 @@ export const FinanceTab = ({
 			const withoutId = valid.filter((exp) => !exp.id);
 			const idsToKeep = withId.map((exp) => exp.id);
 
+			const { data: existing } = await supabase.from("recurring_config").select("id");
+			const toRemove = (existing || []).filter((r) => !idsToKeep.includes(r.id));
+			if ((toRemove.length > 0 || (idsToKeep.length === 0 && (existing || []).length > 0)) && !isAdmin) {
+				showToast?.("Solo un administrador puede eliminar gastos fijos", "error");
+				return;
+			}
+
 			if (idsToKeep.length > 0) {
-				const { data: existing } = await supabase.from("recurring_config").select("id");
-				const toRemove = (existing || []).filter((r) => !idsToKeep.includes(r.id));
 				for (const r of toRemove) {
 					await supabase.from("recurring_config").delete().eq("id", r.id);
 				}
@@ -722,7 +734,7 @@ export const FinanceTab = ({
 			<div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
 				<div>
 					<p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">
-						Balance {getDateLabel(currentDate, viewMode)}
+						Balance · {reportingRange?.label ?? "—"}
 					</p>
 					<h2
 						className={`text-4xl font-black tracking-tighter ${
@@ -731,30 +743,27 @@ export const FinanceTab = ({
 						{formatCurrency(netProfit)}
 					</h2>
 				</div>
-				<div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-					<div className="relative">
-						<Calendar
-							className="absolute left-3 top-2.5 text-gray-400"
-							size={16}
-						/>
-						<input
-							type="month"
-							value={currentDate}
-							onChange={(e) => setCurrentDate(e.target.value)}
-							className="pl-9 p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none cursor-pointer"
+				<div className="flex flex-wrap items-center gap-3 w-full md:w-auto md:max-w-xl">
+					<div className="w-full min-w-[min(100%,20rem)]">
+						<ReportingPeriodToolbar
+							preset={reportingPreset}
+							onPresetChange={setReportingPreset}
+							anchorYm={reportingAnchorYm}
+							onAnchorYmChange={setReportingAnchorYm}
+							customFrom={reportingCustomFrom}
+							customTo={reportingCustomTo}
+							onCustomFromChange={setReportingCustomFrom}
+							onCustomToChange={setReportingCustomTo}
+							rangeLabel={reportingRange?.label}
+							compact
 						/>
 					</div>
-					<select
-						value={viewMode}
-						onChange={(e) => setViewMode(e.target.value)}
-						className="p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none cursor-pointer">
-						<option value="month">Mensual</option>
-						<option value="quarter">Trimestral</option>
-						<option value="year">Anual</option>
-					</select>
 					<button
 						onClick={() =>
-							exportToCSV(periodEntries, `Finanzas_${currentDate}.csv`)
+							exportToCSV(
+								periodEntries,
+								`Finanzas_${rangeStart}_${rangeEnd}.csv`,
+							)
 						}
 						className="bg-emerald-50 text-emerald-700 p-2.5 rounded-xl border border-emerald-100 transition-colors hover:bg-emerald-100"
 						title="Exportar CSV">
@@ -889,12 +898,14 @@ export const FinanceTab = ({
 										title="Editar">
 										<Edit2 size={14} />
 									</button>
-									<button
-										onClick={() => handleDeleteClick(entry.id)}
-										className="text-gray-300 p-1"
-										title="Eliminar">
-										<Trash2 size={14} />
-									</button>
+									{isAdmin && (
+										<button
+											onClick={() => handleDeleteClick(entry.id)}
+											className="text-gray-300 p-1"
+											title="Eliminar">
+											<Trash2 size={14} />
+										</button>
+									)}
 								</div>
 							</div>
 						))
@@ -994,12 +1005,14 @@ export const FinanceTab = ({
 												title="Editar">
 												<Edit2 size={14} />
 											</button>
-											<button
-												onClick={() => handleDeleteClick(entry.id)}
-												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
-												title="Eliminar">
-												<Trash2 size={14} />
-											</button>
+											{isAdmin && (
+												<button
+													onClick={() => handleDeleteClick(entry.id)}
+													className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+													title="Eliminar">
+													<Trash2 size={14} />
+												</button>
+											)}
 										</div>
 									</div>
 								))
@@ -1117,12 +1130,14 @@ export const FinanceTab = ({
 												title="Editar">
 												<Edit2 size={14} />
 											</button>
-											<button
-												onClick={() => handleDeleteClick(entry.id)}
-												className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
-												title="Eliminar">
-												<Trash2 size={14} />
-											</button>
+											{isAdmin && (
+												<button
+													onClick={() => handleDeleteClick(entry.id)}
+													className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+													title="Eliminar">
+													<Trash2 size={14} />
+												</button>
+											)}
 										</div>
 									</div>
 								))
@@ -1657,16 +1672,18 @@ export const FinanceTab = ({
 							<div
 								key={exp.id ?? `new-${idx}`}
 								className="space-y-3 p-4 bg-gray-50 rounded-[1.5rem] relative group border border-transparent hover:border-gray-200 transition-all">
-								<button
-									type="button"
-									onClick={() =>
-										setRecurringExpenses(
-											recurringExpenses.filter((_, i) => i !== idx),
-										)
-									}
-									className="absolute -top-2 -right-2 bg-white text-gray-300 hover:text-rose-500 p-1 rounded-full shadow-sm border border-gray-100">
-									<X size={14} />
-								</button>
+								{isAdmin && (
+									<button
+										type="button"
+										onClick={() =>
+											setRecurringExpenses(
+												recurringExpenses.filter((_, i) => i !== idx),
+											)
+										}
+										className="absolute -top-2 -right-2 bg-white text-gray-300 hover:text-rose-500 p-1 rounded-full shadow-sm border border-gray-100">
+										<X size={14} />
+									</button>
+								)}
 								<div>
 									<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
 										Categoría / Concepto

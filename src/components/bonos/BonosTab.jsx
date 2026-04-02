@@ -188,22 +188,30 @@ export const BonosTab = ({
 
 			{/* Header */}
 			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-				<h2 className="text-2xl xl:text-3xl font-black text-gray-800 tracking-tight flex items-center gap-2">
-					<Ticket className="text-rose-500" size={28} /> Bonos de Sesiones
+				<h2 className="text-2xl xl:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+					<Ticket className="text-rose-500" size={28} /> Bonos de sesiones
 				</h2>
-				<button
-					type="button"
-					onClick={openSellModal}
-					className="bg-rose-500 hover:bg-rose-600 text-white px-6 py-3.5 rounded-2xl font-bold flex items-center gap-2 shadow-lg shadow-rose-100 transition-all w-full sm:w-auto justify-center">
-					<Plus size={20} /> Vender Bono a Paciente
-				</button>
+				<div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+					<button
+						type="button"
+						onClick={() => openTemplateModal()}
+						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 transition-colors order-2 sm:order-1">
+						<Plus size={18} /> Nueva plantilla
+					</button>
+					<button
+						type="button"
+						onClick={openSellModal}
+						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors w-full sm:w-auto order-1 sm:order-2">
+						<Plus size={20} /> Vender bono
+					</button>
+				</div>
 			</div>
 
 			{/* Plantillas de Bonos */}
 			<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
 				<div className="p-4 sm:p-6 border-b border-gray-100">
-					<h3 className="font-black text-gray-800 text-lg flex items-center gap-2">
-						<Ticket size={20} className="text-rose-500" /> Plantillas de Bonos
+					<h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+						<Ticket size={20} className="text-rose-500" /> Plantillas de bonos
 					</h3>
 					<p className="text-sm text-gray-500 mt-1">
 						Catálogo de bonos que puedes vender a los pacientes.
@@ -225,14 +233,6 @@ export const BonosTab = ({
 						/>
 					) : (
 						<>
-						<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-							<button
-								type="button"
-								onClick={() => openTemplateModal()}
-								className="text-rose-500 font-bold text-sm flex items-center gap-2 hover:bg-rose-50 px-3 py-2 rounded-xl transition-colors">
-								<Plus size={18} /> Nueva plantilla
-							</button>
-						</div>
 						<div className="grid gap-3">
 							{templates.map((t) => (
 								<div
