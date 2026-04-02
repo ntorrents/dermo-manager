@@ -1,12 +1,11 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
+import { useTenant } from "../context/TenantContext";
 
-const fetchBatches = async (userId) => {
-	if (!userId) return [];
+const fetchBatches = async () => {
 	const { data, error } = await supabase
 		.from("inventory_batches")
 		.select("*")
-		.eq("user_id", userId)
 		.gt("quantity_remaining", 0)
 		.order("expiry_date", { ascending: true });
 
@@ -15,12 +14,12 @@ const fetchBatches = async (userId) => {
 };
 
 export const useInventoryBatches = (userId) => {
-	const queryClient = useQueryClient();
+	const { clinicId } = useTenant();
 
 	const { data: batches = [], refetch } = useQuery({
-		queryKey: ["inventoryBatches", userId],
-		queryFn: () => fetchBatches(userId),
-		enabled: !!userId,
+		queryKey: ["inventoryBatches", clinicId],
+		queryFn: fetchBatches,
+		enabled: !!userId && !!clinicId,
 	});
 
 	return { batches, refreshBatches: refetch };

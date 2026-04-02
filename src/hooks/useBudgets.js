@@ -1,12 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
+import { useTenant } from "../context/TenantContext";
 
-const fetchBudgets = async (userId) => {
-	if (!userId) return [];
+const fetchBudgets = async () => {
 	const { data, error } = await supabase
 		.from("presupuestos")
 		.select("*, presupuesto_lineas(*)")
-		.eq("user_id", userId)
 		.eq("activo", true)
 		.order("created_at", { ascending: false });
 	if (error) throw error;
@@ -20,11 +19,12 @@ const fetchBudgets = async (userId) => {
 
 export const useBudgets = (userId) => {
 	const queryClient = useQueryClient();
+	const { clinicId } = useTenant();
 
 	const query = useQuery({
-		queryKey: ["presupuestos", userId],
-		queryFn: () => fetchBudgets(userId),
-		enabled: !!userId,
+		queryKey: ["presupuestos", clinicId],
+		queryFn: fetchBudgets,
+		enabled: !!userId && !!clinicId,
 	});
 
 	const createMutation = useMutation({
@@ -67,7 +67,7 @@ export const useBudgets = (userId) => {
 			return pres.id;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["presupuestos", userId] });
+			queryClient.invalidateQueries({ queryKey: ["presupuestos", clinicId] });
 		},
 	});
 
@@ -76,12 +76,11 @@ export const useBudgets = (userId) => {
 			const { error } = await supabase
 				.from("presupuestos")
 				.update({ activo: false, updated_at: new Date().toISOString() })
-				.eq("id", presupuestoId)
-				.eq("user_id", userId);
+				.eq("id", presupuestoId);
 			if (error) throw error;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["presupuestos", userId] });
+			queryClient.invalidateQueries({ queryKey: ["presupuestos", clinicId] });
 		},
 	});
 

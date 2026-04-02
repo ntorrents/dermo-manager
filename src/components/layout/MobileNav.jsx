@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import { useTenant } from "../../context/TenantContext";
 import {
 	LayoutDashboard,
 	Users,
@@ -17,8 +18,17 @@ const MAIN_NAV_ITEMS = [
 
 export const MobileNav = ({ activeTab, setActiveTab }) => {
 	const [drawerOpen, setDrawerOpen] = useState(false);
+	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
 
-	const isInDrawer = ["calendar", "bonos", "budgets", "finance", "taxes", "settings"].includes(activeTab);
+	const drawerTabIds = useMemo(() => {
+		const base = ["calendar", "finance", "taxes", "settings"];
+		if (tenantLoading || allowsPresupuestosBonos) {
+			return [...base, "bonos", "budgets"];
+		}
+		return base;
+	}, [tenantLoading, allowsPresupuestosBonos]);
+
+	const isInDrawer = drawerTabIds.includes(activeTab);
 
 	return (
 		<>

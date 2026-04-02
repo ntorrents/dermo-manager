@@ -1,12 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
+import { useTenant } from "../context/TenantContext";
 
-const fetchTreatmentGroups = async (userId) => {
-	if (!userId) return [];
+const fetchTreatmentGroups = async () => {
 	const { data, error } = await supabase
 		.from("treatment_groups")
 		.select("*")
-		.eq("user_id", userId)
 		.order("sort_order", { ascending: true })
 		.order("name", { ascending: true });
 	if (error) throw error;
@@ -15,12 +14,13 @@ const fetchTreatmentGroups = async (userId) => {
 
 export const useTreatmentGroups = (user) => {
 	const userId = user?.id;
+	const { clinicId } = useTenant();
 	const queryClient = useQueryClient();
 
 	const query = useQuery({
-		queryKey: ["treatmentGroups", userId],
-		queryFn: () => fetchTreatmentGroups(userId),
-		enabled: !!userId,
+		queryKey: ["treatmentGroups", clinicId],
+		queryFn: fetchTreatmentGroups,
+		enabled: !!userId && !!clinicId,
 	});
 
 	const createMutation = useMutation({
@@ -34,8 +34,8 @@ export const useTreatmentGroups = (user) => {
 			return data;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["treatmentGroups", userId] });
-			queryClient.invalidateQueries({ queryKey: ["treatments", userId] });
+			queryClient.invalidateQueries({ queryKey: ["treatmentGroups", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["treatments", clinicId] });
 		},
 	});
 
@@ -48,15 +48,14 @@ export const useTreatmentGroups = (user) => {
 				.from("treatment_groups")
 				.update(payload)
 				.eq("id", id)
-				.eq("user_id", userId)
 				.select()
 				.single();
 			if (error) throw error;
 			return data;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["treatmentGroups", userId] });
-			queryClient.invalidateQueries({ queryKey: ["treatments", userId] });
+			queryClient.invalidateQueries({ queryKey: ["treatmentGroups", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["treatments", clinicId] });
 		},
 	});
 
@@ -67,16 +66,12 @@ export const useTreatmentGroups = (user) => {
 				.from("treatments")
 				.update({ group_id: null })
 				.eq("group_id", id);
-			const { error } = await supabase
-				.from("treatment_groups")
-				.delete()
-				.eq("id", id)
-				.eq("user_id", userId);
+			const { error } = await supabase.from("treatment_groups").delete().eq("id", id);
 			if (error) throw error;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["treatmentGroups", userId] });
-			queryClient.invalidateQueries({ queryKey: ["treatments", userId] });
+			queryClient.invalidateQueries({ queryKey: ["treatmentGroups", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["treatments", clinicId] });
 		},
 	});
 

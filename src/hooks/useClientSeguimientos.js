@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
+import { useTenant } from "../context/TenantContext";
 
 const fetchSeguimientos = async (clientId) => {
 	if (!clientId) return [];
@@ -15,6 +16,7 @@ const fetchSeguimientos = async (clientId) => {
 
 export const useClientSeguimientos = (clientId, userId) => {
 	const queryClient = useQueryClient();
+	const { clinicId } = useTenant();
 
 	const {
 		data: seguimientos = [],
@@ -38,7 +40,7 @@ export const useClientSeguimientos = (clientId, userId) => {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["clientSeguimientos", clientId] });
-			if (userId) queryClient.invalidateQueries({ queryKey: ["seguimientosForCalendar", userId] });
+			if (clinicId) queryClient.invalidateQueries({ queryKey: ["seguimientosForCalendar", clinicId] });
 		},
 	});
 
@@ -65,7 +67,7 @@ export const useClientSeguimientos = (clientId, userId) => {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["clientSeguimientos", clientId] });
-			if (userId) queryClient.invalidateQueries({ queryKey: ["seguimientosForCalendar", userId] });
+			if (clinicId) queryClient.invalidateQueries({ queryKey: ["seguimientosForCalendar", clinicId] });
 		},
 	});
 

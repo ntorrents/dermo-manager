@@ -223,8 +223,7 @@ export const CalendarTab = ({
 			const { error } = await supabase
 				.from("appointments")
 				.update({ activo: false })
-				.eq("id", appointmentId)
-				.eq("user_id", user.id);
+				.eq("id", appointmentId);
 			if (error) throw error;
 			showToast("Cita archivada");
 			setShowModal(false);

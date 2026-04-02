@@ -1,10 +1,12 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
+import { useTenant } from "../context/TenantContext";
 import { calculateTaxFromTotal } from "../utils/format";
 import { normalizeInvoiceNumber } from "../utils/validations";
 
 export const useCreateMaterial = (userId) => {
 	const queryClient = useQueryClient();
+	const { clinicId } = useTenant();
 	return useMutation({
 		mutationFn: async ({ formData, taxCalc }) => {
 			const isMaquina = formData.item_type === "maquina";
@@ -95,15 +97,16 @@ export const useCreateMaterial = (userId) => {
 			if (finError) throw finError;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
-			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", userId] });
-			queryClient.invalidateQueries({ queryKey: ["finance", userId] });
+			queryClient.invalidateQueries({ queryKey: ["inventory", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["finance", clinicId] });
 		},
 	});
 };
 
 export const useUpdateMaterial = (userId) => {
 	const queryClient = useQueryClient();
+	const { clinicId } = useTenant();
 	return useMutation({
 		mutationFn: async ({ editingItem, formData }) => {
 			const isMaquina = editingItem?.item_type === "maquina" || formData.item_type === "maquina";
@@ -141,13 +144,14 @@ export const useUpdateMaterial = (userId) => {
 			if (error) throw error;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
+			queryClient.invalidateQueries({ queryKey: ["inventory", clinicId] });
 		},
 	});
 };
 
 export const useRestockMaterial = (userId) => {
 	const queryClient = useQueryClient();
+	const { clinicId } = useTenant();
 	return useMutation({
 		mutationFn: async ({ restockItem, restockData }) => {
 			const qtyBought = Number(restockData.quantity);
@@ -228,7 +232,7 @@ export const useRestockMaterial = (userId) => {
 					await supabase
 						.from("finance_entries")
 						.update({ file_url: path })
-						.eq("user_id", userId)
+						.eq("clinic_id", clinicId)
 						.eq("supplier_nif", supplierNif)
 						.eq("invoice_number", invoiceNumber)
 						.is("file_url", null);
@@ -243,7 +247,7 @@ export const useRestockMaterial = (userId) => {
 					const { data: insertedData } = await supabase
 						.from("finance_entries")
 						.select("id")
-						.eq("user_id", userId)
+						.eq("clinic_id", clinicId)
 						.eq("date", purchaseDate)
 						.eq("type", "expense")
 						.eq("category", "Material")
@@ -265,15 +269,16 @@ export const useRestockMaterial = (userId) => {
 			}
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
-			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", userId] });
-			queryClient.invalidateQueries({ queryKey: ["finance", userId] });
+			queryClient.invalidateQueries({ queryKey: ["inventory", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["finance", clinicId] });
 		},
 	});
 };
 
 export const useUpdateBatch = (userId) => {
 	const queryClient = useQueryClient();
+	const { clinicId } = useTenant();
 	return useMutation({
 		mutationFn: async ({ batchId, updates }) => {
 			const { error } = await supabase
@@ -283,21 +288,22 @@ export const useUpdateBatch = (userId) => {
 			if (error) throw error;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", userId] });
-			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
+			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["inventory", clinicId] });
 		},
 	});
 };
 
 export const useDeleteMaterial = (userId) => {
 	const queryClient = useQueryClient();
+	const { clinicId } = useTenant();
 	return useMutation({
 		mutationFn: async (itemId) => {
 			const { error } = await supabase.from("inventory").delete().eq("id", itemId);
 			if (error) throw error;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
+			queryClient.invalidateQueries({ queryKey: ["inventory", clinicId] });
 		},
 	});
 };

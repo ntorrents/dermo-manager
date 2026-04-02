@@ -44,6 +44,7 @@ import { ConfirmModal } from "../ui/ConfirmModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { useTenant } from "../../context/TenantContext";
 
 export const FinanceTab = ({
 	user,
@@ -56,6 +57,7 @@ export const FinanceTab = ({
 	showToast,
 	onRefresh,
 }) => {
+	const { clinicId } = useTenant();
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isConfigOpen, setIsConfigOpen] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
@@ -136,10 +138,7 @@ export const FinanceTab = ({
 	const fetchConfig = async () => {
 		try {
 			setLoadingConfig(true);
-			const { data, error } = await supabase
-				.from("recurring_config")
-				.select("*")
-				.eq("user_id", user.id);
+			const { data, error } = await supabase.from("recurring_config").select("*");
 			if (error) throw error;
 			setRecurringExpenses(data || []);
 		} catch (error) {
@@ -585,11 +584,11 @@ export const FinanceTab = ({
 						);
 
 						// Si hay invoiceKey, actualizar todos los gastos con la misma factura
-						if (invoiceKey) {
+						if (invoiceKey && clinicId) {
 							await supabase
 								.from("finance_entries")
 								.update({ file_url: path })
-								.eq("user_id", user.id)
+								.eq("clinic_id", clinicId)
 								.eq("supplier_nif", nifValidation.normalized)
 								.eq("invoice_number", normalizedInvoiceNumber)
 								.is("file_url", null);
@@ -640,8 +639,7 @@ export const FinanceTab = ({
 			const { error } = await supabase
 				.from("finance_entries")
 				.update({ activo: false })
-				.eq("id", itemToDelete)
-				.eq("user_id", user.id);
+				.eq("id", itemToDelete);
 			if (error) throw error;
 			showToast("Movimiento archivado");
 			if (onRefresh) await onRefresh();
@@ -664,16 +662,13 @@ export const FinanceTab = ({
 			const idsToKeep = withId.map((exp) => exp.id);
 
 			if (idsToKeep.length > 0) {
-				const { data: existing } = await supabase
-					.from("recurring_config")
-					.select("id")
-					.eq("user_id", user.id);
+				const { data: existing } = await supabase.from("recurring_config").select("id");
 				const toRemove = (existing || []).filter((r) => !idsToKeep.includes(r.id));
 				for (const r of toRemove) {
 					await supabase.from("recurring_config").delete().eq("id", r.id);
 				}
-			} else {
-				await supabase.from("recurring_config").delete().eq("user_id", user.id);
+			} else if (clinicId) {
+				await supabase.from("recurring_config").delete().eq("clinic_id", clinicId);
 			}
 
 			for (const exp of withId) {
@@ -686,8 +681,7 @@ export const FinanceTab = ({
 						tax_rate: Number(exp.tax_rate) ?? 21,
 						irpf_rate: Number(exp.irpf_rate) ?? 0,
 					})
-					.eq("id", exp.id)
-					.eq("user_id", user.id);
+					.eq("id", exp.id);
 			}
 
 			if (withoutId.length > 0) {

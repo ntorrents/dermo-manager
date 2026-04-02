@@ -1,11 +1,12 @@
 import { supabase } from "./supabase";
 
 /**
- * Exporta todos los datos del usuario en un único JSON.
+ * Exporta datos operativos de la clínica + perfil del usuario en un único JSON.
  * No incluye archivos de fotos (solo metadatos de session_photos).
  */
-export const exportUserBackup = async (userId) => {
+export const exportUserBackup = async ({ userId, clinicId }) => {
 	if (!userId) throw new Error("Usuario no identificado");
+	if (!clinicId) throw new Error("Clínica no disponible");
 
 	const [
 		{ data: profile },
@@ -19,20 +20,24 @@ export const exportUserBackup = async (userId) => {
 		{ data: sessionPhotos },
 	] = await Promise.all([
 		supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-		supabase.from("clients").select("*").eq("user_id", userId).order("name"),
-		supabase.from("treatments").select("*").eq("user_id", userId).order("name"),
-		supabase.from("inventory").select("*").eq("user_id", userId).order("name"),
-		supabase.from("inventory_batches").select("*").eq("user_id", userId),
-		supabase.from("finance_entries").select("*").eq("user_id", userId).order("date", { ascending: false }),
-		supabase.from("recurring_config").select("*").eq("user_id", userId),
-		supabase.from("appointments").select("*").eq("user_id", userId).order("start_at", { ascending: true }),
-		supabase.from("session_photos").select("id, client_id, finance_entry_id, type, storage_path, created_at").eq("user_id", userId),
+		supabase.from("clients").select("*").eq("clinic_id", clinicId).order("name"),
+		supabase.from("treatments").select("*").eq("clinic_id", clinicId).order("name"),
+		supabase.from("inventory").select("*").eq("clinic_id", clinicId).order("name"),
+		supabase.from("inventory_batches").select("*").eq("clinic_id", clinicId),
+		supabase.from("finance_entries").select("*").eq("clinic_id", clinicId).order("date", { ascending: false }),
+		supabase.from("recurring_config").select("*").eq("clinic_id", clinicId),
+		supabase.from("appointments").select("*").eq("clinic_id", clinicId).order("start_at", { ascending: true }),
+		supabase
+			.from("session_photos")
+			.select("id, client_id, finance_entry_id, type, storage_path, created_at")
+			.eq("clinic_id", clinicId),
 	]);
 
 	const backup = {
 		exportedAt: new Date().toISOString(),
 		userId,
-		version: "1.0",
+		clinicId,
+		version: "1.1",
 		data: {
 			profile: profile || null,
 			clients: clients || [],

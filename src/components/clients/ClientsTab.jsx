@@ -245,8 +245,7 @@ export const ClientsTab = ({
 			const { error } = await supabase
 				.from("clients")
 				.update({ activo: false })
-				.eq("id", clientToDelete.id)
-				.eq("user_id", user.id);
+				.eq("id", clientToDelete.id);
 			if (error) throw error;
 			showToast("Cliente archivado");
 			if (selectedClient?.id === clientToDelete.id) setSelectedClient(null);

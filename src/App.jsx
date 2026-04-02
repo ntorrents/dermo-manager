@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Loader2, LogOut } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
+import { useTenant } from "./context/TenantContext";
 import { logout } from "./services/auth";
 import { useSessionMutation } from "./hooks/useSessionMutation";
 import { useTreatments } from "./hooks/useTreatments";
@@ -29,9 +30,11 @@ import { CalendarTab } from "./components/calendar/CalendarTab";
 import { TaxesTab } from "./components/taxes/TaxesTab";
 import { BonosTab } from "./components/bonos/BonosTab";
 import { BudgetsTab } from "./components/budgets/BudgetsTab";
+import { RequirePlan } from "./components/guards/RequirePlan";
 
 const DermoManager = () => {
 	const { user, loading: authLoading } = useAuth();
+	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
 
 	const { inventory, loading: inventoryLoading, refreshInventory } = useInventory(user);
 	const { treatments, loading: treatmentsLoading, refreshTreatments } = useTreatments(user);
@@ -65,6 +68,13 @@ const DermoManager = () => {
 
 	const [activeTab, setActiveTab] = useState("dashboard");
 
+	useEffect(() => {
+		if (!user || tenantLoading) return;
+		if (!allowsPresupuestosBonos && (activeTab === "budgets" || activeTab === "bonos")) {
+			setActiveTab("dashboard");
+		}
+	}, [user, tenantLoading, allowsPresupuestosBonos, activeTab]);
+
 	// --- ESTADO ELEVADO (GLOBAL) ---
 	const [viewMode, setViewMode] = useState("month"); // 'month', 'quarter', 'year'
 	const [currentDate, setCurrentDate] = useState(
@@ -77,7 +87,7 @@ const DermoManager = () => {
 	const [selectedTreatment, setSelectedTreatment] = useState(null);
 
 	const sessionMutation = useSessionMutation(user?.id, inventory);
-	const consumeBonoMutation = useConsumeBono(user);
+	const consumeBonoMutation = useConsumeBono();
 
 	// Favicon dinámico según logo del perfil
 	useEffect(() => {
@@ -163,7 +173,7 @@ const DermoManager = () => {
 		}
 	};
 
-	if (authLoading || (user && dataLoading))
+	if (authLoading || (user && dataLoading) || (user && tenantLoading))
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-rose-50">
 				<div className="flex flex-col items-center gap-4">
@@ -262,13 +272,15 @@ const DermoManager = () => {
 					/>
 				)}
 				{activeTab === "bonos" && (
-					<BonosTab
-						user={user}
-						clients={clients}
-						treatments={treatments}
-						showToast={showToastMsg}
-						onRefresh={refreshData}
-					/>
+					<RequirePlan>
+						<BonosTab
+							user={user}
+							clients={clients}
+							treatments={treatments}
+							showToast={showToastMsg}
+							onRefresh={refreshData}
+						/>
+					</RequirePlan>
 				)}
 				{activeTab === "inventory" && (
 					<InventoryTab
@@ -294,13 +306,15 @@ const DermoManager = () => {
 					/>
 				)}
 				{activeTab === "budgets" && (
-					<BudgetsTab
-						user={user}
-						clients={clients}
-						treatments={treatments}
-						profile={profile}
-						showToast={showToastMsg}
-					/>
+					<RequirePlan>
+						<BudgetsTab
+							user={user}
+							clients={clients}
+							treatments={treatments}
+							profile={profile}
+							showToast={showToastMsg}
+						/>
+					</RequirePlan>
 				)}
 				{activeTab === "calendar" && (
 					<CalendarTab
