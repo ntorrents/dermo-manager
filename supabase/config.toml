@@ -394,3 +394,7 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # declarative_schema_path = "./declarative"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# Google Calendar OAuth: el callback recibe redirección de Google sin JWT de Supabase.
+[functions.google-calendar-oauth-callback]
+verify_jwt = false

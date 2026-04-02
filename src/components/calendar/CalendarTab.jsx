@@ -1,10 +1,16 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
 import { format, parse, startOfWeek, getDay, addHours } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Trash2, Edit2 } from "lucide-react";
+import { Plus, Trash2, Edit2, CalendarDays, RefreshCw, Unplug } from "lucide-react";
 import { supabase } from "../../services/supabase";
+import {
+	startGoogleCalendarLink,
+	syncGoogleCalendar,
+	disconnectGoogleCalendar,
+	fetchGoogleCalendarLinkStatus,
+} from "../../services/googleCalendar";
 import { mergeCalendarEvents, STATUS_COLORS, SEGUIMIENTO_COLOR } from "../../utils/calendarUtils";
 import { formatCurrency } from "../../utils/format";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
@@ -79,6 +85,22 @@ export const CalendarTab = ({
 		notes: "",
 	});
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+	const [gcStatus, setGcStatus] = useState(null);
+	const [gcBusy, setGcBusy] = useState(false);
+
+	const refreshGcStatus = useCallback(async () => {
+		if (!user?.id) return;
+		try {
+			const s = await fetchGoogleCalendarLinkStatus();
+			setGcStatus(s);
+		} catch {
+			setGcStatus({ connected: false });
+		}
+	}, [user?.id]);
+
+	useEffect(() => {
+		refreshGcStatus();
+	}, [refreshGcStatus]);
 
 	const events = useMemo(
 		() => mergeCalendarEvents(entries, appointments, clients, seguimientos),
@@ -291,6 +313,104 @@ export const CalendarTab = ({
 					className="bg-primary hover:bg-primary-hover text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg transition-all">
 					<Plus size={18} /> Nueva cita / Tarea
 				</button>
+			</div>
+
+			<div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+					<div className="flex items-start gap-3">
+						<div className="rounded-xl bg-gray-100 p-2 text-gray-600">
+							<CalendarDays className="size-5" />
+						</div>
+						<div>
+							<p className="text-sm font-bold text-gray-900">Google Calendar</p>
+							<p className="text-xs text-gray-500 mt-0.5 max-w-xl">
+								Sincronización bidireccional de citas y tareas con el calendario principal de tu cuenta
+								Google. Tras conectar, usa «Sincronizar» para alinear cambios (también puedes volver a
+								ejecutarlo cuando quieras).
+							</p>
+							{gcStatus?.connected && (
+								<p className="text-[11px] text-gray-400 mt-1">
+									Última sincronización:{" "}
+									{gcStatus.last_sync_at ?
+										new Date(gcStatus.last_sync_at).toLocaleString("es-ES")
+									:	"—"}
+									{gcStatus.last_error ?
+										<span className="text-rose-600"> · Error previo: {gcStatus.last_error}</span>
+									:	null}
+								</p>
+							)}
+						</div>
+					</div>
+					<div className="flex flex-wrap items-center gap-2 shrink-0">
+						{!gcStatus?.connected ? (
+							<button
+								type="button"
+								disabled={gcBusy || !user}
+								onClick={async () => {
+									setGcBusy(true);
+									try {
+										const url = await startGoogleCalendarLink();
+										window.location.href = url;
+									} catch (e) {
+										console.error(e);
+										showToast(e?.message || "No se pudo conectar", "error");
+									} finally {
+										setGcBusy(false);
+									}
+								}}
+								className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-gray-800 disabled:opacity-50">
+								<CalendarDays className="size-4" /> Conectar cuenta Google
+							</button>
+						) : (
+							<>
+								<button
+									type="button"
+									disabled={gcBusy}
+									onClick={async () => {
+										setGcBusy(true);
+										try {
+											const r = await syncGoogleCalendar();
+											showToast(
+												`Sincronizado: ${r.pulled} desde Google, ${r.pushed} hacia Google`,
+											);
+											await refreshGcStatus();
+											onRefresh?.();
+										} catch (e) {
+											console.error(e);
+											showToast(e?.message || "Error al sincronizar", "error");
+										} finally {
+											setGcBusy(false);
+										}
+									}}
+									className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-gray-800 hover:bg-gray-50 disabled:opacity-50">
+									<RefreshCw className={`size-4 ${gcBusy ? "animate-spin" : ""}`} /> Sincronizar ahora
+								</button>
+								<button
+									type="button"
+									disabled={gcBusy}
+									onClick={async () => {
+										if (!confirm("¿Desconectar Google Calendar? No se borran citas en el ERP."))
+											return;
+										setGcBusy(true);
+										try {
+											await disconnectGoogleCalendar();
+											await refreshGcStatus();
+											onRefresh?.();
+											showToast("Google Calendar desconectado");
+										} catch (e) {
+											console.error(e);
+											showToast(e?.message || "Error al desconectar", "error");
+										} finally {
+											setGcBusy(false);
+										}
+									}}
+									className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 disabled:opacity-50">
+									<Unplug className="size-4" /> Desconectar
+								</button>
+							</>
+						)}
+					</div>
+				</div>
 			</div>
 
 			<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4">
