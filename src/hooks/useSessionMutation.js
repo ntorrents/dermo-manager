@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
+import { useTenant } from "../context/TenantContext";
 import { consumeFromBatchesFIFO } from "../services/inventoryBatches";
 import { calculateSessionCost, calculateTaxReverse } from "../utils/calculations";
 import { getNextInvoiceNumber } from "../services/invoiceSeries";
@@ -8,6 +9,7 @@ const DEFAULT_TAX_RATE = 21;
 
 export const useSessionMutation = (userId, inventory = []) => {
 	const queryClient = useQueryClient();
+	const { clinicId } = useTenant();
 
 	return useMutation({
 		mutationFn: async ({
@@ -78,9 +80,9 @@ export const useSessionMutation = (userId, inventory = []) => {
 			if (error) throw error;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["inventory", userId] });
-			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", userId] });
-			queryClient.invalidateQueries({ queryKey: ["finance", userId] });
+			queryClient.invalidateQueries({ queryKey: ["inventory", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["inventoryBatches", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["finance", clinicId] });
 		},
 	});
 };

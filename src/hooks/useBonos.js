@@ -1,26 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { calculateTaxReverse } from "../utils/calculations";
+import { useTenant } from "../context/TenantContext";
 
 const BONUS_TAX_RATE = 21;
 
-const fetchBonusTemplates = async (userId) => {
-	if (!userId) return [];
+const fetchBonusTemplates = async () => {
 	const { data, error } = await supabase
 		.from("bonus_templates")
 		.select("*, treatments(id, name)")
-		.eq("user_id", userId)
 		.order("name");
 	if (error) throw error;
 	return data || [];
 };
 
-const fetchClientBonuses = async (userId, clientId) => {
-	if (!userId || !clientId) return [];
+const fetchClientBonuses = async (clientId) => {
+	if (!clientId) return [];
 	const { data, error } = await supabase
 		.from("client_bonuses")
 		.select("*, bonus_templates(name), treatments(id, name)")
-		.eq("user_id", userId)
 		.eq("client_id", clientId)
 		.order("created_at", { ascending: false });
 	if (error) throw error;
@@ -30,12 +28,13 @@ const fetchClientBonuses = async (userId, clientId) => {
 /** Catálogo de plantillas de bonos: lectura + CRUD */
 export const useBonusTemplates = (user) => {
 	const userId = user?.id;
+	const { clinicId } = useTenant();
 	const queryClient = useQueryClient();
 
 	const query = useQuery({
-		queryKey: ["bonusTemplates", userId],
-		queryFn: () => fetchBonusTemplates(userId),
-		enabled: !!userId,
+		queryKey: ["bonusTemplates", clinicId],
+		queryFn: fetchBonusTemplates,
+		enabled: !!userId && !!clinicId,
 	});
 
 	const createMutation = useMutation({
@@ -49,7 +48,7 @@ export const useBonusTemplates = (user) => {
 			return data;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["bonusTemplates", userId] });
+			queryClient.invalidateQueries({ queryKey: ["bonusTemplates", clinicId] });
 		},
 	});
 
@@ -59,28 +58,23 @@ export const useBonusTemplates = (user) => {
 				.from("bonus_templates")
 				.update(payload)
 				.eq("id", id)
-				.eq("user_id", userId)
 				.select()
 				.single();
 			if (error) throw error;
 			return data;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["bonusTemplates", userId] });
+			queryClient.invalidateQueries({ queryKey: ["bonusTemplates", clinicId] });
 		},
 	});
 
 	const deleteMutation = useMutation({
 		mutationFn: async (id) => {
-			const { error } = await supabase
-				.from("bonus_templates")
-				.delete()
-				.eq("id", id)
-				.eq("user_id", userId);
+			const { error } = await supabase.from("bonus_templates").delete().eq("id", id);
 			if (error) throw error;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["bonusTemplates", userId] });
+			queryClient.invalidateQueries({ queryKey: ["bonusTemplates", clinicId] });
 		},
 	});
 
@@ -99,23 +93,24 @@ export const useBonusTemplates = (user) => {
 
 /** Bonos de un cliente (solo lectura) */
 export const useClientBonos = (userId, clientId) => {
+	const { clinicId } = useTenant();
 	return useQuery({
-		queryKey: ["clientBonuses", userId, clientId],
-		queryFn: () => fetchClientBonuses(userId, clientId),
-		enabled: !!userId && !!clientId,
+		queryKey: ["clientBonuses", clinicId, clientId],
+		queryFn: () => fetchClientBonuses(clientId),
+		enabled: !!userId && !!clinicId && !!clientId,
 	});
 };
 
 /** Bono activo para cliente + tratamiento (para SessionModal) */
 export const useActiveBonoForSession = (userId, clientId, treatmentId) => {
+	const { clinicId } = useTenant();
 	return useQuery({
-		queryKey: ["activeBono", userId, clientId, treatmentId],
+		queryKey: ["activeBono", clinicId, clientId, treatmentId],
 		queryFn: async () => {
-			if (!userId || !clientId || !treatmentId) return null;
+			if (!clientId || !treatmentId) return null;
 			const { data, error } = await supabase
 				.from("client_bonuses")
 				.select("id, total_sessions, used_sessions, bonus_templates(name)")
-				.eq("user_id", userId)
 				.eq("client_id", clientId)
 				.eq("treatment_id", treatmentId)
 				.eq("status", "active")
@@ -124,13 +119,14 @@ export const useActiveBonoForSession = (userId, clientId, treatmentId) => {
 			if (error) throw error;
 			return data;
 		},
-		enabled: !!userId && !!clientId && !!treatmentId,
+		enabled: !!userId && !!clinicId && !!clientId && !!treatmentId,
 	});
 };
 
 /** Vender bono: inserta client_bonuses + ingreso en finance_entries */
 export const useSellBono = (user) => {
 	const userId = user?.id;
+	const { clinicId } = useTenant();
 	const queryClient = useQueryClient();
 
 	return useMutation({
@@ -177,16 +173,16 @@ export const useSellBono = (user) => {
 			return bonus;
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["finance", userId] });
-			queryClient.invalidateQueries({ queryKey: ["clientBonuses", userId] });
-			queryClient.invalidateQueries({ queryKey: ["activeBono", userId] });
+			queryClient.invalidateQueries({ queryKey: ["finance", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["clientBonuses", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["activeBono", clinicId] });
 		},
 	});
 };
 
 /** Consumir una sesión del bono: +1 used_sessions, status → exhausted si llega al total */
-export const useConsumeBono = (user) => {
-	const userId = user?.id;
+export const useConsumeBono = () => {
+	const { clinicId } = useTenant();
 	const queryClient = useQueryClient();
 
 	return useMutation({
@@ -195,7 +191,6 @@ export const useConsumeBono = (user) => {
 				.from("client_bonuses")
 				.select("used_sessions, total_sessions")
 				.eq("id", clientBonoId)
-				.eq("user_id", userId)
 				.single();
 			if (fetchErr || !row) throw new Error("Bono no encontrado");
 
@@ -205,15 +200,14 @@ export const useConsumeBono = (user) => {
 			const { error: updateErr } = await supabase
 				.from("client_bonuses")
 				.update({ used_sessions: newUsed, status })
-				.eq("id", clientBonoId)
-				.eq("user_id", userId);
+				.eq("id", clientBonoId);
 			if (updateErr) throw updateErr;
 
 			return { used_sessions: newUsed, status };
 		},
 		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ["clientBonuses", userId] });
-			queryClient.invalidateQueries({ queryKey: ["activeBono", userId] });
+			queryClient.invalidateQueries({ queryKey: ["clientBonuses", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["activeBono", clinicId] });
 		},
 	});
 };

@@ -1,13 +1,12 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
+import { useTenant } from "../context/TenantContext";
 
-const fetchExpenses = async (userId) => {
-	if (!userId) return [];
+const fetchExpenses = async () => {
 	const { data, error } = await supabase
 		.from("expenses")
 		.select("*")
-		.eq("user_id", userId)
 		.order("date", { ascending: false });
 	if (error) throw error;
 	return data || [];
@@ -16,31 +15,32 @@ const fetchExpenses = async (userId) => {
 export const useExpenses = (user) => {
 	const queryClient = useQueryClient();
 	const userId = user?.id;
+	const { clinicId } = useTenant();
 
 	const {
 		data: expenses = [],
 		isLoading,
 		refetch: refreshExpenses,
 	} = useQuery({
-		queryKey: ["expenses", userId],
-		queryFn: () => fetchExpenses(userId),
-		enabled: !!userId,
+		queryKey: ["expenses", clinicId],
+		queryFn: fetchExpenses,
+		enabled: !!userId && !!clinicId,
 	});
 
 	useEffect(() => {
-		if (!userId) return;
+		if (!clinicId) return;
 		const channel = supabase
-			.channel("expenses-realtime")
+			.channel(`expenses-realtime-${clinicId}`)
 			.on(
 				"postgres_changes",
-				{ event: "*", schema: "public", table: "expenses", filter: `user_id=eq.${userId}` },
+				{ event: "*", schema: "public", table: "expenses", filter: `clinic_id=eq.${clinicId}` },
 				() => {
-					queryClient.invalidateQueries({ queryKey: ["expenses", userId] });
+					queryClient.invalidateQueries({ queryKey: ["expenses", clinicId] });
 				}
 			)
 			.subscribe();
 		return () => supabase.removeChannel(channel);
-	}, [userId, queryClient]);
+	}, [clinicId, queryClient]);
 
 	return { expenses, loading: isLoading, refreshExpenses };
 };

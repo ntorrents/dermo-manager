@@ -1,4 +1,5 @@
 import React from "react";
+import { useTenant } from "../../context/TenantContext";
 import {
 	BarChart3,
 	Syringe,
@@ -35,7 +36,16 @@ export const Sidebar = ({
 	clients = [],
 	treatments = [],
 	inventory = [],
-}) => (
+}) => {
+	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
+
+	const navItems = NAV_ITEMS.filter((t) => {
+		if (tenantLoading) return true;
+		if (t.id === "bonos" || t.id === "budgets") return allowsPresupuestosBonos;
+		return true;
+	});
+
+	return (
 	<div className="hidden md:flex flex-col w-20 lg:w-64 shrink-0 bg-white border-r border-gray-100 h-screen fixed left-0 top-0 z-50 transition-all duration-200">
 		{/* Header: compacto en md, completo en lg+ */}
 		<div className="h-16 lg:h-20 flex items-center justify-center border-b shrink-0">
@@ -59,7 +69,7 @@ export const Sidebar = ({
 			/>
 		</div>
 		<nav className="p-2 lg:p-4 space-y-1 lg:space-y-2 flex-1 overflow-y-auto min-h-0">
-			{NAV_ITEMS.map((t) => (
+			{navItems.map((t) => (
 				<button
 					key={t.id}
 					onClick={() => setActiveTab(t.id)}
@@ -85,4 +95,5 @@ export const Sidebar = ({
 			</button>
 		</div>
 	</div>
-);
+	);
+};

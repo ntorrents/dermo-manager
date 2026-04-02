@@ -28,8 +28,10 @@ import { AdaptiveModal } from "../ui/AdaptiveModal";
 import ConsentEditor from "../consent/ConsentEditor";
 import { CONSENT_VARIABLES } from "../../utils/consentGenerator";
 import { uploadProfileAsset } from "../../services/profileAssetStorage";
+import { useTenant } from "../../context/TenantContext";
 
 export const SettingsTab = ({ user, profile, showToast }) => {
+	const { clinicId } = useTenant();
 	const [formData, setFormData] = useState({
 		name: "",
 		surname: "",
@@ -171,10 +173,10 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 	};
 
 	const handleDownloadBackup = async () => {
-		if (!user?.id) return;
+		if (!user?.id || !clinicId) return;
 		setLoadingBackup(true);
 		try {
-			const backup = await exportUserBackup(user.id);
+			const backup = await exportUserBackup({ userId: user.id, clinicId });
 			downloadBackup(backup);
 			showToast("Copia de seguridad descargada");
 		} catch (err) {
@@ -218,8 +220,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 				const { error } = await supabase
 					.from("plantillas_consentimiento")
 					.update(payload)
-					.eq("id", editingConsentTplId)
-					.eq("user_id", user.id);
+					.eq("id", editingConsentTplId);
 				if (error) throw error;
 				showToast("Plantilla actualizada");
 			} else {
@@ -241,11 +242,7 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 
 	const handleDeleteConsentTpl = async (id) => {
 		try {
-			const { error } = await supabase
-				.from("plantillas_consentimiento")
-				.delete()
-				.eq("id", id)
-				.eq("user_id", user.id);
+			const { error } = await supabase.from("plantillas_consentimiento").delete().eq("id", id);
 			if (error) throw error;
 			showToast("Plantilla eliminada");
 			await refreshConsentTemplates();

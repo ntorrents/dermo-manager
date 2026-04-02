@@ -159,8 +159,7 @@ export const TreatmentsTab = ({
 			await supabase
 				.from("treatments")
 				.update({ activo: false })
-				.eq("id", treatmentToDelete.id)
-				.eq("user_id", user.id);
+				.eq("id", treatmentToDelete.id);
 			showToast("Tratamiento archivado");
 			if (onRefresh) await onRefresh();
 		} catch {

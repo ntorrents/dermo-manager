@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
+import { useTenant } from "../context/TenantContext";
 
-const fetchClients = async (userId) => {
-	if (!userId) return [];
+/** RLS restringe por clínica; no filtrar por user_id o cada usuario vería solo sus filas. */
+const fetchClients = async () => {
 	const { data, error } = await supabase
 		.from("clients")
 		.select("*")
-		.eq("user_id", userId)
 		.eq("activo", true)
 		.order("name", { ascending: true });
 	if (error) throw error;
@@ -17,31 +17,32 @@ const fetchClients = async (userId) => {
 export const useClients = (user) => {
 	const queryClient = useQueryClient();
 	const userId = user?.id;
+	const { clinicId } = useTenant();
 
 	const {
 		data: clients = [],
 		isLoading,
 		refetch: refreshClients,
 	} = useQuery({
-		queryKey: ["clients", userId],
-		queryFn: () => fetchClients(userId),
-		enabled: !!userId,
+		queryKey: ["clients", clinicId],
+		queryFn: fetchClients,
+		enabled: !!userId && !!clinicId,
 	});
 
 	useEffect(() => {
-		if (!userId) return;
+		if (!clinicId) return;
 		const channel = supabase
-			.channel("clients-realtime")
+			.channel(`clients-realtime-${clinicId}`)
 			.on(
 				"postgres_changes",
-				{ event: "*", schema: "public", table: "clients", filter: `user_id=eq.${userId}` },
+				{ event: "*", schema: "public", table: "clients", filter: `clinic_id=eq.${clinicId}` },
 				() => {
-					queryClient.invalidateQueries({ queryKey: ["clients", userId] });
+					queryClient.invalidateQueries({ queryKey: ["clients", clinicId] });
 				}
 			)
 			.subscribe();
 		return () => supabase.removeChannel(channel);
-	}, [userId, queryClient]);
+	}, [clinicId, queryClient]);
 
 	return { clients, loading: isLoading, refreshClients };
 };

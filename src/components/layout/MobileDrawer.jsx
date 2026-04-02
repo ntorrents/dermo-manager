@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Euro, Landmark, Settings, X, Calendar, Ticket, FileText } from "lucide-react";
+import { useTenant } from "../../context/TenantContext";
 
 const DRAWER_ITEMS = [
 	{ id: "calendar", label: "Agenda", icon: Calendar },
@@ -11,6 +12,17 @@ const DRAWER_ITEMS = [
 ];
 
 export const MobileDrawer = ({ isOpen, onClose, activeTab, setActiveTab }) => {
+	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
+
+	const drawerItems = useMemo(
+		() =>
+			DRAWER_ITEMS.filter((item) => {
+				if (tenantLoading) return true;
+				if (item.id === "bonos" || item.id === "budgets") return allowsPresupuestosBonos;
+				return true;
+			}),
+		[tenantLoading, allowsPresupuestosBonos]
+	);
 	useEffect(() => {
 		if (isOpen) document.body.style.overflow = "hidden";
 		return () => {
@@ -47,7 +59,7 @@ export const MobileDrawer = ({ isOpen, onClose, activeTab, setActiveTab }) => {
 					</button>
 				</div>
 				<nav className="p-4 space-y-1 flex-1">
-					{DRAWER_ITEMS.map((item) => (
+					{drawerItems.map((item) => (
 						<button
 							key={item.id}
 							onClick={() => handleSelect(item.id)}

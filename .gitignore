@@ -16,12 +16,14 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+.temp/
 
 # Supabase CLI / credenciales (nunca en git)
 .supabase/
 supabase/.env
 supabase/.env.*
 !supabase/.env.example
+!supabase/migrations/**/*.sql
 
 .sql
 
