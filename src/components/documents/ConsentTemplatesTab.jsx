@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { FileText, Plus, Trash2, Edit2, Save, Loader2 } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { FileText, Plus, Trash2, Edit2, Save, Loader2, Search } from "lucide-react";
 import { useTreatments } from "../../hooks/useTreatments";
 import { useConsentTemplates } from "../../hooks/useConsentTemplates";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
@@ -12,9 +12,20 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 	const [editingId, setEditingId] = useState(null);
 	const [saving, setSaving] = useState(false);
 	const [form, setForm] = useState({ nombre: "", treatment_id: "", contenido: "" });
+	const [searchTerm, setSearchTerm] = useState("");
 
 	const { treatments = [] } = useTreatments(user);
 	const { consentTemplates = [], refreshConsentTemplates } = useConsentTemplates(user);
+
+	const filtered = useMemo(() => {
+		const q = searchTerm.trim().toLowerCase();
+		if (!q) return consentTemplates;
+		return consentTemplates.filter((tpl) => {
+			const name = (tpl.nombre || "").toLowerCase();
+			const tname = (tpl.treatments?.name || "").toLowerCase();
+			return name.includes(q) || tname.includes(q);
+		});
+	}, [consentTemplates, searchTerm]);
 
 	const open = (tpl = null) => {
 		if (tpl) {
@@ -84,61 +95,70 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 	};
 
 	return (
-		<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-			<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+		<div className="space-y-6 animate-in fade-in">
+			<div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
 				<div>
-					<h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-						<FileText size={20} className="text-rose-500" /> Plantillas de consentimiento
-					</h3>
-					<p className="text-sm text-gray-500 mt-1 max-w-2xl">
-						Genera PDFs desde la ficha del cliente. Formato enriquecido o importa un .docx con variables como{" "}
-						{"{{NOMBRE}}"}, {"{{FECHA}}"}, etc.
+					<h2 className="text-xl font-bold text-gray-900">Consentimientos</h2>
+					<p className="text-sm text-gray-500 mt-1">
+						Plantillas para generar PDF de consentimiento informado desde la ficha del cliente (texto
+						reutilizable; el uso clínico y la firma dependen de tu protocolo).
 					</p>
 				</div>
 				<button
 					type="button"
 					onClick={() => open()}
-					className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors shrink-0 self-start">
-					<Plus size={18} /> Nueva plantilla
+					className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors shrink-0">
+					<Plus size={20} /> Nueva plantilla
 				</button>
 			</div>
 
-			<div className="space-y-2">
-				{consentTemplates.length === 0 ? (
-					<div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-gray-500 text-sm">
-						No hay plantillas. Añade una para poder generar consentimientos desde Clientes.
-					</div>
-				) : (
-					consentTemplates.map((tpl) => (
+			<div className="relative">
+				<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+				<input
+					className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-rose-100"
+					placeholder="Buscar por nombre de plantilla o tratamiento…"
+					value={searchTerm}
+					onChange={(e) => setSearchTerm(e.target.value)}
+				/>
+			</div>
+
+			{filtered.length === 0 ? (
+				<div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-400 text-sm">
+					<FileText className="mx-auto mb-3 size-10 opacity-40 text-rose-400" />
+					{consentTemplates.length === 0
+						? "No hay plantillas. Crea una para generar consentimientos desde Clientes."
+						: "Ninguna plantilla coincide con la búsqueda."}
+				</div>
+			) : (
+				<div className="space-y-3">
+					{filtered.map((tpl) => (
 						<div
 							key={tpl.id}
-							className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-200">
-							<div>
+							className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div className="min-w-0">
 								<p className="font-bold text-gray-800">{tpl.nombre}</p>
-								<p className="text-xs text-gray-500">
-									{tpl.treatments?.name ? `Tratamiento: ${tpl.treatments.name}` : "Genérica"}
+								<p className="text-xs text-gray-500 mt-0.5">
+									{tpl.treatments?.name ? `Tratamiento: ${tpl.treatments.name}` : "Plantilla genérica"}
 								</p>
 							</div>
-							<div className="flex items-center gap-2">
+							<div className="flex gap-2 shrink-0">
 								<button
 									type="button"
 									onClick={() => open(tpl)}
-									className="p-2 text-gray-400 hover:text-rose-600 rounded-lg transition-colors"
-									title="Editar">
-									<Edit2 size={16} />
+									className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold">
+									<Edit2 size={16} /> Editar
 								</button>
 								<button
 									type="button"
 									onClick={() => remove(tpl.id)}
-									className="p-2 text-gray-400 hover:text-rose-600 rounded-lg transition-colors"
-									title="Eliminar">
-									<Trash2 size={16} />
+									className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-sm font-bold">
+									<Trash2 size={16} /> Eliminar
 								</button>
 							</div>
 						</div>
-					))
-				)}
-			</div>
+					))}
+				</div>
+			)}
 
 			<AdaptiveModal
 				isOpen={showModal}
@@ -211,4 +231,3 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 		</div>
 	);
 };
-

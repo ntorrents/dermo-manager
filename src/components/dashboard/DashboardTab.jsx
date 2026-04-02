@@ -1,4 +1,10 @@
-import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import React, {
+	useMemo,
+	useState,
+	useCallback,
+	useRef,
+	useEffect,
+} from "react";
 import {
 	DndContext,
 	closestCenter,
@@ -58,7 +64,8 @@ function useTopClients(entries = [], clients = [], startStr, endStr) {
 			.map(([clientId, count]) => {
 				const client = clients.find((c) => c.id === clientId);
 				const name = client
-					? `${client.name || ""} ${client.surname || ""}`.trim() || "Sin nombre"
+					? `${client.name || ""} ${client.surname || ""}`.trim() ||
+						"Sin nombre"
 					: "Sin nombre";
 				return { clientId, name, count };
 			})
@@ -175,6 +182,7 @@ export const DashboardTab = ({
 	setReportingCustomFrom,
 	reportingCustomTo,
 	setReportingCustomTo,
+	onReportingGoToday,
 	userName,
 }) => {
 	const [isEditing, setIsEditing] = useState(false);
@@ -187,11 +195,11 @@ export const DashboardTab = ({
 
 	const currentData = useMemo(
 		() => filterByReportingRange(entries, "date", rangeStart, rangeEnd),
-		[entries, rangeStart, rangeEnd]
+		[entries, rangeStart, rangeEnd],
 	);
 	const currentExpenses = useMemo(() => {
 		const expenseEntries = entries.filter(
-			(e) => e.type === "expense" && e.is_deductible === true
+			(e) => e.type === "expense" && e.is_deductible === true,
 		);
 		return filterByReportingRange(expenseEntries, "date", rangeStart, rangeEnd);
 	}, [entries, rangeStart, rangeEnd]);
@@ -207,45 +215,49 @@ export const DashboardTab = ({
 		return entries.filter((e) => e.date && e.date.startsWith(previousMonthYm));
 	}, [entries, previousMonthYm, reportingPreset]);
 
-	const currentStats = useMemo(() => calculateStats(currentData), [currentData]);
+	const currentStats = useMemo(
+		() => calculateStats(currentData),
+		[currentData],
+	);
 	const prevStats = useMemo(() => calculateStats(previousData), [previousData]);
 	const incomeGrowth = useMemo(
 		() => calculateGrowth(currentStats.income, prevStats.income),
-		[currentStats.income, prevStats.income]
+		[currentStats.income, prevStats.income],
 	);
 	const topTreatments = useMemo(
 		() => getTopTreatments(currentData, treatments, 5),
-		[currentData, treatments]
+		[currentData, treatments],
 	);
 	const topClients = useTopClients(entries, clients, rangeStart, rangeEnd);
-	const lowStockItems = useMemo(() => getLowStockItems(inventory, 5), [inventory]);
+	const lowStockItems = useMemo(
+		() => getLowStockItems(inventory, 5),
+		[inventory],
+	);
 	const expiredStockItems = useMemo(
 		() => getItemsWithExpiredBatches(inventory, batches),
-		[inventory, batches]
+		[inventory, batches],
 	);
 	const beneficioTotal = useMemo(
 		() => currentStats.income - currentStats.expense,
-		[currentStats.income, currentStats.expense]
+		[currentStats.income, currentStats.expense],
 	);
 	const ventasSinIvaFiscal = useMemo(
 		() =>
 			currentData
 				.filter((e) => e.type === "income" && !e.plan_amigo)
 				.reduce(
-					(acc, e) =>
-						acc +
-						(Number(e.tax_base) || Number(e.amount) || 0),
-					0
+					(acc, e) => acc + (Number(e.tax_base) || Number(e.amount) || 0),
+					0,
 				),
-		[currentData]
+		[currentData],
 	);
 	const gastosSinIva = useMemo(
 		() =>
 			currentExpenses.reduce(
 				(acc, e) => acc + (e.tax_base != null ? Number(e.tax_base) : 0),
-				0
+				0,
 			),
-		[currentExpenses]
+		[currentExpenses],
 	);
 	const beneficioFiscal = ventasSinIvaFiscal - gastosSinIva;
 	const ivaVentas = useMemo(
@@ -253,11 +265,12 @@ export const DashboardTab = ({
 			currentData
 				.filter((e) => e.type === "income" && !e.plan_amigo)
 				.reduce((acc, e) => acc + (Number(e.tax_amount) || 0), 0),
-		[currentData]
+		[currentData],
 	);
 	const ivaGastos = useMemo(
-		() => currentExpenses.reduce((acc, e) => acc + (Number(e.tax_amount) || 0), 0),
-		[currentExpenses]
+		() =>
+			currentExpenses.reduce((acc, e) => acc + (Number(e.tax_amount) || 0), 0),
+		[currentExpenses],
 	);
 	const taxHucha = ivaVentas - ivaGastos;
 	const upcomingAppointments = useMemo(() => {
@@ -311,39 +324,45 @@ export const DashboardTab = ({
 			topClients,
 			lowStockItems,
 			expiredStockItems,
-		]
+		],
 	);
 
 	const sensors = useSensors(
 		useSensor(PointerSensor, {
 			activationConstraint: { distance: 8 },
-		})
+		}),
 	);
 
 	const activeIds = widgets.map((w) => w.id);
 	const availableToAdd = getAvailableToAdd(activeIds);
 	const canAddMore = widgets.length < MAX_WIDGETS;
 
-	const removeWidget = useCallback((widgetId) => {
-		setWidgets((prev) => prev.filter((w) => w.id !== widgetId));
-	}, [setWidgets]);
+	const removeWidget = useCallback(
+		(widgetId) => {
+			setWidgets((prev) => prev.filter((w) => w.id !== widgetId));
+		},
+		[setWidgets],
+	);
 
-	const addWidget = useCallback((widgetId) => {
-		setWidgets((prev) => {
-			if (prev.length >= MAX_WIDGETS || prev.some((w) => w.id === widgetId))
-				return prev;
-			const config = getWidgetById(widgetId);
-			return [
-				...prev,
-				{
-					id: widgetId,
-					colSpan: config?.defaultColSpan ?? 1,
-					rowSpan: config?.defaultRowSpan ?? 1,
-				},
-			];
-		});
-		setShowAddDropdown(false);
-	}, [setWidgets]);
+	const addWidget = useCallback(
+		(widgetId) => {
+			setWidgets((prev) => {
+				if (prev.length >= MAX_WIDGETS || prev.some((w) => w.id === widgetId))
+					return prev;
+				const config = getWidgetById(widgetId);
+				return [
+					...prev,
+					{
+						id: widgetId,
+						colSpan: config?.defaultColSpan ?? 1,
+						rowSpan: config?.defaultRowSpan ?? 1,
+					},
+				];
+			});
+			setShowAddDropdown(false);
+		},
+		[setWidgets],
+	);
 
 	const onSizeChange = useCallback(
 		(index, { colSpan, rowSpan }) => {
@@ -351,12 +370,14 @@ export const DashboardTab = ({
 				const next = [...prev];
 				const w = next[index];
 				if (!w) return prev;
-				if (colSpan != null) w.colSpan = Math.max(SPAN_MIN, Math.min(SPAN_MAX, colSpan));
-				if (rowSpan != null) w.rowSpan = Math.max(SPAN_MIN, Math.min(SPAN_MAX, rowSpan));
+				if (colSpan != null)
+					w.colSpan = Math.max(SPAN_MIN, Math.min(SPAN_MAX, colSpan));
+				if (rowSpan != null)
+					w.rowSpan = Math.max(SPAN_MIN, Math.min(SPAN_MAX, rowSpan));
 				return next;
 			});
 		},
-		[setWidgets]
+		[setWidgets],
 	);
 
 	const handleDragEnd = useCallback(
@@ -373,7 +394,7 @@ export const DashboardTab = ({
 				return arr;
 			});
 		},
-		[widgets, setWidgets]
+		[widgets, setWidgets],
 	);
 
 	const handleExitEdit = useCallback(async () => {
@@ -384,7 +405,10 @@ export const DashboardTab = ({
 
 	useEffect(() => {
 		function handleClickOutside(e) {
-			if (addDropdownRef.current && !addDropdownRef.current.contains(e.target)) {
+			if (
+				addDropdownRef.current &&
+				!addDropdownRef.current.contains(e.target)
+			) {
 				setShowAddDropdown(false);
 			}
 		}
@@ -402,11 +426,11 @@ export const DashboardTab = ({
 						Hola, <span className="text-rose-500">{userName || "Nil"}</span>
 					</h2>
 					<p className="text-gray-500 text-sm font-medium mt-0.5">
-						Resumen del periodo seleccionado (compartido con Finanzas).
+						Resumen del periodo seleccionado.
 					</p>
 				</div>
-				<div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full lg:max-w-2xl lg:shrink-0">
-					<div className="flex-1 min-w-0">
+				<div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full min-w-0 lg:flex-1 lg:max-w-none">
+					<div className="min-w-0 w-full flex-1 lg:min-w-[24rem]">
 						<ReportingPeriodToolbar
 							preset={reportingPreset}
 							onPresetChange={setReportingPreset}
@@ -417,6 +441,7 @@ export const DashboardTab = ({
 							onCustomFromChange={setReportingCustomFrom}
 							onCustomToChange={setReportingCustomTo}
 							rangeLabel={reportingRange?.label}
+							onTodayClick={onReportingGoToday}
 						/>
 					</div>
 					<button
@@ -449,10 +474,18 @@ export const DashboardTab = ({
 						<Euro size={14} className="text-emerald-500" /> Ingresos período
 					</div>
 					<p className="text-xl font-bold text-gray-900 tabular-nums">
-						{currentStats.income.toLocaleString("es-ES", { maximumFractionDigits: 0 })} €
+						{currentStats.income.toLocaleString("es-ES", {
+							maximumFractionDigits: 0,
+						})}{" "}
+						€
 					</p>
-					<p className={`text-xs font-semibold flex items-center gap-1 ${incomeGrowth >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-						{incomeGrowth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+					<p
+						className={`text-xs font-semibold flex items-center gap-1 ${incomeGrowth >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+						{incomeGrowth >= 0 ? (
+							<TrendingUp size={14} />
+						) : (
+							<TrendingDown size={14} />
+						)}
 						{reportingPreset === "month"
 							? `${incomeGrowth >= 0 ? "+" : ""}${Math.round(incomeGrowth)}% vs mes ant.`
 							: "Comparativa mensual no aplica"}
@@ -463,35 +496,49 @@ export const DashboardTab = ({
 						<TrendingDown size={14} className="text-rose-500" /> Gastos período
 					</div>
 					<p className="text-xl font-bold text-gray-900 tabular-nums">
-						{currentStats.expense.toLocaleString("es-ES", { maximumFractionDigits: 0 })} €
+						{currentStats.expense.toLocaleString("es-ES", {
+							maximumFractionDigits: 0,
+						})}{" "}
+						€
 					</p>
-					<p className="text-xs text-gray-500">Incluye costes operativos del rango</p>
+					<p className="text-xs text-gray-500">
+						Incluye costes operativos del rango
+					</p>
 				</div>
 				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
 					<div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
 						<CalendarDays size={14} className="text-blue-500" /> Próximas citas
 					</div>
-					<p className="text-xl font-bold text-gray-900">{upcomingAppointments.length}</p>
+					<p className="text-xl font-bold text-gray-900">
+						{upcomingAppointments.length}
+					</p>
 					<p className="text-xs text-gray-500">En la agenda desde hoy</p>
 				</div>
 				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
 					<div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
 						<Users size={14} className="text-violet-500" /> Clientes activos
 					</div>
-					<p className="text-xl font-bold text-gray-900">{activeClientsCount}</p>
+					<p className="text-xl font-bold text-gray-900">
+						{activeClientsCount}
+					</p>
 					<p className="text-xs text-gray-500">No archivados</p>
 				</div>
 			</div>
 
 			<div className="w-full h-auto shrink-0">
-				<WidgetAlerts lowStockItems={lowStockItems} expiredStockItems={expiredStockItems} />
+				<WidgetAlerts
+					lowStockItems={lowStockItems}
+					expiredStockItems={expiredStockItems}
+				/>
 			</div>
 
 			<DndContext
 				sensors={sensors}
 				collisionDetection={closestCenter}
 				onDragEnd={handleDragEnd}>
-				<SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+				<SortableContext
+					items={sortableIds}
+					strategy={verticalListSortingStrategy}>
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full grid-auto-rows-[minmax(200px,auto)]">
 						{widgets.map((item, index) => (
 							<SortableWidgetItem

@@ -141,6 +141,16 @@ const DermoManager = () => {
 		[reportingPreset, reportingAnchorYm, reportingCustomFrom, reportingCustomTo],
 	);
 
+	const goReportingToday = useCallback(() => {
+		const d = new Date();
+		const ym = d.toISOString().slice(0, 7);
+		const ymd = d.toISOString().slice(0, 10);
+		setReportingPreset("month");
+		setReportingAnchorYm(ym);
+		setReportingCustomFrom(ymd);
+		setReportingCustomTo(ymd);
+	}, []);
+
 	const [toast, setToast] = useState(null);
 	const [showLogout, setShowLogout] = useState(false);
 	const [selectedTreatment, setSelectedTreatment] = useState(null);
@@ -321,6 +331,7 @@ const DermoManager = () => {
 						setReportingCustomFrom={setReportingCustomFrom}
 						reportingCustomTo={reportingCustomTo}
 						setReportingCustomTo={setReportingCustomTo}
+						onReportingGoToday={goReportingToday}
 						userName={profile?.name}
 					/>
 				)}
@@ -377,6 +388,7 @@ const DermoManager = () => {
 						setReportingCustomFrom={setReportingCustomFrom}
 						reportingCustomTo={reportingCustomTo}
 						setReportingCustomTo={setReportingCustomTo}
+						onReportingGoToday={goReportingToday}
 						showToast={showToastMsg}
 						onRefresh={refreshData}
 					/>

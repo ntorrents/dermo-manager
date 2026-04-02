@@ -59,6 +59,7 @@ export const FinanceTab = ({
 	setReportingCustomFrom,
 	reportingCustomTo,
 	setReportingCustomTo,
+	onReportingGoToday,
 	showToast,
 	onRefresh,
 }) => {
@@ -731,8 +732,8 @@ export const FinanceTab = ({
 			/>
 
 			{/* HEADER: BALANCE Y SELECTORES */}
-			<div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-				<div>
+			<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+				<div className="shrink-0">
 					<p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">
 						Balance · {reportingRange?.label ?? "—"}
 					</p>
@@ -743,8 +744,8 @@ export const FinanceTab = ({
 						{formatCurrency(netProfit)}
 					</h2>
 				</div>
-				<div className="flex flex-wrap items-center gap-3 w-full md:w-auto md:max-w-xl">
-					<div className="w-full min-w-[min(100%,20rem)]">
+				<div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+					<div className="min-w-0 w-full flex-1">
 						<ReportingPeriodToolbar
 							preset={reportingPreset}
 							onPresetChange={setReportingPreset}
@@ -755,20 +756,40 @@ export const FinanceTab = ({
 							onCustomFromChange={setReportingCustomFrom}
 							onCustomToChange={setReportingCustomTo}
 							rangeLabel={reportingRange?.label}
-							compact
+							onTodayClick={onReportingGoToday}
 						/>
 					</div>
-					<button
-						onClick={() =>
-							exportToCSV(
-								periodEntries,
-								`Finanzas_${rangeStart}_${rangeEnd}.csv`,
-							)
-						}
-						className="bg-emerald-50 text-emerald-700 p-2.5 rounded-xl border border-emerald-100 transition-colors hover:bg-emerald-100"
-						title="Exportar CSV">
-						<FileSpreadsheet size={20} />
-					</button>
+					<div className="flex shrink-0 items-center gap-1.5">
+						<button
+							type="button"
+							onClick={() =>
+								exportToCSV(periodEntries, `Finanzas_${rangeStart}_${rangeEnd}.csv`)
+							}
+							className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-emerald-800 transition-colors hover:bg-emerald-100"
+							title="Exportar CSV">
+							<FileSpreadsheet size={18} />
+							<span className="hidden font-bold sm:inline text-xs">CSV</span>
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								const ventas = periodEntries.filter((e) => e.type === "income");
+								const compras = periodEntries.filter(
+									(e) => e.type === "expense" && e.is_deductible,
+								);
+								exportTrimestreToExcel(
+									ventas,
+									compras,
+									clients,
+									`Finanzas_${rangeStart}_${rangeEnd}.xlsx`,
+								);
+							}}
+							className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-2.5 py-2 text-emerald-700 transition-colors hover:bg-emerald-50"
+							title="Exportar Excel (ventas y compras deducibles del periodo)">
+							<FileSpreadsheet size={18} />
+							<span className="hidden font-bold sm:inline text-xs">Excel</span>
+						</button>
+					</div>
 				</div>
 			</div>
 			{/* BOTONES DE ACCIÓN RÁPIDA (Siempre arriba) */}
