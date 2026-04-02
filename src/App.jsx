@@ -175,6 +175,28 @@ const DermoManager = () => {
 	const showToastMsg = (msg, type = "success") =>
 		setToast({ message: msg, type });
 
+	// Vuelta desde OAuth de Google Calendar (?google_calendar=connected|error)
+	useEffect(() => {
+		if (!user) return;
+		try {
+			const params = new URLSearchParams(window.location.search);
+			const g = params.get("google_calendar");
+			if (!g) return;
+			if (g === "connected") {
+				setActiveTab("calendar");
+				showToastMsg("Google Calendar conectado. Usa «Sincronizar» en la agenda.");
+			} else if (g === "error") {
+				const msg = params.get("message") || "error";
+				setActiveTab("calendar");
+				showToastMsg(`Google Calendar: ${decodeURIComponent(msg)}`, "error");
+			}
+			window.history.replaceState({}, "", window.location.pathname);
+		} catch {
+			/* ignore */
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cargar sesión tras redirect OAuth
+	}, [user]);
+
 	const handleSession = async (
 		treatment,
 		clientData,
