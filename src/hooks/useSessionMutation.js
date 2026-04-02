@@ -51,7 +51,7 @@ export const useSessionMutation = (userId, inventory = []) => {
 			if (!planAmigo) {
 				const year = date ? parseInt(date.slice(0, 4), 10) : new Date().getFullYear();
 				try {
-					invoice_number = await getNextInvoiceNumber(userId, year);
+					invoice_number = await getNextInvoiceNumber(clinicId, year);
 				} catch {
 					// RPC no existe aún. Guardamos sin número.
 				}

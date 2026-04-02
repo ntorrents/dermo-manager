@@ -416,14 +416,24 @@ const loadImageForPDFFallback = (dataUrl, maxW, maxH) => {
  * @param {object} [options] - { profile?: object, logoImage?: string, signatureImage?: string }
  * @returns {Promise<void>}
  */
-export const generateConsentPDF = async (client, treatmentName, templateContent, templateName = "Consentimiento", options = {}) => {
+export const generateConsentPDF = async (
+	client,
+	treatmentName,
+	templateContent,
+	templateName = "Consentimiento",
+	options = {}
+) => {
 	const doc = new jsPDF();
 	const pageHeight = doc.internal.pageSize.height;
 	let y = MARGIN;
 	const profile = options.profile || null;
+	const clinic = options.clinic || null;
 
-	// Logo: perfil (Ajustes); opcional override por options.logoImage.
+	// Logo: clínica (compartido); fallback a perfil por compatibilidad; opcional override por options.logoImage.
 	let logoDataUrl = options.logoImage || null;
+	if (!logoDataUrl && clinic?.logo_url) {
+		logoDataUrl = await fetchImageAsDataUrl(clinic.logo_url);
+	}
 	if (!logoDataUrl && profile?.logo_url) {
 		logoDataUrl = await fetchImageAsDataUrl(profile.logo_url);
 	}
@@ -439,12 +449,13 @@ export const generateConsentPDF = async (client, treatmentName, templateContent,
 		y += logoImg.heightMm + 4;
 	}
 
-	// Nombre de la clínica (desde Ajustes → Nombre Comercial)
-	if (profile?.company_name) {
+	// Nombre de la clínica (compartido)
+	const clinicName = clinic?.name || profile?.company_name || null;
+	if (clinicName) {
 		doc.setFontSize(11);
 		doc.setFont("helvetica", "bold");
 		doc.setTextColor(0);
-		doc.text(profile.company_name, PAGE_WIDTH / 2, y, { align: "center" });
+		doc.text(String(clinicName), PAGE_WIDTH / 2, y, { align: "center" });
 		y += 6;
 	}
 

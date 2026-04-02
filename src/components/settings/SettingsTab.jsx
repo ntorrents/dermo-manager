@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	User,
 	Lock,
@@ -7,7 +7,6 @@ import {
 	ShieldAlert,
 	Building2,
 	Phone,
-	FileText,
 	MapPin,
 	CreditCard,
 	LogOut,
@@ -15,35 +14,42 @@ import {
 	CheckCircle2,
 	Download,
 	AlertTriangle,
-	Plus,
-	Trash2,
-	Edit2,
+	Shield,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { updateUserPassword, logout } from "../../services/auth";
 import { exportUserBackup, downloadBackup } from "../../services/backupExport";
-import { useTreatments } from "../../hooks/useTreatments";
-import { useConsentTemplates } from "../../hooks/useConsentTemplates";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
-import ConsentEditor from "../consent/ConsentEditor";
-import { CONSENT_VARIABLES } from "../../utils/consentGenerator";
 import { uploadProfileAsset } from "../../services/profileAssetStorage";
 import { useTenant } from "../../context/TenantContext";
 
 export const SettingsTab = ({ user, profile, showToast }) => {
-	const { clinicId } = useTenant();
-	const [formData, setFormData] = useState({
-		name: "",
-		surname: "",
-		mobile: "",
-		companyName: "",
-		nif: "",
-		collegiateNumber: "",
-		address: "",
-		city: "",
-		logo_url: "",
-		consent_signature_url: "",
-	});
+	const { clinicId, clinic, isAdmin } = useTenant();
+
+	const initialClinicForm = useMemo(
+		() => ({
+			name: clinic?.name || "",
+			billing_nif: clinic?.billing_nif || "",
+			billing_address: clinic?.billing_address || "",
+			billing_city: clinic?.billing_city || "",
+			billing_phone: clinic?.billing_phone || "",
+			logo_url: clinic?.logo_url || "",
+		}),
+		[clinic]
+	);
+
+	const initialProfileForm = useMemo(
+		() => ({
+			name: profile?.name || "",
+			surname: profile?.surname || "",
+			mobile: profile?.mobile || "",
+			collegiateNumber: profile?.collegiate_number || "",
+			consent_signature_url: profile?.consent_signature_url || "",
+		}),
+		[profile]
+	);
+
+	const [clinicForm, setClinicForm] = useState(initialClinicForm);
+	const [profileForm, setProfileForm] = useState(initialProfileForm);
 
 	// Estados para seguridad
 	const [email, setEmail] = useState("");
@@ -58,17 +64,6 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 	const [loadingPass, setLoadingPass] = useState(false);
 	const [loadingEmail, setLoadingEmail] = useState(false);
 	const [loadingBackup, setLoadingBackup] = useState(false);
-	const [showConsentTplModal, setShowConsentTplModal] = useState(false);
-	const [editingConsentTplId, setEditingConsentTplId] = useState(null);
-	const [consentTplForm, setConsentTplForm] = useState({
-		nombre: "",
-		treatment_id: "",
-		contenido: "",
-	});
-	const [savingConsentTpl, setSavingConsentTpl] = useState(false);
-
-	const { treatments = [] } = useTreatments(user);
-	const { consentTemplates = [], refreshConsentTemplates } = useConsentTemplates(user);
 
 	const [isGoogleUser, setIsGoogleUser] = useState(false);
 
@@ -80,49 +75,57 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 		}
 	}, [user]);
 
-	useEffect(() => {
-		if (profile) {
-			setFormData({
-				name: profile.name || "",
-				surname: profile.surname || "",
-				mobile: profile.mobile || "",
-				companyName: profile.company_name || "",
-				nif: profile.nif || "",
-				collegiateNumber: profile.collegiate_number || "",
-				address: profile.address || "",
-				city: profile.city || "",
-				logo_url: profile.logo_url || "",
-				consent_signature_url: profile.consent_signature_url || "",
-			});
+	useEffect(() => setClinicForm(initialClinicForm), [initialClinicForm]);
+	useEffect(() => setProfileForm(initialProfileForm), [initialProfileForm]);
+
+	const handleUpdateClinic = async () => {
+		if (!clinicId) return;
+		if (!isAdmin) {
+			showToast?.("Solo el admin puede editar la clínica", "error");
+			return;
 		}
-	}, [profile]);
+		setLoadingProfile(true);
+		try {
+			const payload = {
+				name: clinicForm.name?.trim() || null,
+				billing_nif: clinicForm.billing_nif?.trim() || null,
+				billing_address: clinicForm.billing_address?.trim() || null,
+				billing_city: clinicForm.billing_city?.trim() || null,
+				billing_phone: clinicForm.billing_phone?.trim() || null,
+				logo_url: clinicForm.logo_url?.trim() || null,
+			};
+			const { error } = await supabase.from("clinics").update(payload).eq("id", clinicId);
+			if (error) throw error;
+			showToast?.("Clínica actualizada");
+		} catch (error) {
+			console.error("Error saving clinic:", error);
+			showToast?.("Error al guardar la clínica", "error");
+		} finally {
+			setLoadingProfile(false);
+		}
+	};
 
 	const handleUpdateProfile = async () => {
+		if (!user?.id) return;
 		setLoadingProfile(true);
 		try {
 			const updates = {
 				id: user.id,
-				name: formData.name,
-				surname: formData.surname,
-				mobile: formData.mobile,
-				company_name: formData.companyName,
-				nif: formData.nif,
-				collegiate_number: formData.collegiateNumber,
-				address: formData.address,
-				city: formData.city,
-				logo_url: formData.logo_url || null,
-				consent_signature_url: formData.consent_signature_url || null,
+				name: profileForm.name,
+				surname: profileForm.surname,
+				mobile: profileForm.mobile,
+				collegiate_number: profileForm.collegiateNumber,
+				consent_signature_url: profileForm.consent_signature_url || null,
 				email: user.email,
 				updated_at: new Date(),
 			};
 
 			const { error } = await supabase.from("profiles").upsert(updates);
-
 			if (error) throw error;
-			showToast("Datos guardados correctamente");
+			showToast?.("Perfil actualizado");
 		} catch (error) {
 			console.error("Error saving profile:", error);
-			showToast("Error al guardar datos", "error");
+			showToast?.("Error al guardar perfil", "error");
 		} finally {
 			setLoadingProfile(false);
 		}
@@ -187,100 +190,53 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 		}
 	};
 
-	const openConsentTplModal = (tpl = null) => {
-		if (tpl) {
-			setEditingConsentTplId(tpl.id);
-			setConsentTplForm({
-				nombre: tpl.nombre || "",
-				treatment_id: tpl.treatment_id || "",
-				contenido: tpl.contenido || "",
-			});
-		} else {
-			setEditingConsentTplId(null);
-			setConsentTplForm({ nombre: "", treatment_id: "", contenido: "" });
-		}
-		setShowConsentTplModal(true);
-	};
-
-	const handleSaveConsentTpl = async (e) => {
-		e.preventDefault();
-		if (!user?.id || !consentTplForm.nombre?.trim()) {
-			showToast("Nombre obligatorio", "error");
-			return;
-		}
-		setSavingConsentTpl(true);
-		try {
-			const payload = {
-				user_id: user.id,
-				nombre: consentTplForm.nombre.trim(),
-				treatment_id: consentTplForm.treatment_id?.trim() || null,
-				contenido: consentTplForm.contenido?.trim() || "",
-			};
-			if (editingConsentTplId) {
-				const { error } = await supabase
-					.from("plantillas_consentimiento")
-					.update(payload)
-					.eq("id", editingConsentTplId);
-				if (error) throw error;
-				showToast("Plantilla actualizada");
-			} else {
-				const { error } = await supabase.from("plantillas_consentimiento").insert([payload]);
-				if (error) throw error;
-				showToast("Plantilla creada");
-			}
-			await refreshConsentTemplates();
-			setShowConsentTplModal(false);
-			setConsentTplForm({ nombre: "", treatment_id: "", contenido: "" });
-			setEditingConsentTplId(null);
-		} catch (err) {
-			console.error(err);
-			showToast("Error al guardar plantilla", "error");
-		} finally {
-			setSavingConsentTpl(false);
-		}
-	};
-
-	const handleDeleteConsentTpl = async (id) => {
-		try {
-			const { error } = await supabase.from("plantillas_consentimiento").delete().eq("id", id);
-			if (error) throw error;
-			showToast("Plantilla eliminada");
-			await refreshConsentTemplates();
-		} catch (err) {
-			showToast("Error al eliminar", "error");
-		}
-	};
-
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			<div className="flex justify-between items-center">
 				<h2 className="text-2xl font-bold text-gray-800">Configuración</h2>
 			</div>
 
-			{/* SECCIÓN 1: DATOS FACTURACIÓN (Igual que antes) */}
+			{/* SECCIÓN 1: CLÍNICA (COMPARTIDO) */}
 			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
 				<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-					<Building2 size={20} className="text-rose-500" /> Datos de Facturación
+					<Building2 size={20} className="text-rose-500" /> Clínica (compartido)
 				</h3>
+				<p className="text-sm text-gray-500 mb-4">
+					Estos datos son comunes para todos los usuarios de la clínica. Solo el admin puede editarlos.
+				</p>
 
 				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div className="md:col-span-2">
 						<label className="text-xs font-bold text-gray-500 uppercase">
-							URL del Logo
+							Nombre de la clínica
+						</label>
+						<div className="relative mt-1">
+							<Building2 className="absolute left-3 top-3 text-gray-400" size={18} />
+							<input
+								disabled={!isAdmin}
+								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500 disabled:bg-gray-100"
+								value={clinicForm.name}
+								onChange={(e) => setClinicForm({ ...clinicForm, name: e.target.value })}
+								placeholder="Ej: DermoClinic"
+							/>
+						</div>
+					</div>
+					<div className="md:col-span-2">
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							URL del logo (clínica)
 						</label>
 						<div className="flex gap-4 items-start mt-1">
 							<input
+								disabled={!isAdmin}
 								className="flex-1 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
-								value={formData.logo_url}
-								onChange={(e) =>
-									setFormData({ ...formData, logo_url: e.target.value })
-								}
+								value={clinicForm.logo_url}
+								onChange={(e) => setClinicForm({ ...clinicForm, logo_url: e.target.value })}
 								placeholder="https://..."
 							/>
-							{formData.logo_url && (
-								<div className="shrink-0 w-16 h-16 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+							{clinicForm.logo_url && (
+								<div className="shrink-0 w-20 h-14 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
 									<img
-										src={formData.logo_url}
+										src={clinicForm.logo_url}
 										alt="Logo"
 										className="w-full h-full object-contain"
 										onError={(e) => {
@@ -290,49 +246,145 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 								</div>
 							)}
 						</div>
-						<p className="text-[10px] text-gray-500 mt-1">
-							Puedes pegar una URL o subir desde el botón (se guarda en almacenamiento y rellena la URL).
-						</p>
-						<input
-							type="file"
-							accept="image/*"
-							className="mt-2 text-sm text-gray-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-700 file:font-bold"
-							onChange={async (e) => {
-								const f = e.target.files?.[0];
-								if (!f || !user?.id) return;
-								try {
-									const url = await uploadProfileAsset(user.id, f, "logo");
-									if (url) {
-										setFormData({ ...formData, logo_url: url });
-										showToast("Logo subido; pulsa Guardar para persistir");
-									}
-								} catch (err) {
-									showToast(err?.message || "Error al subir logo", "error");
-								}
-								e.target.value = "";
-							}}
-						/>
+					</div>
+					<div>
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							NIF / CIF
+						</label>
+						<div className="relative mt-1">
+							<CreditCard
+								className="absolute left-3 top-3 text-gray-400"
+								size={18}
+							/>
+							<input
+								disabled={!isAdmin}
+								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
+								value={clinicForm.billing_nif}
+								onChange={(e) => setClinicForm({ ...clinicForm, billing_nif: e.target.value })}
+								placeholder="12345678X"
+							/>
+						</div>
+					</div>
+					<div>
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							Teléfono (clínica)
+						</label>
+						<div className="relative mt-1">
+							<Phone
+								className="absolute left-3 top-3 text-gray-400"
+								size={18}
+							/>
+							<input
+								disabled={!isAdmin}
+								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
+								value={clinicForm.billing_phone}
+								onChange={(e) => setClinicForm({ ...clinicForm, billing_phone: e.target.value })}
+							/>
+						</div>
 					</div>
 					<div className="md:col-span-2">
 						<label className="text-xs font-bold text-gray-500 uppercase">
-							Firma profesional (consentimientos PDF)
+							Dirección Fiscal
 						</label>
+						<div className="relative mt-1">
+							<MapPin
+								className="absolute left-3 top-3 text-gray-400"
+								size={18}
+							/>
+							<input
+								disabled={!isAdmin}
+								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
+								value={clinicForm.billing_address}
+								onChange={(e) => setClinicForm({ ...clinicForm, billing_address: e.target.value })}
+								placeholder="Calle, Número..."
+							/>
+						</div>
+					</div>
+					<div>
+						<label className="text-xs font-bold text-gray-500 uppercase">
+							Ciudad / CP
+						</label>
+						<input
+							disabled={!isAdmin}
+							className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500 disabled:bg-gray-100"
+							value={clinicForm.billing_city}
+							onChange={(e) => setClinicForm({ ...clinicForm, billing_city: e.target.value })}
+						/>
+					</div>
+				</div>
+
+				<div className="flex justify-end mt-6">
+					<button
+						onClick={handleUpdateClinic}
+						disabled={loadingProfile || !isAdmin}
+						className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-black flex items-center gap-2 disabled:opacity-50">
+						{loadingProfile ? (
+							<Loader2 className="animate-spin" size={16} />
+						) : (
+							<Shield size={16} />
+						)}{" "}
+						Guardar Clínica
+					</button>
+				</div>
+			</div>
+
+			{/* SECCIÓN 2: MI PERFIL (USUARIO) */}
+			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+				<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
+					<User size={20} className="text-rose-500" /> Mi perfil (usuario)
+				</h3>
+				<p className="text-sm text-gray-500 mb-4">Estos datos son propios de tu usuario (no compartidos).</p>
+
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<div>
+						<label className="text-xs font-bold text-gray-500 uppercase">Nombre</label>
+						<input
+							className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
+							value={profileForm.name}
+							onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+						/>
+					</div>
+					<div>
+						<label className="text-xs font-bold text-gray-500 uppercase">Apellidos</label>
+						<input
+							className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
+							value={profileForm.surname}
+							onChange={(e) => setProfileForm({ ...profileForm, surname: e.target.value })}
+						/>
+					</div>
+					<div>
+						<label className="text-xs font-bold text-gray-500 uppercase">Teléfono</label>
+						<input
+							className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
+							value={profileForm.mobile}
+							onChange={(e) => setProfileForm({ ...profileForm, mobile: e.target.value })}
+						/>
+					</div>
+					<div>
+						<label className="text-xs font-bold text-gray-500 uppercase">Nº Colegiado</label>
+						<input
+							className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
+							value={profileForm.collegiateNumber}
+							onChange={(e) => setProfileForm({ ...profileForm, collegiateNumber: e.target.value })}
+						/>
+					</div>
+
+					<div className="md:col-span-2">
+						<label className="text-xs font-bold text-gray-500 uppercase">Firma profesional (consentimientos PDF)</label>
 						<p className="text-[10px] text-gray-500 mt-0.5 mb-1">
-							Se usa en todos los consentimientos generados, encima de la línea «Firma Profesional».
+							Se usa en los consentimientos generados por tu usuario.
 						</p>
 						<div className="flex gap-4 items-start mt-1">
 							<input
 								className="flex-1 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
-								value={formData.consent_signature_url}
-								onChange={(e) =>
-									setFormData({ ...formData, consent_signature_url: e.target.value })
-								}
+								value={profileForm.consent_signature_url}
+								onChange={(e) => setProfileForm({ ...profileForm, consent_signature_url: e.target.value })}
 								placeholder="https://... (o sube imagen abajo)"
 							/>
-							{formData.consent_signature_url && (
+							{profileForm.consent_signature_url && (
 								<div className="shrink-0 w-20 h-14 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
 									<img
-										src={formData.consent_signature_url}
+										src={profileForm.consent_signature_url}
 										alt="Firma"
 										className="w-full h-full object-contain"
 										onError={(e) => {
@@ -352,152 +404,15 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 								try {
 									const url = await uploadProfileAsset(user.id, f, "signature");
 									if (url) {
-										setFormData({ ...formData, consent_signature_url: url });
-										showToast("Firma subida; pulsa Guardar para persistir");
+										setProfileForm({ ...profileForm, consent_signature_url: url });
+										showToast?.("Firma subida; pulsa Guardar para persistir");
 									}
 								} catch (err) {
-									showToast(err?.message || "Error al subir firma", "error");
+									showToast?.(err?.message || "Error al subir firma", "error");
 								}
 								e.target.value = "";
 							}}
 						/>
-					</div>
-					<div className="md:col-span-2">
-						<label className="text-xs font-bold text-gray-500 uppercase">
-							Nombre Comercial
-						</label>
-						<div className="relative mt-1">
-							<Building2
-								className="absolute left-3 top-3 text-gray-400"
-								size={18}
-							/>
-							<input
-								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
-								value={formData.companyName}
-								onChange={(e) =>
-									setFormData({ ...formData, companyName: e.target.value })
-								}
-								placeholder="Ej: DermoClinic"
-							/>
-						</div>
-					</div>
-					<div>
-						<label className="text-xs font-bold text-gray-500 uppercase">
-							NIF / CIF
-						</label>
-						<div className="relative mt-1">
-							<CreditCard
-								className="absolute left-3 top-3 text-gray-400"
-								size={18}
-							/>
-							<input
-								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
-								value={formData.nif}
-								onChange={(e) =>
-									setFormData({ ...formData, nif: e.target.value })
-								}
-								placeholder="12345678X"
-							/>
-						</div>
-					</div>
-					<div>
-						<label className="text-xs font-bold text-gray-500 uppercase">
-							Nº Colegiado
-						</label>
-						<div className="relative mt-1">
-							<FileText
-								className="absolute left-3 top-3 text-gray-400"
-								size={18}
-							/>
-							<input
-								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
-								value={formData.collegiateNumber}
-								onChange={(e) =>
-									setFormData({ ...formData, collegiateNumber: e.target.value })
-								}
-							/>
-						</div>
-					</div>
-					<div className="md:col-span-2">
-						<label className="text-xs font-bold text-gray-500 uppercase">
-							Dirección Fiscal
-						</label>
-						<div className="relative mt-1">
-							<MapPin
-								className="absolute left-3 top-3 text-gray-400"
-								size={18}
-							/>
-							<input
-								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
-								value={formData.address}
-								onChange={(e) =>
-									setFormData({ ...formData, address: e.target.value })
-								}
-								placeholder="Calle, Número..."
-							/>
-						</div>
-					</div>
-					<div>
-						<label className="text-xs font-bold text-gray-500 uppercase">
-							Ciudad / CP
-						</label>
-						<input
-							className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
-							value={formData.city}
-							onChange={(e) =>
-								setFormData({ ...formData, city: e.target.value })
-							}
-						/>
-					</div>
-					<div>
-						<label className="text-xs font-bold text-gray-500 uppercase">
-							Teléfono
-						</label>
-						<div className="relative mt-1">
-							<Phone
-								className="absolute left-3 top-3 text-gray-400"
-								size={18}
-							/>
-							<input
-								className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
-								value={formData.mobile}
-								onChange={(e) =>
-									setFormData({ ...formData, mobile: e.target.value })
-								}
-							/>
-						</div>
-					</div>
-				</div>
-
-				<div className="mt-6 pt-6 border-t border-gray-100">
-					<h4 className="text-xs font-bold text-gray-500 uppercase mb-3">
-						Persona de Contacto
-					</h4>
-					<div className="grid grid-cols-2 gap-4">
-						<div>
-							<label className="text-xs font-bold text-gray-500 uppercase">
-								Nombre
-							</label>
-							<input
-								className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
-								value={formData.name}
-								onChange={(e) =>
-									setFormData({ ...formData, name: e.target.value })
-								}
-							/>
-						</div>
-						<div>
-							<label className="text-xs font-bold text-gray-500 uppercase">
-								Apellidos
-							</label>
-							<input
-								className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500"
-								value={formData.surname}
-								onChange={(e) =>
-									setFormData({ ...formData, surname: e.target.value })
-								}
-							/>
-						</div>
 					</div>
 				</div>
 
@@ -506,12 +421,8 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 						onClick={handleUpdateProfile}
 						disabled={loadingProfile}
 						className="bg-gray-900 text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-black flex items-center gap-2">
-						{loadingProfile ? (
-							<Loader2 className="animate-spin" size={16} />
-						) : (
-							<Save size={16} />
-						)}{" "}
-						Guardar Datos
+						{loadingProfile ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}{" "}
+						Guardar Perfil
 					</button>
 				</div>
 			</div>
@@ -641,119 +552,6 @@ export const SettingsTab = ({ user, profile, showToast }) => {
 					</div>
 				)}
 			</div>
-
-			{/* SECCIÓN: PLANTILLAS DE CONSENTIMIENTO */}
-			<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-				<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-					<FileText size={20} className="text-rose-500" /> Plantillas de consentimiento informado
-				</h3>
-				<p className="text-sm text-gray-500 mb-4">
-					Plantillas para generar PDFs desde la ficha del cliente. Puedes escribir con formato (negrita, listas), importar un Word (.docx) con variables tipo {"{{NOMBRE}}"}, {"{{FECHA}}"}, etc., o pegar desde Google Docs.
-				</p>
-				<div className="space-y-2">
-					{consentTemplates.length === 0 ? (
-						<div className="p-4 bg-gray-50 rounded-xl border border-gray-100 text-gray-500 text-sm">
-							No hay plantillas. Añade una para poder generar consentimientos desde Clientes.
-						</div>
-					) : (
-						consentTemplates.map((tpl) => (
-							<div
-								key={tpl.id}
-								className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-200">
-								<div>
-									<p className="font-bold text-gray-800">{tpl.nombre}</p>
-									<p className="text-xs text-gray-500">
-										{tpl.treatments?.name ? `Tratamiento: ${tpl.treatments.name}` : "Genérica"}
-									</p>
-								</div>
-								<div className="flex items-center gap-2">
-									<button
-										type="button"
-										onClick={() => openConsentTplModal(tpl)}
-										className="p-2 text-gray-400 hover:text-rose-600 rounded-lg transition-colors"
-										title="Editar">
-										<Edit2 size={16} />
-									</button>
-									<button
-										type="button"
-										onClick={() => handleDeleteConsentTpl(tpl.id)}
-										className="p-2 text-gray-400 hover:text-rose-600 rounded-lg transition-colors"
-										title="Eliminar">
-										<Trash2 size={16} />
-									</button>
-								</div>
-							</div>
-						))
-					)}
-				</div>
-				<button
-					type="button"
-					onClick={() => openConsentTplModal()}
-					className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-100 transition-colors">
-					<Plus size={18} /> Añadir plantilla
-				</button>
-			</div>
-
-			<AdaptiveModal
-				isOpen={showConsentTplModal}
-				onClose={() => {
-					setShowConsentTplModal(false);
-					setEditingConsentTplId(null);
-					setConsentTplForm({ nombre: "", treatment_id: "", contenido: "" });
-				}}
-				title={editingConsentTplId ? "Editar plantilla" : "Nueva plantilla de consentimiento"}
-				maxWidth="max-w-4xl">
-				<form onSubmit={handleSaveConsentTpl} className="space-y-4">
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Nombre de la plantilla</label>
-						<input
-							required
-							className="w-full p-3 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
-							value={consentTplForm.nombre}
-							onChange={(e) => setConsentTplForm({ ...consentTplForm, nombre: e.target.value })}
-							placeholder="Ej: Consentimiento depilación láser"
-						/>
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Tratamiento (opcional)</label>
-						<select
-							className="w-full p-3 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
-							value={consentTplForm.treatment_id}
-							onChange={(e) => setConsentTplForm({ ...consentTplForm, treatment_id: e.target.value })}>
-							<option value="">— Genérica (cualquier tratamiento) —</option>
-							{treatments.map((t) => (
-								<option key={t.id} value={t.id}>{t.name}</option>
-							))}
-						</select>
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Contenido (negrita, cursiva, listas; o importa un .docx)</label>
-						<p className="text-[10px] text-gray-500 mb-2">
-							Variables disponibles: {CONSENT_VARIABLES.join(", ")}
-						</p>
-						<ConsentEditor
-							value={consentTplForm.contenido}
-							onChange={(html) => setConsentTplForm({ ...consentTplForm, contenido: html })}
-							placeholder="Yo, {{NOMBRE}} {{APELLIDOS}}, con DNI {{DNI}}..."
-						/>
-					</div>
-					<div className="flex gap-2 pt-2">
-						<button
-							type="button"
-							onClick={() => setShowConsentTplModal(false)}
-							className="flex-1 py-3 rounded-xl font-bold border border-gray-200 text-gray-600 hover:bg-gray-50">
-							Cancelar
-						</button>
-						<button
-							type="submit"
-							disabled={savingConsentTpl || !consentTplForm.nombre?.trim()}
-							className="flex-1 py-3 rounded-xl font-bold bg-rose-500 text-white hover:bg-rose-600 disabled:opacity-50 flex items-center justify-center gap-2">
-							{savingConsentTpl ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-							{savingConsentTpl ? "Guardando..." : "Guardar"}
-						</button>
-					</div>
-				</form>
-			</AdaptiveModal>
 
 			{/* ZONA DE PELIGRO / DATOS */}
 			<div className="bg-amber-50/50 border border-amber-200 p-6 rounded-2xl">

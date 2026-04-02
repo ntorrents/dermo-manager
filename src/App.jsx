@@ -29,12 +29,12 @@ import { ClientsTab } from "./components/clients/ClientsTab";
 import { CalendarTab } from "./components/calendar/CalendarTab";
 import { TaxesTab } from "./components/taxes/TaxesTab";
 import { BonosTab } from "./components/bonos/BonosTab";
-import { BudgetsTab } from "./components/budgets/BudgetsTab";
 import { RequirePlan } from "./components/guards/RequirePlan";
+import { DocumentsTab } from "./components/documents/DocumentsTab";
 
 const DermoManager = () => {
 	const { user, loading: authLoading } = useAuth();
-	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
+	const { allowsPresupuestosBonos, loading: tenantLoading, clinic } = useTenant();
 
 	const { inventory, loading: inventoryLoading, refreshInventory } = useInventory(user);
 	const { treatments, loading: treatmentsLoading, refreshTreatments } = useTreatments(user);
@@ -70,9 +70,9 @@ const DermoManager = () => {
 
 	useEffect(() => {
 		if (!user || tenantLoading) return;
-		if (!allowsPresupuestosBonos && (activeTab === "budgets" || activeTab === "bonos")) {
-			setActiveTab("dashboard");
-		}
+		// Compat: antiguo tab "budgets" ahora vive en "documents"
+		if (activeTab === "budgets") setActiveTab("documents");
+		if (!allowsPresupuestosBonos && activeTab === "bonos") setActiveTab("dashboard");
 	}, [user, tenantLoading, allowsPresupuestosBonos, activeTab]);
 
 	// --- ESTADO ELEVADO (GLOBAL) ---
@@ -89,18 +89,19 @@ const DermoManager = () => {
 	const sessionMutation = useSessionMutation(user?.id, inventory);
 	const consumeBonoMutation = useConsumeBono();
 
-	// Favicon dinámico según logo del perfil
+	// Favicon dinámico según logo de la clínica (shared)
 	useEffect(() => {
 		const link = document.querySelector("link[rel~='icon']");
 		if (!link) return;
-		if (profile?.logo_url && /^https?:\/\//i.test(profile.logo_url)) {
-			link.href = profile.logo_url;
-			link.type = profile.logo_url.toLowerCase().endsWith(".svg") ? "image/svg+xml" : "image/png";
+		const logoUrl = clinic?.logo_url || null;
+		if (logoUrl && /^https?:\/\//i.test(logoUrl)) {
+			link.href = logoUrl;
+			link.type = logoUrl.toLowerCase().endsWith(".svg") ? "image/svg+xml" : "image/png";
 		} else {
 			link.href = "/vite.svg";
 			link.type = "image/svg+xml";
 		}
-	}, [profile?.logo_url]);
+	}, [clinic?.logo_url]);
 
 	const showToastMsg = (msg, type = "success") =>
 		setToast({ message: msg, type });
@@ -221,7 +222,7 @@ const DermoManager = () => {
 				activeTab={activeTab}
 				setActiveTab={setActiveTab}
 				onLogout={() => setShowLogout(true)}
-				companyName={profile?.company_name}
+				companyName={clinic?.name}
 				clients={clients}
 				treatments={treatments}
 				inventory={inventory}
@@ -229,7 +230,7 @@ const DermoManager = () => {
 			<div className="md:hidden h-16 bg-white border-b sticky top-0 z-40 px-4 flex items-center justify-between shadow-sm">
 				{/* Header móvil visible hasta XL */}
 				<span className="font-bold text-xl text-rose-500 uppercase tracking-tighter">
-					{profile?.company_name || "DermoManager"}
+					{clinic?.name || "DermoManager"}
 				</span>
 				<button onClick={() => setShowLogout(true)} className="p-2">
 					<LogOut size={18} className="text-gray-400" />
@@ -305,16 +306,14 @@ const DermoManager = () => {
 						onRefresh={refreshData}
 					/>
 				)}
-				{activeTab === "budgets" && (
-					<RequirePlan>
-						<BudgetsTab
-							user={user}
-							clients={clients}
-							treatments={treatments}
-							profile={profile}
-							showToast={showToastMsg}
-						/>
-					</RequirePlan>
+				{activeTab === "documents" && (
+					<DocumentsTab
+						user={user}
+						clients={clients}
+						treatments={treatments}
+						profile={profile}
+						showToast={showToastMsg}
+					/>
 				)}
 				{activeTab === "calendar" && (
 					<CalendarTab
