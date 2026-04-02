@@ -45,9 +45,9 @@ const safeNum = (v) => {
  * @param {object} presupuesto - { notas, valid_until, created_at, id }
  * @param {Array<{ description, quantity, unit_price_ttc, tax_rate }>} lineas
  */
-export const generateBudgetPDF = async (client, profile, presupuesto, lineas = []) => {
+export const generateBudgetPDF = async (client, clinic, profile, presupuesto, lineas = []) => {
 	let logoDataUrl = null;
-	const logo = profile?.logo_url;
+	const logo = clinic?.logo_url || profile?.logo_url;
 	if (logo && typeof logo === "string" && logo.startsWith("http")) {
 		try {
 			logoDataUrl = await loadImageAsBase64(logo);
@@ -73,7 +73,7 @@ export const generateBudgetPDF = async (client, profile, presupuesto, lineas = [
 
 	doc.setFontSize(18);
 	doc.setTextColor(225, 29, 72);
-	doc.text(profile?.company_name || profile?.companyName || "DermoApp", 14, y);
+	doc.text(clinic?.name || profile?.company_name || profile?.companyName || "DermoApp", 14, y);
 	y += 8;
 
 	doc.setFontSize(9);
@@ -83,16 +83,16 @@ export const generateBudgetPDF = async (client, profile, presupuesto, lineas = [
 		doc.text(drName, 14, y);
 		y += 5;
 	}
-	if (profile?.nif) {
-		doc.text(`NIF/CIF: ${profile.nif}`, 14, y);
+	if (clinic?.billing_nif || profile?.nif) {
+		doc.text(`NIF/CIF: ${clinic?.billing_nif || profile?.nif}`, 14, y);
 		y += 5;
 	}
-	if (profile?.address) {
-		doc.text(profile.address, 14, y);
+	if (clinic?.billing_address || profile?.address) {
+		doc.text(clinic?.billing_address || profile?.address, 14, y);
 		y += 5;
 	}
-	if (profile?.city) {
-		doc.text(profile.city, 14, y);
+	if (clinic?.billing_city || profile?.city) {
+		doc.text(clinic?.billing_city || profile?.city, 14, y);
 		y += 5;
 	}
 

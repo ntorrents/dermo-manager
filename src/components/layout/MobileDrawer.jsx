@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo } from "react";
-import { Euro, Landmark, Settings, X, Calendar, Ticket, FileText } from "lucide-react";
+import { Euro, Landmark, Settings, X, Calendar, Ticket, FolderOpen } from "lucide-react";
 import { useTenant } from "../../context/TenantContext";
 
 const DRAWER_ITEMS = [
 	{ id: "calendar", label: "Agenda", icon: Calendar },
 	{ id: "bonos", label: "Bonos", icon: Ticket },
-	{ id: "budgets", label: "Presupuestos", icon: FileText },
+	{ id: "documents", label: "Documentos", icon: FolderOpen },
 	{ id: "finance", label: "Finanzas", icon: Euro },
 	{ id: "taxes", label: "Fiscalidad", icon: Landmark },
 	{ id: "settings", label: "Ajustes", icon: Settings },
@@ -18,7 +18,7 @@ export const MobileDrawer = ({ isOpen, onClose, activeTab, setActiveTab }) => {
 		() =>
 			DRAWER_ITEMS.filter((item) => {
 				if (tenantLoading) return true;
-				if (item.id === "bonos" || item.id === "budgets") return allowsPresupuestosBonos;
+				if (item.id === "bonos") return allowsPresupuestosBonos;
 				return true;
 			}),
 		[tenantLoading, allowsPresupuestosBonos]

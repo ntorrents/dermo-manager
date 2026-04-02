@@ -11,7 +11,7 @@ import {
 	Landmark,
 	Calendar,
 	Ticket,
-	FileText,
+	FolderOpen,
 } from "lucide-react";
 import { GlobalSearch } from "./GlobalSearch";
 
@@ -20,7 +20,7 @@ const NAV_ITEMS = [
 	{ id: "clients", l: "Clientes", i: Users },
 	{ id: "treatments", l: "Tratamientos", i: Syringe },
 	{ id: "bonos", l: "Bonos", i: Ticket },
-	{ id: "budgets", l: "Presupuestos", i: FileText },
+	{ id: "documents", l: "Documentos", i: FolderOpen },
 	{ id: "inventory", l: "Stock", i: Package },
 	{ id: "calendar", l: "Agenda", i: Calendar },
 	{ id: "finance", l: "Finanzas", i: DollarSign },
@@ -41,7 +41,7 @@ export const Sidebar = ({
 
 	const navItems = NAV_ITEMS.filter((t) => {
 		if (tenantLoading) return true;
-		if (t.id === "bonos" || t.id === "budgets") return allowsPresupuestosBonos;
+		if (t.id === "bonos") return allowsPresupuestosBonos;
 		return true;
 	});
 

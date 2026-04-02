@@ -27,10 +27,10 @@ const loadImageAsBase64 = (url) => {
 	});
 };
 
-export const generateInvoice = async (entry, client, profile, logoUrl = null, options = {}) => {
+export const generateInvoice = async (entry, client, clinic, profile, options = {}) => {
 	const isAbono = options.isAbono === true;
 	let logoDataUrl = null;
-	const logo = logoUrl || profile?.logo_url;
+	const logo = clinic?.logo_url || profile?.logo_url;
 	if (logo && typeof logo === "string" && logo.startsWith("http")) {
 		try {
 			logoDataUrl = await loadImageAsBase64(logo);
@@ -59,7 +59,7 @@ export const generateInvoice = async (entry, client, profile, logoUrl = null, op
 	// Nombre Comercial (Grande y Rosa) - ajustado para no solapar con logo
 	doc.setFontSize(18);
 	doc.setTextColor(225, 29, 72); // Rose-600
-	doc.text(profile?.company_name || profile?.companyName || "DermoApp", 14, y);
+	doc.text(clinic?.name || profile?.company_name || profile?.companyName || "DermoApp", 14, y);
 	y += 8; // Bajamos 8 puntos
 
 	// Datos Fiscales (Pequeño y Gris Oscuro)
@@ -76,20 +76,20 @@ export const generateInvoice = async (entry, client, profile, logoUrl = null, op
 	}
 
 	// NIF / CIF (Nuevo)
-	if (profile?.nif) {
-		doc.text(`NIF/CIF: ${profile.nif}`, 14, y);
+	if (clinic?.billing_nif || profile?.nif) {
+		doc.text(`NIF/CIF: ${clinic?.billing_nif || profile?.nif}`, 14, y);
 		y += 5;
 	}
 
 	// Dirección (Nuevo)
-	if (profile?.address) {
-		doc.text(profile.address, 14, y);
+	if (clinic?.billing_address || profile?.address) {
+		doc.text(clinic?.billing_address || profile?.address, 14, y);
 		y += 5;
 	}
 
 	// Ciudad / CP (Nuevo)
-	if (profile?.city) {
-		doc.text(profile.city, 14, y);
+	if (clinic?.billing_city || profile?.city) {
+		doc.text(clinic?.billing_city || profile?.city, 14, y);
 		y += 5;
 	}
 
@@ -101,8 +101,8 @@ export const generateInvoice = async (entry, client, profile, logoUrl = null, op
 	}
 
 	// Teléfono (Si existe)
-	if (profile?.mobile) {
-		doc.text(`Tel: ${profile.mobile}`, 14, y);
+	if (clinic?.billing_phone || profile?.mobile) {
+		doc.text(`Tel: ${clinic?.billing_phone || profile?.mobile}`, 14, y);
 		y += 5;
 	}
 

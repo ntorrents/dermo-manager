@@ -6,6 +6,7 @@ import { formatCurrency } from "../../utils/format";
 import { useBudgets } from "../../hooks/useBudgets";
 import { LoadingButton } from "../ui/LoadingButton";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { useTenant } from "../../context/TenantContext";
 
 const emptyLine = () => ({
 	line_kind: "treatment",
@@ -18,6 +19,7 @@ const emptyLine = () => ({
 });
 
 export const BudgetsSection = ({ user, clients = [], treatments = [], profile, showToast }) => {
+	const { clinic } = useTenant();
 	const { budgets, loading, createBudget, creating, archiveBudget, archiving } = useBudgets(user?.id);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [modalOpen, setModalOpen] = useState(false);
@@ -155,7 +157,7 @@ export const BudgetsSection = ({ user, clients = [], treatments = [], profile, s
 			return;
 		}
 		try {
-			await generateBudgetPDF(client, profile, b, b.presupuesto_lineas || []);
+			await generateBudgetPDF(client, clinic, profile, b, b.presupuesto_lineas || []);
 			showToast("PDF generado");
 		} catch (err) {
 			showToast(err?.message || "Error al generar PDF", "error");

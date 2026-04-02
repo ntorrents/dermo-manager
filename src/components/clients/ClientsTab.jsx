@@ -52,6 +52,7 @@ import {
 	uploadSignedConsent,
 	getSignedConsentDownloadUrl,
 } from "../../services/signedConsentStorage";
+import { useTenant } from "../../context/TenantContext";
 
 const buildWhatsAppUrl = (phone, firstName, companyName = "C3linic") => {
 	if (!phone || !String(phone).trim()) return null;
@@ -68,6 +69,8 @@ export const ClientsTab = ({
 	showToast,
 	onRefresh,
 }) => {
+	const { clinicId } = useTenant();
+	const { clinic } = useTenant();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedClient, setSelectedClient] = useState(null);
 	const [clientDetailTab, setClientDetailTab] = useState("seguimiento");
@@ -318,7 +321,7 @@ export const ClientsTab = ({
 			const year = today.slice(0, 4);
 			let invoiceNumber = null;
 			try {
-				invoiceNumber = await getNextRectifiedInvoiceNumber(user.id, year);
+				invoiceNumber = await getNextRectifiedInvoiceNumber(clinicId, year);
 			} catch {
 				// Serie R no disponible
 			}
@@ -344,7 +347,7 @@ export const ClientsTab = ({
 				.select()
 				.single();
 			if (error) throw error;
-			await generateInvoice(inserted, selectedClient, profile, null, {
+			await generateInvoice(inserted, selectedClient, clinic, profile, {
 				isAbono: true,
 			});
 			showToast("Abono generado y guardado");
@@ -466,7 +469,7 @@ export const ClientsTab = ({
 															href={buildWhatsAppUrl(
 																client.phone,
 																client.name,
-																profile?.company_name,
+																clinic?.name,
 															)}
 															target="_blank"
 															rel="noopener noreferrer"
@@ -1143,12 +1146,7 @@ export const ClientsTab = ({
 																	<button
 																		onClick={async () => {
 																			try {
-																				await generateInvoice(
-																					session,
-																					selectedClient,
-																					profile,
-																					profile?.logo_url,
-																				);
+																				await generateInvoice(session, selectedClient, clinic, profile);
 																				showToast("Factura generada");
 																			} catch {
 																				showToast(
@@ -1658,6 +1656,7 @@ export const ClientsTab = ({
 										if (!tpl) return;
 										const treatmentName = tpl.treatments?.name ?? treatments.find((t) => t.id === tpl.treatment_id)?.name ?? "";
 										await generateConsentPDF(selectedClient, treatmentName, tpl.contenido, tpl.nombre, {
+											clinic: clinic ?? undefined,
 											profile: profile ?? undefined,
 										});
 										showToast("PDF generado");

@@ -26,6 +26,7 @@ export const TenantProvider = ({ children }) => {
 	const { user } = useAuth();
 	const [clinicId, setClinicId] = useState(null);
 	const [clinicName, setClinicName] = useState(null);
+	const [clinicData, setClinicData] = useState(null);
 	const [subscriptionTier, setSubscriptionTier] = useState(null);
 	const [role, setRole] = useState("admin");
 	const [loading, setLoading] = useState(true);
@@ -43,6 +44,7 @@ export const TenantProvider = ({ children }) => {
 		setLoading(true);
 		setClinicId(null);
 		setClinicName(null);
+		setClinicData(null);
 		setSubscriptionTier(null);
 		setRole("admin");
 
@@ -61,7 +63,7 @@ export const TenantProvider = ({ children }) => {
 				await Promise.all([
 					supabase
 						.from("clinics")
-						.select("name, subscription_tier")
+						.select("name, subscription_tier, billing_nif, billing_address, billing_city, billing_phone, logo_url")
 						.eq("id", profile.clinic_id)
 						.maybeSingle(),
 					supabase
@@ -77,6 +79,7 @@ export const TenantProvider = ({ children }) => {
 
 			setClinicId(profile.clinic_id);
 			setClinicName(clinic?.name ?? null);
+			setClinicData(clinic ?? null);
 			// Sin fila o error: no asumir integral (fail-closed para presupuestos/bonos).
 			setSubscriptionTier(clinic?.subscription_tier ?? null);
 			setRole(mem?.role ?? "admin");
@@ -119,6 +122,7 @@ export const TenantProvider = ({ children }) => {
 			clinicName,
 			subscriptionTier,
 			role,
+			clinic: clinicData ? { ...clinicData, id: clinicId } : null,
 			allowsPresupuestosBonos,
 			canDeleteOperational,
 			isAdmin,
@@ -127,6 +131,7 @@ export const TenantProvider = ({ children }) => {
 		[
 			clinicId,
 			clinicName,
+			clinicData,
 			subscriptionTier,
 			role,
 			allowsPresupuestosBonos,
