@@ -7,9 +7,6 @@ import {
 	Edit2,
 	Loader2,
 	AlertTriangle,
-	ChevronDown,
-	Filter,
-	History,
 	AlertCircle,
 	Copy,
 	Image as ImageIcon,
@@ -104,17 +101,7 @@ export const InventoryTab = ({
 		updateMaterial.isPending ||
 		restockMaterial.isPending ||
 		deleteMaterial.isPending;
-	const allMaterialPurchases = (entries || []).filter(
-		(e) => e.type === "expense" && e.category === "Material",
-	);
 	const [searchTerm, setSearchTerm] = useState("");
-	const [purchaseSearch, setPurchaseSearch] = useState("");
-	const [purchaseSort, setPurchaseSort] = useState("date-desc");
-	const [purchaseDateFrom, setPurchaseDateFrom] = useState("");
-	const [purchaseDateTo, setPurchaseDateTo] = useState("");
-	const [purchaseAmountMin, setPurchaseAmountMin] = useState("");
-	const [purchaseAmountMax, setPurchaseAmountMax] = useState("");
-	const [showPurchaseFilters, setShowPurchaseFilters] = useState(false);
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState(null);
 
@@ -170,45 +157,6 @@ export const InventoryTab = ({
 		inventory?.filter((item) =>
 			item.name.toLowerCase().includes(searchTerm.toLowerCase()),
 		) || [];
-
-	const materialPurchases = (() => {
-		let list = [...allMaterialPurchases];
-
-		if (purchaseSearch.trim()) {
-			const q = purchaseSearch.toLowerCase().trim();
-			list = list.filter(
-				(e) =>
-					(e.description || "").toLowerCase().includes(q) ||
-					(e.amount?.toString() || "").includes(q),
-			);
-		}
-		if (purchaseDateFrom) {
-			list = list.filter((e) => (e.date || "") >= purchaseDateFrom);
-		}
-		if (purchaseDateTo) {
-			list = list.filter((e) => (e.date || "") <= purchaseDateTo);
-		}
-		if (purchaseAmountMin !== "" && !Number.isNaN(Number(purchaseAmountMin))) {
-			list = list.filter((e) => Number(e.amount) >= Number(purchaseAmountMin));
-		}
-		if (purchaseAmountMax !== "" && !Number.isNaN(Number(purchaseAmountMax))) {
-			list = list.filter((e) => Number(e.amount) <= Number(purchaseAmountMax));
-		}
-
-		const [field, order] = purchaseSort.split("-");
-		list.sort((a, b) => {
-			if (field === "date") {
-				const cmp = (a.date || "").localeCompare(b.date || "");
-				return order === "desc" ? -cmp : cmp;
-			}
-			if (field === "amount") {
-				const cmp = Number(a.amount) - Number(b.amount);
-				return order === "desc" ? -cmp : cmp;
-			}
-			return 0;
-		});
-		return list;
-	})();
 
 	const getEarliestExpiry = (itemId) => {
 		const itemBatches = (batches || []).filter(
@@ -759,168 +707,6 @@ export const InventoryTab = ({
 							))}
 						</tbody>
 					</table>
-				)}
-			</div>
-
-			{/* Historial de compras (Material) - Mejorado */}
-			<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-				<div className="p-4 sm:p-6 border-b border-gray-100">
-					<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-						<h3 className="font-black text-gray-800 text-lg flex items-center gap-2">
-							<History size={20} className="text-rose-500" />
-							Historial de compras
-						</h3>
-						<div className="flex flex-wrap items-center gap-3">
-							<div className="relative flex-1 sm:flex-initial min-w-0 sm:min-w-[200px]">
-								<Search
-									className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-									size={18}
-								/>
-								<input
-									type="text"
-									placeholder="Buscar en historial..."
-									value={purchaseSearch}
-									onChange={(e) => setPurchaseSearch(e.target.value)}
-									className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-rose-100 focus:border-rose-200"
-								/>
-							</div>
-							<button
-								type="button"
-								onClick={() => setShowPurchaseFilters((v) => !v)}
-								className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-									showPurchaseFilters
-										? "bg-rose-100 text-rose-600"
-										: "bg-gray-100 text-gray-600 hover:bg-gray-200"
-								}`}>
-								<Filter size={16} /> Filtros
-								<ChevronDown
-									size={14}
-									className={`transition-transform ${showPurchaseFilters ? "rotate-180" : ""}`}
-								/>
-							</button>
-							<select
-								value={purchaseSort}
-								onChange={(e) => setPurchaseSort(e.target.value)}
-								className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-rose-100 appearance-none cursor-pointer">
-								<option value="date-desc">Más reciente</option>
-								<option value="date-asc">Más antigua</option>
-								<option value="amount-desc">Importe ↑</option>
-								<option value="amount-asc">Importe ↓</option>
-							</select>
-						</div>
-					</div>
-					{showPurchaseFilters && (
-						<div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-3 animate-in slide-in-from-top-2">
-							<div>
-								<label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-									Desde
-								</label>
-								<input
-									type="date"
-									value={purchaseDateFrom}
-									onChange={(e) => setPurchaseDateFrom(e.target.value)}
-									className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none"
-								/>
-							</div>
-							<div>
-								<label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-									Hasta
-								</label>
-								<input
-									type="date"
-									value={purchaseDateTo}
-									onChange={(e) => setPurchaseDateTo(e.target.value)}
-									className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none"
-								/>
-							</div>
-							<div>
-								<label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-									Importe mín. (€)
-								</label>
-								<input
-									type="number"
-									step="0.01"
-									placeholder="0"
-									value={purchaseAmountMin}
-									onChange={(e) => setPurchaseAmountMin(e.target.value)}
-									className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none"
-								/>
-							</div>
-							<div>
-								<label className="text-[10px] font-bold text-gray-400 uppercase block mb-1">
-									Importe máx. (€)
-								</label>
-								<input
-									type="number"
-									step="0.01"
-									placeholder="∞"
-									value={purchaseAmountMax}
-									onChange={(e) => setPurchaseAmountMax(e.target.value)}
-									className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none"
-								/>
-							</div>
-						</div>
-					)}
-				</div>
-				<div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-					{allMaterialPurchases.length === 0 ? (
-						<div className="p-12 text-center text-gray-400">
-							<Package size={40} className="mx-auto mb-2 opacity-50" />
-							<p className="text-sm font-medium">Sin compras registradas</p>
-							<p className="text-xs mt-1">
-								Las compras aparecerán al añadir o reponer materiales
-							</p>
-						</div>
-					) : materialPurchases.length === 0 ? (
-						<div className="p-12 text-center text-gray-400">
-							<p className="text-sm font-medium">Ningún resultado</p>
-							<p className="text-xs mt-1">
-								Prueba a ajustar los filtros o la búsqueda
-							</p>
-						</div>
-					) : (
-						<table className="w-full text-left border-collapse">
-							<thead className="sticky top-0 bg-gray-50/95 backdrop-blur z-10">
-								<tr className="border-b border-gray-200">
-									<th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-wider">
-										Fecha
-									</th>
-									<th className="p-4 text-[10px] font-black text-gray-400 uppercase tracking-wider">
-										Descripción
-									</th>
-									<th className="p-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-wider">
-										Importe
-									</th>
-								</tr>
-							</thead>
-							<tbody className="divide-y divide-gray-50">
-								{materialPurchases.map((entry) => (
-									<tr
-										key={entry.id}
-										className="hover:bg-gray-50/50 transition-colors">
-										<td className="p-4 text-sm font-medium text-gray-600 whitespace-nowrap">
-											{formatDate(entry.date)}
-										</td>
-										<td className="p-4">
-											<p className="font-bold text-gray-800 text-sm line-clamp-2">
-												{entry.description}
-											</p>
-										</td>
-										<td className="p-4 text-right">
-											<span className="font-black text-rose-500">
-												-{formatCurrency(entry.amount)}
-											</span>
-										</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					)}
-				</div>
-				{allMaterialPurchases.length > 0 && materialPurchases.length > 0 && (
-					<div className="px-4 py-3 bg-gray-50/50 border-t border-gray-100 text-xs font-medium text-gray-500">
-						{materialPurchases.length} de {allMaterialPurchases.length} compras
-					</div>
 				)}
 			</div>
 
