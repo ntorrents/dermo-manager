@@ -127,6 +127,7 @@ export const TenantProvider = ({ children }) => {
 			canDeleteOperational,
 			isAdmin,
 			loading,
+			refreshTenant: loadTenant,
 		}),
 		[
 			clinicId,
@@ -138,6 +139,7 @@ export const TenantProvider = ({ children }) => {
 			canDeleteOperational,
 			isAdmin,
 			loading,
+			loadTenant,
 		]
 	);
 
