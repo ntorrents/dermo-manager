@@ -395,6 +395,16 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
 
-# Google Calendar OAuth: el callback recibe redirección de Google sin JWT de Supabase.
+# Google Calendar: verify_jwt=false en el gateway para que el OPTIONS (preflight CORS) del navegador
+# no sea rechazado sin Authorization. La sesión se valida dentro de cada función con auth.getUser().
 [functions.google-calendar-oauth-callback]
+verify_jwt = false
+
+[functions.google-calendar-oauth-start]
+verify_jwt = false
+
+[functions.google-calendar-sync]
+verify_jwt = false
+
+[functions.google-calendar-disconnect]
 verify_jwt = false

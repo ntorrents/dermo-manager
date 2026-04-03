@@ -21,6 +21,7 @@ export const useSessionMutation = (userId, inventory = []) => {
 			internal_notes = "",
 			planAmigo = false,
 		}) => {
+			if (!clinicId) throw new Error("Clínica no disponible");
 			const baseRecipe = treatment.recipe || [];
 			const totalConsumption = [...baseRecipe, ...extras];
 			const combinedQuantities = totalConsumption.reduce((acc, item) => {
@@ -60,6 +61,7 @@ export const useSessionMutation = (userId, inventory = []) => {
 			const { error } = await supabase.from("finance_entries").insert([
 				{
 					user_id: userId,
+					clinic_id: clinicId,
 					date,
 					type: "income",
 					category: "Servicio",

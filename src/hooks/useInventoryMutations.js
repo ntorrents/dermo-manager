@@ -23,6 +23,7 @@ export const useCreateMaterial = (userId) => {
 					min_stock: 0,
 					item_type: "maquina",
 					user_id: userId,
+					clinic_id: clinicId,
 				};
 				const { error: invError } = await supabase
 					.from("inventory")
@@ -50,6 +51,7 @@ export const useCreateMaterial = (userId) => {
 				min_stock: Number(formData.min_stock),
 				item_type: "material",
 				user_id: userId,
+				clinic_id: clinicId,
 			};
 			const { data: inserted, error: invError } = await supabase
 				.from("inventory")
@@ -65,6 +67,7 @@ export const useCreateMaterial = (userId) => {
 						{
 							inventory_id: inserted.id,
 							user_id: userId,
+							clinic_id: clinicId,
 							lot_number: lotNumber,
 							expiry_date: expiryDate,
 							quantity_remaining: stockNum,
@@ -79,6 +82,7 @@ export const useCreateMaterial = (userId) => {
 			const { error: finError } = await supabase.from("finance_entries").insert([
 				{
 					user_id: userId,
+					clinic_id: clinicId,
 					type: "expense",
 					category: "Material",
 					description: `Compra Stock Inicial: ${formData.name}` + (lotNumber ? ` Lote: ${lotNumber}` : ""),
@@ -174,6 +178,7 @@ export const useRestockMaterial = (userId) => {
 					{
 						inventory_id: restockItem.id,
 						user_id: userId,
+						clinic_id: clinicId,
 						lot_number: lotNumber,
 						expiry_date: expiryDate,
 						quantity_remaining: qtyBought,
@@ -205,6 +210,7 @@ export const useRestockMaterial = (userId) => {
 			const { error: finError } = await supabase.from("finance_entries").insert([
 				{
 					user_id: userId,
+					clinic_id: clinicId,
 					date: purchaseDate,
 					type: "expense",
 					category: "Material",

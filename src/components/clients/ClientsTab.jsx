@@ -329,6 +329,7 @@ export const ClientsTab = ({
 				.insert([
 					{
 						user_id: user.id,
+						clinic_id: clinicId,
 						date: today,
 						type: "income",
 						category: "Servicio",
