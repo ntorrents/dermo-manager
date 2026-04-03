@@ -521,6 +521,11 @@ export const FinanceTab = ({
 				? normalizeInvoiceNumber(formData.invoice_number)
 				: null;
 
+			if (!clinicId) {
+				showToast("No hay clínica activa; no se puede guardar el movimiento.", "error");
+				return;
+			}
+
 			const payload = {
 				type: formData.type,
 				amount,
@@ -551,6 +556,7 @@ export const FinanceTab = ({
 						? `${formData.coverage_start_month}-01`
 						: null,
 				user_id: user.id,
+				clinic_id: clinicId,
 			};
 
 			let insertedId = null;

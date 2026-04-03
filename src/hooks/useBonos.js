@@ -131,6 +131,7 @@ export const useSellBono = (user) => {
 
 	return useMutation({
 		mutationFn: async ({ clientId, templateId, templateName, treatmentId, totalSessions, pricePaid, paymentDate }) => {
+			if (!clinicId) throw new Error("Clínica no disponible");
 			const amount = Number(pricePaid) || 0;
 			const { baseAmount, taxAmount } = calculateTaxReverse(amount, BONUS_TAX_RATE);
 
@@ -139,6 +140,7 @@ export const useSellBono = (user) => {
 				.insert([
 					{
 						user_id: userId,
+						clinic_id: clinicId,
 						client_id: clientId,
 						template_id: templateId,
 						treatment_id: treatmentId,
@@ -155,6 +157,7 @@ export const useSellBono = (user) => {
 			const { error: finError } = await supabase.from("finance_entries").insert([
 				{
 					user_id: userId,
+					clinic_id: clinicId,
 					date: paymentDate,
 					type: "income",
 					category: "Bono",
