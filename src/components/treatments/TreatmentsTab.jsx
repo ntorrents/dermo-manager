@@ -18,7 +18,7 @@ export const TreatmentsTab = ({
 	onSelectTreatment,
 	onRefresh,
 }) => {
-	const { canDeleteOperational } = useTenant();
+	const { canDeleteOperational, clinicId } = useTenant();
 	const { groups, create: createGroup, update: updateGroup, delete: deleteGroup, isCreating: isCreatingGroup } = useTreatmentGroups(user);
 
 	const [isModalOpen, setIsModalOpen] = useState(false);
@@ -76,6 +76,10 @@ export const TreatmentsTab = ({
 
 	const handleSave = async (e) => {
 		e.preventDefault();
+		if (!clinicId) {
+			showToast("No hay clínica activa", "error");
+			return;
+		}
 		setLoading(true);
 		try {
 			const payload = {
@@ -96,7 +100,7 @@ export const TreatmentsTab = ({
 			} else {
 				const { error } = await supabase
 					.from("treatments")
-					.insert([{ ...payload, activo: true }]);
+					.insert([{ ...payload, clinic_id: clinicId, activo: true }]);
 				if (error) throw error;
 				showToast("Tratamiento creado");
 			}

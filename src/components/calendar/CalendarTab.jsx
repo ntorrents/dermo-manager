@@ -16,6 +16,7 @@ import { formatCurrency } from "../../utils/format";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { useTenant } from "../../context/TenantContext";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import "react-big-calendar/lib/addons/dragAndDrop/styles.css";
 
@@ -65,6 +66,7 @@ export const CalendarTab = ({
 	showToast,
 	onRefresh,
 }) => {
+	const { clinicId } = useTenant();
 	const [view, setView] = useState("month");
 	const [date, setDate] = useState(new Date());
 	const [showModal, setShowModal] = useState(false);
@@ -193,6 +195,7 @@ export const CalendarTab = ({
 		}
 		return {
 			user_id: user.id,
+			clinic_id: clinicId,
 			title: formData.title || (formData.type === "task" ? "Tarea" : "Cita"),
 			start_at: startAt.toISOString(),
 			end_at: endAt.toISOString(),
@@ -207,15 +210,20 @@ export const CalendarTab = ({
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
+		if (!clinicId) {
+			showToast("No hay clínica activa", "error");
+			return;
+		}
 		setSaving(true);
 		try {
 			const payload = getPayload();
 			const appointmentId = selectedEvent?.resource?.appointment?.id;
 
 			if (appointmentId) {
+				const { clinic_id: _c, ...updatePayload } = payload;
 				const { error } = await supabase
 					.from("appointments")
-					.update(payload)
+					.update(updatePayload)
 					.eq("id", appointmentId);
 				if (error) throw error;
 				showToast("Cita actualizada");

@@ -17,11 +17,13 @@ const getStoragePath = (userId, clientId) => {
  */
 export const uploadSignedConsent = async ({
 	userId,
+	clinicId,
 	clientId,
 	treatmentId,
 	treatmentName,
 	file,
 }) => {
+	if (!clinicId) throw new Error("clinicId requerido");
 	const path = getStoragePath(userId, clientId);
 
 	const { error: uploadError } = await supabase.storage
@@ -38,6 +40,7 @@ export const uploadSignedConsent = async ({
 		.insert([
 			{
 				user_id: userId,
+				clinic_id: clinicId,
 				client_id: clientId,
 				treatment_id: treatmentId || null,
 				treatment_name: treatmentName,

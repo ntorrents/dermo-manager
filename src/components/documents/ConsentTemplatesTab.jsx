@@ -6,8 +6,10 @@ import { AdaptiveModal } from "../ui/AdaptiveModal";
 import ConsentEditor from "../consent/ConsentEditor";
 import { CONSENT_VARIABLES } from "../../utils/consentGenerator";
 import { supabase } from "../../services/supabase";
+import { useTenant } from "../../context/TenantContext";
 
 export const ConsentTemplatesTab = ({ user, showToast }) => {
+	const { clinicId } = useTenant();
 	const [showModal, setShowModal] = useState(false);
 	const [editingId, setEditingId] = useState(null);
 	const [saving, setSaving] = useState(false);
@@ -50,8 +52,7 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 		}
 		setSaving(true);
 		try {
-			const payload = {
-				user_id: user.id,
+			const fields = {
 				nombre: form.nombre.trim(),
 				treatment_id: form.treatment_id?.trim() || null,
 				contenido: form.contenido?.trim() || "",
@@ -60,12 +61,22 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 			if (editingId) {
 				const { error } = await supabase
 					.from("plantillas_consentimiento")
-					.update(payload)
+					.update(fields)
 					.eq("id", editingId);
 				if (error) throw error;
 				showToast?.("Plantilla actualizada");
 			} else {
-				const { error } = await supabase.from("plantillas_consentimiento").insert([payload]);
+				if (!clinicId) {
+					showToast?.("No hay clínica activa", "error");
+					return;
+				}
+				const { error } = await supabase.from("plantillas_consentimiento").insert([
+					{
+						user_id: user.id,
+						clinic_id: clinicId,
+						...fields,
+					},
+				]);
 				if (error) throw error;
 				showToast?.("Plantilla creada");
 			}

@@ -29,11 +29,13 @@ export const useBudgets = (userId) => {
 
 	const createMutation = useMutation({
 		mutationFn: async ({ client_id, nombre, notas, valid_until, discount_mode, discount_percent, lineas }) => {
+			if (!clinicId) throw new Error("No hay clínica activa");
 			const { data: pres, error: e1 } = await supabase
 				.from("presupuestos")
 				.insert([
 					{
 						user_id: userId,
+						clinic_id: clinicId,
 						client_id,
 						nombre: nombre?.trim() || null,
 						notas: notas?.trim() || null,
@@ -48,6 +50,7 @@ export const useBudgets = (userId) => {
 			const pid = pres.id;
 			const rows = (lineas || []).map((ln, idx) => ({
 				presupuesto_id: pid,
+				clinic_id: clinicId,
 				line_kind: ln.line_kind || "extra",
 				treatment_id: ln.treatment_id || null,
 				description: ln.description,

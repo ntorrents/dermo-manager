@@ -17,11 +17,13 @@ const getStoragePath = (userId, clientId, entryId, type) => {
  */
 export const uploadSessionPhoto = async ({
 	userId,
+	clinicId,
 	clientId,
 	financeEntryId,
 	type,
 	file,
 }) => {
+	if (!clinicId) throw new Error("clinicId requerido");
 	const compressed = await compressImage(file);
 	const path = getStoragePath(userId, clientId, financeEntryId, type);
 
@@ -39,6 +41,7 @@ export const uploadSessionPhoto = async ({
 		.insert([
 			{
 				user_id: userId,
+				clinic_id: clinicId,
 				client_id: clientId,
 				finance_entry_id: financeEntryId,
 				type,

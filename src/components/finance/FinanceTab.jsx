@@ -704,8 +704,13 @@ export const FinanceTab = ({
 			}
 
 			if (withoutId.length > 0) {
+				if (!clinicId) {
+					showToast?.("No hay clínica activa", "error");
+					return;
+				}
 				const toInsert = withoutId.map((exp) => ({
 					user_id: user.id,
+					clinic_id: clinicId,
 					category: exp.category.trim(),
 					amount: Number(exp.amount),
 					is_deductible: exp.is_deductible ?? false,

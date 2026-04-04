@@ -30,9 +30,10 @@ export const useClientSeguimientos = (clientId, userId) => {
 
 	const addMutation = useMutation({
 		mutationFn: async (payload) => {
+			if (!clinicId) throw new Error("No hay clínica activa");
 			const { data, error } = await supabase
 				.from("seguimientos_cliente")
-				.insert([{ ...payload, user_id: userId, client_id: clientId }])
+				.insert([{ ...payload, user_id: userId, client_id: clientId, clinic_id: clinicId }])
 				.select()
 				.single();
 			if (error) throw error;

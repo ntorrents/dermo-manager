@@ -222,7 +222,13 @@ export const ClientsTab = ({
 				showToast("Cliente actualizado");
 				setSelectedClient({ ...selectedClient, ...payload });
 			} else {
-				const { error } = await supabase.from("clients").insert([{ ...payload, activo: true }]);
+				if (!clinicId) {
+					showToast("No hay clínica activa", "error");
+					return;
+				}
+				const { error } = await supabase
+					.from("clients")
+					.insert([{ ...payload, activo: true, clinic_id: clinicId }]);
 				if (error) throw error;
 				showToast("Cliente creado");
 			}
@@ -1258,8 +1264,13 @@ export const ClientsTab = ({
 													);
 													setUploadingSignedConsent(true);
 													try {
+														if (!clinicId) {
+															showToast("No hay clínica activa", "error");
+															return;
+														}
 														await uploadSignedConsent({
 															userId: user.id,
+															clinicId,
 															clientId: selectedClient.id,
 															treatmentId: signedConsentTreatmentId,
 															treatmentName: treatment?.name || "Tratamiento",
@@ -1559,6 +1570,7 @@ export const ClientsTab = ({
 					setPhotoUploadSession(null);
 				}}
 				userId={user?.id}
+				clinicId={clinicId}
 				clientId={selectedClient?.id}
 				sessions={history}
 				initialSession={photoUploadSession}
