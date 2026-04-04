@@ -7,6 +7,7 @@ export const PhotoUploadModal = ({
 	isOpen,
 	onClose,
 	userId,
+	clinicId,
 	clientId,
 	sessions = [],
 	onSuccess,
@@ -51,12 +52,13 @@ export const PhotoUploadModal = ({
 
 	const handleSubmit = async (e) => {
 		e.preventDefault();
-		if (!selectedFile || !selectedEntry || !userId || !clientId) return;
+		if (!selectedFile || !selectedEntry || !userId || !clientId || !clinicId) return;
 
 		setUploading(true);
 		try {
 			await uploadSessionPhoto({
 				userId,
+				clinicId,
 				clientId,
 				financeEntryId: selectedEntry.id,
 				type: photoType,

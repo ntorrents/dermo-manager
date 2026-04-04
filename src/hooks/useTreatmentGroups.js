@@ -25,9 +25,10 @@ export const useTreatmentGroups = (user) => {
 
 	const createMutation = useMutation({
 		mutationFn: async ({ name, sort_order = 0 }) => {
+			if (!clinicId) throw new Error("No hay clínica activa");
 			const { data, error } = await supabase
 				.from("treatment_groups")
-				.insert([{ user_id: userId, name: name.trim(), sort_order }])
+				.insert([{ user_id: userId, clinic_id: clinicId, name: name.trim(), sort_order }])
 				.select()
 				.single();
 			if (error) throw error;

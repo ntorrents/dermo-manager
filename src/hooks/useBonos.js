@@ -39,9 +39,10 @@ export const useBonusTemplates = (user) => {
 
 	const createMutation = useMutation({
 		mutationFn: async (payload) => {
+			if (!clinicId) throw new Error("No hay clínica activa");
 			const { data, error } = await supabase
 				.from("bonus_templates")
-				.insert([{ ...payload, user_id: userId }])
+				.insert([{ ...payload, user_id: userId, clinic_id: clinicId }])
 				.select()
 				.single();
 			if (error) throw error;
