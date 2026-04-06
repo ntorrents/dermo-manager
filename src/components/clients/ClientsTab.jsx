@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
 	Search,
 	Plus,
@@ -21,9 +21,11 @@ import {
 	Ticket,
 	FileCheck,
 	Upload,
+	BookOpen,
 	CalendarCheck,
 	ChevronDown,
 	ChevronUp,
+	Pen,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useClientHistory } from "../../hooks/useClientHistory";
@@ -72,7 +74,7 @@ export const ClientsTab = ({
 	const { clinicId, clinic, canDeleteOperational } = useTenant();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedClient, setSelectedClient] = useState(null);
-	const [clientDetailTab, setClientDetailTab] = useState("seguimiento");
+	const [clientDetailTab, setClientDetailTab] = useState("visitas");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [formData, setFormData] = useState({
 		name: "",
@@ -134,16 +136,45 @@ export const ClientsTab = ({
 		seguimientos,
 		loading: seguimientosLoading,
 		addSeguimiento,
+		updateSeguimiento,
 		deleteSeguimiento,
 		adding: addingSeguimiento,
+		updating: updatingSeguimiento,
 		deleting: deletingSeguimiento,
 	} = useClientSeguimientos(selectedClient?.id, user?.id);
-	const [seguimientoForm, setSeguimientoForm] = useState({
+	const [visitForm, setVisitForm] = useState({
+		titulo: "",
 		tratamientos_interes: "",
 		fecha_proximo_contacto: "",
 		notas: "",
+		indicaciones_post: "",
 	});
-	const [seguimientoFormOpen, setSeguimientoFormOpen] = useState(false);
+	const [visitFormOpen, setVisitFormOpen] = useState(false);
+	const [editingVisitId, setEditingVisitId] = useState(null);
+
+	useEffect(() => {
+		if (!selectedClient?.id) return;
+		setEditingVisitId(null);
+		const today = new Date().toISOString().slice(0, 10);
+		setVisitForm({
+			titulo: "",
+			tratamientos_interes: "",
+			fecha_proximo_contacto: today,
+			notas: "",
+			indicaciones_post: "",
+		});
+		setVisitFormOpen(false);
+	}, [selectedClient?.id]);
+
+	const canSaveVisit =
+		Boolean(visitForm.fecha_proximo_contacto) &&
+		Boolean(
+			visitForm.titulo?.trim() ||
+				visitForm.tratamientos_interes?.trim() ||
+				visitForm.notas?.trim() ||
+				visitForm.indicaciones_post?.trim(),
+		);
+
 	const [signedConsentTreatmentId, setSignedConsentTreatmentId] = useState("");
 	const [signedConsentFile, setSignedConsentFile] = useState(null);
 	const [uploadingSignedConsent, setUploadingSignedConsent] = useState(false);
@@ -603,10 +634,10 @@ export const ClientsTab = ({
 							</div>
 						</div>
 
-						{/* Pestañas perfil 360º - Seguimiento primero */}
+						{/* Pestañas perfil 360º - Visitas primero */}
 						<div className="flex border-b border-gray-100 bg-white px-4 gap-1 overflow-x-auto">
 							{[
-								{ id: "seguimiento", label: "Seguimiento", icon: CalendarCheck },
+								{ id: "visitas", label: "Visitas", icon: BookOpen },
 								{ id: "filiacion", label: "Filiación", icon: User },
 								{ id: "medico", label: "Médico", icon: Stethoscope },
 								{ id: "legal", label: "Legal", icon: Shield },
@@ -634,60 +665,77 @@ export const ClientsTab = ({
 						</div>
 
 						<div className="flex-1 overflow-y-auto p-6 xl:p-8 custom-scrollbar bg-gray-50/30">
-							{clientDetailTab === "seguimiento" && (
+							{clientDetailTab === "visitas" && (
 								<>
-									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
-										<CalendarCheck size={14} /> Seguimiento
+									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+										<BookOpen size={14} /> Diario de visitas
 									</h3>
+									<p className="text-sm text-gray-500 mb-6 max-w-2xl">
+										Registra cada cita o sesión: fecha, tratamientos realizados, notas de la sesión e
+										indicaciones al paciente. Las entradas más recientes aparecen primero.
+									</p>
 
-									{/* Formulario nuevo seguimiento (colapsable para ganar espacio) */}
 									<div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
 										<button
 											type="button"
-											onClick={() => setSeguimientoFormOpen(!seguimientoFormOpen)}
+											onClick={() => setVisitFormOpen(!visitFormOpen)}
 											className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-gray-50/80 transition-colors">
 											<span className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
 												<Plus size={14} />
-												Nuevo registro de seguimiento
+												{editingVisitId ? "Editar visita" : "Nueva entrada de visita"}
 											</span>
-											{seguimientoFormOpen ? (
+											{visitFormOpen ? (
 												<ChevronUp size={18} className="text-gray-400 shrink-0" />
 											) : (
 												<ChevronDown size={18} className="text-gray-400 shrink-0" />
 											)}
 										</button>
-										{seguimientoFormOpen && (
+										{visitFormOpen && (
 											<div className="px-4 pb-4 pt-0 border-t border-gray-100 space-y-3">
+												<div>
+													<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+														Resumen / título (opcional)
+													</label>
+													<input
+														type="text"
+														className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium"
+														placeholder="Ej: Revisión post peeling"
+														value={visitForm.titulo}
+														onChange={(e) =>
+															setVisitForm({ ...visitForm, titulo: e.target.value })
+														}
+													/>
+												</div>
 												<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 													<div>
 														<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
-															Tratamientos de interés
+															Fecha de la visita
 														</label>
 														<input
-															type="text"
+															type="date"
 															className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium"
-															placeholder="Ej: Bótox, Relleno labios..."
-															value={seguimientoForm.tratamientos_interes}
+															value={visitForm.fecha_proximo_contacto}
 															onChange={(e) =>
-																setSeguimientoForm({
-																	...seguimientoForm,
-																	tratamientos_interes: e.target.value,
+																setVisitForm({
+																	...visitForm,
+																	fecha_proximo_contacto: e.target.value,
 																})
 															}
 														/>
 													</div>
 													<div>
 														<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
-															Próximo contacto / recordatorio
+															Tratamientos realizados
 														</label>
 														<input
-															type="date"
+															type="text"
 															className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium"
-															value={seguimientoForm.fecha_proximo_contacto}
+															placeholder="Ej: HIFU facial, mesoterapia…"
+															value={visitForm.tratamientos_interes}
 															onChange={(e) =>
-																setSeguimientoForm({
-																	...seguimientoForm,
-																	fecha_proximo_contacto: e.target.value,
+																setVisitForm({
+																	...visitForm,
+																	tratamientos_interes: e.target.value,
 																})
 															}
 														/>
@@ -695,51 +743,104 @@ export const ClientsTab = ({
 												</div>
 												<div>
 													<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
-														Notas
+														Notas de la sesión
+													</label>
+													<textarea
+														rows={3}
+														className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium resize-y min-h-[72px]"
+														placeholder="Evolución, observaciones, reacción del paciente…"
+														value={visitForm.notas}
+														onChange={(e) =>
+															setVisitForm({ ...visitForm, notas: e.target.value })
+														}
+													/>
+												</div>
+												<div>
+													<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+														Indicaciones / cuidados post (opcional)
 													</label>
 													<textarea
 														rows={2}
 														className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium resize-none"
-														placeholder="Notas de seguimiento..."
-														value={seguimientoForm.notas}
+														placeholder="Cremas, sol, próxima sesión sugerida…"
+														value={visitForm.indicaciones_post}
 														onChange={(e) =>
-															setSeguimientoForm({
-																...seguimientoForm,
-																notas: e.target.value,
+															setVisitForm({
+																...visitForm,
+																indicaciones_post: e.target.value,
 															})
 														}
 													/>
 												</div>
-												<button
-													type="button"
-													disabled={
-														addingSeguimiento ||
-														(!seguimientoForm.tratamientos_interes?.trim() &&
-															!seguimientoForm.fecha_proximo_contacto &&
-															!seguimientoForm.notas?.trim())
-													}
-													onClick={async () => {
-														try {
-															await addSeguimiento({
-																tratamientos_interes: seguimientoForm.tratamientos_interes?.trim() || null,
-																fecha_proximo_contacto: seguimientoForm.fecha_proximo_contacto || null,
-																notas: seguimientoForm.notas?.trim() || null,
-															});
-															setSeguimientoForm({
-																tratamientos_interes: "",
-																fecha_proximo_contacto: "",
-																notas: "",
-															});
-															setSeguimientoFormOpen(false);
-															showToast("Seguimiento añadido");
-														} catch (err) {
-															showToast(err?.message || "Error al guardar", "error");
+												<div className="flex flex-wrap gap-2">
+													{editingVisitId && (
+														<button
+															type="button"
+															onClick={() => {
+																setEditingVisitId(null);
+																const today = new Date().toISOString().slice(0, 10);
+																setVisitForm({
+																	titulo: "",
+																	tratamientos_interes: "",
+																	fecha_proximo_contacto: today,
+																	notas: "",
+																	indicaciones_post: "",
+																});
+															}}
+															className="px-4 py-2 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 text-sm">
+															Cancelar edición
+														</button>
+													)}
+													<button
+														type="button"
+														disabled={
+															addingSeguimiento || updatingSeguimiento || !canSaveVisit
 														}
-													}}
-													className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm">
-													<Plus size={16} />
-													Añadir seguimiento
-												</button>
+														onClick={async () => {
+															const payload = {
+																titulo: visitForm.titulo?.trim() || null,
+																tratamientos_interes: visitForm.tratamientos_interes?.trim() || null,
+																fecha_proximo_contacto: visitForm.fecha_proximo_contacto || null,
+																notas: visitForm.notas?.trim() || null,
+																indicaciones_post: visitForm.indicaciones_post?.trim() || null,
+															};
+															try {
+																if (editingVisitId) {
+																	await updateSeguimiento({
+																		id: editingVisitId,
+																		...payload,
+																	});
+																	showToast("Visita actualizada");
+																} else {
+																	await addSeguimiento(payload);
+																	showToast("Visita registrada");
+																}
+																setEditingVisitId(null);
+																const today = new Date().toISOString().slice(0, 10);
+																setVisitForm({
+																	titulo: "",
+																	tratamientos_interes: "",
+																	fecha_proximo_contacto: today,
+																	notas: "",
+																	indicaciones_post: "",
+																});
+																setVisitFormOpen(false);
+															} catch (err) {
+																showToast(err?.message || "Error al guardar", "error");
+															}
+														}}
+														className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm">
+														{editingVisitId ? (
+															<>
+																<Check size={16} /> Guardar cambios
+															</>
+														) : (
+															<>
+																<Plus size={16} /> Añadir visita
+															</>
+														)}
+													</button>
+												</div>
 											</div>
 										)}
 									</div>
@@ -747,7 +848,7 @@ export const ClientsTab = ({
 									{seguimientosLoading ? (
 										<div className="space-y-3">
 											{[1, 2, 3].map((i) => (
-												<div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />
+												<div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
 											))}
 										</div>
 									) : seguimientos.length > 0 ? (
@@ -756,54 +857,115 @@ export const ClientsTab = ({
 												<div
 													key={seg.id}
 													className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-													<div className="min-w-0 flex-1">
+													<div className="min-w-0 flex-1 space-y-1.5">
+														<div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+															{seg.fecha_proximo_contacto && (
+																<p className="text-sm font-black text-rose-600 flex items-center gap-1.5">
+																	<CalendarCheck size={14} className="shrink-0" />
+																	{new Date(
+																		seg.fecha_proximo_contacto + "T12:00:00",
+																	).toLocaleDateString("es-ES", {
+																		weekday: "long",
+																		day: "numeric",
+																		month: "long",
+																		year: "numeric",
+																	})}
+																</p>
+															)}
+															{seg.titulo && (
+																<p className="text-sm font-bold text-gray-800">{seg.titulo}</p>
+															)}
+														</div>
 														{seg.tratamientos_interes && (
-															<p className="font-bold text-gray-800 text-sm">
+															<p className="text-sm text-gray-800">
+																<span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">
+																	Tratamientos:{" "}
+																</span>
 																{seg.tratamientos_interes}
 															</p>
 														)}
-														{seg.fecha_proximo_contacto && (
-															<p className="text-xs text-rose-600 font-medium mt-0.5 flex items-center gap-1">
-																<CalendarCheck size={12} />
-																{new Date(seg.fecha_proximo_contacto).toLocaleDateString("es-ES", {
-																	day: "numeric",
-																	month: "short",
-																	year: "numeric",
-																})}
+														{seg.notas && (
+															<p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">
+																<span className="text-[10px] font-black text-gray-400 uppercase tracking-wide block mb-0.5">
+																	Notas de sesión
+																</span>
+																{seg.notas}
 															</p>
 														)}
-														{seg.notas && (
-															<p className="text-xs text-gray-600 mt-1">{seg.notas}</p>
+														{seg.indicaciones_post && (
+															<p className="text-xs text-amber-900/90 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 whitespace-pre-wrap">
+																<span className="text-[10px] font-black text-amber-800/80 uppercase tracking-wide block mb-0.5">
+																	Indicaciones post
+																</span>
+																{seg.indicaciones_post}
+															</p>
 														)}
-														{!seg.tratamientos_interes && !seg.fecha_proximo_contacto && !seg.notas && (
-															<p className="text-xs text-gray-400">Sin detalles</p>
-														)}
+														{!seg.titulo &&
+															!seg.fecha_proximo_contacto &&
+															!seg.tratamientos_interes &&
+															!seg.notas &&
+															!seg.indicaciones_post && (
+																<p className="text-xs text-gray-400">Sin detalles</p>
+															)}
 													</div>
-													<button
-														type="button"
-														onClick={async () => {
-															if (deletingSeguimiento) return;
-															try {
-																await deleteSeguimiento(seg.id);
-																showToast("Seguimiento eliminado");
-															} catch (err) {
-																showToast(err?.message || "Error al eliminar", "error");
-															}
-														}}
-														disabled={deletingSeguimiento}
-														className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0"
-														title="Eliminar">
-														<Trash2 size={16} />
-													</button>
+													<div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
+														<button
+															type="button"
+															onClick={() => {
+																setEditingVisitId(seg.id);
+																setVisitForm({
+																	titulo: seg.titulo || "",
+																	tratamientos_interes: seg.tratamientos_interes || "",
+																	fecha_proximo_contacto:
+																		seg.fecha_proximo_contacto ||
+																		new Date().toISOString().slice(0, 10),
+																	notas: seg.notas || "",
+																	indicaciones_post: seg.indicaciones_post || "",
+																});
+																setVisitFormOpen(true);
+															}}
+															className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+															title="Editar">
+															<Pen size={16} />
+														</button>
+														<button
+															type="button"
+															onClick={async () => {
+																if (deletingSeguimiento) return;
+																try {
+																	await deleteSeguimiento(seg.id);
+																	if (editingVisitId === seg.id) {
+																		setEditingVisitId(null);
+																		const today = new Date().toISOString().slice(0, 10);
+																		setVisitForm({
+																			titulo: "",
+																			tratamientos_interes: "",
+																			fecha_proximo_contacto: today,
+																			notas: "",
+																			indicaciones_post: "",
+																		});
+																	}
+																	showToast("Entrada eliminada");
+																} catch (err) {
+																	showToast(err?.message || "Error al eliminar", "error");
+																}
+															}}
+															disabled={deletingSeguimiento}
+															className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+															title="Eliminar">
+															<Trash2 size={16} />
+														</button>
+													</div>
 												</div>
 											))}
 										</div>
 									) : (
 										<div className="flex flex-col items-center justify-center h-32 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
-											<CalendarCheck size={28} className="mb-2 opacity-50" />
-											<p className="font-bold text-sm">Sin seguimientos aún</p>
-											<p className="text-xs text-gray-400 mt-1">
-												Añade uno arriba (tratamientos de interés, próxima fecha, notas)
+											<BookOpen size={28} className="mb-2 opacity-50" />
+											<p className="font-bold text-sm">Aún no hay visitas registradas</p>
+											<p className="text-xs text-gray-400 mt-1 text-center px-4">
+												Usa «Nueva entrada de visita» para añadir fecha, tratamientos y notas de cada
+												sesión.
 											</p>
 										</div>
 									)}
