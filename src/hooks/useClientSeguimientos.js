@@ -6,9 +6,11 @@ const fetchSeguimientos = async (clientId) => {
 	if (!clientId) return [];
 	const { data, error } = await supabase
 		.from("seguimientos_cliente")
-		.select("id, tratamientos_interes, fecha_proximo_contacto, notas, created_at, updated_at")
+		.select(
+			"id, titulo, tratamientos_interes, fecha_proximo_contacto, notas, indicaciones_post, created_at, updated_at",
+		)
 		.eq("client_id", clientId)
-		.order("fecha_proximo_contacto", { ascending: true, nullsFirst: false })
+		.order("fecha_proximo_contacto", { ascending: false, nullsFirst: false })
 		.order("created_at", { ascending: false });
 	if (error) throw error;
 	return data || [];
@@ -41,7 +43,6 @@ export const useClientSeguimientos = (clientId, userId) => {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["clientSeguimientos", clientId] });
-			if (clinicId) queryClient.invalidateQueries({ queryKey: ["seguimientosForCalendar", clinicId] });
 		},
 	});
 
@@ -68,7 +69,6 @@ export const useClientSeguimientos = (clientId, userId) => {
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ["clientSeguimientos", clientId] });
-			if (clinicId) queryClient.invalidateQueries({ queryKey: ["seguimientosForCalendar", clinicId] });
 		},
 	});
 

@@ -11,7 +11,6 @@ import { useRecurringConfig } from "./hooks/useRecurringConfig";
 import { useProfile } from "./hooks/useProfile";
 import { useClients } from "./hooks/useClients";
 import { useAppointments } from "./hooks/useAppointments";
-import { useSeguimientosForCalendar } from "./hooks/useSeguimientosForCalendar";
 import { useInventoryBatches } from "./hooks/useInventoryBatches";
 import { useConsumeBono } from "./hooks/useBonos";
 import { Toast } from "./components/ui/Toast";
@@ -61,7 +60,6 @@ const DermoManager = () => {
 	const { clients, loading: clientsLoading, refreshClients } = useClients(user);
 	const { appointments, loading: appointmentsLoading, refreshAppointments } =
 		useAppointments(user?.id);
-	const { seguimientos: seguimientosForCalendar } = useSeguimientosForCalendar(user?.id);
 	const { batches } = useInventoryBatches(user?.id);
 
 	const dataLoading =
@@ -430,7 +428,6 @@ const DermoManager = () => {
 						entries={entries}
 						appointments={appointments}
 						clients={clients}
-						seguimientos={seguimientosForCalendar}
 						treatments={treatments}
 						showToast={showToastMsg}
 						onRefresh={refreshAppointments}
