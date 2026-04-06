@@ -24,6 +24,9 @@ export const useTenant = () => {
 
 export const TenantProvider = ({ children }) => {
 	const { user } = useAuth();
+	// Solo el id: al volver a la pestaña Supabase refresca el token y emite un nuevo objeto `user`;
+	// si loadTenant depende de `user`, se recrea, el efecto vuelve a correr en modo inicial y vacía el tenant + loader.
+	const userId = user?.id ?? null;
 	const [clinicId, setClinicId] = useState(null);
 	const [clinicName, setClinicName] = useState(null);
 	const [clinicData, setClinicData] = useState(null);
@@ -31,31 +34,43 @@ export const TenantProvider = ({ children }) => {
 	const [role, setRole] = useState("admin");
 	const [loading, setLoading] = useState(true);
 
-	const loadTenant = useCallback(async () => {
-		if (!user) {
+	const loadTenant = useCallback(async (options = {}) => {
+		const silent = Boolean(options.silent);
+
+		if (!userId) {
 			setClinicId(null);
 			setClinicName(null);
+			setClinicData(null);
 			setSubscriptionTier(null);
 			setRole("admin");
 			setLoading(false);
 			return;
 		}
 
-		setLoading(true);
-		setClinicId(null);
-		setClinicName(null);
-		setClinicData(null);
-		setSubscriptionTier(null);
-		setRole("admin");
+		if (!silent) {
+			setLoading(true);
+			setClinicId(null);
+			setClinicName(null);
+			setClinicData(null);
+			setSubscriptionTier(null);
+			setRole("admin");
+		}
 
 		try {
 			const { data: profile, error: pErr } = await supabase
 				.from("profiles")
 				.select("clinic_id")
-				.eq("id", user.id)
+				.eq("id", userId)
 				.maybeSingle();
 
 			if (pErr || !profile?.clinic_id) {
+				if (silent) {
+					setClinicId(null);
+					setClinicName(null);
+					setClinicData(null);
+					setSubscriptionTier(null);
+					setRole("admin");
+				}
 				return;
 			}
 
@@ -69,7 +84,7 @@ export const TenantProvider = ({ children }) => {
 					supabase
 						.from("user_clinic_memberships")
 						.select("role")
-						.eq("user_id", user.id)
+						.eq("user_id", userId)
 						.eq("clinic_id", profile.clinic_id)
 						.maybeSingle(),
 				]);
@@ -86,23 +101,39 @@ export const TenantProvider = ({ children }) => {
 		} catch (e) {
 			console.error("TenantContext:", e);
 		} finally {
-			setLoading(false);
+			if (!silent) setLoading(false);
 		}
-	}, [user]);
+	}, [userId]);
 
 	useEffect(() => {
-		loadTenant();
+		loadTenant({ silent: false });
 	}, [loadTenant]);
 
-	// Tras cambios en BD (p. ej. subscription_tier), al volver a la pestaña se recarga.
+	// Cambios en BD (plan, rol, clínica): al volver a la pestaña o ventana, refresco en segundo plano
+	// sin vaciar el tenant ni mostrar el loader a pantalla completa.
 	useEffect(() => {
-		if (!user) return;
-		const onVis = () => {
-			if (document.visibilityState === "visible") loadTenant();
+		if (!userId) return;
+		let debounceTimer;
+		const scheduleSilentRefresh = () => {
+			if (document.visibilityState !== "visible") return;
+			clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(() => {
+				loadTenant({ silent: true });
+			}, 120);
 		};
-		document.addEventListener("visibilitychange", onVis);
-		return () => document.removeEventListener("visibilitychange", onVis);
-	}, [user, loadTenant]);
+		const onPageShow = (e) => {
+			if (e.persisted) scheduleSilentRefresh();
+		};
+		document.addEventListener("visibilitychange", scheduleSilentRefresh);
+		window.addEventListener("focus", scheduleSilentRefresh);
+		window.addEventListener("pageshow", onPageShow);
+		return () => {
+			clearTimeout(debounceTimer);
+			document.removeEventListener("visibilitychange", scheduleSilentRefresh);
+			window.removeEventListener("focus", scheduleSilentRefresh);
+			window.removeEventListener("pageshow", onPageShow);
+		};
+	}, [userId, loadTenant]);
 
 	const allowsPresupuestosBonos = useMemo(
 		() => Boolean(subscriptionTier && MID_TIER.has(subscriptionTier)),
@@ -116,6 +147,8 @@ export const TenantProvider = ({ children }) => {
 
 	const isAdmin = useMemo(() => role === "admin", [role]);
 
+	const refreshTenant = useCallback(() => loadTenant({ silent: true }), [loadTenant]);
+
 	const value = useMemo(
 		() => ({
 			clinicId,
@@ -127,7 +160,7 @@ export const TenantProvider = ({ children }) => {
 			canDeleteOperational,
 			isAdmin,
 			loading,
-			refreshTenant: loadTenant,
+			refreshTenant,
 		}),
 		[
 			clinicId,
@@ -139,7 +172,7 @@ export const TenantProvider = ({ children }) => {
 			canDeleteOperational,
 			isAdmin,
 			loading,
-			loadTenant,
+			refreshTenant,
 		]
 	);
 
