@@ -130,6 +130,21 @@ export const FinanceTab = ({
 		);
 	}, [entries]);
 
+	const applyProviderFromName = (providerName) => {
+		const val = (providerName || "").trim().toLowerCase();
+		if (!val) return;
+		const matches = supplierDirectory.filter(
+			(s) => (s.name || "").trim().toLowerCase() === val,
+		);
+		if (matches.length === 1) {
+			setFormData((prev) => ({
+				...prev,
+				provider_name: matches[0].name || prev.provider_name,
+				supplier_nif: matches[0].nif || prev.supplier_nif,
+			}));
+		}
+	};
+
 	const taxCalc = useMemo(() => {
 		if (
 			formData.type === "expense" &&
@@ -1694,6 +1709,7 @@ export const FinanceTab = ({
 											provider_name: e.target.value,
 										})
 									}
+									onBlur={(e) => applyProviderFromName(e.target.value)}
 								/>
 							</div>
 							<div>
@@ -1971,11 +1987,21 @@ export const FinanceTab = ({
 					</LoadingButton>
 				</form>
 				<datalist id="finance-providers-list">
-					{supplierDirectory.map((s) => (
+					{supplierDirectory
+						.filter((s) => (s.name || "").trim().length > 0)
+						.map((s) => (
 						<option
 							key={`${s.nif}-${s.name}`}
-							value={s.name || s.nif}
-							label={s.nif ? `${s.name || "Proveedor"} (${s.nif})` : s.name}
+							value={s.name || ""}
+							label={
+								s.name
+									? s.nif
+										? `${s.name} (${s.nif})`
+										: s.name
+									: s.nif
+									? `Sin nombre (${s.nif})`
+									: "Proveedor"
+							}
 						/>
 					))}
 				</datalist>

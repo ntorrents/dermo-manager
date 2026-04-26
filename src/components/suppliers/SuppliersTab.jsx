@@ -6,8 +6,12 @@ import {
 	TrendingUp,
 	CalendarDays,
 	Percent,
+	Edit2,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
+import { supabase } from "../../services/supabase";
+import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { LoadingButton } from "../ui/LoadingButton";
 
 const fmtMonth = (ym) => {
 	const [y, m] = String(ym).split("-").map(Number);
@@ -47,9 +51,14 @@ const Sparkline = ({ points = [] }) => {
 	);
 };
 
-export const SuppliersTab = ({ entries = [] }) => {
+export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) => {
 	const [search, setSearch] = useState("");
 	const [selectedKey, setSelectedKey] = useState("");
+	const [editingSupplier, setEditingSupplier] = useState(null);
+	const [editName, setEditName] = useState("");
+	const [editNif, setEditNif] = useState("");
+	const [saving, setSaving] = useState(false);
+	const [normalizing, setNormalizing] = useState(false);
 
 	const suppliers = useMemo(() => {
 		const expenses = (entries || []).filter(
@@ -84,6 +93,91 @@ export const SuppliersTab = ({ entries = [] }) => {
 			.sort((a, b) => b.totalSpent - a.totalSpent);
 	}, [entries]);
 
+	const normalizationPreview = useMemo(() => {
+		const expenses = (entries || []).filter((e) => e.type === "expense");
+		const byNif = new Map();
+		expenses.forEach((e) => {
+			const nif = (e.supplier_nif || "").trim().toUpperCase();
+			if (!nif) return;
+			const name = (e.provider_name || "").trim();
+			if (!byNif.has(nif)) byNif.set(nif, []);
+			byNif.get(nif).push(name);
+		});
+		let affectedNifs = 0;
+		let affectedRows = 0;
+		for (const [, names] of byNif) {
+			const unique = Array.from(
+				new Set(names.map((n) => n.trim()).filter(Boolean).map((n) => n.toLowerCase())),
+			);
+			if (unique.length > 1) {
+				affectedNifs += 1;
+				affectedRows += names.length;
+			}
+		}
+		return { affectedNifs, affectedRows };
+	}, [entries]);
+
+	const normalizeSuppliersByNif = async () => {
+		setNormalizing(true);
+		try {
+			const expenses = (entries || []).filter((e) => e.type === "expense");
+			const byNif = new Map();
+			expenses.forEach((e) => {
+				const nif = (e.supplier_nif || "").trim().toUpperCase();
+				if (!nif) return;
+				if (!byNif.has(nif)) byNif.set(nif, []);
+				byNif.get(nif).push(e);
+			});
+
+			let updates = 0;
+			for (const [nif, rows] of byNif.entries()) {
+				const namesStats = new Map();
+				rows.forEach((r) => {
+					const raw = (r.provider_name || "").trim();
+					if (!raw) return;
+					const key = raw.toLowerCase();
+					const prev = namesStats.get(key) || {
+						display: raw,
+						count: 0,
+						total: 0,
+					};
+					prev.count += 1;
+					prev.total += Number(r.amount) || 0;
+					if (raw.length > prev.display.length) prev.display = raw;
+					namesStats.set(key, prev);
+				});
+
+				if (namesStats.size <= 1) continue;
+
+				const canonical = Array.from(namesStats.values()).sort((a, b) => {
+					if (b.count !== a.count) return b.count - a.count;
+					if (b.total !== a.total) return b.total - a.total;
+					return b.display.length - a.display.length;
+				})[0]?.display;
+				if (!canonical) continue;
+
+				const { error } = await supabase
+					.from("finance_entries")
+					.update({ provider_name: canonical })
+					.eq("type", "expense")
+					.eq("supplier_nif", nif);
+				if (error) throw error;
+				updates += 1;
+			}
+
+			if (updates === 0) {
+				showToast("No había proveedores con el mismo NIF para normalizar.");
+			} else {
+				showToast(`Normalización completada: ${updates} NIF unificados.`);
+			}
+			if (onRefresh) await onRefresh();
+		} catch (err) {
+			showToast(err?.message || "Error al normalizar proveedores", "error");
+		} finally {
+			setNormalizing(false);
+		}
+	};
+
 	const filtered = useMemo(() => {
 		const q = search.trim().toLowerCase();
 		if (!q) return suppliers;
@@ -99,6 +193,44 @@ export const SuppliersTab = ({ entries = [] }) => {
 		filtered[0] ||
 		suppliers.find((s) => s.key === selectedKey) ||
 		null;
+
+	const openEditSupplier = (supplier) => {
+		if (!supplier) return;
+		setEditingSupplier(supplier);
+		setEditName(supplier.name || "");
+		setEditNif(supplier.nif || "");
+	};
+
+	const saveSupplier = async () => {
+		if (!editingSupplier) return;
+		const oldName = (editingSupplier.name || "").trim();
+		const oldNif = (editingSupplier.nif || "").trim();
+		const newName = editName.trim() || null;
+		const newNif = editNif.trim() || null;
+		setSaving(true);
+		try {
+			let q = supabase
+				.from("finance_entries")
+				.update({ provider_name: newName, supplier_nif: newNif })
+				.eq("type", "expense");
+
+			if (oldNif) q = q.eq("supplier_nif", oldNif);
+			else q = q.is("supplier_nif", null);
+
+			if (oldName) q = q.eq("provider_name", oldName);
+			else q = q.or("provider_name.is.null,provider_name.eq.");
+
+			const { error } = await q;
+			if (error) throw error;
+			showToast("Proveedor actualizado");
+			setEditingSupplier(null);
+			if (onRefresh) await onRefresh();
+		} catch (err) {
+			showToast(err?.message || "Error al actualizar proveedor", "error");
+		} finally {
+			setSaving(false);
+		}
+	};
 
 	const monthlySeries = useMemo(() => {
 		if (!selectedSupplier) return [];
@@ -127,13 +259,26 @@ export const SuppliersTab = ({ entries = [] }) => {
 	const totalGlobal = filtered.reduce((a, s) => a + s.totalSpent, 0);
 
 	return (
+		<>
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			<div className="flex items-center justify-between gap-3">
 				<h2 className="text-2xl xl:text-3xl font-black text-gray-800 tracking-tight flex items-center gap-2">
 					<Building2 className="text-rose-500" size={28} /> Proveedores
 				</h2>
-				<div className="text-xs font-bold text-gray-500 bg-white border border-gray-100 rounded-xl px-3 py-2">
-					{filtered.length} proveedores · {formatCurrency(totalGlobal)}
+				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						onClick={normalizeSuppliersByNif}
+						disabled={normalizing || normalizationPreview.affectedNifs === 0}
+						className="text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl px-3 py-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+						title="Unifica nombres cuando hay el mismo NIF con nombres distintos">
+						{normalizing
+							? "Normalizando..."
+							: `Normalizar NIF (${normalizationPreview.affectedNifs})`}
+					</button>
+					<div className="text-xs font-bold text-gray-500 bg-white border border-gray-100 rounded-xl px-3 py-2">
+						{filtered.length} proveedores · {formatCurrency(totalGlobal)}
+					</div>
 				</div>
 			</div>
 
@@ -184,7 +329,15 @@ export const SuppliersTab = ({ entries = [] }) => {
 										<p className="text-sm text-gray-500">NIF: {selectedSupplier.nif || "—"}</p>
 									</div>
 									<div className="text-xs text-gray-400 font-medium">
-										Última factura: {selectedSupplier.lastDate || "—"}
+										<div className="flex items-center gap-2">
+											<span>Última factura: {selectedSupplier.lastDate || "—"}</span>
+											<button
+												type="button"
+												onClick={() => openEditSupplier(selectedSupplier)}
+												className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 text-[11px] font-bold">
+												<Edit2 size={13} /> Editar
+											</button>
+										</div>
 									</div>
 								</div>
 								<div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
@@ -282,5 +435,42 @@ export const SuppliersTab = ({ entries = [] }) => {
 				</div>
 			</div>
 		</div>
+		<AdaptiveModal
+			isOpen={!!editingSupplier}
+			onClose={() => setEditingSupplier(null)}
+			title="Editar proveedor"
+			maxWidth="max-w-md">
+			<div className="space-y-4">
+				<div>
+					<label className="text-[11px] font-black text-gray-400 uppercase block mb-1">
+						Nombre proveedor
+					</label>
+					<input
+						value={editName}
+						onChange={(e) => setEditName(e.target.value)}
+						placeholder="Ej: Distribuciones Estéticas SL"
+						className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-medium"
+					/>
+				</div>
+				<div>
+					<label className="text-[11px] font-black text-gray-400 uppercase block mb-1">
+						NIF/CIF
+					</label>
+					<input
+						value={editNif}
+						onChange={(e) => setEditNif(e.target.value)}
+						placeholder="Ej: B12345678"
+						className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-medium"
+					/>
+				</div>
+				<LoadingButton
+					loading={saving}
+					onClick={saveSupplier}
+					className="w-full bg-surface-dark text-white font-black py-3 rounded-xl">
+					Guardar cambios
+				</LoadingButton>
+			</div>
+		</AdaptiveModal>
+		</>
 	);
 };

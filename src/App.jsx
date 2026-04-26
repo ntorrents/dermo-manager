@@ -478,6 +478,8 @@ const DermoManager = () => {
 				{activeTab === "suppliers" && (
 					<SuppliersTab
 						entries={entries}
+						showToast={showToastMsg}
+						onRefresh={refreshData}
 					/>
 				)}
 				{activeTab === "settings" && (
