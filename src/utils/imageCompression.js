@@ -1,24 +1,34 @@
 import imageCompression from "browser-image-compression";
 
-const MAX_SIZE_MB = 0.3;
-const MAX_WIDTH_OR_HEIGHT = 1920;
-const INITIAL_QUALITY = 0.8;
+const PRESETS = {
+	default: {
+		maxSizeMB: 0.3,
+		maxWidthOrHeight: 1920,
+		initialQuality: 0.8,
+	},
+	/** Miniaturas de galería de sesión: más ligeras que antes/después */
+	extra: {
+		maxSizeMB: 0.14,
+		maxWidthOrHeight: 1200,
+		initialQuality: 0.72,
+	},
+};
 
 /**
- * Comprime una imagen antes de subirla.
- * Objetivo: WebP/JPEG, max 1920px, ~200-300KB.
+ * Comprime una imagen antes de subirla (JPEG).
+ * @param {"default"|"extra"} variant - "extra" = galería sesión, menor peso
  */
-export const compressImage = async (file) => {
+export const compressImage = async (file, variant = "default") => {
+	const p = PRESETS[variant] || PRESETS.default;
 	const options = {
-		maxSizeMB: MAX_SIZE_MB,
-		maxWidthOrHeight: MAX_WIDTH_OR_HEIGHT,
-		initialQuality: INITIAL_QUALITY,
+		maxSizeMB: p.maxSizeMB,
+		maxWidthOrHeight: p.maxWidthOrHeight,
+		initialQuality: p.initialQuality,
 		useWebWorker: true,
 		fileType: "image/jpeg",
 	};
 	try {
-		const compressed = await imageCompression(file, options);
-		return compressed;
+		return await imageCompression(file, options);
 	} catch (err) {
 		console.error("Error comprimiendo imagen:", err);
 		throw err;

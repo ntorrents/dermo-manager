@@ -5,11 +5,12 @@ const BUCKET = "session-photos";
 const SIGNED_URL_EXPIRY = 3600;
 
 /**
- * Genera el path de almacenamiento para una foto.
+ * Path: primer segmento = user (RLS storage). Segundo = clínica para orden multi-tenant.
  */
-const getStoragePath = (userId, clientId, entryId, type) => {
+const getStoragePath = (userId, clinicId, clientId, entryId, type) => {
 	const ts = Date.now();
-	return `${userId}/${clientId}/${entryId}/${type}_${ts}.jpg`;
+	const c = clinicId || "sin-clinica";
+	return `${userId}/c_${c}/${clientId}/${entryId}/${type}_${ts}.jpg`;
 };
 
 /**
@@ -24,8 +25,9 @@ export const uploadSessionPhoto = async ({
 	file,
 }) => {
 	if (!clinicId) throw new Error("clinicId requerido");
-	const compressed = await compressImage(file);
-	const path = getStoragePath(userId, clientId, financeEntryId, type);
+	const variant = type === "extra" ? "extra" : "default";
+	const compressed = await compressImage(file, variant);
+	const path = getStoragePath(userId, clinicId, clientId, financeEntryId, type);
 
 	const { error: uploadError } = await supabase.storage
 		.from(BUCKET)
@@ -93,10 +95,12 @@ export const replaceSessionPhotoFile = async (
 	photo,
 	{ userId, clientId, file, type, financeEntryId }
 ) => {
-	const compressed = await compressImage(file);
-	const entryId = financeEntryId ?? photo.finance_entry_id;
 	const photoType = type ?? photo.type;
-	const path = getStoragePath(userId, clientId, entryId, photoType);
+	const variant = photoType === "extra" ? "extra" : "default";
+	const compressed = await compressImage(file, variant);
+	const entryId = financeEntryId ?? photo.finance_entry_id;
+	const clinicId = photo.clinic_id;
+	const path = getStoragePath(userId, clinicId, clientId, entryId, photoType);
 
 	const { error: uploadError } = await supabase.storage
 		.from(BUCKET)

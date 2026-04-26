@@ -8,9 +8,11 @@ import {
 	Calendar,
 	Download,
 	Banknote,
+	FileSpreadsheet,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
 import { exportTrimestreToZip } from "../../utils/export";
+import { exportPre303LibrosTrimestre } from "../../utils/aeatLibrosExport";
 
 const monthNames = [
 	"Enero",
@@ -54,6 +56,7 @@ export const TaxesTab = ({
 		Math.floor((new Date().getMonth() + 3) / 3),
 	);
 	const [exporting, setExporting] = useState(false);
+	const [exportingLibros, setExportingLibros] = useState(false);
 
 	const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
@@ -185,10 +188,38 @@ export const TaxesTab = ({
 							);
 							setExporting(false);
 						}}
-						disabled={exporting}
+						disabled={exporting || exportingLibros}
 						className="px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm">
 						<Download size={18} />
 						{exporting ? "Generando..." : "Descargar Trimestre"}
+					</button>
+					<button
+						type="button"
+						onClick={async () => {
+							setExportingLibros(true);
+							try {
+								await exportPre303LibrosTrimestre(
+									entries,
+									clients,
+									selectedYear,
+									selectedQuarter,
+									showToast,
+								);
+							} catch (err) {
+								console.error(err);
+								showToast(
+									err?.message || "No se pudo generar el Excel de libros IVA",
+									"error",
+								);
+							} finally {
+								setExportingLibros(false);
+							}
+						}}
+						disabled={exporting || exportingLibros}
+						className="px-4 py-3 bg-slate-700 hover:bg-slate-800 disabled:bg-gray-300 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-sm"
+						title="Plantilla oficial AEAT (libros registro) rellenada con ventas y compras deducibles del trimestre. Importación en Pre303 / Sede (revisar antes de presentar).">
+						<FileSpreadsheet size={18} />
+						{exportingLibros ? "Generando..." : "Libro IVA (Pre303)"}
 					</button>
 				</div>
 			</div>

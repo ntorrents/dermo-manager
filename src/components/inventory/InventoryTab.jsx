@@ -114,6 +114,7 @@ export const InventoryTab = ({
 		lotNumber: "",
 		expiryDate: "",
 		purchaseDate: new Date().toISOString().split("T")[0],
+		provider_name: "",
 		supplier_nif: "",
 		invoice_number: "",
 	});
@@ -149,9 +150,25 @@ export const InventoryTab = ({
 		lotNumber: "",
 		expiryDate: "",
 		purchaseDate: new Date().toISOString().split("T")[0],
+		provider_name: "",
 		supplier_nif: "",
 		invoice_number: "",
 	});
+
+	const supplierDirectory = React.useMemo(() => {
+		const map = new Map();
+		(entries || [])
+			.filter((e) => e.type === "expense" && (e.provider_name || e.supplier_nif))
+			.forEach((e) => {
+				const nif = (e.supplier_nif || "").trim();
+				const name = (e.provider_name || "").trim();
+				const key = `${nif}__${name}`.toLowerCase();
+				if (!map.has(key)) map.set(key, { nif, name });
+			});
+		return Array.from(map.values()).sort((a, b) =>
+			(a.name || a.nif || "").localeCompare(b.name || b.nif || "", "es"),
+		);
+	}, [entries]);
 
 	const filteredInventory =
 		inventory?.filter((item) =>
@@ -195,6 +212,7 @@ export const InventoryTab = ({
 				lotNumber: "",
 				expiryDate: "",
 				purchaseDate: new Date().toISOString().split("T")[0],
+				provider_name: "",
 				supplier_nif: "",
 				invoice_number: "",
 			});
@@ -214,6 +232,7 @@ export const InventoryTab = ({
 				lotNumber: "",
 				expiryDate: "",
 				purchaseDate: new Date().toISOString().split("T")[0],
+				provider_name: "",
 				supplier_nif: "",
 				invoice_number: "",
 			});
@@ -256,6 +275,7 @@ export const InventoryTab = ({
 			lotNumber: "",
 			expiryDate: "",
 			purchaseDate: new Date().toISOString().split("T")[0],
+			provider_name: "",
 			supplier_nif: "",
 			invoice_number: "",
 		});
@@ -958,6 +978,21 @@ export const InventoryTab = ({
 							</div>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+									Proveedor (nombre)
+								</label>
+								<input
+									type="text"
+									list="inventory-providers-list"
+									placeholder="Ej: Distribuciones Estéticas SL"
+									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
+									value={formData.provider_name}
+									onChange={(e) =>
+										setFormData({ ...formData, provider_name: e.target.value })
+									}
+								/>
+							</div>
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
 									NIF/CIF Proveedor *
 								</label>
 								<input
@@ -1048,10 +1083,11 @@ export const InventoryTab = ({
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Cantidad Comprada
+							Cantidad Comprada ({restockItem?.unit || "uds"})
 						</label>
 						<input
 							type="number"
+							step={(restockItem?.unit || "uds") === "ml" ? "0.1" : "1"}
 							required
 							placeholder="0"
 							className="w-full p-4 bg-gray-50 rounded-2xl font-bold text-xl outline-none"
@@ -1101,6 +1137,21 @@ export const InventoryTab = ({
 								))}
 							</select>
 						</div>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+							Proveedor (nombre)
+						</label>
+						<input
+							type="text"
+							list="inventory-providers-list"
+							placeholder="Ej: Distribuciones Estéticas SL"
+							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
+							value={restockData.provider_name}
+							onChange={(e) =>
+								setRestockData({ ...restockData, provider_name: e.target.value })
+							}
+						/>
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
@@ -1252,6 +1303,15 @@ export const InventoryTab = ({
 						{loading ? "Guardando..." : "Confirmar Compra"}
 					</LoadingButton>
 				</form>
+				<datalist id="inventory-providers-list">
+					{supplierDirectory.map((s) => (
+						<option
+							key={`${s.nif}-${s.name}`}
+							value={s.name || s.nif}
+							label={s.nif ? `${s.name || "Proveedor"} (${s.nif})` : s.name}
+						/>
+					))}
+				</datalist>
 			</AdaptiveModal>
 		</div>
 	);

@@ -6,6 +6,7 @@ import {
 	updateSessionPhoto,
 	replaceSessionPhotoFile,
 } from "../../services/photoStorage";
+import { isAcceptedImageFile, normalizeImageForUpload } from "../../utils/normalizeImageFile";
 
 export const PhotoEditModal = ({
 	isOpen,
@@ -34,13 +35,14 @@ export const PhotoEditModal = ({
 		}
 	}, [photo, isOpen]);
 
-	const handleFileSelect = (e) => {
+	const handleFileSelect = async (e) => {
 		const file = e.target.files?.[0];
-		if (!file || !file.type.startsWith("image/")) return;
-		setReplacementFile(file);
+		if (!file || !isAcceptedImageFile(file)) return;
+		const normalized = await normalizeImageForUpload(file);
+		setReplacementFile(normalized);
 		const reader = new FileReader();
 		reader.onload = () => setPreview(reader.result);
-		reader.readAsDataURL(file);
+		reader.readAsDataURL(normalized);
 	};
 
 	const handleSubmit = async (e) => {
@@ -93,41 +95,29 @@ export const PhotoEditModal = ({
 					<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
 						Tipo
 					</label>
-					<div className="flex gap-3">
-						<label
-							className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-								type === "before"
-									? "border-rose-500 bg-rose-50 text-rose-600"
-									: "border-gray-100 bg-gray-50 text-gray-500"
-							}`}>
-							<input
-								type="radio"
-								name="editType"
-								value="before"
-								checked={type === "before"}
-								onChange={() => setType("before")}
-								className="sr-only"
-							/>
-							<Camera size={18} />
-							Antes
-						</label>
-						<label
-							className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
-								type === "after"
-									? "border-rose-500 bg-rose-50 text-rose-600"
-									: "border-gray-100 bg-gray-50 text-gray-500"
-							}`}>
-							<input
-								type="radio"
-								name="editType"
-								value="after"
-								checked={type === "after"}
-								onChange={() => setType("after")}
-								className="sr-only"
-							/>
-							<Camera size={18} />
-							Después
-						</label>
+					<div className="grid grid-cols-3 gap-2">
+						{["before", "after", "extra"].map((t) => (
+							<label
+								key={t}
+								className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border-2 cursor-pointer transition-all text-center ${
+									type === t
+										? "border-rose-500 bg-rose-50 text-rose-600"
+										: "border-gray-100 bg-gray-50 text-gray-500"
+								}`}>
+								<input
+									type="radio"
+									name="editType"
+									value={t}
+									checked={type === t}
+									onChange={() => setType(t)}
+									className="sr-only"
+								/>
+								<Camera size={16} />
+								<span className="text-[11px] font-bold">
+									{t === "before" ? "Antes" : t === "after" ? "Después" : "Galería"}
+								</span>
+							</label>
+						))}
 					</div>
 				</div>
 
@@ -155,7 +145,7 @@ export const PhotoEditModal = ({
 					<input
 						ref={fileInputRef}
 						type="file"
-						accept="image/*"
+						accept="image/*,.heic,.heif,.webp,.avif"
 						onChange={handleFileSelect}
 						className="hidden"
 					/>

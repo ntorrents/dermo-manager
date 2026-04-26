@@ -6,6 +6,7 @@ import {
 	Package,
 	DollarSign,
 	Users,
+	Building2,
 	Landmark,
 	Calendar,
 	Ticket,
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
 	{ id: "inventory", l: "Stock", i: Package },
 	{ id: "calendar", l: "Agenda", i: Calendar },
 	{ id: "finance", l: "Finanzas", i: DollarSign },
+	{ id: "suppliers", l: "Proveedores", i: Building2 },
 	{ id: "taxes", l: "Fiscalidad", i: Landmark },
 ];
 

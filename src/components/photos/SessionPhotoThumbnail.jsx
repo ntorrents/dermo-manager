@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Trash2, Edit2, Loader2, ImageIcon } from "lucide-react";
 import { getSignedUrl } from "../../services/photoStorage";
 
-const TYPE_LABELS = { before: "Antes", after: "Después" };
+const TYPE_LABELS = { before: "Antes", after: "Después", extra: "Galería" };
 
 export const SessionPhotoThumbnail = ({
 	photo,
@@ -10,6 +10,7 @@ export const SessionPhotoThumbnail = ({
 	onView,
 	onEdit,
 	onDelete,
+	compact = false,
 }) => {
 	const [url, setUrl] = useState(null);
 	const [loading, setLoading] = useState(true);
@@ -35,10 +36,12 @@ export const SessionPhotoThumbnail = ({
 
 	const displayLabel = label || TYPE_LABELS[photo.type] || "Foto";
 
+	const box = compact ? "w-12 h-16" : "w-16 h-20";
+
 	if (loading) {
 		return (
 			<div
-				className="relative w-16 h-20 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 group overflow-hidden cursor-pointer"
+				className={`relative ${box} rounded-lg bg-gray-100 flex items-center justify-center shrink-0 group overflow-hidden cursor-pointer`}
 				onClick={() => onView?.(photo)}>
 				<Loader2 size={20} className="animate-spin text-gray-400" />
 			</div>
@@ -48,7 +51,7 @@ export const SessionPhotoThumbnail = ({
 	if (error) {
 		return (
 			<div
-				className="relative w-16 h-20 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 group overflow-hidden cursor-pointer border border-gray-200"
+				className={`relative ${box} rounded-lg bg-gray-100 flex items-center justify-center shrink-0 group overflow-hidden cursor-pointer border border-gray-200`}
 				onClick={() => onView?.(photo)}>
 				<ImageIcon size={20} className="text-gray-400" />
 			</div>
@@ -57,7 +60,7 @@ export const SessionPhotoThumbnail = ({
 
 	return (
 		<div
-			className="relative w-16 h-20 rounded-lg overflow-hidden shrink-0 group cursor-pointer border border-gray-200 hover:border-rose-300 transition-colors"
+			className={`relative ${box} rounded-lg overflow-hidden shrink-0 group cursor-pointer border border-gray-200 hover:border-rose-300 transition-colors`}
 			onClick={() => onView?.(photo)}>
 			<img
 				src={url}

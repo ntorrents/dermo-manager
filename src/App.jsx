@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "./context/AuthContext";
 import { useTenant } from "./context/TenantContext";
@@ -20,17 +20,44 @@ import { LoginScreen } from "./components/auth/LoginScreen";
 import { Sidebar } from "./components/layout/Sidebar";
 import { MobileNav } from "./components/layout/MobileNav";
 import { AppHeader } from "./components/layout/AppHeader";
-import { DashboardTab } from "./components/dashboard/DashboardTab";
-import { TreatmentsTab } from "./components/treatments/TreatmentsTab";
-import { InventoryTab } from "./components/inventory/InventoryTab";
-import { FinanceTab } from "./components/finance/FinanceTab";
-import { SettingsTab } from "./components/settings/SettingsTab";
-import { ClientsTab } from "./components/clients/ClientsTab";
-import { CalendarTab } from "./components/calendar/CalendarTab";
-import { TaxesTab } from "./components/taxes/TaxesTab";
-import { BonosTab } from "./components/bonos/BonosTab";
+const DashboardTab = lazy(() =>
+	import("./components/dashboard/DashboardTab").then((m) => ({ default: m.DashboardTab })),
+);
+const TreatmentsTab = lazy(() =>
+	import("./components/treatments/TreatmentsTab").then((m) => ({
+		default: m.TreatmentsTab,
+	})),
+);
+const InventoryTab = lazy(() =>
+	import("./components/inventory/InventoryTab").then((m) => ({ default: m.InventoryTab })),
+);
+const FinanceTab = lazy(() =>
+	import("./components/finance/FinanceTab").then((m) => ({ default: m.FinanceTab })),
+);
+const SettingsTab = lazy(() =>
+	import("./components/settings/SettingsTab").then((m) => ({ default: m.SettingsTab })),
+);
+const ClientsTab = lazy(() =>
+	import("./components/clients/ClientsTab").then((m) => ({ default: m.ClientsTab })),
+);
+const CalendarTab = lazy(() =>
+	import("./components/calendar/CalendarTab").then((m) => ({ default: m.CalendarTab })),
+);
+const TaxesTab = lazy(() =>
+	import("./components/taxes/TaxesTab").then((m) => ({ default: m.TaxesTab })),
+);
+const SuppliersTab = lazy(() =>
+	import("./components/suppliers/SuppliersTab").then((m) => ({
+		default: m.SuppliersTab,
+	})),
+);
+const BonosTab = lazy(() =>
+	import("./components/bonos/BonosTab").then((m) => ({ default: m.BonosTab })),
+);
 import { RequirePlan } from "./components/guards/RequirePlan";
-import { DocumentsTab } from "./components/documents/DocumentsTab";
+const DocumentsTab = lazy(() =>
+	import("./components/documents/DocumentsTab").then((m) => ({ default: m.DocumentsTab })),
+);
 import { getReportingRange } from "./utils/dateUtils";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
@@ -44,6 +71,7 @@ const TAB_META = {
 	inventory: { title: "Stock", subtitle: "Materiales y lotes" },
 	calendar: { title: "Agenda", subtitle: "Citas y recordatorios" },
 	finance: { title: "Finanzas", subtitle: "Ingresos, gastos y fijos" },
+	suppliers: { title: "Proveedores", subtitle: "KPI de compras y facturas" },
 	taxes: { title: "Fiscalidad", subtitle: "Resúmenes fiscales" },
 	settings: { title: "Configuración", subtitle: "Clínica, perfil y seguridad" },
 };
@@ -333,6 +361,12 @@ const DermoManager = () => {
 				onOpenSettings={goSettings}
 			/>
 			<main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-5 max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-5 min-h-[calc(100dvh-8rem)]">
+				<Suspense
+					fallback={
+						<div className="min-h-[40vh] flex items-center justify-center">
+							<Loader2 className="animate-spin text-rose-500" size={30} />
+						</div>
+					}>
 				{activeTab === "dashboard" && (
 					<DashboardTab
 						user={user}
@@ -441,6 +475,11 @@ const DermoManager = () => {
 						showToast={showToastMsg}
 					/>
 				)}
+				{activeTab === "suppliers" && (
+					<SuppliersTab
+						entries={entries}
+					/>
+				)}
 				{activeTab === "settings" && (
 					<SettingsTab
 						user={user}
@@ -450,6 +489,7 @@ const DermoManager = () => {
 						onNavigateAnchorConsumed={clearSettingsAnchor}
 					/>
 				)}
+				</Suspense>
 			</main>
 			<MobileNav
 				activeTab={activeTab}

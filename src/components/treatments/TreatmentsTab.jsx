@@ -180,6 +180,16 @@ export const TreatmentsTab = ({
 	const renderTreatmentCard = (t) => {
 		const materialCost = calculateCost(t.recipe);
 		const profit = Number(t.price) - materialCost;
+		const recipeSummary = (t.recipe || [])
+			.map((r) => {
+				const inv = inventory.find((i) => i.id === r.materialId);
+				if (!inv) return null;
+				const unit = inv.unit_consumption || inv.unit || "uds";
+				return `${inv.name} ${r.quantity}${unit}`;
+			})
+			.filter(Boolean)
+			.slice(0, 2)
+			.join(" · ");
 		return (
 			<div
 				key={t.id}
@@ -212,6 +222,7 @@ export const TreatmentsTab = ({
 					<span className="text-[8px] font-bold text-gray-400 uppercase">PVP</span>
 				</div>
 				<div className="text-[10px] space-y-0.5 mb-2 text-gray-500">
+					{recipeSummary && <div className="truncate">{recipeSummary}</div>}
 					<div className="flex justify-between">
 						<span>Coste est.</span>
 						<span className="font-medium text-gray-600">{materialCost.toFixed(2)} €</span>
@@ -474,12 +485,21 @@ export const TreatmentsTab = ({
 														<option key={inv.id} value={inv.id}>
 															{inv.name}
 															{(inv.item_type || "material") === "maquina" ? " (Máquina)" : ""}
+															{(inv.item_type || "material") !== "maquina"
+																? ` [${inv.unit_consumption || inv.unit || "uds"}]`
+																: ""}
 														</option>
 													))}
 												</select>
 												<input
 													type="number"
-													step="0.1"
+													step={
+														(inventory.find((i) => i.id === item.materialId)
+															?.unit_consumption ||
+															inventory.find((i) => i.id === item.materialId)?.unit) === "ml"
+															? "0.1"
+															: "1"
+													}
 													className="w-16 p-2 bg-white rounded-lg text-center font-black text-rose-500 text-sm"
 													value={item.quantity}
 													onChange={(e) =>

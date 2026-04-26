@@ -81,6 +81,7 @@ export const FinanceTab = ({
 
 	// NUEVO: Filtro para la vista móvil (Gasto por defecto)
 	const [typeFilter, setTypeFilter] = useState("expense");
+	const [financeView, setFinanceView] = useState("movements");
 
 	const [formData, setFormData] = useState({
 		type: "expense",
@@ -92,6 +93,7 @@ export const FinanceTab = ({
 		date: new Date().toISOString().split("T")[0],
 		notes: "",
 		is_deductible: false,
+		provider_name: "",
 		supplier_nif: "",
 		invoice_number: "",
 		recurring_id: null,
@@ -112,6 +114,21 @@ export const FinanceTab = ({
 	const [dateWarning, setDateWarning] = useState(null);
 	const [invoiceSuggestions, setInvoiceSuggestions] = useState([]);
 	const [showSuggestions, setShowSuggestions] = useState(false);
+
+	const supplierDirectory = useMemo(() => {
+		const map = new Map();
+		(entries || [])
+			.filter((e) => e.type === "expense" && (e.provider_name || e.supplier_nif))
+			.forEach((e) => {
+				const nif = (e.supplier_nif || "").trim();
+				const name = (e.provider_name || "").trim();
+				const key = `${nif}__${name}`.toLowerCase();
+				if (!map.has(key)) map.set(key, { nif, name });
+			});
+		return Array.from(map.values()).sort((a, b) =>
+			(a.name || a.nif || "").localeCompare(b.name || b.nif || "", "es"),
+		);
+	}, [entries]);
 
 	const taxCalc = useMemo(() => {
 		if (
@@ -193,6 +210,83 @@ export const FinanceTab = ({
 		.reduce((acc, curr) => acc + Number(curr.amount), 0);
 	const netProfit = totalIncome - totalExpense;
 
+	const financialAnalysis = useMemo(() => {
+		const expenses = periodEntries.filter((e) => e.type === "expense");
+		const incomes = periodEntries.filter((e) => e.type === "income");
+		const totalSpent = expenses.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
+		const totalIncomes = incomes.reduce((acc, e) => acc + (Number(e.amount) || 0), 0);
+		const net = totalIncomes - totalSpent;
+
+		const byCategoryMap = new Map();
+		expenses.forEach((e) => {
+			const cat = e.category || "Sin categoría";
+			const prev = byCategoryMap.get(cat) || 0;
+			byCategoryMap.set(cat, prev + (Number(e.amount) || 0));
+		});
+		const byCategory = Array.from(byCategoryMap.entries())
+			.map(([category, amount]) => ({
+				category,
+				amount,
+				pct: totalSpent > 0 ? (amount / totalSpent) * 100 : 0,
+			}))
+			.sort((a, b) => b.amount - a.amount);
+
+		const bySupplierMap = new Map();
+		expenses.forEach((e) => {
+			const key = (e.provider_name || e.supplier_nif || "Proveedor sin identificar").trim();
+			const prev = bySupplierMap.get(key) || { amount: 0, invoices: 0 };
+			bySupplierMap.set(key, {
+				amount: prev.amount + (Number(e.amount) || 0),
+				invoices: prev.invoices + 1,
+			});
+		});
+		const topSuppliers = Array.from(bySupplierMap.entries())
+			.map(([name, v]) => ({ name, ...v }))
+			.sort((a, b) => b.amount - a.amount)
+			.slice(0, 8);
+
+		const now = new Date();
+		const months = Array.from({ length: 6 }, (_, i) => {
+			const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+			return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+		});
+		const monthSums = Object.fromEntries(
+			months.map((m) => [m, { income: 0, expense: 0 }]),
+		);
+		(entries || []).forEach((e) => {
+			const ym = e.date?.slice(0, 7);
+			if (!ym || !(ym in monthSums)) return;
+			if (e.type === "income") monthSums[ym].income += Number(e.amount) || 0;
+			if (e.type === "expense") monthSums[ym].expense += Number(e.amount) || 0;
+		});
+		const monthlySeries = months.map((m) => ({
+			month: m,
+			income: monthSums[m].income,
+			expense: monthSums[m].expense,
+			net: monthSums[m].income - monthSums[m].expense,
+		}));
+		const avgMonthlyExpense =
+			monthlySeries.reduce((acc, m) => acc + m.expense, 0) / monthlySeries.length || 0;
+		const fixedMonthlyEstimated =
+			(recurringExpenses || []).reduce(
+				(acc, r) => acc + (Number(r.amount) || 0),
+				0,
+			) || 0;
+		const variableMonthlyEstimated = Math.max(avgMonthlyExpense - fixedMonthlyEstimated, 0);
+
+		return {
+			totalSpent,
+			totalIncomes,
+			net,
+			byCategory,
+			topSuppliers,
+			monthlySeries,
+			avgMonthlyExpense,
+			fixedMonthlyEstimated,
+			variableMonthlyEstimated,
+		};
+	}, [periodEntries, entries, recurringExpenses]);
+
 	/** Mes YYYY-MM cae dentro del rango de un pago (date + months_paid)? */
 	const monthInRange = (yyyyMm, startDate, monthsPaid) => {
 		const start = startDate.slice(0, 7);
@@ -231,6 +325,7 @@ export const FinanceTab = ({
 				date: entry.date,
 				notes: entry.notes || "",
 				is_deductible: entry.is_deductible ?? false,
+				provider_name: entry.provider_name || "",
 				supplier_nif: entry.supplier_nif || "",
 				invoice_number: entry.invoice_number || "",
 				file_url: entry.file_url || "",
@@ -253,6 +348,7 @@ export const FinanceTab = ({
 				date: new Date().toISOString().split("T")[0],
 				notes: "",
 				is_deductible: false,
+				provider_name: "",
 				supplier_nif: "",
 				invoice_number: "",
 				file_url: "",
@@ -291,6 +387,7 @@ export const FinanceTab = ({
 					: new Date().toISOString().split("T")[0],
 			notes: "",
 			is_deductible: expense.is_deductible ?? false,
+			provider_name: "",
 			supplier_nif: "",
 			invoice_number: "",
 			file_url: "",
@@ -540,6 +637,9 @@ export const FinanceTab = ({
 				date: formData.date,
 				notes: formData.notes || null,
 				is_deductible: formData.is_deductible || false,
+				provider_name: formData.is_deductible
+					? formData.provider_name?.trim() || null
+					: null,
 				supplier_nif: formData.is_deductible
 					? nifValidation.normalized || null
 					: null,
@@ -819,8 +919,31 @@ export const FinanceTab = ({
 				</button>
 			</div>
 
+			<div className="inline-flex bg-gray-100 p-1 rounded-xl w-full md:w-auto">
+				<button
+					type="button"
+					onClick={() => setFinanceView("movements")}
+					className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
+						financeView === "movements"
+							? "bg-white text-gray-800 shadow-sm"
+							: "text-gray-500 hover:text-gray-700"
+					}`}>
+					Movimientos
+				</button>
+				<button
+					type="button"
+					onClick={() => setFinanceView("analysis")}
+					className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
+						financeView === "analysis"
+							? "bg-white text-gray-800 shadow-sm"
+							: "text-gray-500 hover:text-gray-700"
+					}`}>
+					Análisis
+				</button>
+			</div>
+
 			{/* --- VISTA MÓVIL/TABLET (Tabs y Lista Unificada) --- */}
-			<div className="md:hidden space-y-4">
+			{financeView === "movements" && <div className="md:hidden space-y-4">
 				{/* Pestañas de Filtro */}
 				<div className="flex bg-gray-100 p-1 rounded-xl">
 					{["all", "income", "expense"].map((type) => (
@@ -996,10 +1119,10 @@ export const FinanceTab = ({
 						})}
 					</div>
 				</div>
-			</div>
+			</div>}
 
 			{/* --- VISTA WEB/TABLET: 2 cols en tablet, 3 en escritorio --- */}
-			<div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
+			{financeView === "movements" && <div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
 				{/* COLUMNA 1: INGRESOS */}
 				<div className="space-y-4">
 					<div className="flex justify-between items-center px-4">
@@ -1235,7 +1358,146 @@ export const FinanceTab = ({
 						})}
 					</div>
 				</div>
-			</div>
+			</div>}
+
+			{financeView === "analysis" && (
+				<div className="space-y-5">
+					<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+						<div className="bg-white p-4 rounded-2xl border border-gray-100">
+							<p className="text-[10px] font-black uppercase text-gray-400">Gasto periodo</p>
+							<p className="text-2xl font-black text-rose-600">
+								{formatCurrency(financialAnalysis.totalSpent)}
+							</p>
+						</div>
+						<div className="bg-white p-4 rounded-2xl border border-gray-100">
+							<p className="text-[10px] font-black uppercase text-gray-400">Ingreso periodo</p>
+							<p className="text-2xl font-black text-emerald-600">
+								{formatCurrency(financialAnalysis.totalIncomes)}
+							</p>
+						</div>
+						<div className="bg-white p-4 rounded-2xl border border-gray-100">
+							<p className="text-[10px] font-black uppercase text-gray-400">Resultado periodo</p>
+							<p
+								className={`text-2xl font-black ${
+									financialAnalysis.net >= 0 ? "text-emerald-600" : "text-rose-600"
+								}`}>
+								{formatCurrency(financialAnalysis.net)}
+							</p>
+						</div>
+						<div className="bg-white p-4 rounded-2xl border border-gray-100">
+							<p className="text-[10px] font-black uppercase text-gray-400">
+								Coste medio mensual (6m)
+							</p>
+							<p className="text-2xl font-black text-gray-800">
+								{formatCurrency(financialAnalysis.avgMonthlyExpense)}
+							</p>
+						</div>
+						<div className="bg-white p-4 rounded-2xl border border-gray-100">
+							<p className="text-[10px] font-black uppercase text-gray-400">
+								Coste fijo mensual estimado
+							</p>
+							<p className="text-2xl font-black text-blue-700">
+								{formatCurrency(financialAnalysis.fixedMonthlyEstimated)}
+							</p>
+						</div>
+					</div>
+
+					<div className="bg-white p-5 rounded-2xl border border-gray-100">
+						<div className="flex items-center justify-between mb-3">
+							<p className="text-xs font-black uppercase tracking-wider text-gray-500">
+								Evolución mensual (últimos 6 meses)
+							</p>
+							<p className="text-xs text-gray-500">
+								Variable estimado/mes:{" "}
+								<span className="font-bold text-gray-700">
+									{formatCurrency(financialAnalysis.variableMonthlyEstimated)}
+								</span>
+							</p>
+						</div>
+						<div className="overflow-x-auto">
+							<div className="min-w-[520px] grid grid-cols-6 gap-3">
+								{financialAnalysis.monthlySeries.map((m) => {
+									const scaleBase = Math.max(
+										...financialAnalysis.monthlySeries.map((x) => x.expense || 0),
+										1,
+									);
+									const h = Math.max(8, Math.round((m.expense / scaleBase) * 120));
+									return (
+										<div key={m.month} className="flex flex-col items-center gap-2">
+											<div className="h-32 w-full flex items-end">
+												<div
+													className="w-full rounded-t-lg bg-rose-400/80"
+													style={{ height: `${h}px` }}
+													title={`${m.month}: ${formatCurrency(m.expense)}`}
+												/>
+											</div>
+											<p className="text-[10px] font-bold text-gray-500">
+												{m.month.slice(5)}
+											</p>
+											<p className="text-[10px] font-bold text-gray-700">
+												{formatCurrency(m.expense)}
+											</p>
+										</div>
+									);
+								})}
+							</div>
+						</div>
+					</div>
+
+					<div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+						<div className="bg-white p-5 rounded-2xl border border-gray-100">
+							<p className="text-xs font-black uppercase tracking-wider text-gray-500 mb-3">
+								¿En qué se va el dinero? (categorías)
+							</p>
+							<div className="space-y-2">
+								{financialAnalysis.byCategory.map((c) => (
+									<div key={c.category} className="space-y-1">
+										<div className="flex justify-between text-xs">
+											<span className="font-bold text-gray-700">{c.category}</span>
+											<span className="font-bold text-gray-600">
+												{formatCurrency(c.amount)} · {c.pct.toFixed(1)}%
+											</span>
+										</div>
+										<div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+											<div
+												className="h-full bg-rose-400 rounded-full"
+												style={{ width: `${Math.min(c.pct, 100)}%` }}
+											/>
+										</div>
+									</div>
+								))}
+								{financialAnalysis.byCategory.length === 0 && (
+									<p className="text-sm text-gray-400">Sin gastos en el periodo.</p>
+								)}
+							</div>
+						</div>
+
+						<div className="bg-white p-5 rounded-2xl border border-gray-100">
+							<p className="text-xs font-black uppercase tracking-wider text-gray-500 mb-3">
+								Top proveedores (gasto)
+							</p>
+							<div className="space-y-2">
+								{financialAnalysis.topSuppliers.map((s, i) => (
+									<div
+										key={`${s.name}-${i}`}
+										className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
+										<div>
+											<p className="font-bold text-sm text-gray-800">{s.name}</p>
+											<p className="text-[10px] text-gray-500">
+												{s.invoices} factura{s.invoices === 1 ? "" : "s"}
+											</p>
+										</div>
+										<p className="font-black text-rose-600">{formatCurrency(s.amount)}</p>
+									</div>
+								))}
+								{financialAnalysis.topSuppliers.length === 0 && (
+									<p className="text-sm text-gray-400">Sin datos de proveedores en el periodo.</p>
+								)}
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			<AdaptiveModal
 				isOpen={isModalOpen}
@@ -1417,6 +1679,23 @@ export const FinanceTab = ({
 						)}
 					{formData.type === "expense" && formData.is_deductible && (
 						<>
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									Proveedor (nombre)
+								</label>
+								<input
+									placeholder="Ej: Distribuciones Estéticas SL"
+									list="finance-providers-list"
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
+									value={formData.provider_name || ""}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											provider_name: e.target.value,
+										})
+									}
+								/>
+							</div>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 									NIF/CIF Proveedor *
@@ -1691,6 +1970,15 @@ export const FinanceTab = ({
 						{savingEntry ? "Guardando..." : "Guardar"}
 					</LoadingButton>
 				</form>
+				<datalist id="finance-providers-list">
+					{supplierDirectory.map((s) => (
+						<option
+							key={`${s.nif}-${s.name}`}
+							value={s.name || s.nif}
+							label={s.nif ? `${s.name || "Proveedor"} (${s.nif})` : s.name}
+						/>
+					))}
+				</datalist>
 			</AdaptiveModal>
 
 			<AdaptiveModal

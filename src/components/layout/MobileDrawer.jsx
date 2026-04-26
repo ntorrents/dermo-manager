@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo } from "react";
-import { Euro, Landmark, Settings, X, Calendar, Ticket, FolderOpen } from "lucide-react";
+import {
+	Euro,
+	Landmark,
+	Settings,
+	X,
+	Calendar,
+	Ticket,
+	FolderOpen,
+	Building2,
+} from "lucide-react";
 import { useTenant } from "../../context/TenantContext";
 
 const DRAWER_ITEMS = [
@@ -7,6 +16,7 @@ const DRAWER_ITEMS = [
 	{ id: "bonos", label: "Bonos", icon: Ticket },
 	{ id: "documents", label: "Documentos", icon: FolderOpen },
 	{ id: "finance", label: "Finanzas", icon: Euro },
+	{ id: "suppliers", label: "Proveedores", icon: Building2 },
 	{ id: "taxes", label: "Fiscalidad", icon: Landmark },
 	{ id: "settings", label: "Ajustes", icon: Settings },
 ];

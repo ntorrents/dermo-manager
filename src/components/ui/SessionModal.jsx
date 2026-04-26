@@ -96,6 +96,14 @@ export const SessionModal = ({
 		setActiveRecipe((prev) => prev.filter((_, i) => i !== index));
 	};
 
+	const updateRecipeQty = (index, value) => {
+		setActiveRecipe((prev) => {
+			const next = [...prev];
+			next[index] = { ...next[index], quantity: value };
+			return next;
+		});
+	};
+
 	const handleConfirm = () => {
 		if (!selectedClient) return;
 		onConfirm(
@@ -116,7 +124,11 @@ export const SessionModal = ({
 				className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
 				onClick={onClose}
 			/>
-			<div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] mt-8 xl:mt-0 animate-in zoom-in-95 duration-200">
+			<div
+				role="dialog"
+				aria-modal="true"
+				aria-label="Nueva sesión"
+				className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] mt-8 xl:mt-0 animate-in zoom-in-95 duration-200">
 				<div className="p-8 border-b bg-gray-50 flex justify-between items-start">
 					<div>
 						<h3 className="text-2xl font-black text-gray-800 tracking-tight leading-none">
@@ -286,17 +298,29 @@ export const SessionModal = ({
 						{activeRecipe.length > 0 && (
 							<div className="space-y-2">
 								{activeRecipe.map((item, idx) => {
-									const materialName =
-										inventory?.find((i) => i.id === item.materialId)?.name ||
-										"Material desconocido";
+									const mat = inventory?.find((i) => i.id === item.materialId);
+									const materialName = mat?.name || "Material desconocido";
+									const unit = mat?.unit_consumption || mat?.unit || "uds";
 									return (
 										<div
 											key={`recipe-${idx}`}
 											className="flex justify-between items-center text-xs font-bold text-gray-600 pl-2 border-l-2 border-gray-200 gap-2">
 											<div className="flex-1 min-w-0">
 												<span>{materialName}</span>
-												<span className="text-gray-400 ml-1">x{item.quantity}</span>
+												<span className="text-gray-400 ml-1">({unit})</span>
 											</div>
+											<input
+												type="number"
+												step={unit === "ml" ? "0.1" : "1"}
+												min="0"
+												value={item.quantity}
+												onChange={(e) =>
+													updateRecipeQty(idx, Number(e.target.value) || 0)
+												}
+												className="w-20 p-1.5 bg-white rounded-lg border border-gray-200 text-center font-bold text-xs outline-none focus:border-rose-300"
+												aria-label={`Cantidad de ${materialName}`}
+											/>
+											<span className="text-[10px] text-gray-400 w-8">{unit}</span>
 											<button
 												type="button"
 												onClick={() => removeFromRecipe(idx)}
@@ -329,13 +353,19 @@ export const SessionModal = ({
 											<option value="">Seleccionar...</option>
 											{inventory.map((inv) => (
 												<option key={inv.id} value={inv.id}>
-													{inv.name}
+													{inv.name} ({inv.unit_consumption || inv.unit || "uds"})
 												</option>
 											))}
 										</select>
 										<input
 											type="number"
-											step="0.1"
+											step={
+												(inventory.find((i) => i.id === extra.materialId)
+													?.unit_consumption ||
+													inventory.find((i) => i.id === extra.materialId)?.unit) === "ml"
+													? "0.1"
+													: "1"
+											}
 											className="w-14 p-2 bg-white rounded-lg border border-gray-200 text-center font-bold text-xs outline-none focus:border-rose-300"
 											value={extra.quantity}
 											onChange={(e) =>

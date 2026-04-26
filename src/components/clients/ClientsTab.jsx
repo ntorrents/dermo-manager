@@ -74,7 +74,7 @@ export const ClientsTab = ({
 	const { clinicId, clinic, canDeleteOperational } = useTenant();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedClient, setSelectedClient] = useState(null);
-	const [clientDetailTab, setClientDetailTab] = useState("visitas");
+	const [clientDetailTab, setClientDetailTab] = useState("datos");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [formData, setFormData] = useState({
 		name: "",
@@ -637,17 +637,16 @@ export const ClientsTab = ({
 						{/* Pestañas perfil 360º - Visitas primero */}
 						<div className="flex border-b border-gray-100 bg-white px-4 gap-1 overflow-x-auto">
 							{[
+								{ id: "datos", label: "Datos paciente", icon: User },
 								{ id: "visitas", label: "Visitas", icon: BookOpen },
-								{ id: "filiacion", label: "Filiación", icon: User },
-								{ id: "medico", label: "Médico", icon: Stethoscope },
-								{ id: "legal", label: "Legal", icon: Shield },
-								{ id: "bonos", label: "Bonos", icon: Ticket },
 								{ id: "historial", label: "Historial", icon: Clock },
+								{ id: "bonos", label: "Bonos", icon: Ticket },
 								{
 									id: "consentimientos",
 									label: "Consentimientos",
 									icon: FileCheck,
 								},
+								{ id: "legal", label: "Legal", icon: Shield },
 							].map(({ id, label, icon: Icon }) => (
 								<button
 									key={id}
@@ -972,10 +971,10 @@ export const ClientsTab = ({
 								</>
 							)}
 
-							{clientDetailTab === "filiacion" && (
+							{clientDetailTab === "datos" && (
 								<div className="space-y-6">
 									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
-										<User size={14} /> Datos personales
+										<User size={14} /> Datos paciente
 									</h3>
 									<dl className="space-y-3 text-sm">
 										<div>
@@ -1066,10 +1065,31 @@ export const ClientsTab = ({
 											</div>
 										)}
 									</dl>
+									<div>
+										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">
+											Alergias
+										</dt>
+										<dd
+											className={`p-4 rounded-2xl text-sm font-medium ${
+												selectedClient.allergies
+													? "bg-red-50 border-2 border-red-200 text-red-900"
+													: "bg-gray-50 text-gray-500 border border-gray-100"
+											}`}>
+											{selectedClient.allergies || "Ninguna indicada"}
+										</dd>
+									</div>
+									<div>
+										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">
+											Antecedentes
+										</dt>
+										<dd className="p-4 bg-gray-50 rounded-2xl text-sm font-medium text-gray-700 border border-gray-100 min-h-[80px]">
+											{selectedClient.medical_history || "—"}
+										</dd>
+									</div>
 								</div>
 							)}
 
-							{clientDetailTab === "medico" && (
+							{clientDetailTab === "medico-deprecated" && (
 								<div className="space-y-6">
 									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
 										<Stethoscope size={14} /> Datos médicos
@@ -1242,6 +1262,24 @@ export const ClientsTab = ({
 												const afterPhoto = sessionPhotos.find(
 													(p) => p.type === "after",
 												);
+												const extraPhotos = sessionPhotos
+													.filter(
+														(p) =>
+															p.finance_entry_id === session.id &&
+															p.type === "extra",
+													)
+													.sort(
+														(a, b) =>
+															new Date(a.created_at) - new Date(b.created_at),
+													);
+
+												const openPhotoViewer = () =>
+													setViewerSession({
+														session,
+														before: beforePhoto,
+														after: afterPhoto,
+														extras: extraPhotos,
+													});
 
 												return (
 													<div
@@ -1275,13 +1313,7 @@ export const ClientsTab = ({
 																			<SessionPhotoThumbnail
 																				photo={beforePhoto}
 																				label="Antes"
-																				onView={() =>
-																					setViewerSession({
-																						session,
-																						before: beforePhoto,
-																						after: afterPhoto,
-																					})
-																				}
+																				onView={openPhotoViewer}
 																				onEdit={handlePhotoEdit}
 																				onDelete={handlePhotoDelete}
 																			/>
@@ -1290,17 +1322,21 @@ export const ClientsTab = ({
 																			<SessionPhotoThumbnail
 																				photo={afterPhoto}
 																				label="Después"
-																				onView={() =>
-																					setViewerSession({
-																						session,
-																						before: beforePhoto,
-																						after: afterPhoto,
-																					})
-																				}
+																				onView={openPhotoViewer}
 																				onEdit={handlePhotoEdit}
 																				onDelete={handlePhotoDelete}
 																			/>
 																		)}
+																		{extraPhotos.map((ph) => (
+																			<SessionPhotoThumbnail
+																				key={ph.id}
+																				photo={ph}
+																				compact
+																				onView={openPhotoViewer}
+																				onEdit={handlePhotoEdit}
+																				onDelete={handlePhotoDelete}
+																			/>
+																		))}
 																		<button
 																			onClick={() => {
 																				setPhotoUploadSession(session);
@@ -1761,6 +1797,7 @@ export const ClientsTab = ({
 					<BeforeAfterViewer
 						beforePhoto={viewerSession.before}
 						afterPhoto={viewerSession.after}
+						extraPhotos={viewerSession.extras || []}
 						sessionLabel={null}
 					/>
 				</AdaptiveModal>
