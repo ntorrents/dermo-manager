@@ -9,6 +9,7 @@ import {
 	Download,
 	Banknote,
 	FileSpreadsheet,
+	Package,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
 import { exportTrimestreToZip } from "../../utils/export";
@@ -44,6 +45,39 @@ const filterByQuarter = (entries, year, quarter) => {
 	return entries.filter((e) => e.date >= startDate && e.date <= endDate);
 };
 
+const toBaseAmount = (entry) => {
+	const base = Number(entry?.tax_base);
+	if (Number.isFinite(base)) return base;
+	const fallback = Number(entry?.base_amount ?? entry?.amount);
+	return Number.isFinite(fallback) ? fallback : 0;
+};
+
+const parseISODate = (value) => {
+	if (!value) return null;
+	const date = new Date(`${value}T00:00:00`);
+	return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const clampRate = (value) => {
+	const rate = Number(value);
+	if (!Number.isFinite(rate) || rate <= 0) return 26;
+	return rate;
+};
+
+const diffDaysInclusive = (start, end) => {
+	const MS_PER_DAY = 24 * 60 * 60 * 1000;
+	return Math.max(0, Math.floor((end - start) / MS_PER_DAY) + 1);
+};
+
+const INVESTMENT_MIN_BASE = 300;
+const INVESTMENT_ANNUAL_LIMIT = 25000;
+
+const isEffectiveInvestment = (entry) => {
+	if (!entry || entry.type !== "expense" || entry.is_deductible !== true) return false;
+	if (entry.is_investment !== true) return false;
+	return toBaseAmount(entry) > INVESTMENT_MIN_BASE;
+};
+
 export const TaxesTab = ({
 	entries = [],
 	clients = [],
@@ -65,12 +99,82 @@ export const TaxesTab = ({
 		[entries, selectedYear, selectedQuarter],
 	);
 
+	const amortizacionData = useMemo(() => {
+		const { startDate, endDate } = getQuarterDateRange(selectedYear, selectedQuarter);
+		const quarterStart = parseISODate(startDate);
+		const quarterEnd = parseISODate(endDate);
+		if (!quarterStart || !quarterEnd) {
+			return { amortizacionTrimestre: 0, activosEnCurso: [] };
+		}
+
+		const activos = entries
+			.filter((e) => isEffectiveInvestment(e))
+			.map((asset) => {
+				const purchaseDate = parseISODate(asset.date);
+				if (!purchaseDate) return null;
+
+				const base = toBaseAmount(asset);
+				const rate = clampRate(asset.amortization_rate);
+				const totalLifeDays = Math.max(1, Math.ceil((100 / rate) * 365));
+				const amortEndDate = new Date(purchaseDate);
+				amortEndDate.setDate(amortEndDate.getDate() + totalLifeDays - 1);
+
+				const activeStart =
+					purchaseDate > quarterStart ? purchaseDate : new Date(quarterStart);
+				const activeEnd = amortEndDate < quarterEnd ? amortEndDate : new Date(quarterEnd);
+				const activeDaysInQuarter =
+					activeStart <= activeEnd ? diffDaysInclusive(activeStart, activeEnd) : 0;
+
+				const dailyQuota = (base * rate) / 100 / 365;
+				const deducedThisQuarter = dailyQuota * activeDaysInQuarter;
+
+				const effectiveAccumEnd =
+					quarterEnd < amortEndDate ? quarterEnd : new Date(amortEndDate);
+				const elapsedDays =
+					effectiveAccumEnd >= purchaseDate
+						? diffDaysInclusive(purchaseDate, effectiveAccumEnd)
+						: 0;
+				const amortizedAccum = Math.min(base, dailyQuota * elapsedDays);
+				const pending = Math.max(0, base - amortizedAccum);
+				const progressPct = base > 0 ? Math.min(100, (amortizedAccum / base) * 100) : 0;
+
+				const remainingLifeDays =
+					quarterEnd < amortEndDate
+						? diffDaysInclusive(new Date(quarterEnd.getTime() + 86400000), amortEndDate)
+						: 0;
+
+				return {
+					id: asset.id,
+					description: asset.description || "Bien sin descripción",
+					date: asset.date,
+					base,
+					rate,
+					deducedThisQuarter,
+					amortizedAccum,
+					pending,
+					progressPct,
+					remainingLifeDays,
+				};
+			})
+			.filter(Boolean)
+			.filter((asset) => asset.pending > 0)
+			.sort((a, b) => a.date.localeCompare(b.date));
+
+		const amortizacionTrimestre = activos.reduce(
+			(acc, asset) => acc + asset.deducedThisQuarter,
+			0,
+		);
+
+		return { amortizacionTrimestre, activosEnCurso: activos };
+	}, [entries, selectedYear, selectedQuarter]);
+
 	// Resultado Operativo: Suma bases ingresos - Suma bases gastos deducibles (excl. Plan Amigo)
 	const resultadoOperativo = useMemo(() => {
 		const incomes = quarterEntries.filter((e) => e.type === "income" && !e.plan_amigo);
-		const expenses = quarterEntries.filter(
-			(e) => e.type === "expense" && e.is_deductible === true,
-		);
+		const expenses = quarterEntries.filter((e) => {
+			if (e.type !== "expense" || e.is_deductible !== true) return false;
+			return !isEffectiveInvestment(e);
+		});
 
 		const sumBaseIncome = incomes.reduce(
 			(acc, e) =>
@@ -84,8 +188,8 @@ export const TaxesTab = ({
 				(Number(e.tax_base) ?? Number(e.base_amount) ?? Number(e.amount) ?? 0),
 			0,
 		);
-		return sumBaseIncome - sumBaseExpense;
-	}, [quarterEntries]);
+		return sumBaseIncome - (sumBaseExpense + amortizacionData.amortizacionTrimestre);
+	}, [quarterEntries, amortizacionData.amortizacionTrimestre]);
 
 	// Liquidación IVA 303: IVA Repercutido - IVA Soportado (excl. Plan Amigo)
 	const liquidacionIVA = useMemo(() => {
@@ -148,6 +252,23 @@ export const TaxesTab = ({
 			}))
 			.sort((a, b) => a.month.localeCompare(b.month));
 	}, [quarterEntries]);
+
+	const investmentAnnualStatus = useMemo(() => {
+		const yearStart = `${selectedYear}-01-01`;
+		const yearEnd = `${selectedYear}-12-31`;
+		const annualInvestmentBase = entries
+			.filter(
+				(e) => isEffectiveInvestment(e) && e.date >= yearStart && e.date <= yearEnd,
+			)
+			.reduce((acc, e) => acc + toBaseAmount(e), 0);
+		const pct = Math.min(100, (annualInvestmentBase / INVESTMENT_ANNUAL_LIMIT) * 100);
+		return {
+			annualInvestmentBase,
+			remaining: Math.max(0, INVESTMENT_ANNUAL_LIMIT - annualInvestmentBase),
+			pct,
+			exceeded: annualInvestmentBase > INVESTMENT_ANNUAL_LIMIT,
+		};
+	}, [entries, selectedYear]);
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
@@ -236,7 +357,7 @@ export const TaxesTab = ({
 						</h3>
 					</div>
 					<p className="text-xs text-gray-500 mb-2">
-						Bases Ingresos − Bases Gastos
+						Bases Ingresos − Gastos corrientes − Amortización trimestral
 					</p>
 					<p
 						className={`text-3xl font-black ${
@@ -387,6 +508,100 @@ export const TaxesTab = ({
 					<p className="text-gray-400 text-sm text-center py-8">
 						Sin movimientos en el trimestre seleccionado
 					</p>
+				)}
+			</div>
+
+			<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+				<h3 className="font-black text-gray-800 text-lg mb-2 flex items-center gap-2">
+					<Package className="text-indigo-500" size={20} />
+					Bienes de Inversión (Amortizaciones en curso)
+				</h3>
+				<p className="text-xs text-gray-500 mb-4">
+					En IRPF se deduce la cuota trimestral prorrateada por días activos.
+				</p>
+				<div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 mb-4">
+					<p className="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">
+						Límite anual bienes de inversión ({selectedYear})
+					</p>
+					<p className="text-lg font-black text-amber-700">
+						{formatCurrency(investmentAnnualStatus.annualInvestmentBase)} /{" "}
+						{formatCurrency(INVESTMENT_ANNUAL_LIMIT)}
+					</p>
+					<div className="mt-2 h-2 bg-amber-100 rounded-full overflow-hidden">
+						<div
+							className={`h-full rounded-full ${
+								investmentAnnualStatus.exceeded ? "bg-rose-500" : "bg-amber-500"
+							}`}
+							style={{ width: `${investmentAnnualStatus.pct}%` }}
+						/>
+					</div>
+					<p
+						className={`mt-2 text-xs font-bold ${
+							investmentAnnualStatus.exceeded
+								? "text-rose-600"
+								: "text-amber-700"
+						}`}>
+						{investmentAnnualStatus.exceeded
+							? "Se ha superado el límite anual de 25.000€."
+							: `Disponible restante: ${formatCurrency(investmentAnnualStatus.remaining)}`}
+					</p>
+				</div>
+				<div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100 mb-4">
+					<p className="text-xs text-indigo-700 font-bold uppercase tracking-wider mb-1">
+						Amortización deducible este trimestre
+					</p>
+					<p className="text-2xl font-black text-indigo-700">
+						{formatCurrency(amortizacionData.amortizacionTrimestre)}
+					</p>
+				</div>
+				{amortizacionData.activosEnCurso.length === 0 ? (
+					<p className="text-gray-400 text-sm text-center py-6">
+						No hay bienes de inversión con amortización pendiente en este periodo.
+					</p>
+				) : (
+					<div className="space-y-4">
+						{amortizacionData.activosEnCurso.map((asset) => (
+							<div
+								key={asset.id}
+								className="border border-gray-100 rounded-2xl p-4 hover:border-indigo-100 transition-colors">
+								<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+									<div>
+										<p className="font-black text-gray-800">{asset.description}</p>
+										<p className="text-xs text-gray-500 mt-1">
+											Compra: {asset.date} · Base: {formatCurrency(asset.base)} · %
+											amortización anual: {asset.rate}%
+										</p>
+									</div>
+									<div className="text-left sm:text-right">
+										<p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
+											Cuota trimestre
+										</p>
+										<p className="font-black text-indigo-700">
+											{formatCurrency(asset.deducedThisQuarter)}
+										</p>
+									</div>
+								</div>
+								<div className="mt-3">
+									<div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+										<div
+											className="h-full bg-indigo-500 rounded-full"
+											style={{ width: `${asset.progressPct}%` }}
+										/>
+									</div>
+									<div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs">
+										<span className="text-gray-600">
+											Amortizado: {formatCurrency(asset.amortizedAccum)} (
+											{asset.progressPct.toFixed(1)}%)
+										</span>
+										<span className="text-gray-500">
+											Pendiente: {formatCurrency(asset.pending)} · Vida útil restante:{" "}
+											{asset.remainingLifeDays} días
+										</span>
+									</div>
+								</div>
+							</div>
+						))}
+					</div>
 				)}
 			</div>
 		</div>

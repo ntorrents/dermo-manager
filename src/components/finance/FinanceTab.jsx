@@ -46,6 +46,8 @@ import { EmptyState } from "../ui/EmptyState";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { useTenant } from "../../context/TenantContext";
 
+const INVESTMENT_MIN_BASE = 300;
+
 export const FinanceTab = ({
 	user,
 	entries = [],
@@ -93,6 +95,8 @@ export const FinanceTab = ({
 		date: new Date().toISOString().split("T")[0],
 		notes: "",
 		is_deductible: false,
+		is_investment: false,
+		amortization_rate: 26,
 		provider_name: "",
 		supplier_nif: "",
 		invoice_number: "",
@@ -340,6 +344,9 @@ export const FinanceTab = ({
 				date: entry.date,
 				notes: entry.notes || "",
 				is_deductible: entry.is_deductible ?? false,
+				is_investment: entry.is_investment ?? false,
+				amortization_rate:
+					entry.amortization_rate != null ? Number(entry.amortization_rate) : 26,
 				provider_name: entry.provider_name || "",
 				supplier_nif: entry.supplier_nif || "",
 				invoice_number: entry.invoice_number || "",
@@ -363,6 +370,8 @@ export const FinanceTab = ({
 				date: new Date().toISOString().split("T")[0],
 				notes: "",
 				is_deductible: false,
+				is_investment: false,
+				amortization_rate: 26,
 				provider_name: "",
 				supplier_nif: "",
 				invoice_number: "",
@@ -402,6 +411,8 @@ export const FinanceTab = ({
 					: new Date().toISOString().split("T")[0],
 			notes: "",
 			is_deductible: expense.is_deductible ?? false,
+			is_investment: false,
+			amortization_rate: 26,
 			provider_name: "",
 			supplier_nif: "",
 			invoice_number: "",
@@ -637,6 +648,11 @@ export const FinanceTab = ({
 				showToast("No hay clínica activa; no se puede guardar el movimiento.", "error");
 				return;
 			}
+			const qualifiesAsInvestment =
+				formData.type === "expense" &&
+				formData.is_deductible &&
+				!!formData.is_investment &&
+				Number(baseAmount) > INVESTMENT_MIN_BASE;
 
 			const payload = {
 				type: formData.type,
@@ -652,6 +668,10 @@ export const FinanceTab = ({
 				date: formData.date,
 				notes: formData.notes || null,
 				is_deductible: formData.is_deductible || false,
+				is_investment: qualifiesAsInvestment,
+				amortization_rate: qualifiesAsInvestment
+					? Number(formData.amortization_rate) || 26
+					: null,
 				provider_name: formData.is_deductible
 					? formData.provider_name?.trim() || null
 					: null,
@@ -1549,9 +1569,16 @@ export const FinanceTab = ({
 								checked={formData.is_deductible}
 								onChange={(e) => {
 									const checked = e.target.checked;
+									const baseForDefault = Number(taxCalc.base_amount) || 0;
 									setFormData({
 										...formData,
 										is_deductible: checked,
+										is_investment: checked
+											? formData.is_investment || baseForDefault > INVESTMENT_MIN_BASE
+											: false,
+										amortization_rate: checked
+											? formData.amortization_rate || 26
+											: 26,
 										tax_rate: checked ? 21 : 0,
 										irpf_rate: checked ? formData.irpf_rate : 0,
 										supplier_nif: checked ? formData.supplier_nif : "",
@@ -1565,6 +1592,55 @@ export const FinanceTab = ({
 								className="font-bold text-gray-800 cursor-pointer flex-1">
 								¿Es Factura Deducible?
 							</label>
+						</div>
+					)}
+					{formData.type === "expense" && formData.is_deductible && (
+						<div className="space-y-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+							<label className="flex items-center gap-3 cursor-pointer">
+								<input
+									type="checkbox"
+									checked={!!formData.is_investment}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											is_investment: e.target.checked,
+											amortization_rate: e.target.checked
+												? formData.amortization_rate || 26
+												: 26,
+										})
+									}
+									className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+								/>
+								<span className="font-bold text-gray-800">
+									¿Es Bien de Inversión (Amortizable)?
+								</span>
+							</label>
+							{formData.is_investment && (
+								<div>
+									<label className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-1 block ml-1">
+										% Amortización anual
+									</label>
+									<input
+										type="number"
+										min="0.01"
+										step="0.01"
+										className="w-full p-3 bg-white rounded-xl font-bold border border-blue-200 outline-none"
+										value={formData.amortization_rate ?? 26}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												amortization_rate: Number(e.target.value) || 26,
+											})
+										}
+									/>
+									{Number(taxCalc.base_amount) <= INVESTMENT_MIN_BASE && (
+										<p className="mt-2 text-xs text-blue-700 font-bold">
+											Si la base no supera {INVESTMENT_MIN_BASE}€, este gasto se
+											imputa de golpe (no amortiza).
+										</p>
+									)}
+								</div>
+							)}
 						</div>
 					)}
 					<div className="flex gap-4">
