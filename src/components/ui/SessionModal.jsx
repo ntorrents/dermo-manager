@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
 	X,
 	Calendar,
@@ -14,6 +14,7 @@ import {
 	Sparkles,
 } from "lucide-react";
 import { useActiveBonoForSession } from "../../hooks/useBonos";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 export const SessionModal = ({
 	isOpen,
@@ -25,6 +26,7 @@ export const SessionModal = ({
 	onConfirm,
 	isSubmitting = false,
 }) => {
+	const dialogRef = useRef(null);
 	const [selectedClient, setSelectedClient] = useState(null);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
@@ -69,6 +71,8 @@ export const SessionModal = ({
 			setFinalPrice("0");
 		}
 	}, [consumeBono, activeBono]);
+
+	useFocusTrap(Boolean(isOpen && treatment), dialogRef, { onEscape: onClose });
 
 	if (!isOpen || !treatment) return null;
 
@@ -118,6 +122,11 @@ export const SessionModal = ({
 		);
 	};
 
+	const isValidFinalPrice =
+		finalPrice !== "" &&
+		Number.isFinite(Number(finalPrice)) &&
+		Number(finalPrice) >= 0;
+
 	return (
 		<div className="fixed inset-0 z-[100] flex justify-center items-start xl:items-center p-4">
 			<div
@@ -125,6 +134,8 @@ export const SessionModal = ({
 				onClick={onClose}
 			/>
 			<div
+				ref={dialogRef}
+				tabIndex={-1}
 				role="dialog"
 				aria-modal="true"
 				aria-label="Nueva sesión"
@@ -139,7 +150,9 @@ export const SessionModal = ({
 						</p>
 					</div>
 					<button
+						type="button"
 						onClick={onClose}
+						aria-label="Cerrar modal de nueva sesión"
 						className="p-2 bg-white rounded-full text-gray-400 hover:text-gray-600 shadow-sm border border-gray-100 transition-colors">
 						<X size={20} />
 					</button>
@@ -421,7 +434,7 @@ export const SessionModal = ({
 
 				<div className="p-8 border-t bg-gray-50">
 					<button
-						disabled={!selectedClient || !finalPrice || isSubmitting}
+						disabled={!selectedClient || !isValidFinalPrice || isSubmitting}
 						onClick={handleConfirm}
 						className="w-full bg-surface-dark hover:bg-black text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
 						{isSubmitting ? (

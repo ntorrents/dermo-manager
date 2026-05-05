@@ -7,7 +7,6 @@ import { AlertsMenu } from "./AlertsMenu";
 export const AppHeader = ({
 	title,
 	subtitle,
-	activeTab,
 	setActiveTab,
 	sidebarCollapsed,
 	onToggleSidebar,
@@ -53,7 +52,6 @@ export const AppHeader = ({
 							clients={clients}
 							treatments={treatments}
 							inventory={inventory}
-							activeTab={activeTab}
 							setActiveTab={setActiveTab}
 							variant="toolbar"
 						/>
@@ -77,7 +75,6 @@ export const AppHeader = ({
 						clients={clients}
 						treatments={treatments}
 						inventory={inventory}
-						activeTab={activeTab}
 						setActiveTab={setActiveTab}
 						variant="toolbar"
 					/>

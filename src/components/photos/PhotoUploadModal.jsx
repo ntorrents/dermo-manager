@@ -26,6 +26,8 @@ export const PhotoUploadModal = ({
 	const [selectedEntry, setSelectedEntry] = useState(initialSession);
 	const [photoType, setPhotoType] = useState(initialPhotoType);
 	const [uploading, setUploading] = useState(false);
+	const [uploadedCount, setUploadedCount] = useState(0);
+	const [failedFiles, setFailedFiles] = useState([]);
 	const [previewUrls, setPreviewUrls] = useState([]);
 	const [selectedFiles, setSelectedFiles] = useState([]);
 	const fileInputRef = useRef(null);
@@ -36,6 +38,8 @@ export const PhotoUploadModal = ({
 			setPhotoType(initialPhotoType);
 			setPreviewUrls([]);
 			setSelectedFiles([]);
+			setUploadedCount(0);
+			setFailedFiles([]);
 		}
 	}, [isOpen, initialSession?.id, initialPhotoType]);
 
@@ -44,6 +48,8 @@ export const PhotoUploadModal = ({
 		setPhotoType(initialPhotoType);
 		setPreviewUrls([]);
 		setSelectedFiles([]);
+		setUploadedCount(0);
+		setFailedFiles([]);
 		if (fileInputRef.current) fileInputRef.current.value = "";
 	};
 
@@ -78,15 +84,26 @@ export const PhotoUploadModal = ({
 
 		setUploading(true);
 		try {
+			const failed = [];
+			setUploadedCount(0);
 			for (const file of selectedFiles) {
-				await uploadSessionPhoto({
-					userId,
-					clinicId,
-					clientId,
-					financeEntryId: selectedEntry.id,
-					type: photoType,
-					file,
-				});
+				try {
+					await uploadSessionPhoto({
+						userId,
+						clinicId,
+						clientId,
+						financeEntryId: selectedEntry.id,
+						type: photoType,
+						file,
+					});
+					setUploadedCount((c) => c + 1);
+				} catch (err) {
+					failed.push(file);
+				}
+			}
+			setFailedFiles(failed);
+			if (failed.length > 0) {
+				return;
 			}
 			onSuccess?.();
 			handleClose();
@@ -235,6 +252,27 @@ export const PhotoUploadModal = ({
 						`Guardar ${selectedFiles.length > 1 ? `(${selectedFiles.length})` : "foto"}`
 					)}
 				</button>
+				{uploading && (
+					<p className="text-xs font-bold text-gray-500">
+						Subiendo {uploadedCount}/{selectedFiles.length}
+					</p>
+				)}
+				{failedFiles.length > 0 && !uploading && (
+					<div className="p-3 rounded-xl border border-amber-200 bg-amber-50">
+						<p className="text-xs font-bold text-amber-800">
+							{failedFiles.length} archivo(s) fallaron al subir.
+						</p>
+						<button
+							type="button"
+							onClick={() => {
+								setSelectedFiles(failedFiles);
+								setFailedFiles([]);
+							}}
+							className="mt-2 text-xs font-bold text-amber-900 underline">
+							Reintentar fallidos
+						</button>
+					</div>
+				)}
 			</form>
 		</AdaptiveModal>
 	);

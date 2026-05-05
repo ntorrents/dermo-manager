@@ -10,15 +10,16 @@ import {
 	Building2,
 } from "lucide-react";
 import { useTenant } from "../../context/TenantContext";
+import { NAV_LABELS } from "./navigationLabels";
 
 const DRAWER_ITEMS = [
-	{ id: "calendar", label: "Agenda", icon: Calendar },
-	{ id: "bonos", label: "Bonos", icon: Ticket },
-	{ id: "documents", label: "Documentos", icon: FolderOpen },
-	{ id: "finance", label: "Finanzas", icon: Euro },
-	{ id: "suppliers", label: "Proveedores", icon: Building2 },
-	{ id: "taxes", label: "Fiscalidad", icon: Landmark },
-	{ id: "settings", label: "Ajustes", icon: Settings },
+	{ id: "calendar", label: NAV_LABELS.calendar, icon: Calendar },
+	{ id: "bonos", label: NAV_LABELS.bonos, icon: Ticket },
+	{ id: "documents", label: NAV_LABELS.documents, icon: FolderOpen },
+	{ id: "finance", label: NAV_LABELS.finance, icon: Euro },
+	{ id: "suppliers", label: NAV_LABELS.suppliers, icon: Building2 },
+	{ id: "taxes", label: NAV_LABELS.taxes, icon: Landmark },
+	{ id: "settings", label: NAV_LABELS.settings, icon: Settings },
 ];
 
 export const MobileDrawer = ({ isOpen, onClose, activeTab, setActiveTab }) => {
@@ -33,6 +34,16 @@ export const MobileDrawer = ({ isOpen, onClose, activeTab, setActiveTab }) => {
 			}),
 		[tenantLoading, allowsPresupuestosBonos]
 	);
+
+	useEffect(() => {
+		if (!isOpen) return undefined;
+		const onKeyDown = (event) => {
+			if (event.key === "Escape") onClose();
+		};
+		document.addEventListener("keydown", onKeyDown);
+		return () => document.removeEventListener("keydown", onKeyDown);
+	}, [isOpen, onClose]);
+
 	useEffect(() => {
 		if (isOpen) document.body.style.overflow = "hidden";
 		return () => {
@@ -64,6 +75,7 @@ export const MobileDrawer = ({ isOpen, onClose, activeTab, setActiveTab }) => {
 					</h3>
 					<button
 						onClick={onClose}
+						aria-label="Cerrar menú lateral"
 						className="p-2 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600">
 						<X size={20} />
 					</button>

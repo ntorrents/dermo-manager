@@ -20,6 +20,7 @@ function formatWhen(iso) {
 export const ActivityMenu = ({ clinicId, isAdmin, onOpenFullAudit }) => {
 	const [open, setOpen] = useState(false);
 	const rootRef = useRef(null);
+	const panelRef = useRef(null);
 	const { rows, loading, error, refresh } = useAuditLog(clinicId, {
 		limit: 20,
 		enabled: isAdmin && open,
@@ -37,6 +38,42 @@ export const ActivityMenu = ({ clinicId, isAdmin, onOpenFullAudit }) => {
 		if (open && isAdmin) refresh();
 	}, [open, isAdmin, refresh]);
 
+	useEffect(() => {
+		if (!open) return undefined;
+		const items = () =>
+			Array.from(panelRef.current?.querySelectorAll("button") || []).filter(
+				(el) => !el.disabled && el.offsetParent !== null,
+			);
+		const focusAt = (idx) => {
+			const list = items();
+			if (!list.length) return;
+			const i = ((idx % list.length) + list.length) % list.length;
+			list[i]?.focus?.();
+		};
+		requestAnimationFrame(() => focusAt(0));
+		const onKeyDown = (e) => {
+			if (e.key === "Escape") {
+				e.preventDefault();
+				setOpen(false);
+				return;
+			}
+			if (e.key === "ArrowDown") {
+				e.preventDefault();
+				const list = items();
+				const cur = list.indexOf(document.activeElement);
+				focusAt(cur >= 0 ? cur + 1 : 0);
+			}
+			if (e.key === "ArrowUp") {
+				e.preventDefault();
+				const list = items();
+				const cur = list.indexOf(document.activeElement);
+				focusAt(cur >= 0 ? cur - 1 : list.length - 1);
+			}
+		};
+		document.addEventListener("keydown", onKeyDown, true);
+		return () => document.removeEventListener("keydown", onKeyDown, true);
+	}, [open]);
+
 	if (!isAdmin) return null;
 
 	return (
@@ -50,7 +87,9 @@ export const ActivityMenu = ({ clinicId, isAdmin, onOpenFullAudit }) => {
 				<Bell size={20} />
 			</button>
 			{open && (
-				<div className="absolute right-0 top-full z-[60] mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-100 bg-white shadow-xl">
+				<div
+					ref={panelRef}
+					className="absolute right-0 top-full z-[60] mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-100 bg-white shadow-xl">
 					<div className="flex items-center justify-between border-b border-gray-100 px-4 py-2">
 						<span className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-500">
 							<History size={14} /> Reciente

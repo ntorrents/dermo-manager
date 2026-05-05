@@ -76,6 +76,7 @@ export const ClientsTab = ({
 	const [selectedClient, setSelectedClient] = useState(null);
 	const [clientDetailTab, setClientDetailTab] = useState("datos");
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [clientFormStep, setClientFormStep] = useState(1);
 	const [formData, setFormData] = useState({
 		name: "",
 		surname: "",
@@ -117,6 +118,7 @@ export const ClientsTab = ({
 	const {
 		history,
 		loading: historyLoading,
+		error: historyError,
 		refetch: refetchHistory,
 	} = useClientHistory(selectedClient?.id);
 	const { photos, refreshPhotos } = useSessionPhotos(
@@ -187,6 +189,7 @@ export const ClientsTab = ({
 	);
 
 	const handleOpenModal = (client = null) => {
+		setClientFormStep(1);
 		if (client) {
 			setFormData({
 				name: client.name || "",
@@ -639,7 +642,6 @@ export const ClientsTab = ({
 							{[
 								{ id: "datos", label: "Datos paciente", icon: User },
 								{ id: "visitas", label: "Visitas", icon: BookOpen },
-								{ id: "historial", label: "Historial", icon: Clock },
 								{ id: "bonos", label: "Bonos", icon: Ticket },
 								{
 									id: "consentimientos",
@@ -968,6 +970,179 @@ export const ClientsTab = ({
 											</p>
 										</div>
 									)}
+
+									<div className="mt-8 pt-6 border-t border-gray-100">
+										<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+											<Clock size={14} /> Historial de sesiones
+										</h3>
+										{historyLoading ? (
+											<div className="space-y-4">
+												{[1, 2].map((i) => (
+													<div
+														key={i}
+														className="h-24 bg-gray-100 rounded-2xl animate-pulse"
+													/>
+												))}
+											</div>
+										) : historyError ? (
+											<div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+												<p className="text-sm font-bold text-amber-900">
+													No se pudo cargar el historial.
+												</p>
+												<p className="text-xs text-amber-800 mt-1">{historyError}</p>
+												<button
+													type="button"
+													onClick={refetchHistory}
+													className="mt-3 px-3 py-2 rounded-xl bg-white border border-amber-200 text-amber-900 font-bold text-xs">
+													Reintentar
+												</button>
+											</div>
+										) : history.length > 0 ? (
+											<div className="space-y-4">
+												{history.map((session) => {
+													const sessionPhotos = photos.filter(
+														(p) => p.finance_entry_id === session.id,
+													);
+													const beforePhoto = sessionPhotos.find(
+														(p) => p.type === "before",
+													);
+													const afterPhoto = sessionPhotos.find(
+														(p) => p.type === "after",
+													);
+													const extraPhotos = sessionPhotos
+														.filter(
+															(p) =>
+																p.finance_entry_id === session.id &&
+																p.type === "extra",
+														)
+														.sort(
+															(a, b) =>
+																new Date(a.created_at) - new Date(b.created_at),
+														);
+
+													const openPhotoViewer = () =>
+														setViewerSession({
+															session,
+															before: beforePhoto,
+															after: afterPhoto,
+															extras: extraPhotos,
+														});
+
+													return (
+														<div
+															key={session.id}
+															className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-rose-100 transition-all">
+															<div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+																<div className="flex items-start gap-4 flex-1 min-w-0">
+																	<div className="flex flex-col items-center justify-center w-12 h-12 bg-rose-50 rounded-xl text-rose-500 font-bold border border-rose-100 shrink-0">
+																		<span className="text-sm leading-none">
+																			{new Date(session.date).getDate()}
+																		</span>
+																		<span className="text-[9px] uppercase">
+																			{new Date(session.date).toLocaleString(
+																				"es-ES",
+																				{ month: "short" },
+																			)}
+																		</span>
+																	</div>
+																	<div className="min-w-0 flex-1">
+																		<h4 className="font-bold text-gray-800 text-sm xl:text-lg">
+																			{session.description?.split("(")[0] ||
+																				"Sesión"}
+																		</h4>
+																		<p className="text-[10px] text-gray-400 font-medium uppercase">
+																			{session.date}
+																			{session.plan_amigo && " • Plan Amigo (sin factura)"}
+																		</p>
+																		<div className="flex items-center gap-2 mt-3 flex-wrap">
+																			{beforePhoto && (
+																				<SessionPhotoThumbnail
+																					photo={beforePhoto}
+																					label="Antes"
+																					onView={openPhotoViewer}
+																					onEdit={handlePhotoEdit}
+																					onDelete={handlePhotoDelete}
+																				/>
+																			)}
+																			{afterPhoto && (
+																				<SessionPhotoThumbnail
+																					photo={afterPhoto}
+																					label="Después"
+																					onView={openPhotoViewer}
+																					onEdit={handlePhotoEdit}
+																					onDelete={handlePhotoDelete}
+																				/>
+																			)}
+																			{extraPhotos.map((ph) => (
+																				<SessionPhotoThumbnail
+																					key={ph.id}
+																					photo={ph}
+																					compact
+																					onView={openPhotoViewer}
+																					onEdit={handlePhotoEdit}
+																					onDelete={handlePhotoDelete}
+																				/>
+																			))}
+																			<button
+																				onClick={() => {
+																					setPhotoUploadSession(session);
+																					setShowPhotoUploadModal(true);
+																				}}
+																				className="w-16 h-20 rounded-lg border-2 border-dashed border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors shrink-0"
+																				title="Añadir foto">
+																				<Camera size={20} />
+																			</button>
+																		</div>
+																	</div>
+																</div>
+																<div className="flex items-center gap-3 shrink-0">
+																	{!session.plan_amigo && (
+																		<button
+																			onClick={async () => {
+																				try {
+																					await generateInvoice(session, selectedClient, clinic, profile);
+																					showToast("Factura generada");
+																				} catch {
+																					showToast(
+																						"Error al generar factura",
+																						"error",
+																					);
+																				}
+																			}}
+																			className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
+																			title="Generar factura">
+																			<FileDown size={18} />
+																		</button>
+																	)}
+																	{Number(session.amount) > 0 && (
+																		<button
+																			onClick={() => openRefundModal(session)}
+																			className="p-2 text-gray-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
+																			title="Rectificar / Devolución">
+																			<RotateCcw size={18} />
+																		</button>
+																	)}
+																	<div className="text-right">
+																		<span className="block font-black text-gray-800 text-lg xl:text-xl">
+																			{formatCurrency(session.amount)}
+																		</span>
+																		<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
+																			Pagado
+																		</span>
+																	</div>
+																</div>
+															</div>
+														</div>
+													);
+												})}
+											</div>
+										) : (
+											<div className="flex flex-col items-center justify-center h-40 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
+												<FileText size={32} className="mb-2 opacity-50" />
+												<p className="font-bold text-sm">Sin historial previo</p>
+											</div>
+										)}
+									</div>
 								</>
 							)}
 
@@ -1235,169 +1410,6 @@ export const ClientsTab = ({
 								</div>
 							)}
 
-							{clientDetailTab === "historial" && (
-								<>
-									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
-										<Clock size={14} /> Tratamientos previos
-									</h3>
-
-									{historyLoading ? (
-										<div className="space-y-4">
-											{[1, 2].map((i) => (
-												<div
-													key={i}
-													className="h-24 bg-gray-100 rounded-2xl animate-pulse"
-												/>
-											))}
-										</div>
-									) : history.length > 0 ? (
-										<div className="space-y-4">
-											{history.map((session) => {
-												const sessionPhotos = photos.filter(
-													(p) => p.finance_entry_id === session.id,
-												);
-												const beforePhoto = sessionPhotos.find(
-													(p) => p.type === "before",
-												);
-												const afterPhoto = sessionPhotos.find(
-													(p) => p.type === "after",
-												);
-												const extraPhotos = sessionPhotos
-													.filter(
-														(p) =>
-															p.finance_entry_id === session.id &&
-															p.type === "extra",
-													)
-													.sort(
-														(a, b) =>
-															new Date(a.created_at) - new Date(b.created_at),
-													);
-
-												const openPhotoViewer = () =>
-													setViewerSession({
-														session,
-														before: beforePhoto,
-														after: afterPhoto,
-														extras: extraPhotos,
-													});
-
-												return (
-													<div
-														key={session.id}
-														className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-rose-100 transition-all">
-														<div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-															<div className="flex items-start gap-4 flex-1 min-w-0">
-																<div className="flex flex-col items-center justify-center w-12 h-12 bg-rose-50 rounded-xl text-rose-500 font-bold border border-rose-100 shrink-0">
-																	<span className="text-sm leading-none">
-																		{new Date(session.date).getDate()}
-																	</span>
-																	<span className="text-[9px] uppercase">
-																		{new Date(session.date).toLocaleString(
-																			"es-ES",
-																			{ month: "short" },
-																		)}
-																	</span>
-																</div>
-																<div className="min-w-0 flex-1">
-																	<h4 className="font-bold text-gray-800 text-sm xl:text-lg">
-																		{session.description?.split("(")[0] ||
-																			"Sesión"}
-																	</h4>
-																	<p className="text-[10px] text-gray-400 font-medium uppercase">
-																		{session.date}
-																		{session.plan_amigo && " • Plan Amigo (sin factura)"}
-																	</p>
-																	{/* Miniaturas de fotos integradas */}
-																	<div className="flex items-center gap-2 mt-3 flex-wrap">
-																		{beforePhoto && (
-																			<SessionPhotoThumbnail
-																				photo={beforePhoto}
-																				label="Antes"
-																				onView={openPhotoViewer}
-																				onEdit={handlePhotoEdit}
-																				onDelete={handlePhotoDelete}
-																			/>
-																		)}
-																		{afterPhoto && (
-																			<SessionPhotoThumbnail
-																				photo={afterPhoto}
-																				label="Después"
-																				onView={openPhotoViewer}
-																				onEdit={handlePhotoEdit}
-																				onDelete={handlePhotoDelete}
-																			/>
-																		)}
-																		{extraPhotos.map((ph) => (
-																			<SessionPhotoThumbnail
-																				key={ph.id}
-																				photo={ph}
-																				compact
-																				onView={openPhotoViewer}
-																				onEdit={handlePhotoEdit}
-																				onDelete={handlePhotoDelete}
-																			/>
-																		))}
-																		<button
-																			onClick={() => {
-																				setPhotoUploadSession(session);
-																				setShowPhotoUploadModal(true);
-																			}}
-																			className="w-16 h-20 rounded-lg border-2 border-dashed border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors shrink-0"
-																			title="Añadir foto">
-																			<Camera size={20} />
-																		</button>
-																	</div>
-																</div>
-															</div>
-															<div className="flex items-center gap-3 shrink-0">
-																{!session.plan_amigo && (
-																	<button
-																		onClick={async () => {
-																			try {
-																				await generateInvoice(session, selectedClient, clinic, profile);
-																				showToast("Factura generada");
-																			} catch {
-																				showToast(
-																					"Error al generar factura",
-																					"error",
-																				);
-																			}
-																		}}
-																		className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
-																		title="Generar factura">
-																		<FileDown size={18} />
-																	</button>
-																)}
-																{Number(session.amount) > 0 && (
-																	<button
-																		onClick={() => openRefundModal(session)}
-																		className="p-2 text-gray-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
-																		title="Rectificar / Devolución">
-																		<RotateCcw size={18} />
-																	</button>
-																)}
-																<div className="text-right">
-																	<span className="block font-black text-gray-800 text-lg xl:text-xl">
-																		{formatCurrency(session.amount)}
-																	</span>
-																	<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
-																		Pagado
-																	</span>
-																</div>
-															</div>
-														</div>
-													</div>
-												);
-											})}
-										</div>
-									) : (
-										<div className="flex flex-col items-center justify-center h-40 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
-											<FileText size={32} className="mb-2 opacity-50" />
-											<p className="font-bold text-sm">Sin historial previo</p>
-										</div>
-									)}
-								</>
-							)}
 
 							{clientDetailTab === "consentimientos" && (
 								<>
@@ -1575,6 +1587,14 @@ export const ClientsTab = ({
 				title={selectedClient ? "Editar Cliente" : "Nuevo Cliente"}
 				maxWidth="max-w-lg">
 				<form onSubmit={handleSaveClient} className="space-y-5">
+					<div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest">
+						<span className={`px-2 py-1 rounded-lg ${clientFormStep === 1 ? "bg-rose-100 text-rose-700" : "bg-gray-100 text-gray-500"}`}>
+							Paso 1 · Alta rápida
+						</span>
+						<span className={`px-2 py-1 rounded-lg ${clientFormStep === 2 ? "bg-rose-100 text-rose-700" : "bg-gray-100 text-gray-500"}`}>
+							Paso 2 · Ficha ampliada
+						</span>
+					</div>
 					<div className="grid grid-cols-2 gap-4">
 						<input
 							required
@@ -1612,6 +1632,18 @@ export const ClientsTab = ({
 							setFormData({ ...formData, email: e.target.value })
 						}
 					/>
+					{clientFormStep === 1 ? (
+						<div className="flex justify-end">
+							<button
+								type="button"
+								onClick={() => setClientFormStep(2)}
+								disabled={!formData.name?.trim() || !formData.phone?.trim()}
+								className="px-4 py-2 rounded-xl bg-surface-dark text-white font-bold disabled:opacity-50">
+								Siguiente
+							</button>
+						</div>
+					) : (
+						<>
 					<input
 						type="text"
 						className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
@@ -1758,6 +1790,16 @@ export const ClientsTab = ({
 						className="w-full bg-surface-dark text-white font-black py-4 rounded-[1.5rem] shadow-xl text-lg mt-4">
 						{savingClient ? "Guardando..." : "Guardar Cliente"}
 					</LoadingButton>
+						<div className="flex justify-start">
+							<button
+								type="button"
+								onClick={() => setClientFormStep(1)}
+								className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 font-bold">
+								Volver al paso rápido
+							</button>
+						</div>
+						</>
+					)}
 				</form>
 			</AdaptiveModal>
 

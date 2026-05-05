@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	Building2,
 	Search,
@@ -12,6 +12,7 @@ import { formatCurrency } from "../../utils/format";
 import { supabase } from "../../services/supabase";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { LoadingButton } from "../ui/LoadingButton";
+import { EmptyState } from "../ui/EmptyState";
 
 const fmtMonth = (ym) => {
 	const [y, m] = String(ym).split("-").map(Number);
@@ -22,6 +23,7 @@ const fmtMonth = (ym) => {
 };
 
 const toYm = (date) => (date && String(date).length >= 7 ? String(date).slice(0, 7) : null);
+const RULES_STORAGE_KEY = "suppliersCanonicalRules.v1";
 
 const Sparkline = ({ points = [] }) => {
 	if (!points.length) return null;
@@ -59,6 +61,26 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 	const [editNif, setEditNif] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [normalizing, setNormalizing] = useState(false);
+	const [canonicalRules, setCanonicalRules] = useState({});
+
+	useEffect(() => {
+		try {
+			const raw = window.localStorage.getItem(RULES_STORAGE_KEY);
+			if (!raw) return;
+			const parsed = JSON.parse(raw);
+			if (parsed && typeof parsed === "object") setCanonicalRules(parsed);
+		} catch {
+			// ignore invalid local storage payload
+		}
+	}, []);
+
+	useEffect(() => {
+		try {
+			window.localStorage.setItem(RULES_STORAGE_KEY, JSON.stringify(canonicalRules));
+		} catch {
+			// ignore write failures (private mode, quota, etc.)
+		}
+	}, [canonicalRules]);
 
 	const suppliers = useMemo(() => {
 		const expenses = (entries || []).filter(
@@ -68,9 +90,11 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 		expenses.forEach((e) => {
 			const name = (e.provider_name || "").trim();
 			const nif = (e.supplier_nif || "").trim();
-			const key = `${(nif || name).toLowerCase()}__${name.toLowerCase()}`;
+			const ruleName = nif ? canonicalRules[nif.toUpperCase()] : null;
+			const effectiveName = ruleName || name;
+			const key = `${(nif || effectiveName).toLowerCase()}__${effectiveName.toLowerCase()}`;
 			if (!map.has(key)) {
-				map.set(key, { key, name, nif, rows: [] });
+				map.set(key, { key, name: effectiveName, nif, rows: [] });
 			}
 			map.get(key).rows.push(e);
 		});
@@ -91,7 +115,7 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 				};
 			})
 			.sort((a, b) => b.totalSpent - a.totalSpent);
-	}, [entries]);
+	}, [entries, canonicalRules]);
 
 	const normalizationPreview = useMemo(() => {
 		const expenses = (entries || []).filter((e) => e.type === "expense");
@@ -222,6 +246,9 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 
 			const { error } = await q;
 			if (error) throw error;
+			if (newNif && newName) {
+				setCanonicalRules((prev) => ({ ...prev, [newNif.toUpperCase()]: newName }));
+			}
 			showToast("Proveedor actualizado");
 			setEditingSupplier(null);
 			if (onRefresh) await onRefresh();
@@ -258,6 +285,33 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 
 	const totalGlobal = filtered.reduce((a, s) => a + s.totalSpent, 0);
 
+	const applySavedRules = async () => {
+		const rules = Object.entries(canonicalRules).filter(
+			([nif, name]) => String(nif).trim() && String(name).trim(),
+		);
+		if (rules.length === 0) {
+			showToast("No hay reglas guardadas para aplicar.");
+			return;
+		}
+		setNormalizing(true);
+		try {
+			for (const [nif, canonicalName] of rules) {
+				const { error } = await supabase
+					.from("finance_entries")
+					.update({ provider_name: canonicalName })
+					.eq("type", "expense")
+					.eq("supplier_nif", nif);
+				if (error) throw error;
+			}
+			showToast(`Reglas aplicadas: ${rules.length} NIF actualizados.`);
+			if (onRefresh) await onRefresh();
+		} catch (err) {
+			showToast(err?.message || "Error al aplicar reglas de proveedores", "error");
+		} finally {
+			setNormalizing(false);
+		}
+	};
+
 	return (
 		<>
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
@@ -266,6 +320,14 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 					<Building2 className="text-rose-500" size={28} /> Proveedores
 				</h2>
 				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						onClick={applySavedRules}
+						disabled={normalizing || Object.keys(canonicalRules).length === 0}
+						className="text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl px-3 py-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+						title="Aplica reglas guardadas de nombre canónico por NIF">
+						Aplicar reglas ({Object.keys(canonicalRules).length})
+					</button>
 					<button
 						type="button"
 						onClick={normalizeSuppliersByNif}
@@ -312,7 +374,11 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 							</button>
 						))}
 						{filtered.length === 0 && (
-							<div className="p-6 text-sm text-gray-400">No hay proveedores con ese filtro.</div>
+							<EmptyState
+								icon={Building2}
+								title="Sin proveedores con ese filtro"
+								description="Prueba con otro nombre o NIF para encontrar resultados."
+							/>
 						)}
 					</div>
 				</div>
@@ -428,8 +494,12 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 							</div>
 						</>
 					) : (
-						<div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 text-gray-400">
-							Sin datos de proveedores todavía.
+						<div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-2">
+							<EmptyState
+								icon={Building2}
+								title="Sin datos de proveedores"
+								description="Registra gastos con NIF o nombre de proveedor para empezar el análisis."
+							/>
 						</div>
 					)}
 				</div>

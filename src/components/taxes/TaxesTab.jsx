@@ -10,10 +10,16 @@ import {
 	Banknote,
 	FileSpreadsheet,
 	Package,
+	ShieldCheck,
+	TriangleAlert,
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
 import { exportTrimestreToZip } from "../../utils/export";
 import { exportPre303LibrosTrimestre } from "../../utils/aeatLibrosExport";
+import { EmptyState } from "../ui/EmptyState";
+import {
+	classifyFinanceIssue,
+} from "../../utils/financeIssues";
 
 const monthNames = [
 	"Enero",
@@ -83,6 +89,7 @@ export const TaxesTab = ({
 	clients = [],
 	user,
 	showToast = () => {},
+	onNavigateFinanceIssues,
 }) => {
 	const currentYear = new Date().getFullYear();
 	const [selectedYear, setSelectedYear] = useState(currentYear);
@@ -270,6 +277,48 @@ export const TaxesTab = ({
 		};
 	}, [entries, selectedYear]);
 
+	const fiscalChecklist = useMemo(() => {
+		const deductibleExpenses = quarterEntries.filter(
+			(e) => e.type === "expense" && e.is_deductible === true,
+		);
+		const totalDeducible = deductibleExpenses.length;
+
+		let missingInvoice = 0;
+		let missingNif = 0;
+		let invalidNif = 0;
+		let missingAttachment = 0;
+		for (const e of deductibleExpenses) {
+			const issue = classifyFinanceIssue(e);
+			if (issue === "missing_invoice") missingInvoice += 1;
+			else if (issue === "missing_nif") missingNif += 1;
+			else if (issue === "invalid_nif") invalidNif += 1;
+			else if (issue === "missing_attachment") missingAttachment += 1;
+		}
+
+		const criticalIssues = missingInvoice + missingNif + invalidNif;
+		const warningIssues = missingAttachment;
+
+		return {
+			totalDeducible,
+			missingInvoice,
+			missingNif,
+			invalidNif,
+			missingAttachment,
+			criticalIssues,
+			warningIssues,
+			readyToExport: criticalIssues === 0,
+		};
+	}, [quarterEntries]);
+
+	const openFinanceIssues = (issue) => {
+		if (!onNavigateFinanceIssues) return;
+		onNavigateFinanceIssues({
+			year: selectedYear,
+			quarter: selectedQuarter,
+			issue,
+		});
+	};
+
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			<div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
@@ -440,6 +489,137 @@ export const TaxesTab = ({
 				</div>
 			</div>
 
+			<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+				<h3 className="font-black text-gray-800 text-lg mb-2 flex items-center gap-2">
+					<ShieldCheck className="text-slate-700" size={20} />
+					Checklist fiscal antes de exportar
+				</h3>
+				<p className="text-xs text-gray-500 mb-4">
+					Control rápido del trimestre para detectar incidencias antes de generar
+					modelos o libros.
+				</p>
+				{onNavigateFinanceIssues && (
+					<div className="flex flex-wrap gap-2 mb-4">
+						<button
+							type="button"
+							onClick={() => openFinanceIssues("all")}
+							className="text-xs font-bold px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50">
+							Abrir Finanzas (periodo del checklist)
+						</button>
+						{fiscalChecklist.criticalIssues + fiscalChecklist.warningIssues > 0 && (
+							<button
+								type="button"
+								onClick={() => openFinanceIssues("any")}
+								className="text-xs font-bold px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100">
+								Ver solo incidencias
+							</button>
+						)}
+					</div>
+				)}
+				<div
+					className={`rounded-2xl border p-4 mb-4 ${
+						fiscalChecklist.readyToExport
+							? "bg-emerald-50 border-emerald-100"
+							: "bg-amber-50 border-amber-100"
+					}`}>
+					<p
+						className={`text-sm font-bold ${
+							fiscalChecklist.readyToExport
+								? "text-emerald-700"
+								: "text-amber-700"
+						}`}>
+						{fiscalChecklist.readyToExport
+							? "Listo para exportar: no hay incidencias críticas."
+							: "Revisar antes de exportar: hay incidencias críticas en gastos deducibles."}
+					</p>
+					<p className="text-xs text-gray-600 mt-1">
+						Gastos deducibles en el trimestre:{" "}
+						<span className="font-black">{fiscalChecklist.totalDeducible}</span>
+					</p>
+				</div>
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+					<div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+						<p className="text-[10px] uppercase font-black text-gray-400">
+							Sin nº factura
+						</p>
+						<p className="text-xl font-black text-gray-800">
+							{fiscalChecklist.missingInvoice}
+						</p>
+						{onNavigateFinanceIssues && fiscalChecklist.missingInvoice > 0 && (
+							<button
+								type="button"
+								onClick={() => openFinanceIssues("missing_invoice")}
+								className="mt-2 text-[11px] font-bold text-rose-600 hover:underline">
+								Ver en Finanzas
+							</button>
+						)}
+					</div>
+					<div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+						<p className="text-[10px] uppercase font-black text-gray-400">
+							Sin NIF proveedor
+						</p>
+						<p className="text-xl font-black text-gray-800">
+							{fiscalChecklist.missingNif}
+						</p>
+						{onNavigateFinanceIssues && fiscalChecklist.missingNif > 0 && (
+							<button
+								type="button"
+								onClick={() => openFinanceIssues("missing_nif")}
+								className="mt-2 text-[11px] font-bold text-rose-600 hover:underline">
+								Ver en Finanzas
+							</button>
+						)}
+					</div>
+					<div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+						<p className="text-[10px] uppercase font-black text-gray-400">
+							NIF inválido
+						</p>
+						<p className="text-xl font-black text-gray-800">
+							{fiscalChecklist.invalidNif}
+						</p>
+						{onNavigateFinanceIssues && fiscalChecklist.invalidNif > 0 && (
+							<button
+								type="button"
+								onClick={() => openFinanceIssues("invalid_nif")}
+								className="mt-2 text-[11px] font-bold text-rose-600 hover:underline">
+								Ver en Finanzas
+							</button>
+						)}
+					</div>
+					<div className="p-3 bg-gray-50 rounded-xl border border-gray-100">
+						<p className="text-[10px] uppercase font-black text-gray-400">
+							Sin justificante
+						</p>
+						<p className="text-xl font-black text-gray-800">
+							{fiscalChecklist.missingAttachment}
+						</p>
+						{onNavigateFinanceIssues && fiscalChecklist.missingAttachment > 0 && (
+							<button
+								type="button"
+								onClick={() => openFinanceIssues("missing_attachment")}
+								className="mt-2 text-[11px] font-bold text-rose-600 hover:underline">
+								Ver en Finanzas
+							</button>
+						)}
+					</div>
+					<div className="p-3 rounded-xl border border-gray-100 bg-slate-50">
+						<p className="text-[10px] uppercase font-black text-gray-400">
+							Estado
+						</p>
+						<p
+							className={`text-xs font-black mt-1 flex items-center gap-1 ${
+								fiscalChecklist.readyToExport
+									? "text-emerald-700"
+									: "text-amber-700"
+							}`}>
+							<TriangleAlert size={12} />
+							{fiscalChecklist.criticalIssues} críticas ·{" "}
+							{fiscalChecklist.warningIssues} aviso
+						</p>
+					</div>
+				</div>
+			</div>
+
 			{/* Desglose Mensual */}
 			<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
 				<h3 className="font-black text-gray-800 text-lg mb-4 flex items-center gap-2">
@@ -505,9 +685,11 @@ export const TaxesTab = ({
 						})}
 					</div>
 				) : (
-					<p className="text-gray-400 text-sm text-center py-8">
-						Sin movimientos en el trimestre seleccionado
-					</p>
+					<EmptyState
+						icon={BarChart3}
+						title="Sin movimientos en el trimestre"
+						description="Cuando registres ingresos o gastos en este periodo, verás aquí su desglose mensual."
+					/>
 				)}
 			</div>
 
@@ -555,9 +737,11 @@ export const TaxesTab = ({
 					</p>
 				</div>
 				{amortizacionData.activosEnCurso.length === 0 ? (
-					<p className="text-gray-400 text-sm text-center py-6">
-						No hay bienes de inversión con amortización pendiente en este periodo.
-					</p>
+					<EmptyState
+						icon={Package}
+						title="Sin bienes de inversión en curso"
+						description="No hay activos amortizables pendientes para el periodo seleccionado."
+					/>
 				) : (
 					<div className="space-y-4">
 						{amortizacionData.activosEnCurso.map((asset) => (

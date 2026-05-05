@@ -1,5 +1,5 @@
 // /Users/nilto/Documents/GitHub/DermoManager/src/components/ui/ConfirmModal.jsx
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { LogOut, AlertCircle } from "lucide-react";
 
 export const ConfirmModal = ({
@@ -10,16 +10,52 @@ export const ConfirmModal = ({
 	onCancel,
 	isDestructive = false,
 }) => {
+	const dialogRef = useRef(null);
+
+	useEffect(() => {
+		if (!isOpen) return undefined;
+		const onKeyDown = (event) => {
+			if (event.key === "Escape" || event.key === "Esc") {
+				event.preventDefault();
+				onCancel();
+			}
+		};
+		document.addEventListener("keydown", onKeyDown, true);
+		return () => document.removeEventListener("keydown", onKeyDown, true);
+	}, [isOpen, onCancel]);
+
+	useEffect(() => {
+		if (!isOpen) return;
+		dialogRef.current?.focus();
+	}, [isOpen]);
+
 	if (!isOpen) return null;
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-			<div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+		<div
+			className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+			onClick={onCancel}>
+			<div
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="confirm-modal-title"
+				tabIndex={-1}
+				ref={dialogRef}
+				onKeyDown={(event) => {
+					if (event.key === "Escape" || event.key === "Esc") {
+						event.preventDefault();
+						onCancel();
+					}
+				}}
+				className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200"
+				onClick={(e) => e.stopPropagation()}>
 				<div className="p-6 text-center">
 					<div
 						className={`mx-auto mb-4 w-12 h-12 rounded-full flex items-center justify-center ${isDestructive ? "bg-red-100 text-red-600" : "bg-rose-100 text-rose-600"}`}>
 						{isDestructive ? <LogOut size={24} /> : <AlertCircle size={24} />}
 					</div>
-					<h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
+					<h3 id="confirm-modal-title" className="text-lg font-bold text-gray-900 mb-2">
+						{title}
+					</h3>
 					<p className="text-sm text-gray-500 mb-6">{message}</p>
 					<div className="flex gap-3">
 						<button

@@ -1,13 +1,25 @@
-import * as XLSX from "xlsx";
-import JSZip from "jszip";
-import { saveAs } from "file-saver";
 import { supabase } from "../services/supabase";
 import { getReceiptSignedUrl } from "../services/receiptStorage";
+
+const getXlsx = async () => import("xlsx");
+const getZipAndSaver = async () => {
+	const [{ default: JSZip }, { saveAs }] = await Promise.all([
+		import("jszip"),
+		import("file-saver"),
+	]);
+	return { JSZip, saveAs };
+};
 
 /**
  * Exporta trimestre (o periodo actual) a Excel con hojas Ventas y Compras para el gestor/303.
  */
-export const exportTrimestreToExcel = (ventasEntries = [], expenses = [], clients = [], filename = "Exportacion_trimestre.xlsx") => {
+export const exportTrimestreToExcel = async (
+	ventasEntries = [],
+	expenses = [],
+	clients = [],
+	filename = "Exportacion_trimestre.xlsx",
+) => {
+	const XLSX = await getXlsx();
 	const ventasRows = ventasEntries.map((e) => {
 		const client = clients.find((c) => c.id === e.client_id);
 		const clientName = client ? `${client.name || ""} ${client.surname || ""}`.trim() : "";
@@ -124,6 +136,8 @@ export const exportTrimestreToZip = async (
 	showToast = () => {}
 ) => {
 	try {
+		const XLSX = await getXlsx();
+		const { JSZip, saveAs } = await getZipAndSaver();
 		showToast("Generando exportación...", "info");
 		
 		// Filtrar entradas del trimestre

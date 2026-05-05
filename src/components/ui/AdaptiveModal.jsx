@@ -1,6 +1,7 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 /**
  * Modal adaptativo:
@@ -15,12 +16,16 @@ export const AdaptiveModal = ({
 	children,
 	maxWidth = "max-w-lg",
 }) => {
+	const dialogRef = useRef(null);
+
 	useEffect(() => {
 		if (isOpen) document.body.style.overflow = "hidden";
 		return () => {
 			document.body.style.overflow = "";
 		};
 	}, [isOpen]);
+
+	useFocusTrap(isOpen, dialogRef, { onEscape: onClose });
 
 	if (!isOpen) return null;
 
@@ -32,6 +37,8 @@ export const AdaptiveModal = ({
 				aria-hidden="true"
 			/>
 			<div
+				ref={dialogRef}
+				tabIndex={-1}
 				className={`relative bg-white w-full ${maxWidth} rounded-t-3xl xl:rounded-[2rem] shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-in slide-up`}
 				role="dialog"
 				aria-modal="true"
@@ -43,7 +50,9 @@ export const AdaptiveModal = ({
 						{title}
 					</h3>
 					<button
+						type="button"
 						onClick={onClose}
+						aria-label="Cerrar"
 						className="p-2 rounded-full text-gray-400 hover:bg-white hover:text-gray-600 transition-colors">
 						<X size={20} />
 					</button>

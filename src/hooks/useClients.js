@@ -22,6 +22,8 @@ export const useClients = (user) => {
 	const {
 		data: clients = [],
 		isLoading,
+		error,
+		isError,
 		refetch: refreshClients,
 	} = useQuery({
 		queryKey: ["clients", clinicId],
@@ -44,5 +46,11 @@ export const useClients = (user) => {
 		return () => supabase.removeChannel(channel);
 	}, [clinicId, queryClient]);
 
-	return { clients, loading: isLoading, refreshClients };
+	return {
+		clients,
+		loading: isLoading,
+		error,
+		isError,
+		refreshClients,
+	};
 };

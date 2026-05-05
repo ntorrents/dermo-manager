@@ -170,6 +170,21 @@ export const InventoryTab = ({
 		);
 	}, [entries]);
 
+	const applyProviderFromName = (providerName, setter) => {
+		const normalized = (providerName || "").trim().toLowerCase();
+		if (!normalized) return;
+		const matches = supplierDirectory.filter(
+			(s) => (s.name || "").trim().toLowerCase() === normalized,
+		);
+		if (matches.length === 1) {
+			setter((prev) => ({
+				...prev,
+				provider_name: matches[0].name || prev.provider_name,
+				supplier_nif: matches[0].nif || prev.supplier_nif,
+			}));
+		}
+	};
+
 	const filteredInventory =
 		inventory?.filter((item) =>
 			item.name.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -989,6 +1004,7 @@ export const InventoryTab = ({
 									onChange={(e) =>
 										setFormData({ ...formData, provider_name: e.target.value })
 									}
+									onBlur={(e) => applyProviderFromName(e.target.value, setFormData)}
 								/>
 							</div>
 							<div>
@@ -1150,6 +1166,9 @@ export const InventoryTab = ({
 							value={restockData.provider_name}
 							onChange={(e) =>
 								setRestockData({ ...restockData, provider_name: e.target.value })
+							}
+							onBlur={(e) =>
+								applyProviderFromName(e.target.value, setRestockData)
 							}
 						/>
 					</div>

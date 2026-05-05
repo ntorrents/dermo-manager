@@ -21,18 +21,22 @@ const fetchHistoryForClient = async (clientId) => {
 export const useClientHistory = (clientId) => {
 	const [history, setHistory] = useState([]);
 	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState(null);
 
 	const refetch = useCallback(async () => {
 		if (!clientId) {
 			setHistory([]);
+			setError(null);
 			return;
 		}
 		setLoading(true);
 		try {
+			setError(null);
 			const data = await fetchHistoryForClient(clientId);
 			setHistory(data);
 		} catch (err) {
-			console.error("Error cargando historial:", err.message);
+			setError(err?.message || "Error al cargar historial");
+			setHistory([]);
 		} finally {
 			setLoading(false);
 		}
@@ -46,12 +50,16 @@ export const useClientHistory = (clientId) => {
 		}
 		let cancelled = false;
 		setLoading(true);
+		setError(null);
 		fetchHistoryForClient(clientId)
 			.then((data) => {
 				if (!cancelled) setHistory(data);
 			})
 			.catch((err) => {
-				if (!cancelled) console.error("Error cargando historial:", err.message);
+				if (!cancelled) {
+					setError(err?.message || "Error al cargar historial");
+					setHistory([]);
+				}
 			})
 			.finally(() => {
 				if (!cancelled) setLoading(false);
@@ -61,5 +69,5 @@ export const useClientHistory = (clientId) => {
 		};
 	}, [clientId]);
 
-	return { history, loading, refetch };
+	return { history, loading, error, refetch };
 };

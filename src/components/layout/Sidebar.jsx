@@ -12,18 +12,19 @@ import {
 	Ticket,
 	FolderOpen,
 } from "lucide-react";
+import { NAV_LABELS } from "./navigationLabels";
 
 const NAV_ITEMS = [
-	{ id: "dashboard", l: "Resumen", i: BarChart3 },
-	{ id: "clients", l: "Clientes", i: Users },
-	{ id: "treatments", l: "Tratamientos", i: Syringe },
-	{ id: "bonos", l: "Bonos", i: Ticket },
-	{ id: "documents", l: "Documentos", i: FolderOpen },
-	{ id: "inventory", l: "Stock", i: Package },
-	{ id: "calendar", l: "Agenda", i: Calendar },
-	{ id: "finance", l: "Finanzas", i: DollarSign },
-	{ id: "suppliers", l: "Proveedores", i: Building2 },
-	{ id: "taxes", l: "Fiscalidad", i: Landmark },
+	{ id: "dashboard", l: NAV_LABELS.dashboard, i: BarChart3 },
+	{ id: "clients", l: NAV_LABELS.clients, i: Users },
+	{ id: "treatments", l: NAV_LABELS.treatments, i: Syringe },
+	{ id: "bonos", l: NAV_LABELS.bonos, i: Ticket },
+	{ id: "documents", l: NAV_LABELS.documents, i: FolderOpen },
+	{ id: "inventory", l: NAV_LABELS.inventory, i: Package },
+	{ id: "calendar", l: NAV_LABELS.calendar, i: Calendar },
+	{ id: "finance", l: NAV_LABELS.finance, i: DollarSign },
+	{ id: "suppliers", l: NAV_LABELS.suppliers, i: Building2 },
+	{ id: "taxes", l: NAV_LABELS.taxes, i: Landmark },
 ];
 
 export const Sidebar = ({

@@ -82,10 +82,22 @@ const DermoManager = () => {
 
 	const { inventory, loading: inventoryLoading, refreshInventory } = useInventory(user);
 	const { treatments, loading: treatmentsLoading, refreshTreatments } = useTreatments(user);
-	const { entries, loading: financeLoading, refreshFinance } = useFinance(user);
+	const {
+		entries,
+		loading: financeLoading,
+		error: financeQueryError,
+		isError: financeQueryIsError,
+		refreshFinance,
+	} = useFinance(user);
 	const { loading: recurringLoading, refreshRecurringConfig } = useRecurringConfig(user);
 	const profile = useProfile(user);
-	const { clients, loading: clientsLoading, refreshClients } = useClients(user);
+	const {
+		clients,
+		loading: clientsLoading,
+		error: clientsQueryError,
+		isError: clientsQueryIsError,
+		refreshClients,
+	} = useClients(user);
 	const { appointments, loading: appointmentsLoading, refreshAppointments } =
 		useAppointments(user?.id);
 	const { batches } = useInventoryBatches(user?.id);
@@ -98,6 +110,15 @@ const DermoManager = () => {
 		clientsLoading ||
 		appointmentsLoading;
 
+	const dataFetchErrors = [
+		financeQueryIsError && financeQueryError?.message
+			? `Finanzas: ${financeQueryError.message}`
+			: null,
+		clientsQueryIsError && clientsQueryError?.message
+			? `Clientes: ${clientsQueryError.message}`
+			: null,
+	].filter(Boolean);
+
 	const refreshData = async () => {
 		await Promise.all([
 			refreshInventory(),
@@ -109,6 +130,7 @@ const DermoManager = () => {
 	};
 
 	const [activeTab, setActiveTab] = useState("dashboard");
+	const [financeNavIntent, setFinanceNavIntent] = useState(null);
 	const [settingsAnchor, setSettingsAnchor] = useState(null);
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
 		try {
@@ -175,6 +197,25 @@ const DermoManager = () => {
 		setReportingAnchorYm(ym);
 		setReportingCustomFrom(ymd);
 		setReportingCustomTo(ymd);
+	}, []);
+
+	const navigateFinanceFromTaxChecklist = useCallback(({ year, quarter, issue }) => {
+		const startMonth = (quarter - 1) * 3;
+		const startDate = `${year}-${String(startMonth + 1).padStart(2, "0")}-01`;
+		const endMonth = quarter * 3;
+		const endDay = new Date(year, endMonth, 0).getDate();
+		const endDate = `${year}-${String(endMonth).padStart(2, "0")}-${String(endDay).padStart(2, "0")}`;
+		setReportingPreset("custom");
+		setReportingCustomFrom(startDate);
+		setReportingCustomTo(endDate);
+		setFinanceNavIntent({
+			source: "taxes",
+			year,
+			quarter,
+			issue,
+			appliedAt: Date.now(),
+		});
+		setActiveTab("finance");
 	}, []);
 
 	const [toast, setToast] = useState(null);
@@ -291,7 +332,7 @@ const DermoManager = () => {
 		}
 	};
 
-	if (authLoading || (user && dataLoading) || (user && tenantLoading))
+	if (authLoading || (user && dataLoading && dataFetchErrors.length === 0) || (user && tenantLoading))
 		return (
 			<div className="min-h-screen flex items-center justify-center bg-rose-50">
 				<div className="flex flex-col items-center gap-4">
@@ -345,7 +386,6 @@ const DermoManager = () => {
 			<AppHeader
 				title={pageMeta.title}
 				subtitle={pageMeta.subtitle}
-				activeTab={activeTab}
 				setActiveTab={setActiveTab}
 				sidebarCollapsed={sidebarCollapsed}
 				onToggleSidebar={toggleSidebarCollapsed}
@@ -361,6 +401,27 @@ const DermoManager = () => {
 				onOpenSettings={goSettings}
 			/>
 			<main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-5 max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-5 min-h-[calc(100dvh-8rem)]">
+				{dataFetchErrors.length > 0 && (
+					<div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+						<div>
+							<p className="font-black">No se pudieron cargar algunos datos</p>
+							<ul className="mt-1 list-disc pl-5 text-xs font-medium space-y-0.5">
+								{dataFetchErrors.map((msg) => (
+									<li key={msg}>{msg}</li>
+								))}
+							</ul>
+						</div>
+						<button
+							type="button"
+							onClick={() => {
+								refreshFinance();
+								refreshClients();
+							}}
+							className="shrink-0 px-4 py-2 rounded-xl bg-white border border-amber-200 text-amber-900 font-bold hover:bg-amber-100">
+							Reintentar
+						</button>
+					</div>
+				)}
 				<Suspense
 					fallback={
 						<div className="min-h-[40vh] flex items-center justify-center">
@@ -445,6 +506,8 @@ const DermoManager = () => {
 						onReportingGoToday={goReportingToday}
 						showToast={showToastMsg}
 						onRefresh={refreshData}
+						navIntent={financeNavIntent}
+						onNavIntentConsumed={() => setFinanceNavIntent(null)}
 					/>
 				)}
 				{activeTab === "documents" && (
@@ -473,6 +536,7 @@ const DermoManager = () => {
 						clients={clients}
 						user={user}
 						showToast={showToastMsg}
+						onNavigateFinanceIssues={navigateFinanceFromTaxChecklist}
 					/>
 				)}
 				{activeTab === "suppliers" && (

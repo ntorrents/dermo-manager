@@ -27,6 +27,7 @@ export const AlertsMenu = ({
 }) => {
 	const [open, setOpen] = useState(false);
 	const rootRef = useRef(null);
+	const panelRef = useRef(null);
 
 	const { upcoming, lowStock, expired } = useMemo(() => {
 		const now = new Date();
@@ -54,6 +55,54 @@ export const AlertsMenu = ({
 		return () => document.removeEventListener("mousedown", onDoc);
 	}, []);
 
+	useEffect(() => {
+		if (!open) return undefined;
+		const items = () =>
+			Array.from(panelRef.current?.querySelectorAll("button") || []).filter(
+				(b) => !b.disabled && b.offsetParent !== null,
+			);
+		const focusAt = (idx) => {
+			const list = items();
+			if (!list.length) return;
+			const i = ((idx % list.length) + list.length) % list.length;
+			list[i]?.focus?.();
+		};
+		requestAnimationFrame(() => focusAt(0));
+
+		const onKeyDown = (e) => {
+			if (e.key === "Escape") {
+				e.preventDefault();
+				setOpen(false);
+				return;
+			}
+			if (e.key === "ArrowDown") {
+				e.preventDefault();
+				const list = items();
+				const active = document.activeElement;
+				const cur = list.indexOf(active);
+				focusAt(cur >= 0 ? cur + 1 : 0);
+			}
+			if (e.key === "ArrowUp") {
+				e.preventDefault();
+				const list = items();
+				const active = document.activeElement;
+				const cur = list.indexOf(active);
+				focusAt(cur >= 0 ? cur - 1 : list.length - 1);
+			}
+			if (e.key === "Home") {
+				e.preventDefault();
+				focusAt(0);
+			}
+			if (e.key === "End") {
+				e.preventDefault();
+				const list = items();
+				focusAt(list.length - 1);
+			}
+		};
+		document.addEventListener("keydown", onKeyDown, true);
+		return () => document.removeEventListener("keydown", onKeyDown, true);
+	}, [open]);
+
 	return (
 		<div className="relative shrink-0" ref={rootRef}>
 			<button
@@ -70,7 +119,9 @@ export const AlertsMenu = ({
 				)}
 			</button>
 			{open && (
-				<div className="absolute right-0 top-full z-[60] mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-100 bg-white shadow-xl overflow-hidden">
+				<div
+					ref={panelRef}
+					className="absolute right-0 top-full z-[60] mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-100 bg-white shadow-xl overflow-hidden">
 					<div className="border-b border-gray-100 px-4 py-2.5 bg-gray-50/80">
 						<p className="text-xs font-bold uppercase tracking-wide text-gray-500">Alertas</p>
 						<p className="text-[11px] text-gray-400 mt-0.5">

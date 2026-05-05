@@ -45,6 +45,8 @@ import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { useTenant } from "../../context/TenantContext";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { classifyFinanceIssue, financeIssueLabel } from "../../utils/financeIssues";
 
 const INVESTMENT_MIN_BASE = 300;
 
@@ -64,11 +66,14 @@ export const FinanceTab = ({
 	onReportingGoToday,
 	showToast,
 	onRefresh,
+	navIntent = null,
+	onNavIntentConsumed,
 }) => {
 	const { clinicId, isAdmin } = useTenant();
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isConfigOpen, setIsConfigOpen] = useState(false);
 	const [searchTerm, setSearchTerm] = useState("");
+	const debouncedSearchTerm = useDebouncedValue(searchTerm, 180);
 
 	const [recurringExpenses, setRecurringExpenses] = useState([]);
 	const [loadingConfig, setLoadingConfig] = useState(true);
@@ -84,6 +89,7 @@ export const FinanceTab = ({
 	// NUEVO: Filtro para la vista móvil (Gasto por defecto)
 	const [typeFilter, setTypeFilter] = useState("expense");
 	const [financeView, setFinanceView] = useState("movements");
+	const [issueFilter, setIssueFilter] = useState("all");
 
 	const [formData, setFormData] = useState({
 		type: "expense",
@@ -211,14 +217,27 @@ export const FinanceTab = ({
 			data = data.filter((e) => e.type === typeFilter);
 		}
 
-		return data
+	return data
 			.filter(
 				(e) =>
-					e.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-					e.category?.toLowerCase().includes(searchTerm.toLowerCase()),
+					e.description?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+					e.category?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()),
 			)
+			.filter((e) => {
+				if (issueFilter === "all") return true;
+				const issue = classifyFinanceIssue(e);
+				if (issueFilter === "any") return Boolean(issue);
+				return issue === issueFilter;
+			})
 			.sort((a, b) => new Date(b.date) - new Date(a.date));
-	}, [periodEntries, searchTerm, typeFilter]);
+	}, [periodEntries, debouncedSearchTerm, typeFilter, issueFilter]);
+
+	useEffect(() => {
+		if (!navIntent || navIntent.source !== "taxes") return;
+		setFinanceView("movements");
+		setIssueFilter(navIntent.issue || "all");
+		onNavIntentConsumed?.();
+	}, [navIntent, onNavIntentConsumed]);
 
 	// Cálculos basados en el periodo total
 	const totalIncome = periodEntries
@@ -1009,6 +1028,19 @@ export const FinanceTab = ({
 						onChange={(e) => setSearchTerm(e.target.value)}
 					/>
 				</div>
+				<div>
+					<select
+						value={issueFilter}
+						onChange={(e) => setIssueFilter(e.target.value)}
+						className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none text-sm font-bold">
+						<option value="all">Sin filtro fiscal</option>
+						<option value="any">Solo con incidencias fiscales</option>
+						<option value="missing_invoice">Sin nº factura</option>
+						<option value="missing_nif">Sin NIF proveedor</option>
+						<option value="invalid_nif">NIF inválido</option>
+						<option value="missing_attachment">Sin justificante</option>
+					</select>
+				</div>
 
 				{/* Lista Móvil Unificada */}
 				<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
@@ -1026,6 +1058,11 @@ export const FinanceTab = ({
 										{entry.is_deductible && " • Factura deducible"}
 										{entry.plan_amigo && " • Plan Amigo (sin factura)"}
 									</p>
+									{classifyFinanceIssue(entry) && (
+										<p className="text-[10px] text-amber-700 font-bold mt-1">
+											⚠ {financeIssueLabel(classifyFinanceIssue(entry))}
+										</p>
+									)}
 									{entry.notes && (
 										<p className="text-[10px] text-gray-400 italic mt-1 flex items-center gap-1">
 											<FileText size={10} /> {entry.notes}

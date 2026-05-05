@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
 import { calculateTaxFromTotal } from "../utils/format";
-import { normalizeInvoiceNumber } from "../utils/validations";
+import { normalizeInvoiceNumber, validateSpanishTaxId } from "../utils/validations";
 
 export const useCreateMaterial = (userId) => {
 	const queryClient = useQueryClient();
@@ -40,6 +40,17 @@ export const useCreateMaterial = (userId) => {
 			const expiryDate = formData.expiryDate;
 			if (stockNum > 0 && (!lotNumber || !expiryDate)) {
 				throw new Error("Lote y fecha de caducidad son obligatorios para el stock inicial");
+			}
+			const providerName = formData.provider_name?.trim() || "";
+			const supplierNif = formData.supplier_nif?.trim() || "";
+			const invoiceNumber = formData.invoice_number?.trim() || "";
+			const hasFiscalData = Boolean(providerName || supplierNif || invoiceNumber);
+			if (hasFiscalData && (!providerName || !supplierNif || !invoiceNumber)) {
+				throw new Error("Si informas datos fiscales de compra, completa proveedor, NIF y nº de factura");
+			}
+			if (supplierNif) {
+				const nifValidation = validateSpanishTaxId(supplierNif);
+				if (!nifValidation.valid) throw new Error(nifValidation.error || "NIF no válido");
 			}
 
 			const calculatedUnitCost = totalCostNum / stockNum;
@@ -92,9 +103,9 @@ export const useCreateMaterial = (userId) => {
 					tax_base: baseAmount,
 					tax_amount: taxAmount,
 					is_deductible: true,
-					provider_name: formData.provider_name?.trim() || null,
-					supplier_nif: formData.supplier_nif?.trim() || null,
-					invoice_number: formData.invoice_number ? normalizeInvoiceNumber(formData.invoice_number) : null,
+					provider_name: providerName || null,
+					supplier_nif: supplierNif || null,
+					invoice_number: invoiceNumber ? normalizeInvoiceNumber(invoiceNumber) : null,
 					date: purchaseDate,
 					activo: true,
 				},

@@ -8,12 +8,13 @@ import {
 	MoreHorizontal,
 } from "lucide-react";
 import { MobileDrawer } from "./MobileDrawer";
+import { NAV_LABELS } from "./navigationLabels";
 
 const MAIN_NAV_ITEMS = [
-	{ id: "dashboard", label: "Inicio", icon: <LayoutDashboard size={20} /> },
-	{ id: "clients", label: "Clientes", icon: <Users size={20} /> },
-	{ id: "treatments", label: "Servicios", icon: <Sparkles size={20} /> },
-	{ id: "inventory", label: "Stock", icon: <Package size={20} /> },
+	{ id: "dashboard", label: NAV_LABELS.dashboard, icon: <LayoutDashboard size={20} /> },
+	{ id: "clients", label: NAV_LABELS.clients, icon: <Users size={20} /> },
+	{ id: "treatments", label: NAV_LABELS.treatments, icon: <Sparkles size={20} /> },
+	{ id: "inventory", label: NAV_LABELS.inventory, icon: <Package size={20} /> },
 ];
 
 export const MobileNav = ({ activeTab, setActiveTab }) => {
