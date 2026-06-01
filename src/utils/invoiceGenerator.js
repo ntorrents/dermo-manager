@@ -248,8 +248,18 @@ export const generateInvoice = async (entry, client, clinic, profile, options = 
 		doc.text(`NIF/CIF: ${client.nif}`, MARGIN + 4, clientLineY);
 		clientLineY += 5;
 	}
-	if (client.address) {
-		doc.text(client.address, MARGIN + 4, clientLineY);
+	if (client.address?.trim()) {
+		const addrLines = doc.splitTextToSize(client.address.trim(), pageWidth - MARGIN * 2 - 8);
+		addrLines.forEach((line) => {
+			doc.text(line, MARGIN + 4, clientLineY);
+			clientLineY += 4.5;
+		});
+	} else if (client.is_company) {
+		doc.setFontSize(8);
+		doc.setTextColor(180, 100, 0);
+		doc.text("Dirección fiscal: pendiente en ficha de cliente", MARGIN + 4, clientLineY);
+		doc.setFontSize(9);
+		doc.setTextColor(30);
 	}
 
 	// --- 4. LÍNEAS ---

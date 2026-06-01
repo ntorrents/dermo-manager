@@ -93,6 +93,7 @@ export const ClientsTab = ({
 		drive_url: "",
 		fecha_nacimiento: "",
 		notas_privadas: "",
+		address: "",
 		is_company: false,
 		irpf_withholding_rate: 7,
 	});
@@ -191,6 +192,17 @@ export const ClientsTab = ({
 			c.phone?.includes(searchTerm),
 	);
 
+	const ensureCompanyFiscalAddress = (client) => {
+		if (client?.is_company && !client?.address?.trim()) {
+			showToast(
+				"Añade la dirección fiscal del cliente (ficha → editar) antes de emitir factura",
+				"error",
+			);
+			return false;
+		}
+		return true;
+	};
+
 	const handleOpenModal = (client = null) => {
 		setClientFormStep(1);
 		if (client) {
@@ -209,6 +221,7 @@ export const ClientsTab = ({
 				drive_url: client.drive_url || "",
 				fecha_nacimiento: client.fecha_nacimiento || "",
 				notas_privadas: client.notas_privadas || "",
+				address: client.address || "",
 				is_company: client.is_company ?? false,
 				irpf_withholding_rate:
 					client.irpf_withholding_rate != null
@@ -232,6 +245,7 @@ export const ClientsTab = ({
 				drive_url: "",
 				fecha_nacimiento: "",
 				notas_privadas: "",
+				address: "",
 				is_company: false,
 				irpf_withholding_rate: 7,
 			});
@@ -242,6 +256,10 @@ export const ClientsTab = ({
 
 	const handleSaveClient = async (e) => {
 		e.preventDefault();
+		if (formData.is_company && !formData.address?.trim()) {
+			showToast("Las empresas deben tener dirección fiscal (obligatoria en factura)", "error");
+			return;
+		}
 		setSavingClient(true);
 		try {
 			const payload = {
@@ -256,6 +274,7 @@ export const ClientsTab = ({
 				drive_url: formData.drive_url?.trim() || null,
 				fecha_nacimiento: formData.fecha_nacimiento?.trim() || null,
 				notas_privadas: formData.notas_privadas?.trim() || null,
+				address: formData.address?.trim() || null,
 				is_company: !!formData.is_company,
 				irpf_withholding_rate: formData.is_company
 					? Number(formData.irpf_withholding_rate) || 7
@@ -369,6 +388,10 @@ export const ClientsTab = ({
 		}
 		setProcessingRefund(true);
 		try {
+			if (!ensureCompanyFiscalAddress(selectedClient)) {
+				setProcessingRefund(false);
+				return;
+			}
 			const taxRate = Number(sessionToRefund.tax_rate) ?? 21;
 			const irpfRate = Number(sessionToRefund.irpf_rate) ?? 0;
 			const sessionTotal = Number(sessionToRefund.amount) || 0;
@@ -1126,6 +1149,7 @@ export const ClientsTab = ({
 																		<button
 																			onClick={async () => {
 																				try {
+																					if (!ensureCompanyFiscalAddress(selectedClient)) return;
 																					await generateInvoice(session, selectedClient, clinic, profile);
 																					showToast("Factura generada");
 																				} catch {
@@ -1222,6 +1246,20 @@ export const ClientsTab = ({
 												)}
 											</dd>
 										</div>
+										{selectedClient.is_company && (
+											<div>
+												<dt className="text-[10px] font-black text-gray-400 uppercase">
+													Dirección fiscal
+												</dt>
+												<dd className="font-bold text-gray-800 whitespace-pre-line">
+													{selectedClient.address?.trim() || (
+														<span className="text-amber-700">
+															Sin dirección — añádela para facturar
+														</span>
+													)}
+												</dd>
+											</div>
+										)}
 										{selectedClient.fecha_nacimiento && (
 											<div>
 												<dt className="text-[10px] font-black text-gray-400 uppercase">
@@ -1736,6 +1774,26 @@ export const ClientsTab = ({
 								<p className="text-[10px] text-blue-800 mt-1">
 									En sesiones y facturas: el total a cobrar será PVP − retención (la empresa
 									la ingresa en Hacienda).
+								</p>
+							</div>
+						)}
+						{formData.is_company && (
+							<div>
+								<label className="text-[11px] font-black text-gray-500 uppercase block mb-1">
+									Dirección fiscal <span className="text-rose-500">*</span>
+								</label>
+								<textarea
+									required
+									rows={2}
+									className="w-full p-3 bg-white rounded-xl font-bold border border-blue-200 outline-none resize-y min-h-[4rem]"
+									placeholder="Calle, número, CP, ciudad"
+									value={formData.address}
+									onChange={(e) =>
+										setFormData({ ...formData, address: e.target.value })
+									}
+								/>
+								<p className="text-[10px] text-blue-800 mt-1">
+									Aparece en el bloque «Facturar a» de las facturas a empresa.
 								</p>
 							</div>
 						)}
