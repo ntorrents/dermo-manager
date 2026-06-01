@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
 	X,
 	Calendar,
@@ -15,6 +15,13 @@ import {
 } from "lucide-react";
 import { useActiveBonoForSession } from "../../hooks/useBonos";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { formatCurrency } from "../../utils/format";
+import {
+	calculateIncomeFromPvp,
+	getTreatmentTaxRate,
+	resolveClientIrpfRate,
+	taxRateLabel,
+} from "../../utils/incomeTax";
 
 export const SessionModal = ({
 	isOpen,
@@ -74,6 +81,29 @@ export const SessionModal = ({
 
 	useFocusTrap(Boolean(isOpen && treatment), dialogRef, { onEscape: onClose });
 
+	const isValidFinalPrice =
+		finalPrice !== "" &&
+		Number.isFinite(Number(finalPrice)) &&
+		Number(finalPrice) >= 0;
+
+	const fiscalPreview = useMemo(() => {
+		if (!isOpen || !treatment || !isValidFinalPrice || planAmigo) return null;
+		const taxRate = getTreatmentTaxRate(treatment);
+		const irpfRate = selectedClient ? resolveClientIrpfRate(selectedClient) : 0;
+		return {
+			taxRate,
+			irpfRate,
+			...calculateIncomeFromPvp(Number(finalPrice), taxRate, irpfRate),
+		};
+	}, [
+		isOpen,
+		treatment,
+		finalPrice,
+		selectedClient,
+		planAmigo,
+		isValidFinalPrice,
+	]);
+
 	if (!isOpen || !treatment) return null;
 
 	const filteredClients = (clients || []).filter((c) =>
@@ -121,11 +151,6 @@ export const SessionModal = ({
 			consumeBono && activeBono ? activeBono.id : undefined
 		);
 	};
-
-	const isValidFinalPrice =
-		finalPrice !== "" &&
-		Number.isFinite(Number(finalPrice)) &&
-		Number(finalPrice) >= 0;
 
 	return (
 		<div className="fixed inset-0 z-[100] flex justify-center items-start xl:items-center p-4">
@@ -275,7 +300,7 @@ export const SessionModal = ({
 
 						<div className="space-y-3">
 							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-								<Tag size={14} /> Precio (€)
+								<Tag size={14} /> Precio (€, IVA incluido)
 							</label>
 							<div className="relative">
 								<Euro
@@ -293,6 +318,29 @@ export const SessionModal = ({
 							</div>
 						</div>
 					</div>
+
+					{fiscalPreview && !planAmigo && (
+						<div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 space-y-1">
+							<p className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
+								Desglose fiscal (factura)
+							</p>
+							<p>IVA: {taxRateLabel(fiscalPreview.taxRate)}</p>
+							<p>PVP (particular): {formatCurrency(fiscalPreview.pvp)}</p>
+							<p>Base imponible: {formatCurrency(fiscalPreview.baseAmount)}</p>
+							{fiscalPreview.taxRate > 0 && (
+								<p>+ IVA: {formatCurrency(fiscalPreview.taxAmount)}</p>
+							)}
+							{fiscalPreview.irpfRate > 0 && (
+								<p className="text-blue-800">
+									− Retención IRPF ({fiscalPreview.irpfRate}%):{" "}
+									{formatCurrency(fiscalPreview.irpfAmount)}
+								</p>
+							)}
+							<p className="text-sm text-gray-900 pt-1">
+								Total a cobrar: {formatCurrency(fiscalPreview.totalAmount)}
+							</p>
+						</div>
+					)}
 
 					{/* 3. MATERIALES (Receta + Extras) */}
 					<div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-4">

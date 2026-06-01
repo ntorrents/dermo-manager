@@ -24,6 +24,12 @@ import {
 	validateInvoiceDateConsistency,
 	getInvoiceSuggestions,
 } from "../../utils/validations";
+import { GENERIC_PURCHASE_PROVIDER } from "../../utils/inventoryPurchase";
+import {
+	buildSupplierDirectory,
+	matchProviderByName,
+} from "../../utils/supplierDirectory";
+import { ProviderDatalist } from "../ui/ProviderDatalist";
 import {
 	useCreateMaterial,
 	useUpdateMaterial,
@@ -114,6 +120,7 @@ export const InventoryTab = ({
 		lotNumber: "",
 		expiryDate: "",
 		purchaseDate: new Date().toISOString().split("T")[0],
+		is_deductible: false,
 		provider_name: "",
 		supplier_nif: "",
 		invoice_number: "",
@@ -150,39 +157,25 @@ export const InventoryTab = ({
 		lotNumber: "",
 		expiryDate: "",
 		purchaseDate: new Date().toISOString().split("T")[0],
+		is_deductible: false,
 		provider_name: "",
 		supplier_nif: "",
 		invoice_number: "",
 	});
 
-	const supplierDirectory = React.useMemo(() => {
-		const map = new Map();
-		(entries || [])
-			.filter((e) => e.type === "expense" && (e.provider_name || e.supplier_nif))
-			.forEach((e) => {
-				const nif = (e.supplier_nif || "").trim();
-				const name = (e.provider_name || "").trim();
-				const key = `${nif}__${name}`.toLowerCase();
-				if (!map.has(key)) map.set(key, { nif, name });
-			});
-		return Array.from(map.values()).sort((a, b) =>
-			(a.name || a.nif || "").localeCompare(b.name || b.nif || "", "es"),
-		);
-	}, [entries]);
+	const supplierDirectory = React.useMemo(
+		() => buildSupplierDirectory(entries),
+		[entries],
+	);
 
 	const applyProviderFromName = (providerName, setter) => {
-		const normalized = (providerName || "").trim().toLowerCase();
-		if (!normalized) return;
-		const matches = supplierDirectory.filter(
-			(s) => (s.name || "").trim().toLowerCase() === normalized,
-		);
-		if (matches.length === 1) {
-			setter((prev) => ({
-				...prev,
-				provider_name: matches[0].name || prev.provider_name,
-				supplier_nif: matches[0].nif || prev.supplier_nif,
-			}));
-		}
+		const match = matchProviderByName(supplierDirectory, providerName);
+		if (!match) return;
+		setter((prev) => ({
+			...prev,
+			provider_name: match.name || prev.provider_name,
+			supplier_nif: match.nif || prev.supplier_nif,
+		}));
 	};
 
 	const filteredInventory =
@@ -227,6 +220,7 @@ export const InventoryTab = ({
 				lotNumber: "",
 				expiryDate: "",
 				purchaseDate: new Date().toISOString().split("T")[0],
+				is_deductible: false,
 				provider_name: "",
 				supplier_nif: "",
 				invoice_number: "",
@@ -247,6 +241,7 @@ export const InventoryTab = ({
 				lotNumber: "",
 				expiryDate: "",
 				purchaseDate: new Date().toISOString().split("T")[0],
+				is_deductible: false,
 				provider_name: "",
 				supplier_nif: "",
 				invoice_number: "",
@@ -261,6 +256,22 @@ export const InventoryTab = ({
 		if (!isMaquina && Number(formData.stock) <= 0) {
 			showToast("El stock debe ser mayor a 0", "error");
 			return;
+		}
+		if (!isMaquina && !editingItem) {
+			if (!formData.purchaseDate?.trim()) {
+				showToast("La fecha de compra es obligatoria", "error");
+				return;
+			}
+			if (!formData.lotNumber?.trim() || !formData.expiryDate) {
+				showToast("Lote y fecha de caducidad son obligatorios", "error");
+				return;
+			}
+			if (formData.is_deductible) {
+				if (!formData.provider_name?.trim() || !formData.supplier_nif?.trim() || !formData.invoice_number?.trim()) {
+					showToast("Factura deducible: completa proveedor, NIF y nº de factura", "error");
+					return;
+				}
+			}
 		}
 		if (isMaquina && (Number(formData.costPerUse) < 0 || formData.costPerUse === "")) {
 			showToast("Indica el coste por uso (ej. 10 €/sesión)", "error");
@@ -290,6 +301,7 @@ export const InventoryTab = ({
 			lotNumber: "",
 			expiryDate: "",
 			purchaseDate: new Date().toISOString().split("T")[0],
+			is_deductible: false,
 			provider_name: "",
 			supplier_nif: "",
 			invoice_number: "",
@@ -425,8 +437,20 @@ export const InventoryTab = ({
 	const handleRestock = async (e) => {
 		e.preventDefault();
 
-		// Validaciones antes de guardar
-		if (restockData.supplier_nif) {
+		if (!restockData.purchaseDate?.trim()) {
+			showToast("La fecha de compra es obligatoria", "error");
+			return;
+		}
+		if (!restockData.lotNumber?.trim() || !restockData.expiryDate) {
+			showToast("Lote y fecha de caducidad son obligatorios", "error");
+			return;
+		}
+
+		if (restockData.is_deductible) {
+			if (!restockData.provider_name?.trim() || !restockData.supplier_nif?.trim() || !restockData.invoice_number?.trim()) {
+				showToast("Factura deducible: completa proveedor, NIF y nº de factura", "error");
+				return;
+			}
 			const nifValidation = validateSpanishTaxId(restockData.supplier_nif);
 			if (!nifValidation.valid) {
 				showToast(nifValidation.error, "error");
@@ -434,7 +458,15 @@ export const InventoryTab = ({
 			}
 		}
 
-		if (restockData.invoice_number && !restockData.invoice_number.trim()) {
+		if (!restockData.is_deductible && restockData.supplier_nif) {
+			const nifValidation = validateSpanishTaxId(restockData.supplier_nif);
+			if (!nifValidation.valid) {
+				showToast(nifValidation.error, "error");
+				return;
+			}
+		}
+
+		if (restockData.is_deductible && restockData.invoice_number && !restockData.invoice_number.trim()) {
 			showToast("El número de factura no puede estar vacío", "error");
 			return;
 		}
@@ -452,10 +484,13 @@ export const InventoryTab = ({
 				restockItem,
 				restockData: {
 					...restockData,
-					receiptFile: restockReceiptFile,
-					supplier_nif:
-						restockNifValidation.normalized || restockData.supplier_nif,
-					invoice_number: normalizeInvoiceNumber(restockData.invoice_number),
+					receiptFile: restockData.is_deductible ? restockReceiptFile : null,
+					supplier_nif: restockData.is_deductible
+						? restockNifValidation.normalized || restockData.supplier_nif
+						: "",
+					invoice_number: restockData.is_deductible
+						? normalizeInvoiceNumber(restockData.invoice_number)
+						: "",
 				},
 			});
 			showToast("Stock actualizado");
@@ -885,7 +920,7 @@ export const InventoryTab = ({
 									</p>
 								)}
 						</div>
-						{!editingItem && (
+						{!editingItem && formData.is_deductible && (
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
 									IVA (%)
@@ -947,14 +982,15 @@ export const InventoryTab = ({
 					{!editingItem && Number(formData.stock) > 0 && (
 						<div className="space-y-4 p-4 bg-amber-50 rounded-2xl border border-amber-100">
 							<p className="text-xs font-bold text-amber-800 uppercase">
-								Trazabilidad (obligatorio)
+								Trazabilidad y compra
 							</p>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-									Fecha de compra
+									Fecha de compra <span className="text-rose-500">*</span>
 								</label>
 								<input
 									type="date"
+									required
 									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
 									value={formData.purchaseDate || ""}
 									onChange={(e) =>
@@ -991,49 +1027,111 @@ export const InventoryTab = ({
 									}
 								/>
 							</div>
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-									Proveedor (nombre)
-								</label>
+							<label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-xl border border-amber-200">
 								<input
-									type="text"
-									list="inventory-providers-list"
-									placeholder="Ej: Distribuciones Estéticas SL"
-									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
-									value={formData.provider_name}
+									type="checkbox"
+									checked={formData.is_deductible}
 									onChange={(e) =>
-										setFormData({ ...formData, provider_name: e.target.value })
+										setFormData({
+											...formData,
+											is_deductible: e.target.checked,
+										})
 									}
-									onBlur={(e) => applyProviderFromName(e.target.value, setFormData)}
+									className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-600"
 								/>
-							</div>
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-									NIF/CIF Proveedor *
-								</label>
-								<input
-									required
-									placeholder="Ej: B12345678"
-									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
-									value={formData.supplier_nif}
-									onChange={(e) =>
-										setFormData({ ...formData, supplier_nif: e.target.value })
-									}
-								/>
-							</div>
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-									Nº Factura Proveedor
-								</label>
-								<input
-									placeholder="Ej: F2026-001"
-									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
-									value={formData.invoice_number}
-									onChange={(e) =>
-										setFormData({ ...formData, invoice_number: e.target.value })
-									}
-								/>
-							</div>
+								<span className="text-sm font-bold text-gray-800">
+									Factura deducible (IVA en modelo 303)
+									<span className="block text-xs font-normal text-gray-500 mt-0.5">
+										Sin marcar: compra rápida (farmacia, etc.). Solo trazabilidad;
+										no se deduce IVA.
+									</span>
+								</span>
+							</label>
+							{formData.is_deductible ? (
+								<div className="space-y-4 pt-1 border-t border-amber-200">
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+											Proveedor (nombre) <span className="text-rose-500">*</span>
+										</label>
+										<input
+											type="text"
+											required
+											list="inventory-providers-list"
+											placeholder="Ej: Distribuciones Estéticas SL"
+											className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
+											value={formData.provider_name}
+											onChange={(e) =>
+												setFormData({
+													...formData,
+													provider_name: e.target.value,
+												})
+											}
+											onBlur={(e) =>
+												applyProviderFromName(e.target.value, setFormData)
+											}
+										/>
+									</div>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+											NIF/CIF Proveedor <span className="text-rose-500">*</span>
+										</label>
+										<input
+											required
+											placeholder="Ej: B12345678"
+											className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
+											value={formData.supplier_nif}
+											onChange={(e) =>
+												setFormData({
+													...formData,
+													supplier_nif: e.target.value,
+												})
+											}
+										/>
+									</div>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+											Nº Factura Proveedor <span className="text-rose-500">*</span>
+										</label>
+										<input
+											required
+											placeholder="Ej: F2026-001"
+											className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
+											value={formData.invoice_number}
+											onChange={(e) =>
+												setFormData({
+													...formData,
+													invoice_number: e.target.value,
+												})
+											}
+										/>
+									</div>
+								</div>
+							) : (
+								<div>
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+										Origen (opcional)
+									</label>
+									<input
+										type="text"
+										list="inventory-providers-list"
+										placeholder={GENERIC_PURCHASE_PROVIDER}
+										className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
+										value={formData.provider_name}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												provider_name: e.target.value,
+											})
+										}
+										onBlur={(e) =>
+											applyProviderFromName(e.target.value, setFormData)
+										}
+									/>
+									<p className="text-xs text-amber-900/80 mt-2 ml-1">
+										Si lo dejas vacío se guardará como «{GENERIC_PURCHASE_PROVIDER}».
+									</p>
+								</div>
+							)}
 						</div>
 					)}
 						</>
@@ -1057,10 +1155,11 @@ export const InventoryTab = ({
 				<form onSubmit={handleRestock} className="space-y-6">
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Fecha de compra / reposición
+							Fecha de compra <span className="text-rose-500">*</span>
 						</label>
 						<input
 							type="date"
+							required
 							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
 							value={restockData.purchaseDate || ""}
 							onChange={(e) =>
@@ -1113,7 +1212,7 @@ export const InventoryTab = ({
 							}
 						/>
 					</div>
-					<div className="grid grid-cols-2 gap-4">
+					<div className={restockData.is_deductible ? "grid grid-cols-2 gap-4" : ""}>
 						<div>
 							<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
 								Coste Total (€)
@@ -1133,33 +1232,57 @@ export const InventoryTab = ({
 								}
 							/>
 						</div>
-						<div>
-							<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-								IVA (%)
-							</label>
-							<select
-								className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none appearance-none cursor-pointer"
-								value={restockData.taxRate}
-								onChange={(e) =>
-									setRestockData({
-										...restockData,
-										taxRate: Number(e.target.value),
-									})
-								}>
-								{IVA_OPTIONS.map((v) => (
-									<option key={v} value={v}>
-										{v}%
-									</option>
-								))}
-							</select>
-						</div>
+						{restockData.is_deductible && (
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+									IVA (%)
+								</label>
+								<select
+									className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none appearance-none cursor-pointer"
+									value={restockData.taxRate}
+									onChange={(e) =>
+										setRestockData({
+											...restockData,
+											taxRate: Number(e.target.value),
+										})
+									}>
+									{IVA_OPTIONS.map((v) => (
+										<option key={v} value={v}>
+											{v}%
+										</option>
+									))}
+								</select>
+							</div>
+						)}
 					</div>
+					<label className="flex items-start gap-3 cursor-pointer p-3 bg-gray-50 rounded-xl border border-gray-200">
+						<input
+							type="checkbox"
+							checked={restockData.is_deductible}
+							onChange={(e) =>
+								setRestockData({
+									...restockData,
+									is_deductible: e.target.checked,
+								})
+							}
+							className="mt-0.5 w-5 h-5 rounded border-gray-300 text-blue-600"
+						/>
+						<span className="text-sm font-bold text-gray-800">
+							Factura deducible (IVA en modelo 303)
+							<span className="block text-xs font-normal text-gray-500 mt-0.5">
+								Desmarcado: compra sin factura completa (p. ej. farmacia).
+							</span>
+						</span>
+					</label>
+					{restockData.is_deductible ? (
+					<>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Proveedor (nombre)
+							Proveedor (nombre) <span className="text-rose-500">*</span>
 						</label>
 						<input
 							type="text"
+							required
 							list="inventory-providers-list"
 							placeholder="Ej: Distribuciones Estéticas SL"
 							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
@@ -1174,10 +1297,11 @@ export const InventoryTab = ({
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							NIF/CIF Proveedor <span className="text-gray-400 font-normal">(opcional)</span>
+							NIF/CIF Proveedor <span className="text-rose-500">*</span>
 						</label>
 						<div className="relative">
 							<input
+								required
 								placeholder="Ej: B12345678"
 								className={`w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border-2 transition-colors ${
 									restockNifValidation.valid
@@ -1241,9 +1365,10 @@ export const InventoryTab = ({
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Nº Factura Proveedor <span className="text-gray-400 font-normal">(opcional)</span>
+							Nº Factura Proveedor <span className="text-rose-500">*</span>
 						</label>
 						<input
+							required
 							placeholder="Ej: F2026-001"
 							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
 							value={restockData.invoice_number}
@@ -1255,7 +1380,34 @@ export const InventoryTab = ({
 							}
 						/>
 					</div>
-					{restockDateWarning?.warning && (
+					</>
+					) : (
+						<div>
+							<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+								Origen (opcional)
+							</label>
+							<input
+								type="text"
+								list="inventory-providers-list"
+								placeholder={GENERIC_PURCHASE_PROVIDER}
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
+								value={restockData.provider_name}
+								onChange={(e) =>
+									setRestockData({
+										...restockData,
+										provider_name: e.target.value,
+									})
+								}
+								onBlur={(e) =>
+									applyProviderFromName(e.target.value, setRestockData)
+								}
+							/>
+							<p className="text-xs text-gray-500 mt-2 ml-1">
+								Vacío → «{GENERIC_PURCHASE_PROVIDER}». El gasto no deduce IVA.
+							</p>
+						</div>
+					)}
+					{restockData.is_deductible && restockDateWarning?.warning && (
 						<div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
 							<p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
 								<AlertCircle size={14} />
@@ -1276,6 +1428,7 @@ export const InventoryTab = ({
 							)}
 						</div>
 					)}
+					{restockData.is_deductible && (
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
 							Factura (PDF/imagen) <span className="text-gray-400 font-normal">(opcional)</span>
@@ -1315,6 +1468,7 @@ export const InventoryTab = ({
 							</p>
 						)}
 					</div>
+					)}
 					<LoadingButton
 						loading={loading}
 						type="submit"
@@ -1322,16 +1476,12 @@ export const InventoryTab = ({
 						{loading ? "Guardando..." : "Confirmar Compra"}
 					</LoadingButton>
 				</form>
-				<datalist id="inventory-providers-list">
-					{supplierDirectory.map((s) => (
-						<option
-							key={`${s.nif}-${s.name}`}
-							value={s.name || s.nif}
-							label={s.nif ? `${s.name || "Proveedor"} (${s.nif})` : s.name}
-						/>
-					))}
-				</datalist>
 			</AdaptiveModal>
+
+			<ProviderDatalist
+				id="inventory-providers-list"
+				directory={supplierDirectory}
+			/>
 		</div>
 	);
 };

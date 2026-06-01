@@ -222,12 +222,23 @@ export const TaxesTab = ({
 		return Math.round(resultadoOperativo * 0.2 * 100) / 100;
 	}, [resultadoOperativo]);
 
-	// Retenciones a ingresar (Modelo 111/115): suma de irpf_amount de gastos del trimestre
+	// Retenciones a ingresar (Modelo 111): IRPF que tú retuviste a proveedores (gastos)
 	const retencionesIngresar = useMemo(() => {
 		return quarterEntries
 			.filter((e) => e.type === "expense")
 			.reduce((acc, e) => acc + (Number(e.irpf_amount) ?? 0), 0);
 	}, [quarterEntries]);
+
+	// Retenciones soportadas: IRPF que te retuvieron en facturas emitidas (ingresos B2B)
+	const retencionesSoportadas = useMemo(() => {
+		return quarterEntries
+			.filter((e) => e.type === "income" && !e.plan_amigo)
+			.reduce((acc, e) => acc + (Number(e.irpf_amount) ?? 0), 0);
+	}, [quarterEntries]);
+
+	const irpf130Neto = useMemo(() => {
+		return Math.max(0, Math.round((irpf130 - retencionesSoportadas) * 100) / 100);
+	}, [irpf130, retencionesSoportadas]);
 
 	// Desglose mensual: agrupa por mes
 	const monthlyBreakdown = useMemo(() => {
@@ -458,6 +469,17 @@ export const TaxesTab = ({
 					<p className="text-3xl font-black text-amber-600">
 						{formatCurrency(irpf130)}
 					</p>
+					{retencionesSoportadas > 0 && (
+						<p className="text-xs text-emerald-700 mt-2 font-bold">
+							− Retenciones soportadas (te retuvieron):{" "}
+							{formatCurrency(retencionesSoportadas)}
+						</p>
+					)}
+					{retencionesSoportadas > 0 && resultadoOperativo > 0 && (
+						<p className="text-sm text-amber-800 mt-1 font-black">
+							Pago 130 estimado: {formatCurrency(irpf130Neto)}
+						</p>
+					)}
 					{resultadoOperativo <= 0 && (
 						<p className="text-[10px] text-gray-400 mt-2 italic">
 							Sin pago (resultado negativo)

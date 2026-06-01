@@ -25,6 +25,12 @@ import {
 	calculateTaxFromTotal,
 } from "../../utils/format";
 import { calculateTaxReverseGrossToNet } from "../../utils/calculations";
+import { calculateIncomeFromPvp } from "../../utils/incomeTax";
+import {
+	buildSupplierDirectory,
+	matchProviderByName,
+} from "../../utils/supplierDirectory";
+import { ProviderDatalist } from "../ui/ProviderDatalist";
 import { exportToCSV, exportTrimestreToExcel } from "../../utils/export";
 import { filterByReportingRange } from "../../utils/dateUtils";
 import { ReportingPeriodToolbar } from "../ui/ReportingPeriodToolbar";
@@ -125,61 +131,60 @@ export const FinanceTab = ({
 	const [invoiceSuggestions, setInvoiceSuggestions] = useState([]);
 	const [showSuggestions, setShowSuggestions] = useState(false);
 
-	const supplierDirectory = useMemo(() => {
-		const map = new Map();
-		(entries || [])
-			.filter((e) => e.type === "expense" && (e.provider_name || e.supplier_nif))
-			.forEach((e) => {
-				const nif = (e.supplier_nif || "").trim();
-				const name = (e.provider_name || "").trim();
-				const key = `${nif}__${name}`.toLowerCase();
-				if (!map.has(key)) map.set(key, { nif, name });
-			});
-		return Array.from(map.values()).sort((a, b) =>
-			(a.name || a.nif || "").localeCompare(b.name || b.nif || "", "es"),
-		);
-	}, [entries]);
+	const supplierDirectory = useMemo(
+		() => buildSupplierDirectory(entries),
+		[entries],
+	);
 
 	const applyProviderFromName = (providerName) => {
-		const val = (providerName || "").trim().toLowerCase();
-		if (!val) return;
-		const matches = supplierDirectory.filter(
-			(s) => (s.name || "").trim().toLowerCase() === val,
-		);
-		if (matches.length === 1) {
-			setFormData((prev) => ({
-				...prev,
-				provider_name: matches[0].name || prev.provider_name,
-				supplier_nif: matches[0].nif || prev.supplier_nif,
-			}));
-		}
+		const match = matchProviderByName(supplierDirectory, providerName);
+		if (!match) return;
+		setFormData((prev) => ({
+			...prev,
+			provider_name: match.name || prev.provider_name,
+			supplier_nif: match.nif || prev.supplier_nif,
+		}));
 	};
 
 	const taxCalc = useMemo(() => {
-		if (
-			formData.type === "expense" &&
-			formData.is_deductible &&
-			Number(formData.amount) > 0
-		) {
-			const { baseAmount, taxAmount, irpfAmount } = calculateTaxReverseGrossToNet(
-				formData.amount,
-				Number(formData.tax_rate) || 21,
-				Number(formData.irpf_rate) || 0,
+		const amount = Number(formData.amount);
+		if (amount <= 0) {
+			return { base_amount: 0, tax_amount: 0, irpf_amount: 0, total_amount: 0 };
+		}
+		const taxRate = Number(formData.tax_rate) ?? 0;
+		const irpfRate = Number(formData.irpf_rate) || 0;
+		if (formData.type === "income") {
+			const { baseAmount, taxAmount, irpfAmount, totalAmount } = calculateIncomeFromPvp(
+				amount,
+				taxRate,
+				irpfRate,
 			);
 			return {
 				base_amount: baseAmount,
 				tax_amount: taxAmount,
 				irpf_amount: irpfAmount,
+				total_amount: totalAmount,
 			};
 		}
-		const { baseAmount, taxAmount } = calculateTaxFromTotal(
-			formData.amount,
-			formData.tax_rate,
-		);
+		if (formData.type === "expense" && formData.is_deductible) {
+			const { baseAmount, taxAmount, irpfAmount } = calculateTaxReverseGrossToNet(
+				amount,
+				taxRate,
+				irpfRate,
+			);
+			return {
+				base_amount: baseAmount,
+				tax_amount: taxAmount,
+				irpf_amount: irpfAmount,
+				total_amount: amount,
+			};
+		}
+		const { baseAmount, taxAmount } = calculateTaxFromTotal(amount, taxRate);
 		return {
 			base_amount: baseAmount,
 			tax_amount: taxAmount,
 			irpf_amount: 0,
+			total_amount: amount,
 		};
 	}, [formData.amount, formData.tax_rate, formData.irpf_rate, formData.type, formData.is_deductible]);
 
@@ -355,7 +360,15 @@ export const FinanceTab = ({
 			setEditingEntry(entry);
 			setFormData({
 				type: entry.type,
-				amount: entry.amount,
+				amount:
+					entry.type === "income"
+						? String(
+								Math.round(
+									(Number(entry.amount) || 0) +
+										(Number(entry.irpf_amount) || 0),
+								) * 100,
+							) / 100
+						: entry.amount,
 				tax_rate: entry.tax_rate ?? 0,
 				irpf_rate: entry.irpf_rate ?? 0,
 				category: entry.category,
@@ -382,7 +395,7 @@ export const FinanceTab = ({
 			setFormData({
 				type,
 				amount: "",
-				tax_rate: type === "expense" ? 21 : 0,
+				tax_rate: 21,
 				irpf_rate: 0,
 				category: type === "income" ? "Servicio" : "Material",
 				description: "",
@@ -640,22 +653,30 @@ export const FinanceTab = ({
 		try {
 			const taxRate = Number(formData.tax_rate) || 0;
 			const irpfRate = Number(formData.irpf_rate) || 0;
-			const amount = Number(formData.amount);
-			let baseAmount, taxAmount, irpfAmount;
-			if (
-				formData.type === "expense" &&
-				formData.is_deductible &&
-				amount > 0
-			) {
-				const calc = calculateTaxReverseGrossToNet(amount, taxRate, irpfRate);
+			const inputAmount = Number(formData.amount);
+			let baseAmount, taxAmount, irpfAmount, amount;
+			if (formData.type === "income" && inputAmount > 0) {
+				const calc = calculateIncomeFromPvp(inputAmount, taxRate, irpfRate);
 				baseAmount = calc.baseAmount;
 				taxAmount = calc.taxAmount;
 				irpfAmount = calc.irpfAmount;
+				amount = calc.totalAmount;
+			} else if (
+				formData.type === "expense" &&
+				formData.is_deductible &&
+				inputAmount > 0
+			) {
+				const calc = calculateTaxReverseGrossToNet(inputAmount, taxRate, irpfRate);
+				baseAmount = calc.baseAmount;
+				taxAmount = calc.taxAmount;
+				irpfAmount = calc.irpfAmount;
+				amount = inputAmount;
 			} else {
-				const calc = calculateTaxFromTotal(amount, taxRate);
+				const calc = calculateTaxFromTotal(inputAmount, taxRate);
 				baseAmount = calc.baseAmount;
 				taxAmount = calc.taxAmount;
 				irpfAmount = 0;
+				amount = inputAmount;
 			}
 
 			// Normalizar número de factura
@@ -1683,7 +1704,9 @@ export const FinanceTab = ({
 					<div className="flex gap-4">
 						<div className="flex-1">
 							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-								Total a Pagar (€)
+								{formData.type === "income"
+									? "Precio / PVP (€, IVA incluido)"
+									: "Total a pagar (€)"}
 							</label>
 							<input
 								required
@@ -1697,62 +1720,113 @@ export const FinanceTab = ({
 								}
 							/>
 						</div>
-						{formData.type === "expense" && formData.is_deductible && (
-							<>
-								<div className="flex-1">
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-										IVA (%)
-									</label>
-									<select
-										className="w-full p-4 bg-gray-50 rounded-xl font-bold"
-										value={formData.tax_rate}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												tax_rate: Number(e.target.value),
-											})
-										}>
-										{IVA_OPTIONS.map((v) => (
-											<option key={v} value={v}>
-												{v}%
-											</option>
-										))}
-									</select>
-								</div>
-								<div className="flex-1">
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-										IRPF (%)
-									</label>
-									<select
-										className="w-full p-4 bg-gray-50 rounded-xl font-bold"
-										value={formData.irpf_rate}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												irpf_rate: Number(e.target.value),
-											})
-										}>
-										{IRPF_OPTIONS.map((v) => (
-											<option key={v} value={v}>
-												{v}%
-											</option>
-										))}
-									</select>
-								</div>
-							</>
-						)}
+						{(formData.type === "expense" && formData.is_deductible) ||
+						formData.type === "income" ? (
+							<div className="flex-1">
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									IVA (%)
+								</label>
+								<select
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+									value={formData.tax_rate}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											tax_rate: Number(e.target.value),
+										})
+									}>
+									{IVA_OPTIONS.map((v) => (
+										<option key={v} value={v}>
+											{v === 0 ? "0 % (exento)" : `${v}%`}
+										</option>
+									))}
+								</select>
+							</div>
+						) : null}
 					</div>
-					{formData.type === "expense" &&
-						formData.is_deductible &&
+					{formData.type === "income" && (
+						<div className="p-4 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
+							<label className="flex items-center gap-3 cursor-pointer">
+								<input
+									type="checkbox"
+									checked={Number(formData.irpf_rate) > 0}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											irpf_rate: e.target.checked
+												? formData.irpf_rate || 7
+												: 0,
+										})
+									}
+									className="w-5 h-5 rounded border-gray-300 text-blue-600"
+								/>
+								<span className="font-bold text-gray-800 text-sm">
+									Factura a empresa (retención IRPF)
+								</span>
+							</label>
+							{Number(formData.irpf_rate) > 0 && (
+								<select
+									className="w-full p-3 bg-white rounded-xl font-bold border border-blue-200"
+									value={formData.irpf_rate}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											irpf_rate: Number(e.target.value),
+										})
+									}>
+									{IRPF_OPTIONS.filter((v) => v > 0).map((v) => (
+										<option key={v} value={v}>
+											Retención {v}%
+										</option>
+									))}
+								</select>
+							)}
+						</div>
+					)}
+					{((formData.type === "expense" && formData.is_deductible) ||
+						formData.type === "income") &&
 						formData.amount && (
 							<div className="text-xs font-bold text-gray-500 bg-gray-50 p-3 rounded-xl">
-								Base: {formatCurrency(taxCalc.base_amount)} | IVA: +
-								{formatCurrency(taxCalc.tax_amount)}
-								{Number(taxCalc.irpf_amount) > 0 && (
-									<> | IRPF: −{formatCurrency(taxCalc.irpf_amount)}</>
+								Base: {formatCurrency(taxCalc.base_amount)}
+								{Number(formData.tax_rate) > 0 && (
+									<> | IVA: +{formatCurrency(taxCalc.tax_amount)}</>
 								)}
+								{Number(taxCalc.irpf_amount) > 0 && (
+									<> | Ret. IRPF: −{formatCurrency(taxCalc.irpf_amount)}</>
+								)}
+								<span className="block mt-1 text-gray-700">
+									{formData.type === "income"
+										? Number(taxCalc.irpf_amount) > 0
+											? `Total a cobrar (empresa): ${formatCurrency(taxCalc.total_amount)} · PVP particular: ${formatCurrency(formData.amount)}`
+											: `Total a cobrar: ${formatCurrency(formData.amount)}`
+										: `Total pagado: ${formatCurrency(formData.amount)}`}
+								</span>
 							</div>
 						)}
+					{formData.type === "expense" && formData.is_deductible && (
+						<div className="flex gap-4 -mt-2">
+							<div className="flex-1">
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									IRPF retenido (%)
+								</label>
+								<select
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+									value={formData.irpf_rate}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											irpf_rate: Number(e.target.value),
+										})
+									}>
+									{IRPF_OPTIONS.map((v) => (
+										<option key={v} value={v}>
+											{v}%
+										</option>
+									))}
+								</select>
+							</div>
+						</div>
+					)}
 					{formData.type === "expense" &&
 						formData.recurring_id &&
 						recurringBaseAmount != null && (
@@ -2099,25 +2173,6 @@ export const FinanceTab = ({
 						{savingEntry ? "Guardando..." : "Guardar"}
 					</LoadingButton>
 				</form>
-				<datalist id="finance-providers-list">
-					{supplierDirectory
-						.filter((s) => (s.name || "").trim().length > 0)
-						.map((s) => (
-						<option
-							key={`${s.nif}-${s.name}`}
-							value={s.name || ""}
-							label={
-								s.name
-									? s.nif
-										? `${s.name} (${s.nif})`
-										: s.name
-									: s.nif
-									? `Sin nombre (${s.nif})`
-									: "Proveedor"
-							}
-						/>
-					))}
-				</datalist>
 			</AdaptiveModal>
 
 			<AdaptiveModal
@@ -2253,6 +2308,11 @@ export const FinanceTab = ({
 					</button>
 				</form>
 			</AdaptiveModal>
+
+			<ProviderDatalist
+				id="finance-providers-list"
+				directory={supplierDirectory}
+			/>
 		</div>
 	);
 };

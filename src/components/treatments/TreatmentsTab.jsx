@@ -7,6 +7,8 @@ import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { useTenant } from "../../context/TenantContext";
+import { IVA_OPTIONS } from "../../utils/format";
+import { taxRateLabel } from "../../utils/incomeTax";
 
 const UNGROUPED_KEY = "__ungrouped__";
 
@@ -26,7 +28,14 @@ export const TreatmentsTab = ({
 	const [loading, setLoading] = useState(false);
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
 	const [treatmentToDelete, setTreatmentToDelete] = useState(null);
-	const [formData, setFormData] = useState({ name: "", price: "", recipe: [], internal_notes: "", group_id: "" });
+	const [formData, setFormData] = useState({
+		name: "",
+		price: "",
+		tax_rate: 21,
+		recipe: [],
+		internal_notes: "",
+		group_id: "",
+	});
 
 	const [showGroupsModal, setShowGroupsModal] = useState(false);
 	const [groupFormName, setGroupFormName] = useState("");
@@ -66,10 +75,24 @@ export const TreatmentsTab = ({
 	const openModal = (t = null) => {
 		if (t) {
 			setEditingTreatment(t);
-			setFormData({ name: t.name, price: t.price, recipe: t.recipe || [], internal_notes: t.internal_notes || "", group_id: t.group_id || "" });
+			setFormData({
+				name: t.name,
+				price: t.price,
+				tax_rate: t.tax_rate != null ? Number(t.tax_rate) : 21,
+				recipe: t.recipe || [],
+				internal_notes: t.internal_notes || "",
+				group_id: t.group_id || "",
+			});
 		} else {
 			setEditingTreatment(null);
-			setFormData({ name: "", price: "", recipe: [], internal_notes: "", group_id: "" });
+			setFormData({
+				name: "",
+				price: "",
+				tax_rate: 21,
+				recipe: [],
+				internal_notes: "",
+				group_id: "",
+			});
 		}
 		setIsModalOpen(true);
 	};
@@ -85,6 +108,7 @@ export const TreatmentsTab = ({
 			const payload = {
 				name: formData.name,
 				price: Number(formData.price),
+				tax_rate: Number(formData.tax_rate) ?? 21,
 				recipe: formData.recipe,
 				internal_notes: formData.internal_notes || null,
 				group_id: formData.group_id || null,
@@ -431,6 +455,33 @@ export const TreatmentsTab = ({
 											setFormData({ ...formData, price: e.target.value })
 										}
 									/>
+								</div>
+
+								<div>
+									<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">
+										Tipo fiscal (IVA)
+									</label>
+									<select
+										className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border border-transparent focus:border-rose-100"
+										value={formData.tax_rate}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												tax_rate: Number(e.target.value),
+											})
+										}>
+										<option value={21}>Estético — IVA 21 %</option>
+										<option value={0}>Sanitario — exento IVA (0 %)</option>
+										{IVA_OPTIONS.filter((v) => v !== 21 && v !== 0).map((v) => (
+											<option key={v} value={v}>
+												Otro — IVA {v} %
+											</option>
+										))}
+									</select>
+									<p className="text-[10px] text-gray-500 mt-1 ml-1">
+										{taxRateLabel(formData.tax_rate)}. Se aplica al confirmar sesión y en
+										facturas.
+									</p>
 								</div>
 
 								<div>

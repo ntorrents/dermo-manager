@@ -2,10 +2,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
 import { consumeFromBatchesFIFO } from "../services/inventoryBatches";
-import { calculateSessionCost, calculateTaxReverse } from "../utils/calculations";
+import { calculateSessionCost } from "../utils/calculations";
+import {
+	calculateIncomeFromPvp,
+	getTreatmentTaxRate,
+	resolveClientIrpfRate,
+} from "../utils/incomeTax";
 import { getNextInvoiceNumber } from "../services/invoiceSeries";
-
-const DEFAULT_TAX_RATE = 21;
 
 export const useSessionMutation = (userId, inventory = []) => {
 	const queryClient = useQueryClient();
@@ -44,8 +47,15 @@ export const useSessionMutation = (userId, inventory = []) => {
 				? `${treatment.name} (${clientData.name} ${clientData.surname || ""})`
 				: `${treatment.name} (${clientData.name})`;
 
-			const totalAmount = Number(finalPrice);
-			const { baseAmount, taxAmount } = calculateTaxReverse(totalAmount, DEFAULT_TAX_RATE);
+			const pvp = Number(finalPrice);
+			const taxRate = getTreatmentTaxRate(treatment);
+			const irpfRate = resolveClientIrpfRate(clientData);
+			const {
+				baseAmount: taxBase,
+				taxAmount,
+				irpfAmount,
+				totalAmount,
+			} = calculateIncomeFromPvp(pvp, taxRate, irpfRate);
 
 			// Plan Amigo: no se genera factura ni se consume número de serie (no Verifactu)
 			let invoice_number = null;
@@ -68,9 +78,11 @@ export const useSessionMutation = (userId, inventory = []) => {
 					description: displayName,
 					amount: totalAmount,
 					total_amount: totalAmount,
-					tax_rate: DEFAULT_TAX_RATE,
-					tax_base: baseAmount,
+					tax_rate: taxRate,
+					tax_base: taxBase,
 					tax_amount: taxAmount,
+					irpf_rate: irpfRate,
+					irpf_amount: irpfAmount,
 					invoice_number,
 					related_cost: Number(cost),
 					client_id: clientData.id || null,

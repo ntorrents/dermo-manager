@@ -39,7 +39,6 @@ import { formatCurrency } from "../../utils/format";
 import { getAge } from "../../utils/dateUtils";
 import { generateInvoice } from "../../utils/invoiceGenerator";
 import { generateConsentPDF } from "../../utils/consentGenerator";
-import { calculateTaxReverse } from "../../utils/calculations";
 import { getNextRectifiedInvoiceNumber } from "../../services/invoiceSeries";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
@@ -55,6 +54,8 @@ import {
 	getSignedConsentDownloadUrl,
 } from "../../services/signedConsentStorage";
 import { useTenant } from "../../context/TenantContext";
+import { inferIsCompanyFromNif } from "../../utils/incomeTax";
+import { IRPF_OPTIONS } from "../../utils/format";
 
 const buildWhatsAppUrl = (phone, firstName, companyName = "C3linic") => {
 	if (!phone || !String(phone).trim()) return null;
@@ -92,6 +93,8 @@ export const ClientsTab = ({
 		drive_url: "",
 		fecha_nacimiento: "",
 		notas_privadas: "",
+		is_company: false,
+		irpf_withholding_rate: 7,
 	});
 
 	// ESTADOS PARA EL MODAL DE BORRADO
@@ -206,6 +209,11 @@ export const ClientsTab = ({
 				drive_url: client.drive_url || "",
 				fecha_nacimiento: client.fecha_nacimiento || "",
 				notas_privadas: client.notas_privadas || "",
+				is_company: client.is_company ?? false,
+				irpf_withholding_rate:
+					client.irpf_withholding_rate != null
+						? Number(client.irpf_withholding_rate)
+						: 7,
 			});
 			setSelectedClient(client);
 		} else {
@@ -224,6 +232,8 @@ export const ClientsTab = ({
 				drive_url: "",
 				fecha_nacimiento: "",
 				notas_privadas: "",
+				is_company: false,
+				irpf_withholding_rate: 7,
 			});
 			setSelectedClient(null);
 		}
@@ -246,6 +256,10 @@ export const ClientsTab = ({
 				drive_url: formData.drive_url?.trim() || null,
 				fecha_nacimiento: formData.fecha_nacimiento?.trim() || null,
 				notas_privadas: formData.notas_privadas?.trim() || null,
+				is_company: !!formData.is_company,
+				irpf_withholding_rate: formData.is_company
+					? Number(formData.irpf_withholding_rate) || 7
+					: null,
 			};
 			if (selectedClient && isModalOpen) {
 				const { error } = await supabase
@@ -355,7 +369,17 @@ export const ClientsTab = ({
 		}
 		setProcessingRefund(true);
 		try {
-			const { baseAmount, taxAmount } = calculateTaxReverse(amount, 21);
+			const taxRate = Number(sessionToRefund.tax_rate) ?? 21;
+			const irpfRate = Number(sessionToRefund.irpf_rate) ?? 0;
+			const sessionTotal = Number(sessionToRefund.amount) || 0;
+			const ratio = sessionTotal > 0 ? amount / sessionTotal : 0;
+			const baseAmount =
+				Math.round((Number(sessionToRefund.tax_base) || 0) * ratio * 100) / 100;
+			const taxAmount =
+				Math.round((Number(sessionToRefund.tax_amount) || 0) * ratio * 100) / 100;
+			const irpfAmount =
+				Math.round((Number(sessionToRefund.irpf_amount) || 0) * ratio * 100) / 100;
+			const totalAmount = amount;
 			const today = new Date().toISOString().slice(0, 10);
 			const year = today.slice(0, 4);
 			let invoiceNumber = null;
@@ -374,11 +398,13 @@ export const ClientsTab = ({
 						type: "income",
 						category: "Servicio",
 						description: "Abono: " + (sessionToRefund.description || "Sesión"),
-						amount: -amount,
-						total_amount: -amount,
-						tax_rate: 21,
+						amount: -totalAmount,
+						total_amount: -totalAmount,
+						tax_rate: taxRate,
 						tax_base: -baseAmount,
 						tax_amount: -taxAmount,
+						irpf_rate: irpfRate,
+						irpf_amount: irpfRate ? -irpfAmount : 0,
 						invoice_number: invoiceNumber,
 						client_id: selectedClient.id,
 						activo: true,
@@ -1186,6 +1212,14 @@ export const ClientsTab = ({
 											</dt>
 											<dd className="font-bold text-gray-800">
 												{selectedClient.nif || "—"}
+												{selectedClient.is_company && (
+													<span className="ml-2 text-[10px] font-black uppercase text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg">
+														Empresa · IRPF{" "}
+														{selectedClient.irpf_withholding_rate != null
+															? `${Number(selectedClient.irpf_withholding_rate)}%`
+															: "7%"}
+													</span>
+												)}
 											</dd>
 										</div>
 										{selectedClient.fecha_nacimiento && (
@@ -1649,8 +1683,63 @@ export const ClientsTab = ({
 						className="w-full p-4 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-2xl outline-none font-bold"
 						placeholder="NIF/CIF (obligatorio para facturación)"
 						value={formData.nif}
-						onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
+						onChange={(e) => {
+							const nif = e.target.value;
+							const isCompany = inferIsCompanyFromNif(nif);
+							setFormData((prev) => ({
+								...prev,
+								nif,
+								is_company: isCompany ? true : prev.is_company,
+							}));
+						}}
 					/>
+					<div className="mt-4 p-4 bg-blue-50 rounded-2xl border border-blue-100 space-y-3">
+						<label className="flex items-center gap-3 cursor-pointer">
+							<input
+								type="checkbox"
+								checked={!!formData.is_company}
+								onChange={(e) =>
+									setFormData({
+										...formData,
+										is_company: e.target.checked,
+										irpf_withholding_rate: e.target.checked
+											? formData.irpf_withholding_rate || 7
+											: 7,
+									})
+								}
+								className="w-5 h-5 rounded border-gray-300 text-blue-600"
+							/>
+							<span className="font-bold text-gray-800 text-sm">
+								Es empresa (factura con retención IRPF)
+							</span>
+						</label>
+						{formData.is_company && (
+							<div>
+								<label className="text-[11px] font-black text-gray-500 uppercase block mb-1">
+									Retención IRPF en facturas (%)
+								</label>
+								<select
+									className="w-full p-3 bg-white rounded-xl font-bold border border-blue-200"
+									value={formData.irpf_withholding_rate ?? 7}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											irpf_withholding_rate: Number(e.target.value),
+										})
+									}>
+									{IRPF_OPTIONS.filter((v) => v > 0).map((v) => (
+										<option key={v} value={v}>
+											{v} % {v === 7 ? "(habitual 1.er año)" : ""}
+										</option>
+									))}
+								</select>
+								<p className="text-[10px] text-blue-800 mt-1">
+									En sesiones y facturas: el total a cobrar será PVP − retención (la empresa
+									la ingresa en Hacienda).
+								</p>
+							</div>
+						)}
+					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 							Fecha de nacimiento

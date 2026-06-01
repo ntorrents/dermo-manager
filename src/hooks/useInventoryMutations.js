@@ -2,6 +2,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
 import { calculateTaxFromTotal } from "../utils/format";
+import {
+	GENERIC_PURCHASE_PROVIDER,
+	isDeductiblePurchase,
+} from "../utils/inventoryPurchase";
 import { normalizeInvoiceNumber, validateSpanishTaxId } from "../utils/validations";
 
 export const useCreateMaterial = (userId) => {
@@ -36,21 +40,34 @@ export const useCreateMaterial = (userId) => {
 			const totalCostNum = Number(formData.totalCost);
 			if (stockNum <= 0) throw new Error("El stock debe ser mayor a 0");
 
+			const purchaseDate = formData.purchaseDate?.trim();
+			if (!purchaseDate) throw new Error("La fecha de compra es obligatoria");
+
 			const lotNumber = String(formData.lotNumber || "").trim();
 			const expiryDate = formData.expiryDate;
 			if (stockNum > 0 && (!lotNumber || !expiryDate)) {
-				throw new Error("Lote y fecha de caducidad son obligatorios para el stock inicial");
+				throw new Error("El nº de lote y la fecha de caducidad son obligatorios");
 			}
-			const providerName = formData.provider_name?.trim() || "";
-			const supplierNif = formData.supplier_nif?.trim() || "";
-			const invoiceNumber = formData.invoice_number?.trim() || "";
-			const hasFiscalData = Boolean(providerName || supplierNif || invoiceNumber);
-			if (hasFiscalData && (!providerName || !supplierNif || !invoiceNumber)) {
-				throw new Error("Si informas datos fiscales de compra, completa proveedor, NIF y nº de factura");
-			}
-			if (supplierNif) {
+
+			const isDeductible = isDeductiblePurchase(formData);
+			let providerName = formData.provider_name?.trim() || "";
+			let supplierNif = formData.supplier_nif?.trim() || "";
+			let invoiceNumber = formData.invoice_number?.trim() || "";
+
+			if (isDeductible) {
+				if (!providerName || !supplierNif || !invoiceNumber) {
+					throw new Error(
+						"Para factura deducible: proveedor, NIF y nº de factura son obligatorios",
+					);
+				}
 				const nifValidation = validateSpanishTaxId(supplierNif);
 				if (!nifValidation.valid) throw new Error(nifValidation.error || "NIF no válido");
+				supplierNif = nifValidation.normalized || supplierNif;
+				invoiceNumber = normalizeInvoiceNumber(invoiceNumber);
+			} else {
+				providerName = providerName || GENERIC_PURCHASE_PROVIDER;
+				supplierNif = "";
+				invoiceNumber = "";
 			}
 
 			const calculatedUnitCost = totalCostNum / stockNum;
@@ -87,9 +104,14 @@ export const useCreateMaterial = (userId) => {
 				if (batchError) throw batchError;
 			}
 
-			const taxRate = formData.tax_rate != null ? Number(formData.tax_rate) : 21;
-			const purchaseDate = formData.purchaseDate || new Date().toISOString().split("T")[0];
-			const { baseAmount, taxAmount } = calculateTaxFromTotal(totalCostNum, taxRate);
+			const taxRate = isDeductible
+				? formData.tax_rate != null
+					? Number(formData.tax_rate)
+					: 21
+				: 0;
+			const { baseAmount, taxAmount } = isDeductible
+				? calculateTaxFromTotal(totalCostNum, taxRate)
+				: { baseAmount: totalCostNum, taxAmount: 0 };
 			const { error: finError } = await supabase.from("finance_entries").insert([
 				{
 					user_id: userId,
@@ -102,10 +124,10 @@ export const useCreateMaterial = (userId) => {
 					tax_rate: taxRate,
 					tax_base: baseAmount,
 					tax_amount: taxAmount,
-					is_deductible: true,
-					provider_name: providerName || null,
+					is_deductible: isDeductible,
+					provider_name: providerName,
 					supplier_nif: supplierNif || null,
-					invoice_number: invoiceNumber ? normalizeInvoiceNumber(invoiceNumber) : null,
+					invoice_number: invoiceNumber || null,
 					date: purchaseDate,
 					activo: true,
 				},
@@ -175,8 +197,31 @@ export const useRestockMaterial = (userId) => {
 			const lotNumber = String(restockData.lotNumber || "").trim();
 			const expiryDate = restockData.expiryDate;
 
+			const purchaseDate = restockData.purchaseDate?.trim();
+			if (!purchaseDate) throw new Error("La fecha de compra es obligatoria");
 			if (!lotNumber) throw new Error("El número de lote es obligatorio");
 			if (!expiryDate) throw new Error("La fecha de caducidad es obligatoria");
+
+			const isDeductible = isDeductiblePurchase(restockData);
+			let providerName = restockData.provider_name?.trim() || "";
+			let supplierNif = restockData.supplier_nif?.trim() || "";
+			let invoiceNumber = restockData.invoice_number?.trim() || "";
+
+			if (isDeductible) {
+				if (!providerName || !supplierNif || !invoiceNumber) {
+					throw new Error(
+						"Para factura deducible: proveedor, NIF y nº de factura son obligatorios",
+					);
+				}
+				const nifValidation = validateSpanishTaxId(supplierNif);
+				if (!nifValidation.valid) throw new Error(nifValidation.error || "NIF no válido");
+				supplierNif = nifValidation.normalized || supplierNif;
+				invoiceNumber = normalizeInvoiceNumber(invoiceNumber);
+			} else {
+				providerName = providerName || GENERIC_PURCHASE_PROVIDER;
+				supplierNif = "";
+				invoiceNumber = "";
+			}
 
 			const currentStock = Number(restockItem.stock);
 			const currentUnitCost = Number(restockItem.unit_cost);
@@ -207,17 +252,19 @@ export const useRestockMaterial = (userId) => {
 				.eq("id", restockItem.id);
 			if (error) throw error;
 
-			const purchaseDate = restockData.purchaseDate || new Date().toISOString().split("T")[0];
-			const taxRate = restockData.taxRate != null ? Number(restockData.taxRate) : 21;
-			const { baseAmount, taxAmount } = calculateTaxFromTotal(purchaseCost, taxRate);
-			
-			// Crear clave única de factura si hay NIF y número de factura
-			// Esto permite que múltiples materiales de la misma factura compartan el mismo archivo
-			const supplierNif = restockData.supplier_nif?.trim() || null;
-			const invoiceNumber = restockData.invoice_number ? normalizeInvoiceNumber(restockData.invoice_number) : null;
-			const invoiceKey = supplierNif && invoiceNumber 
-				? `${supplierNif}_${invoiceNumber}` 
-				: null;
+			const taxRate = isDeductible
+				? restockData.taxRate != null
+					? Number(restockData.taxRate)
+					: 21
+				: 0;
+			const { baseAmount, taxAmount } = isDeductible
+				? calculateTaxFromTotal(purchaseCost, taxRate)
+				: { baseAmount: purchaseCost, taxAmount: 0 };
+
+			const invoiceKey =
+				isDeductible && supplierNif && invoiceNumber
+					? `${supplierNif}_${invoiceNumber}`
+					: null;
 			
 			const { error: finError } = await supabase.from("finance_entries").insert([
 				{
@@ -232,10 +279,10 @@ export const useRestockMaterial = (userId) => {
 					tax_rate: taxRate,
 					tax_base: baseAmount,
 					tax_amount: taxAmount,
-					is_deductible: true,
-					provider_name: restockData.provider_name?.trim() || null,
-					supplier_nif: supplierNif,
-					invoice_number: invoiceNumber,
+					is_deductible: isDeductible,
+					provider_name: providerName,
+					supplier_nif: supplierNif || null,
+					invoice_number: invoiceNumber || null,
 					activo: true,
 				},
 			]);
