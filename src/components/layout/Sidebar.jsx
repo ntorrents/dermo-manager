@@ -9,6 +9,7 @@ import {
 	Building2,
 	Landmark,
 	Calendar,
+	FileText,
 	Ticket,
 	FolderOpen,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
 	{ id: "inventory", l: NAV_LABELS.inventory, i: Package },
 	{ id: "calendar", l: NAV_LABELS.calendar, i: Calendar },
 	{ id: "finance", l: NAV_LABELS.finance, i: DollarSign },
+	{ id: "invoices", l: NAV_LABELS.invoices, i: FileText },
 	{ id: "suppliers", l: NAV_LABELS.suppliers, i: Building2 },
 	{ id: "taxes", l: NAV_LABELS.taxes, i: Landmark },
 ];

@@ -34,6 +34,9 @@ const InventoryTab = lazy(() =>
 const FinanceTab = lazy(() =>
 	import("./components/finance/FinanceTab").then((m) => ({ default: m.FinanceTab })),
 );
+const InvoicesTab = lazy(() =>
+	import("./components/invoices/InvoicesTab").then((m) => ({ default: m.InvoicesTab })),
+);
 const SettingsTab = lazy(() =>
 	import("./components/settings/SettingsTab").then((m) => ({ default: m.SettingsTab })),
 );
@@ -71,6 +74,7 @@ const TAB_META = {
 	inventory: { title: "Stock", subtitle: "Materiales y lotes" },
 	calendar: { title: "Agenda", subtitle: "Citas y recordatorios" },
 	finance: { title: "Finanzas", subtitle: "Ingresos, gastos y fijos" },
+	invoices: { title: "Facturas", subtitle: "Emitidas, filtros y estadísticas" },
 	suppliers: { title: "Proveedores", subtitle: "KPI de compras y facturas" },
 	taxes: { title: "Fiscalidad", subtitle: "Resúmenes fiscales" },
 	settings: { title: "Configuración", subtitle: "Clínica, perfil y seguridad" },
@@ -487,6 +491,26 @@ const DermoManager = () => {
 						entries={entries}
 						showToast={showToastMsg}
 						onRefresh={refreshData}
+					/>
+				)}
+				{activeTab === "invoices" && (
+					<InvoicesTab
+						user={user}
+						entries={entries}
+						clients={clients}
+						profile={profile}
+						clinic={clinic}
+						showToast={showToastMsg}
+						reportingRange={reportingRange}
+						reportingPreset={reportingPreset}
+						setReportingPreset={setReportingPreset}
+						reportingAnchorYm={reportingAnchorYm}
+						setReportingAnchorYm={setReportingAnchorYm}
+						reportingCustomFrom={reportingCustomFrom}
+						setReportingCustomFrom={setReportingCustomFrom}
+						reportingCustomTo={reportingCustomTo}
+						setReportingCustomTo={setReportingCustomTo}
+						onReportingGoToday={goReportingToday}
 					/>
 				)}
 				{activeTab === "finance" && (

@@ -22,7 +22,7 @@ export const MobileNav = ({ activeTab, setActiveTab }) => {
 	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
 
 	const drawerTabIds = useMemo(() => {
-		const base = ["calendar", "documents", "finance", "suppliers", "taxes", "settings"];
+		const base = ["calendar", "documents", "finance", "invoices", "suppliers", "taxes", "settings"];
 		if (tenantLoading || allowsPresupuestosBonos) {
 			return [...base, "bonos"];
 		}

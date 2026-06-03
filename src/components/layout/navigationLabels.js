@@ -7,6 +7,7 @@ export const NAV_LABELS = {
 	inventory: "Stock",
 	calendar: "Agenda",
 	finance: "Finanzas",
+	invoices: "Facturas",
 	suppliers: "Proveedores",
 	taxes: "Fiscalidad",
 	settings: "Ajustes",

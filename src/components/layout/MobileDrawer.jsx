@@ -8,6 +8,7 @@ import {
 	Ticket,
 	FolderOpen,
 	Building2,
+	FileText,
 } from "lucide-react";
 import { useTenant } from "../../context/TenantContext";
 import { NAV_LABELS } from "./navigationLabels";
@@ -17,6 +18,7 @@ const DRAWER_ITEMS = [
 	{ id: "bonos", label: NAV_LABELS.bonos, icon: Ticket },
 	{ id: "documents", label: NAV_LABELS.documents, icon: FolderOpen },
 	{ id: "finance", label: NAV_LABELS.finance, icon: Euro },
+	{ id: "invoices", label: NAV_LABELS.invoices, icon: FileText },
 	{ id: "suppliers", label: NAV_LABELS.suppliers, icon: Building2 },
 	{ id: "taxes", label: NAV_LABELS.taxes, icon: Landmark },
 	{ id: "settings", label: NAV_LABELS.settings, icon: Settings },
