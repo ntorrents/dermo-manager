@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-	Search,
+	Search, Eye,
 	Plus,
 	Users,
 	Trash2,
@@ -20,6 +20,7 @@ import {
 	MessageCircle,
 	Ticket,
 	FileCheck,
+	FolderOpen,
 	Upload,
 	BookOpen,
 	CalendarCheck,
@@ -97,6 +98,31 @@ export const ClientsTab = ({
 		is_company: false,
 		irpf_withholding_rate: 7,
 	});
+	useEffect(() => {
+		if (selectedClient) {
+			setFormData({
+				name: selectedClient.name || "",
+				surname: selectedClient.surname || "",
+				phone: selectedClient.phone || "",
+				nif: selectedClient.nif || "",
+				origin: selectedClient.origin || "",
+				allergies: selectedClient.allergies || "",
+				medical_history: selectedClient.medical_history || "",
+				has_consent: selectedClient.has_consent || false,
+				has_image_rights: selectedClient.has_image_rights || false,
+				drive_url: selectedClient.drive_url || "",
+				fecha_nacimiento: selectedClient.fecha_nacimiento || "",
+				notas_privadas: selectedClient.notas_privadas || "",
+				address: selectedClient.address || "",
+				is_company: selectedClient.is_company || false,
+				irpf_withholding_rate:
+					selectedClient.irpf_withholding_rate != null
+						? Number(selectedClient.irpf_withholding_rate)
+						: 7,
+			});
+		}
+	}, [selectedClient]);
+
 
 	// ESTADOS PARA EL MODAL DE BORRADO
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -129,6 +155,7 @@ export const ClientsTab = ({
 		selectedClient?.id,
 		user?.id,
 	);
+
 	const { data: clientBonos = [], isLoading: bonosLoading } = useClientBonos(
 		user?.id,
 		selectedClient?.id,
@@ -148,6 +175,23 @@ export const ClientsTab = ({
 		updating: updatingSeguimiento,
 		deleting: deletingSeguimiento,
 	} = useClientSeguimientos(selectedClient?.id, user?.id);
+
+	const timelineItems = useMemo(() => {
+		const map = new Map();
+		(history || []).forEach(session => {
+			const date = session.date;
+			if (!date) return;
+			if (!map.has(date)) map.set(date, { date, sessions: [], notes: [] });
+			map.get(date).sessions.push(session);
+		});
+		(seguimientos || []).forEach(seg => {
+			const date = seg.fecha_proximo_contacto?.split('T')[0] || seg.created_at?.split('T')[0];
+			if (!date) return;
+			if (!map.has(date)) map.set(date, { date, sessions: [], notes: [] });
+			map.get(date).notes.push(seg);
+		});
+		return Array.from(map.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
+	}, [history, seguimientos]);
 	const [visitForm, setVisitForm] = useState({
 		titulo: "",
 		tratamientos_interes: "",
@@ -280,7 +324,7 @@ export const ClientsTab = ({
 					? Number(formData.irpf_withholding_rate) || 7
 					: null,
 			};
-			if (selectedClient && isModalOpen) {
+			if (selectedClient) {
 				const { error } = await supabase
 					.from("clients")
 					.update(payload)
@@ -536,8 +580,13 @@ export const ClientsTab = ({
 													<div className="w-8 h-8 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-xs font-black shrink-0">
 														{client.name.charAt(0)}
 													</div>
-													<div>
+													<div className="flex items-center gap-2">
 														<p className="font-bold text-slate-800 text-[13px]">{client.name} {client.surname}</p>
+														{client.is_company && (
+															<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-600 font-bold rounded border border-slate-200">
+																Empresa
+															</span>
+														)}
 													</div>
 												</div>
 											</td>
@@ -572,10 +621,19 @@ export const ClientsTab = ({
 											</td>
 											<td className="p-3 pr-4 text-right">
 												<div className="flex justify-end gap-2">
+													<button
+														onClick={(e) => {
+															e.stopPropagation();
+															setSelectedClient(client);
+														}}
+														className="p-1.5 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition-colors"
+														title="Ver ficha">
+														<Eye size={16} />
+													</button>
 													{canDeleteOperational && (
 														<button
 															onClick={(e) => handleDeleteClick(e, client)}
-															className="p-1.5 text-slate-400 hover:text-rose-700 rounded hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100"
+															className="p-1.5 text-slate-400 hover:text-rose-700 rounded hover:bg-rose-50 transition-colors"
 															title="Archivar">
 															<Trash2 size={16} />
 														</button>
@@ -601,16 +659,18 @@ export const ClientsTab = ({
 									className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors mr-2">
 									<X size={16} /> Volver
 								</button>
-								<div className="w-12 h-12 xl:w-16 xl:h-16 bg-gradient-to-br from-rose-400 to-orange-400 rounded-2xl flex items-center justify-center text-white text-xl xl:text-2xl font-black shadow-lg shadow-rose-100">
-									{selectedClient.name.charAt(0)}
-								</div>
 								<div>
-									<h2 className="text-xl xl:text-3xl font-black text-slate-800 tracking-tight">
+									<h2 className="text-xl xl:text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2">
 										{selectedClient.name} {selectedClient.surname}
+										{selectedClient.is_company && (
+											<span className="px-2 py-0.5 text-xs bg-slate-100 text-slate-700 font-medium rounded border border-slate-300">
+												Empresa
+											</span>
+										)}
 									</h2>
 									<div className="flex items-center gap-2 mt-1">
 										<p className="text-sm font-bold text-slate-500">
-											{selectedClient.phone}
+											{selectedClient.nif ? `${selectedClient.nif} • ` : ""}{selectedClient.phone}
 										</p>
 										{selectedClient.phone && (
 											<a
@@ -621,47 +681,32 @@ export const ClientsTab = ({
 												)}
 												target="_blank"
 												rel="noopener noreferrer"
-												className="p-2 rounded-xl bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
+												className="p-1.5 rounded bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
 												title="Abrir WhatsApp">
-												<MessageCircle size={18} />
+												<MessageCircle size={16} />
 											</a>
 										)}
 									</div>
 								</div>
 							</div>
 							<div className="flex items-center gap-2">
-								<button
-									onClick={() => {
-										setConsentTreatmentId("");
-										setConsentTemplateId("");
-										setShowConsentModal(true);
-									}}
-									className="p-3 bg-white border border-gray-200 rounded-xl text-slate-500 hover:text-rose-700 transition-all shadow-sm flex items-center gap-2"
-									title="Generar consentimiento informado">
-									<FileText size={18} />
-									<span className="hidden sm:inline text-sm font-bold">Consentimiento</span>
-								</button>
-								<button
-									onClick={() => handleOpenModal(selectedClient)}
-									className="p-3 bg-white border border-gray-200 rounded-xl text-slate-500 hover:text-rose-700 transition-all shadow-sm"
-									title="Editar cliente">
-									<Edit2 size={18} />
-								</button>
+								{clientDetailTab === "datos" && (
+									<button
+										onClick={(e) => handleSaveClient({ preventDefault: () => {} })}
+										disabled={savingClient}
+										className="px-4 py-2 bg-rose-700 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-rose-800 transition-colors flex items-center gap-2 disabled:opacity-50">
+										{savingClient ? "Guardando..." : "Guardar Cambios"}
+									</button>
+								)}
 							</div>
 						</div>
 
 						{/* Pestañas perfil 360º - Visitas primero */}
 						<div className="flex border-b border-gray-100 bg-white px-4 gap-1 overflow-x-auto">
 							{[
-								{ id: "datos", label: "Datos paciente", icon: User },
-								{ id: "visitas", label: "Visitas", icon: BookOpen },
-								{ id: "bonos", label: "Bonos", icon: Ticket },
-								{
-									id: "consentimientos",
-									label: "Consentimientos",
-									icon: FileCheck,
-								},
-								{ id: "legal", label: "Legal", icon: Shield },
+								{ id: "datos", label: "Datos Cliente", icon: User },
+								{ id: "visitas", label: "Historial/Sesiones", icon: BookOpen },
+								{ id: "documentacion", label: "Documentación", icon: FolderOpen },
 							].map(({ id, label, icon: Icon }) => (
 								<button
 									key={id}
@@ -680,39 +725,58 @@ export const ClientsTab = ({
 
 						<div className="flex-1 overflow-y-auto p-6 xl:p-8 custom-scrollbar bg-gray-50/30">
 							{clientDetailTab === "visitas" && (
-								<>
-									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
-										<BookOpen size={14} /> Diario de visitas
-									</h3>
-									<p className="text-sm text-slate-500 mb-6 max-w-2xl">
-										Registra cada cita o sesión: fecha, tratamientos realizados, notas de la sesión e
-										indicaciones al paciente. Las entradas más recientes aparecen primero.
-									</p>
-
-									<div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
+								<div className="space-y-8 pb-10">
+									<div className="flex justify-between items-end mb-6">
+										<div>
+											<h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
+												<BookOpen size={20} className="text-rose-600" /> Línea de tiempo
+											</h3>
+											<p className="text-sm text-slate-500 mt-1">
+												Historial unificado de sesiones, facturación y notas de evolución.
+											</p>
+										</div>
 										<button
-											type="button"
-											onClick={() => setVisitFormOpen(!visitFormOpen)}
-											className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-gray-50/80 transition-colors">
-											<span className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-												<Plus size={14} />
-												{editingVisitId ? "Editar visita" : "Nueva entrada de visita"}
-											</span>
-											{visitFormOpen ? (
-												<ChevronUp size={18} className="text-slate-400 shrink-0" />
-											) : (
-												<ChevronDown size={18} className="text-slate-400 shrink-0" />
-											)}
+											onClick={() => {
+												setEditingVisitId(null);
+												const today = new Date().toISOString().slice(0, 10);
+												setVisitForm({
+													titulo: "",
+													tratamientos_interes: "",
+													fecha_proximo_contacto: today,
+													notas: "",
+													indicaciones_post: "",
+												});
+												setVisitFormOpen(true);
+											}}
+											className="flex items-center gap-2 px-4 py-2.5 bg-rose-50 text-rose-700 font-bold rounded-xl hover:bg-rose-100 transition-colors text-sm shadow-sm">
+											<Plus size={16} /> Nueva nota manual
 										</button>
-										{visitFormOpen && (
-											<div className="px-4 pb-4 pt-0 border-t border-gray-100 space-y-3">
+									</div>
+
+									{visitFormOpen && (
+										<div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm mb-6">
+											<div className="flex justify-between items-center mb-4">
+												<h4 className="font-bold text-slate-800 flex items-center gap-2">
+													{editingVisitId ? (
+														<><Edit2 size={16} className="text-rose-500"/> Editar nota</>
+													) : (
+														<><Plus size={16} className="text-rose-500"/> Nueva nota</>
+													)}
+												</h4>
+												<button
+													onClick={() => setVisitFormOpen(false)}
+													className="text-slate-400 hover:text-slate-600">
+													<X size={18} />
+												</button>
+											</div>
+											<div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
 												<div>
-													<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
-														Resumen / título (opcional)
+													<label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">
+														Título / Resumen
 													</label>
 													<input
 														type="text"
-														className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium"
+														className="w-full p-3 bg-gray-50 border border-transparent focus:bg-white focus:border-rose-100 rounded-xl text-sm font-bold text-slate-800 outline-none"
 														placeholder="Ej: Revisión post peeling"
 														value={visitForm.titulo}
 														onChange={(e) =>
@@ -720,582 +784,442 @@ export const ClientsTab = ({
 														}
 													/>
 												</div>
-												<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-													<div>
-														<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
-															Fecha de la visita
-														</label>
-														<input
-															type="date"
-															className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium"
-															value={visitForm.fecha_proximo_contacto}
-															onChange={(e) =>
-																setVisitForm({
-																	...visitForm,
-																	fecha_proximo_contacto: e.target.value,
-																})
-															}
-														/>
-													</div>
-													<div>
-														<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
-															Tratamientos realizados
-														</label>
-														<input
-															type="text"
-															className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium"
-															placeholder="Ej: HIFU facial, mesoterapia…"
-															value={visitForm.tratamientos_interes}
-															onChange={(e) =>
-																setVisitForm({
-																	...visitForm,
-																	tratamientos_interes: e.target.value,
-																})
-															}
-														/>
-													</div>
-												</div>
 												<div>
-													<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
-														Notas de la sesión
+													<label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">
+														Fecha de la nota
 													</label>
-													<textarea
-														rows={3}
-														className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium resize-y min-h-[72px]"
-														placeholder="Evolución, observaciones, reacción del paciente…"
-														value={visitForm.notas}
-														onChange={(e) =>
-															setVisitForm({ ...visitForm, notas: e.target.value })
-														}
-													/>
-												</div>
-												<div>
-													<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
-														Indicaciones / cuidados post (opcional)
-													</label>
-													<textarea
-														rows={2}
-														className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium resize-none"
-														placeholder="Cremas, sol, próxima sesión sugerida…"
-														value={visitForm.indicaciones_post}
+													<input
+														type="date"
+														className="w-full p-3 bg-gray-50 border border-transparent focus:bg-white focus:border-rose-100 rounded-xl text-sm font-bold text-slate-800 outline-none"
+														value={visitForm.fecha_proximo_contacto}
 														onChange={(e) =>
 															setVisitForm({
 																...visitForm,
-																indicaciones_post: e.target.value,
+																fecha_proximo_contacto: e.target.value,
 															})
 														}
 													/>
 												</div>
-												<div className="flex flex-wrap gap-2">
-													{editingVisitId && (
-														<button
-															type="button"
-															onClick={() => {
-																setEditingVisitId(null);
-																const today = new Date().toISOString().slice(0, 10);
-																setVisitForm({
-																	titulo: "",
-																	tratamientos_interes: "",
-																	fecha_proximo_contacto: today,
-																	notas: "",
-																	indicaciones_post: "",
-																});
-															}}
-															className="px-4 py-2 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 text-sm">
-															Cancelar edición
-														</button>
-													)}
-													<button
-														type="button"
-														disabled={
-															addingSeguimiento || updatingSeguimiento || !canSaveVisit
-														}
-														onClick={async () => {
-															const payload = {
-																titulo: visitForm.titulo?.trim() || null,
-																tratamientos_interes: visitForm.tratamientos_interes?.trim() || null,
-																fecha_proximo_contacto: visitForm.fecha_proximo_contacto || null,
-																notas: visitForm.notas?.trim() || null,
-																indicaciones_post: visitForm.indicaciones_post?.trim() || null,
-															};
-															try {
-																if (editingVisitId) {
-																	await updateSeguimiento({
-																		id: editingVisitId,
-																		...payload,
-																	});
-																	showToast("Visita actualizada");
-																} else {
-																	await addSeguimiento(payload);
-																	showToast("Visita registrada");
-																}
-																setEditingVisitId(null);
-																const today = new Date().toISOString().slice(0, 10);
-																setVisitForm({
-																	titulo: "",
-																	tratamientos_interes: "",
-																	fecha_proximo_contacto: today,
-																	notas: "",
-																	indicaciones_post: "",
-																});
-																setVisitFormOpen(false);
-															} catch (err) {
-																showToast(err?.message || "Error al guardar", "error");
-															}
-														}}
-														className="flex items-center gap-2 px-4 py-2 bg-rose-500 text-white font-bold rounded-xl hover:bg-rose-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm">
-														{editingVisitId ? (
-															<>
-																<Check size={16} /> Guardar cambios
-															</>
-														) : (
-															<>
-																<Plus size={16} /> Añadir visita
-															</>
-														)}
-													</button>
-												</div>
 											</div>
-										)}
-									</div>
-
-									{seguimientosLoading ? (
-										<div className="space-y-3">
-											{[1, 2, 3].map((i) => (
-												<div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
-											))}
-										</div>
-									) : seguimientos.length > 0 ? (
-										<div className="space-y-3">
-											{seguimientos.map((seg) => (
-												<div
-													key={seg.id}
-													className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-													<div className="min-w-0 flex-1 space-y-1.5">
-														<div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-															{seg.fecha_proximo_contacto && (
-																<p className="text-sm font-black text-rose-700 flex items-center gap-1.5">
-																	<CalendarCheck size={14} className="shrink-0" />
-																	{new Date(
-																		seg.fecha_proximo_contacto + "T12:00:00",
-																	).toLocaleDateString("es-ES", {
-																		weekday: "long",
-																		day: "numeric",
-																		month: "long",
-																		year: "numeric",
-																	})}
-																</p>
-															)}
-															{seg.titulo && (
-																<p className="text-sm font-bold text-slate-800">{seg.titulo}</p>
-															)}
-														</div>
-														{seg.tratamientos_interes && (
-															<p className="text-sm text-slate-800">
-																<span className="text-[10px] font-black text-slate-400 uppercase tracking-wide">
-																	Tratamientos:{" "}
-																</span>
-																{seg.tratamientos_interes}
-															</p>
-														)}
-														{seg.notas && (
-															<p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">
-																<span className="text-[10px] font-black text-slate-400 uppercase tracking-wide block mb-0.5">
-																	Notas de sesión
-																</span>
-																{seg.notas}
-															</p>
-														)}
-														{seg.indicaciones_post && (
-															<p className="text-xs text-amber-900/90 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 whitespace-pre-wrap">
-																<span className="text-[10px] font-black text-amber-800/80 uppercase tracking-wide block mb-0.5">
-																	Indicaciones post
-																</span>
-																{seg.indicaciones_post}
-															</p>
-														)}
-														{!seg.titulo &&
-															!seg.fecha_proximo_contacto &&
-															!seg.tratamientos_interes &&
-															!seg.notas &&
-															!seg.indicaciones_post && (
-																<p className="text-xs text-slate-400">Sin detalles</p>
-															)}
-													</div>
-													<div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
-														<button
-															type="button"
-															onClick={() => {
-																setEditingVisitId(seg.id);
-																setVisitForm({
-																	titulo: seg.titulo || "",
-																	tratamientos_interes: seg.tratamientos_interes || "",
-																	fecha_proximo_contacto:
-																		seg.fecha_proximo_contacto ||
-																		new Date().toISOString().slice(0, 10),
-																	notas: seg.notas || "",
-																	indicaciones_post: seg.indicaciones_post || "",
+											<div className="mb-4">
+												<label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">
+													Tratamientos implicados
+												</label>
+												<input
+													type="text"
+													className="w-full p-3 bg-gray-50 border border-transparent focus:bg-white focus:border-rose-100 rounded-xl text-sm font-bold text-slate-800 outline-none"
+													placeholder="Ej: HIFU facial..."
+													value={visitForm.tratamientos_interes}
+													onChange={(e) =>
+														setVisitForm({
+															...visitForm,
+															tratamientos_interes: e.target.value,
+														})
+													}
+												/>
+											</div>
+											<div className="mb-4">
+												<label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1.5 ml-1">
+													Notas detalladas
+												</label>
+												<textarea
+													rows="3"
+													className="w-full p-3 bg-gray-50 border border-transparent focus:bg-white focus:border-rose-100 rounded-xl text-sm font-medium text-slate-700 outline-none resize-none"
+													placeholder="Observaciones de la sesión, pautas dadas, evolución..."
+													value={visitForm.notas}
+													onChange={(e) =>
+														setVisitForm({ ...visitForm, notas: e.target.value })
+													}
+												/>
+											</div>
+											<div className="flex justify-end">
+												<button
+													type="button"
+													disabled={
+														addingSeguimiento || updatingSeguimiento || !canSaveVisit
+													}
+													onClick={async () => {
+														const payload = {
+															titulo: visitForm.titulo?.trim() || null,
+															tratamientos_interes: visitForm.tratamientos_interes?.trim() || null,
+															fecha_proximo_contacto: visitForm.fecha_proximo_contacto || null,
+															notas: visitForm.notas?.trim() || null,
+															indicaciones_post: visitForm.indicaciones_post?.trim() || null,
+														};
+														try {
+															if (editingVisitId) {
+																await updateSeguimiento({
+																	id: editingVisitId,
+																	...payload,
 																});
-																setVisitFormOpen(true);
-															}}
-															className="p-2 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
-															title="Editar">
-															<Pen size={16} />
-														</button>
-														<button
-															type="button"
-															onClick={async () => {
-																if (deletingSeguimiento) return;
-																try {
-																	await deleteSeguimiento(seg.id);
-																	if (editingVisitId === seg.id) {
-																		setEditingVisitId(null);
-																		const today = new Date().toISOString().slice(0, 10);
-																		setVisitForm({
-																			titulo: "",
-																			tratamientos_interes: "",
-																			fecha_proximo_contacto: today,
-																			notas: "",
-																			indicaciones_post: "",
-																		});
-																	}
-																	showToast("Entrada eliminada");
-																} catch (err) {
-																	showToast(err?.message || "Error al eliminar", "error");
-																}
-															}}
-															disabled={deletingSeguimiento}
-															className="p-2 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
-															title="Eliminar">
-															<Trash2 size={16} />
-														</button>
-													</div>
-												</div>
-											))}
-										</div>
-									) : (
-										<div className="flex flex-col items-center justify-center h-32 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
-											<BookOpen size={28} className="mb-2 opacity-50" />
-											<p className="font-bold text-sm">Aún no hay visitas registradas</p>
-											<p className="text-xs text-slate-400 mt-1 text-center px-4">
-												Usa «Nueva entrada de visita» para añadir fecha, tratamientos y notas de cada
-												sesión.
-											</p>
+																showToast("Nota actualizada");
+															} else {
+																await addSeguimiento(payload);
+																showToast("Nota registrada");
+															}
+															setEditingVisitId(null);
+															const today = new Date().toISOString().slice(0, 10);
+															setVisitForm({
+																titulo: "",
+																tratamientos_interes: "",
+																fecha_proximo_contacto: today,
+																notas: "",
+																indicaciones_post: "",
+															});
+															setVisitFormOpen(false);
+														} catch (err) {
+															showToast(err?.message || "Error al guardar", "error");
+														}
+													}}
+													className="px-6 py-3 bg-rose-700 text-white font-bold rounded-xl hover:bg-rose-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm shadow-sm">
+													{editingVisitId ? "Guardar cambios" : "Añadir nota"}
+												</button>
+											</div>
 										</div>
 									)}
 
-									<div className="mt-8 pt-6 border-t border-gray-100">
-										<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
-											<Clock size={14} /> Historial de sesiones
-										</h3>
-										{historyLoading ? (
-											<div className="space-y-4">
-												{[1, 2].map((i) => (
-													<div
-														key={i}
-														className="h-24 bg-gray-100 rounded-2xl animate-pulse"
-													/>
-												))}
-											</div>
-										) : historyError ? (
-											<div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-												<p className="text-sm font-bold text-amber-900">
-													No se pudo cargar el historial.
-												</p>
-												<p className="text-xs text-amber-800 mt-1">{historyError}</p>
-												<button
-													type="button"
-													onClick={refetchHistory}
-													className="mt-3 px-3 py-2 rounded-xl bg-white border border-amber-200 text-amber-900 font-bold text-xs">
-													Reintentar
-												</button>
-											</div>
-										) : history.length > 0 ? (
-											<div className="space-y-4">
-												{history.map((session) => {
-													const sessionPhotos = photos.filter(
-														(p) => p.finance_entry_id === session.id,
-													);
-													const beforePhoto = sessionPhotos.find(
-														(p) => p.type === "before",
-													);
-													const afterPhoto = sessionPhotos.find(
-														(p) => p.type === "after",
-													);
-													const extraPhotos = sessionPhotos
-														.filter(
-															(p) =>
-																p.finance_entry_id === session.id &&
-																p.type === "extra",
-														)
-														.sort(
-															(a, b) =>
-																new Date(a.created_at) - new Date(b.created_at),
-														);
-
-													const openPhotoViewer = () =>
-														setViewerSession({
-															session,
-															before: beforePhoto,
-															after: afterPhoto,
-															extras: extraPhotos,
-														});
-
-													return (
-														<div
-															key={session.id}
-															className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-rose-100 transition-all">
-															<div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-																<div className="flex items-start gap-4 flex-1 min-w-0">
-																	<div className="flex flex-col items-center justify-center w-12 h-12 bg-rose-50 rounded-xl text-rose-500 font-bold border border-rose-100 shrink-0">
-																		<span className="text-sm leading-none">
-																			{new Date(session.date).getDate()}
-																		</span>
-																		<span className="text-[9px] uppercase">
-																			{new Date(session.date).toLocaleString(
-																				"es-ES",
-																				{ month: "short" },
-																			)}
-																		</span>
-																	</div>
-																	<div className="min-w-0 flex-1">
-																		<h4 className="font-bold text-slate-800 text-sm xl:text-lg">
-																			{session.description?.split("(")[0] ||
-																				"Sesión"}
-																		</h4>
-																		<p className="text-[10px] text-slate-400 font-medium uppercase">
-																			{session.date}
-																			{session.plan_amigo && " • Plan Amigo (sin factura)"}
-																		</p>
-																		<div className="flex items-center gap-2 mt-3 flex-wrap">
-																			{beforePhoto && (
-																				<SessionPhotoThumbnail
-																					photo={beforePhoto}
-																					label="Antes"
-																					onView={openPhotoViewer}
-																					onEdit={handlePhotoEdit}
-																					onDelete={handlePhotoDelete}
-																				/>
-																			)}
-																			{afterPhoto && (
-																				<SessionPhotoThumbnail
-																					photo={afterPhoto}
-																					label="Después"
-																					onView={openPhotoViewer}
-																					onEdit={handlePhotoEdit}
-																					onDelete={handlePhotoDelete}
-																				/>
-																			)}
-																			{extraPhotos.map((ph) => (
-																				<SessionPhotoThumbnail
-																					key={ph.id}
-																					photo={ph}
-																					compact
-																					onView={openPhotoViewer}
-																					onEdit={handlePhotoEdit}
-																					onDelete={handlePhotoDelete}
-																				/>
-																			))}
-																			<button
-																				onClick={() => {
-																					setPhotoUploadSession(session);
-																					setShowPhotoUploadModal(true);
-																				}}
-																				className="w-16 h-20 rounded-lg border-2 border-dashed border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors shrink-0"
-																				title="Añadir foto">
-																				<Camera size={20} />
+									{(seguimientosLoading || historyLoading) ? (
+										<div className="space-y-6">
+											{[1, 2].map((i) => (
+												<div key={i} className="h-40 bg-gray-100 rounded-2xl animate-pulse" />
+											))}
+										</div>
+									) : timelineItems.length === 0 ? (
+										<div className="flex flex-col items-center justify-center h-48 bg-white border border-gray-100 shadow-sm rounded-3xl">
+											<BookOpen size={32} className="mb-3 text-slate-300" />
+											<p className="font-bold text-slate-700">Sin historial registrado</p>
+											<p className="text-sm text-slate-500 mt-1">Las facturas y notas aparecerán aquí.</p>
+										</div>
+									) : (
+										<div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
+											{timelineItems.map((group) => (
+												<div key={group.date} className="relative">
+													<div className="sticky top-4 md:absolute md:inset-0 md:flex md:items-center md:justify-center z-10 pointer-events-none mb-4 md:mb-0">
+														<div className="inline-block px-4 py-1.5 bg-slate-800 text-white text-[11px] font-black uppercase tracking-widest rounded-full shadow-sm ml-2 md:ml-0 pointer-events-auto">
+															{new Date(group.date).toLocaleDateString("es-ES", {
+																weekday: "long",
+																day: "numeric",
+																month: "long",
+																year: "numeric",
+															})}
+														</div>
+													</div>
+													
+													<div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 pt-4">
+														{/* Izquierda: Facturas */}
+														<div className="space-y-4 pl-12 md:pl-0 md:pr-8">
+															{group.sessions.length > 0 ? group.sessions.map(session => {
+																const sessionPhotos = photos.filter(p => p.finance_entry_id === session.id);
+																const beforePhoto = sessionPhotos.find(p => p.type === "before");
+																const afterPhoto = sessionPhotos.find(p => p.type === "after");
+																const extraPhotos = sessionPhotos.filter(p => p.type === "extra").sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+																const openPhotoViewer = () => setViewerSession({ session, before: beforePhoto, after: afterPhoto, extras: extraPhotos });
+																
+																return (
+																	<div key={session.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 hover:border-rose-200 transition-colors relative group">
+																		<div className="absolute top-1/2 -right-4 md:-right-12 w-8 h-px bg-slate-200 hidden md:block" />
+																		<div className="absolute top-1/2 -left-12 w-8 h-px bg-slate-200 md:hidden" />
+																		<div className="flex justify-between items-start gap-4 mb-3">
+																			<div>
+																				<h4 className="font-bold text-slate-800">
+																					{session.description?.split("(")[0] || "Sesión Facturada"}
+																				</h4>
+																				{session.plan_amigo && <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded uppercase">Plan Amigo</span>}
+																			</div>
+																			<div className="text-right shrink-0">
+																				<span className="block font-black text-slate-800 text-lg">
+																					{formatCurrency(session.amount)}
+																				</span>
+																				<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">Pagado</span>
+																			</div>
+																		</div>
+																		<div className="flex items-center gap-2 mt-4 flex-wrap bg-slate-50 p-2 rounded-xl border border-slate-100">
+																			{beforePhoto && <SessionPhotoThumbnail photo={beforePhoto} label="Antes" onView={openPhotoViewer} onEdit={handlePhotoEdit} onDelete={handlePhotoDelete} />}
+																			{afterPhoto && <SessionPhotoThumbnail photo={afterPhoto} label="Después" onView={openPhotoViewer} onEdit={handlePhotoEdit} onDelete={handlePhotoDelete} />}
+																			{extraPhotos.map((ph) => <SessionPhotoThumbnail key={ph.id} photo={ph} compact onView={openPhotoViewer} onEdit={handlePhotoEdit} onDelete={handlePhotoDelete} />)}
+																			<button onClick={() => { setPhotoUploadSession(session); setShowPhotoUploadModal(true); }} className="w-14 h-14 rounded-lg border-2 border-dashed border-slate-200 hover:border-rose-300 hover:bg-rose-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors shrink-0" title="Añadir foto">
+																				<Camera size={16} />
 																			</button>
 																		</div>
+																		<div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
+																			{!session.plan_amigo && (
+																				<button onClick={async () => {
+																					try {
+																						if (!ensureCompanyFiscalAddress(selectedClient)) return;
+																						await generateInvoice(session, selectedClient, clinic, profile);
+																						showToast("Factura generada");
+																					} catch {
+																						showToast("Error al generar factura", "error");
+																					}
+																				}} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 hover:text-slate-800 rounded-lg transition-colors">
+																					<FileDown size={14} /> Factura PDF
+																				</button>
+																			)}
+																			{Number(session.amount) > 0 && (
+																				<button onClick={() => openRefundModal(session)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-lg transition-colors">
+																					<RotateCcw size={14} /> Reembolso
+																				</button>
+																			)}
+																		</div>
 																	</div>
+																);
+															}) : (
+																<div className="hidden md:flex flex-col items-center justify-center h-full text-slate-300 min-h-[100px]">
+																	<span className="text-[10px] font-bold uppercase tracking-widest">Sin Facturación</span>
 																</div>
-																<div className="flex items-center gap-3 shrink-0">
-																	{!session.plan_amigo && (
-																		<button
-																			onClick={async () => {
-																				try {
-																					if (!ensureCompanyFiscalAddress(selectedClient)) return;
-																					await generateInvoice(session, selectedClient, clinic, profile);
-																					showToast("Factura generada");
-																				} catch {
-																					showToast(
-																						"Error al generar factura",
-																						"error",
-																					);
-																				}
-																			}}
-																			className="p-2 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
-																			title="Generar factura">
-																			<FileDown size={18} />
-																		</button>
-																	)}
-																	{Number(session.amount) > 0 && (
-																		<button
-																			onClick={() => openRefundModal(session)}
-																			className="p-2 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
-																			title="Rectificar / Devolución">
-																			<RotateCcw size={18} />
-																		</button>
-																	)}
-																	<div className="text-right">
-																		<span className="block font-black text-slate-800 text-lg xl:text-xl">
-																			{formatCurrency(session.amount)}
-																		</span>
-																		<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
-																			Pagado
-																		</span>
-																	</div>
-																</div>
-															</div>
+															)}
 														</div>
-													);
-												})}
-											</div>
-										) : (
-											<div className="flex flex-col items-center justify-center h-40 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
-												<FileText size={32} className="mb-2 opacity-50" />
-												<p className="font-bold text-sm">Sin historial previo</p>
-											</div>
-										)}
-									</div>
-								</>
-							)}
 
+														{/* Derecha: Notas */}
+														<div className="space-y-4 pl-12 md:pl-8 md:pr-0">
+															{group.notes.length > 0 ? group.notes.map(seg => (
+																<div key={seg.id} className="bg-slate-50 p-5 rounded-2xl shadow-sm border border-slate-200 relative group/note">
+																	<div className="absolute top-1/2 -left-4 md:-left-12 w-8 h-px bg-slate-200 hidden md:block" />
+																	<div className="absolute top-1/2 -left-12 w-8 h-px bg-slate-200 md:hidden" />
+																	<div className="flex justify-between items-start gap-2 mb-2">
+																		<h4 className="font-bold text-slate-800 text-sm">
+																			{seg.titulo || "Nota Clínica"}
+																		</h4>
+																		<div className="flex gap-1 opacity-0 group-hover/note:opacity-100 transition-opacity">
+																			<button onClick={() => {
+																				setEditingVisitId(seg.id);
+																				setVisitForm({
+																					titulo: seg.titulo || "",
+																					tratamientos_interes: seg.tratamientos_interes || "",
+																					fecha_proximo_contacto: seg.fecha_proximo_contacto || "",
+																					notas: seg.notas || "",
+																					indicaciones_post: seg.indicaciones_post || "",
+																				});
+																				setVisitFormOpen(true);
+																			}} className="p-1.5 text-slate-400 hover:text-rose-600 rounded bg-white shadow-sm">
+																				<Edit2 size={14} />
+																			</button>
+																			{canDeleteOperational && (
+																				<button onClick={async () => {
+																					if (!confirm("¿Eliminar nota?")) return;
+																					try {
+																						await deleteSeguimiento(seg.id);
+																						showToast("Nota eliminada");
+																					} catch {
+																						showToast("Error al eliminar", "error");
+																					}
+																				}} className="p-1.5 text-slate-400 hover:text-rose-600 rounded bg-white shadow-sm">
+																					<Trash2 size={14} />
+																				</button>
+																			)}
+																		</div>
+																	</div>
+																	{seg.tratamientos_interes && (
+																		<div className="mb-3">
+																			<span className="text-[10px] font-black text-rose-400 uppercase tracking-widest block mb-0.5">Tratamientos</span>
+																			<p className="text-sm text-slate-700 font-medium">{seg.tratamientos_interes}</p>
+																		</div>
+																	)}
+																	{seg.notas && (
+																		<div>
+																			<span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Observaciones</span>
+																			<p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{seg.notas}</p>
+																		</div>
+																	)}
+																</div>
+															)) : (
+																<div className="hidden md:flex flex-col items-center justify-center h-full text-slate-300 min-h-[100px]">
+																	<span className="text-[10px] font-bold uppercase tracking-widest">Sin Notas</span>
+																</div>
+															)}
+														</div>
+													</div>
+												</div>
+											))}
+										</div>
+									)}
+								</div>
+							)}
 							{clientDetailTab === "datos" && (
 								<div className="space-y-6">
 									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest flex items-center gap-2">
-										<User size={14} /> Datos paciente
+										<User size={14} /> Información General & Fiscal
 									</h3>
-									<dl className="space-y-3 text-sm">
+									
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 										<div>
-											<dt className="text-[10px] font-black text-slate-400 uppercase">
+											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
 												Nombre
-											</dt>
-											<dd className="font-bold text-slate-800">
-												{selectedClient.name} {selectedClient.surname}
-											</dd>
+											</label>
+											<input
+												required
+												placeholder="Ej: Laura"
+												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
+												value={formData.name}
+												onChange={(e) =>
+													setFormData({ ...formData, name: e.target.value })
+												}
+											/>
 										</div>
-										{selectedClient.phone && (
-											<div>
-												<dt className="text-[10px] font-black text-slate-400 uppercase">
-													Teléfono
-												</dt>
-												<dd className="font-bold text-slate-800">
-													{selectedClient.phone}
-												</dd>
-											</div>
-										)}
-										{selectedClient.email && (
-											<div>
-												<dt className="text-[10px] font-black text-slate-400 uppercase">
-													Email
-												</dt>
-												<dd className="font-bold text-slate-800">
-													{selectedClient.email}
-												</dd>
-											</div>
-										)}
 										<div>
-											<dt className="text-[10px] font-black text-slate-400 uppercase">
-												NIF/CIF
-											</dt>
-											<dd className="font-bold text-slate-800">
-												{selectedClient.nif || "—"}
-												{selectedClient.is_company && (
-													<span className="ml-2 text-[10px] font-black uppercase text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg">
-														Empresa · IRPF{" "}
-														{selectedClient.irpf_withholding_rate != null
-															? `${Number(selectedClient.irpf_withholding_rate)}%`
-															: "7%"}
-													</span>
-												)}
-											</dd>
+											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
+												Apellidos
+											</label>
+											<input
+												required
+												placeholder="Ej: Gómez Pérez"
+												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
+												value={formData.surname}
+												onChange={(e) =>
+													setFormData({ ...formData, surname: e.target.value })
+												}
+											/>
 										</div>
-										{selectedClient.is_company && (
-											<div>
-												<dt className="text-[10px] font-black text-slate-400 uppercase">
-													Dirección fiscal
-												</dt>
-												<dd className="font-bold text-slate-800 whitespace-pre-line">
-													{selectedClient.address?.trim() || (
-														<span className="text-amber-700">
-															Sin dirección — añádela para facturar
-														</span>
-													)}
-												</dd>
-											</div>
-										)}
-										{selectedClient.fecha_nacimiento && (
-											<div>
-												<dt className="text-[10px] font-black text-slate-400 uppercase">
-													Fecha nacimiento
-												</dt>
-												<dd className="font-bold text-slate-800">
-													{selectedClient.fecha_nacimiento}
-													{getAge(selectedClient.fecha_nacimiento) != null && (
-														<span className="text-slate-500 font-medium ml-2">
-															({getAge(selectedClient.fecha_nacimiento)} años)
-														</span>
-													)}
-												</dd>
-											</div>
-										)}
 										<div>
-											<dt className="text-[10px] font-black text-slate-400 uppercase">
+											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
+												NIF / CIF
+											</label>
+											<input
+												placeholder="Ej: 12345678A"
+												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
+												value={formData.nif}
+												onChange={(e) =>
+													setFormData({ ...formData, nif: e.target.value.toUpperCase() })
+												}
+											/>
+										</div>
+										<div>
+											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
+												Teléfono / WhatsApp
+											</label>
+											<input
+												required
+												type="tel"
+												placeholder="Ej: +34 600 000 000"
+												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
+												value={formData.phone}
+												onChange={(e) =>
+													setFormData({ ...formData, phone: e.target.value })
+												}
+											/>
+										</div>
+										<div>
+											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
+												Fecha Nacimiento
+											</label>
+											<input
+												type="date"
+												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
+												value={formData.fecha_nacimiento}
+												onChange={(e) =>
+													setFormData({
+														...formData,
+														fecha_nacimiento: e.target.value,
+													})
+												}
+											/>
+										</div>
+										<div>
+											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
 												Origen
-											</dt>
-											<dd className="font-bold text-slate-800">
-												{selectedClient.origin === "instagram"
-													? "Instagram"
-													: selectedClient.origin === "google"
-														? "Google"
-														: selectedClient.origin === "recommendation"
-															? "Recomendación"
-															: selectedClient.origin === "other"
-																? "Otro"
-																: selectedClient.origin || "—"}
-											</dd>
+											</label>
+											<select
+												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
+												value={formData.origin}
+												onChange={(e) =>
+													setFormData({ ...formData, origin: e.target.value })
+												}>
+												<option value="">(No especificado)</option>
+												<option value="Instagram">Instagram</option>
+												<option value="Google">Google / Búsqueda</option>
+												<option value="Recomendacion">Recomendado por un amigo</option>
+												<option value="Fisico">Pase por la clínica</option>
+												<option value="Doctoralia">Doctoralia</option>
+												<option value="Otro">Otro</option>
+											</select>
 										</div>
-										{selectedClient.notes && (
-											<div>
-												<dt className="text-[10px] font-black text-slate-400 uppercase">
-													Notas
-												</dt>
-												<dd className="font-medium text-gray-700">
-													{selectedClient.notes}
-												</dd>
-											</div>
-										)}
-										{selectedClient.notas_privadas && (
-											<div className="pt-3 mt-3 border-t border-gray-100">
-												<dt className="text-[10px] font-black text-amber-600 uppercase flex items-center gap-1">
-													<Shield size={12} /> Notas privadas (HC)
-												</dt>
-												<dd className="font-medium text-gray-700 mt-1 p-3 bg-amber-50/50 rounded-xl border border-amber-100">
-													{selectedClient.notas_privadas}
-												</dd>
-											</div>
-										)}
-									</dl>
-									<div>
-										<dt className="text-[10px] font-black text-slate-400 uppercase mb-1">
-											Alergias
-										</dt>
-										<dd
-											className={`p-4 rounded-2xl text-sm font-medium ${
-												selectedClient.allergies
-													? "bg-red-50 border-2 border-red-200 text-red-900"
-													: "bg-gray-50 text-slate-500 border border-gray-100"
-											}`}>
-											{selectedClient.allergies || "Ninguna indicada"}
-										</dd>
 									</div>
-									<div>
-										<dt className="text-[10px] font-black text-slate-400 uppercase mb-1">
-											Antecedentes
-										</dt>
-										<dd className="p-4 bg-gray-50 rounded-2xl text-sm font-medium text-gray-700 border border-gray-100 min-h-[80px]">
-											{selectedClient.medical_history || "—"}
-										</dd>
+
+									<div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+										<label className="flex items-start gap-3 cursor-pointer">
+											<input
+												type="checkbox"
+												checked={formData.is_company}
+												onChange={(e) =>
+													setFormData({
+														...formData,
+														is_company: e.target.checked,
+													})
+												}
+												className="mt-1 w-5 h-5 rounded border-gray-300 text-rose-700 focus:ring-rose-700"
+											/>
+											<div>
+												<span className="font-bold text-slate-800 block text-sm">Es una Empresa / B2B (Requiere Factura Completa)</span>
+												<span className="text-xs text-slate-500 font-medium">Obligatorio rellenar NIF y Dirección Fiscal si se marca.</span>
+											</div>
+										</label>
+										{formData.is_company && (
+											<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-50">
+												<div>
+													<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
+														Retención IRPF (%)
+													</label>
+													<select
+														className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold text-slate-800"
+														value={formData.irpf_withholding_rate}
+														onChange={(e) =>
+															setFormData({
+																...formData,
+																irpf_withholding_rate: e.target.value,
+															})
+														}>
+														<option value="7">7% (Nuevos autónomos)</option>
+														<option value="15">15% (General)</option>
+														<option value="0">0% (Sin retención)</option>
+													</select>
+												</div>
+												<div>
+													<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
+														Dirección Fiscal Completa
+													</label>
+													<textarea
+														rows="2"
+														placeholder="Calle, Número, Piso, Ciudad, CP, Provincia"
+														className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-medium resize-none text-slate-800"
+														value={formData.address}
+														onChange={(e) =>
+															setFormData({ ...formData, address: e.target.value })
+														}
+													/>
+												</div>
+											</div>
+										)}
+									</div>
+
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+										<div>
+											<label className="text-[11px] font-black text-rose-500 uppercase tracking-widest mb-1 block ml-1">
+												Alergias / Contraindicaciones
+											</label>
+											<textarea
+												rows="3"
+												placeholder="Importante destacar si tiene alergias a algún producto"
+												className="w-full p-4 bg-rose-50 border-2 border-transparent focus:bg-white focus:border-rose-200 rounded-2xl outline-none font-medium resize-none text-slate-800"
+												value={formData.allergies}
+												onChange={(e) =>
+													setFormData({ ...formData, allergies: e.target.value })
+												}
+											/>
+										</div>
+										<div>
+											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
+												Notas Internas Privadas
+											</label>
+											<textarea
+												rows="3"
+												placeholder="Notas o preferencias del paciente"
+												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-medium resize-none shadow-sm text-slate-800"
+												value={formData.notas_privadas}
+												onChange={(e) =>
+													setFormData({ ...formData, notas_privadas: e.target.value })
+												}
+											/>
+										</div>
 									</div>
 								</div>
 							)}
@@ -1329,281 +1253,250 @@ export const ClientsTab = ({
 								</div>
 							)}
 
-							{clientDetailTab === "legal" && (
-								<div className="space-y-6">
-									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest flex items-center gap-2">
-										<Shield size={14} /> Consentimientos
-									</h3>
-									<div className="flex flex-col gap-4">
-										<div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-											{selectedClient.has_consent ? (
-												<Check
-													size={22}
-													className="text-emerald-500 shrink-0"
-												/>
-											) : (
-												<X size={22} className="text-slate-400 shrink-0" />
-											)}
-											<span className="font-bold text-slate-800">
-												RGPD firmada
-											</span>
-										</div>
-										<div className="flex items-center gap-3 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-											{selectedClient.has_image_rights ? (
-												<Check
-													size={22}
-													className="text-emerald-500 shrink-0"
-												/>
-											) : (
-												<X size={22} className="text-slate-400 shrink-0" />
-											)}
-											<span className="font-bold text-slate-800">
-												Derechos de imagen
-											</span>
-										</div>
-										{selectedClient.drive_url && (
-											<a
-												href={selectedClient.drive_url}
-												target="_blank"
-												rel="noopener noreferrer"
-												className="inline-flex items-center gap-2 text-sm font-bold text-blue-600 hover:text-blue-700">
-												<ExternalLink size={16} /> Carpeta Drive
-											</a>
-										)}
-									</div>
-								</div>
-							)}
-
-							{clientDetailTab === "bonos" && (
-								<div className="space-y-6">
-									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest flex items-center gap-2">
-										<Ticket size={14} /> Bonos adquiridos
-									</h3>
-									{bonosLoading ? (
-										<div className="space-y-3">
-											{[1, 2].map((i) => (
-												<div key={i} className="h-20 bg-gray-100 rounded-2xl animate-pulse" />
-											))}
-										</div>
-									) : clientBonos.length === 0 ? (
-										<div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 text-center">
-											<p className="text-sm font-medium text-slate-500">
-												Este paciente no tiene bonos registrados.
-											</p>
-											<p className="text-xs text-slate-400 mt-1">
-												Vende un bono desde la pestaña Bonos.
-											</p>
-										</div>
-									) : (
-										<div className="space-y-3">
-											{clientBonos.map((bono) => {
-												const name = bono.bonus_templates?.name ?? "Bono";
-												const treatmentName = bono.treatments?.name ?? "";
-												const used = Number(bono.used_sessions) ?? 0;
-												const total = Number(bono.total_sessions) ?? 0;
-												const isExhausted = bono.status === "exhausted";
-												const pct = total > 0 ? Math.round((used / total) * 100) : 0;
-												return (
-													<div
-														key={bono.id}
-														className={`p-4 rounded-2xl border shadow-sm ${
-															isExhausted
-																? "bg-gray-50 border-gray-100"
-																: "bg-white border-rose-100"
-														}`}>
-														<div className="flex justify-between items-start gap-2">
-															<div>
-																<p className="font-bold text-gray-900">{name}</p>
-																{treatmentName && (
-																	<p className="text-xs text-slate-500">{treatmentName}</p>
-																)}
-															</div>
-															<span
-																className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
-																	isExhausted
-																		? "bg-gray-200 text-slate-600"
-																		: "bg-rose-100 text-rose-700"
-																}`}>
-																{isExhausted ? "Agotado" : "Activo"}
-															</span>
-														</div>
-														<p className="text-xs font-medium text-slate-600 mt-2">
-															Consumidas: {used} de {total} sesiones
-														</p>
-														<div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
-															<div
-																className={`h-full rounded-full transition-all ${
-																	isExhausted ? "bg-gray-400" : "bg-rose-500"
-																}`}
-																style={{ width: `${Math.min(pct, 100)}%` }}
-															/>
-														</div>
-													</div>
-												);
-											})}
-										</div>
-									)}
-								</div>
-							)}
-
-
-							{clientDetailTab === "consentimientos" && (
-								<>
-									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
-										<FileCheck size={14} /> Consentimientos firmados
-									</h3>
-
-									{/* Subir nuevo */}
-									<div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6">
-										<p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
-											Subir consentimiento firmado (PDF)
-										</p>
-										<div className="flex flex-wrap items-end gap-3">
-											<div className="min-w-[200px] flex-1">
-												<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
-													Tratamiento
-												</label>
-												<select
-													value={signedConsentTreatmentId}
-													onChange={(e) =>
-														setSignedConsentTreatmentId(e.target.value)
-													}
-													className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium">
-													<option value="">— Seleccionar —</option>
-													{treatments.map((t) => (
-														<option key={t.id} value={t.id}>
-															{t.name}
-														</option>
-													))}
-												</select>
-											</div>
-											<div className="min-w-[180px] flex-1">
-												<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
-													Archivo PDF
-												</label>
-												<input
-													type="file"
-													accept=".pdf,application/pdf"
-													onChange={(e) =>
-														setSignedConsentFile(e.target.files?.[0] || null)
-													}
-													className="w-full p-2 text-sm border border-gray-200 rounded-xl bg-gray-50 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-rose-50 file:text-rose-700"
-												/>
-											</div>
-											<LoadingButton
-												loading={uploadingSignedConsent}
-												disabled={
-													!signedConsentTreatmentId ||
-													!signedConsentFile ||
-													!user?.id
-												}
-												onClick={async () => {
-													if (
-														!signedConsentTreatmentId ||
-														!signedConsentFile ||
-														!selectedClient?.id ||
-														!user?.id
-													)
-														return;
-													const treatment = treatments.find(
-														(t) => t.id === signedConsentTreatmentId,
-													);
-													setUploadingSignedConsent(true);
-													try {
-														if (!clinicId) {
-															showToast("No hay clínica activa", "error");
-															return;
-														}
-														await uploadSignedConsent({
-															userId: user.id,
-															clinicId,
-															clientId: selectedClient.id,
-															treatmentId: signedConsentTreatmentId,
-															treatmentName: treatment?.name || "Tratamiento",
-															file: signedConsentFile,
-														});
-														refetchSignedConsents();
-														setSignedConsentTreatmentId("");
-														setSignedConsentFile(null);
-														showToast("Consentimiento subido correctamente");
-													} catch (err) {
-														showToast(
-															err?.message || "Error al subir",
-															"error",
-														);
-													} finally {
-														setUploadingSignedConsent(false);
-													}
-												}}>
-												<Upload size={16} className="mr-1.5" />
-												Subir
-											</LoadingButton>
-										</div>
-									</div>
-
-									{signedConsentsLoading ? (
+							{clientDetailTab === "documentacion" && (
+								<div className="space-y-8">
+									<div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+										
+										{/* Columna Izquierda: Bonos */}
 										<div className="space-y-4">
-											{[1, 2].map((i) => (
-												<div
-													key={i}
-													className="h-20 bg-gray-100 rounded-2xl animate-pulse"
-												/>
-											))}
+											<div className="flex justify-between items-center pb-2 border-b border-gray-100">
+												<h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
+													<Ticket size={16} className="text-rose-600" /> Bonos Activos
+												</h3>
+											</div>
+											
+											{bonosLoading ? (
+												<div className="space-y-3">
+													{[1, 2].map((i) => (
+														<div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />
+													))}
+												</div>
+											) : clientBonos.length > 0 ? (
+												<div className="space-y-3">
+													{clientBonos.map((bono) => {
+														const name = bono.bonus_templates?.name ?? "Bono";
+														const treatmentName = bono.treatments?.name ?? "";
+														const used = Number(bono.used_sessions) ?? 0;
+														const total = Number(bono.total_sessions) ?? 0;
+														const isExhausted = bono.status === "exhausted";
+														const pct = total > 0 ? Math.round((used / total) * 100) : 0;
+														return (
+															<div
+																key={bono.id}
+																className={`bg-white p-4 rounded-xl border shadow-sm relative overflow-hidden group ${
+																	isExhausted ? "border-gray-200" : "border-rose-100"
+																}`}>
+																{!isExhausted && <div className="absolute top-0 right-0 w-1.5 h-full bg-rose-400" />}
+																<div className="flex justify-between items-start mb-2 pr-2">
+																	<div>
+																		<h4 className="font-bold text-slate-800">{name}</h4>
+																		{treatmentName && (
+																			<p className="text-xs text-slate-500 font-medium">{treatmentName}</p>
+																		)}
+																	</div>
+																	<div className="text-right">
+																		<span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+																			isExhausted ? "bg-gray-100 text-slate-500" : "bg-rose-50 text-rose-700"
+																		}`}>
+																			{isExhausted ? "Agotado" : "Activo"}
+																		</span>
+																	</div>
+																</div>
+																<p className="text-xs text-slate-600 font-medium mt-3">
+																	Consumidas: {used} de {total} sesiones
+																</p>
+																<div className="w-full bg-slate-100 h-2 rounded-full mt-1.5 overflow-hidden">
+																	<div 
+																		className={`h-full rounded-full transition-all ${isExhausted ? "bg-slate-400" : "bg-rose-500"}`}
+																		style={{ width: `${Math.min(pct, 100)}%` }}
+																	/>
+																</div>
+															</div>
+														);
+													})}
+												</div>
+											) : (
+												<div className="flex flex-col items-center justify-center h-48 bg-slate-50 rounded-xl border border-slate-100 text-slate-400">
+													<Ticket size={32} className="mb-2 opacity-50" />
+													<p className="text-sm font-bold text-slate-600">Sin bonos activos</p>
+													<p className="text-xs mt-1 text-center px-4">Vende un bono para generar sesiones prepagadas.</p>
+												</div>
+											)}
 										</div>
-									) : signedConsents.length > 0 ? (
-										<div className="space-y-3">
-											{signedConsents.map((consent) => (
-												<div
-													key={consent.id}
-													className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-3">
-													<div>
-														<p className="font-bold text-slate-800">
-															{consent.treatment_name}
-														</p>
-														<p className="text-xs text-slate-500">
-															Subido{" "}
-															{new Date(consent.uploaded_at).toLocaleDateString(
-																"es-ES",
-																{
-																	day: "numeric",
-																	month: "short",
-																	year: "numeric",
-																},
-															)}
-														</p>
-													</div>
+
+										{/* Columna Derecha: Consentimientos y Legal */}
+										<div className="space-y-8">
+											<div className="space-y-4">
+												<div className="flex justify-between items-center pb-2 border-b border-gray-100">
+													<h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
+														<FileCheck size={16} className="text-rose-600" /> Consentimientos
+													</h3>
 													<button
-														type="button"
-														onClick={async () => {
-															try {
-																const url = await getSignedConsentDownloadUrl(
-																	consent.storage_path,
-																);
-																if (url) window.open(url, "_blank");
-																else showToast("No se pudo generar el enlace", "error");
-															} catch {
-																showToast("Error al descargar", "error");
-															}
+														onClick={() => {
+															setConsentTreatmentId("");
+															setConsentTemplateId("");
+															setShowConsentModal(true);
 														}}
-														className="p-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-sm flex items-center gap-2">
-														<FileDown size={16} />
-														Descargar
+														className="text-xs font-bold px-3 py-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg transition-colors flex items-center gap-1.5">
+														<Plus size={14} /> Generar PDF
 													</button>
 												</div>
-											))}
+												
+												{/* Subir firmado */}
+												<div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4">
+													<p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
+														Subir firmado (PDF)
+													</p>
+													<div className="flex flex-col sm:flex-row gap-3 items-end">
+														<div className="flex-1 w-full">
+															<select
+																value={signedConsentTreatmentId}
+																onChange={(e) => setSignedConsentTreatmentId(e.target.value)}
+																className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-slate-800">
+																<option value="">— Seleccionar Tratamiento —</option>
+																{treatments.map((t) => (
+																	<option key={t.id} value={t.id}>{t.name}</option>
+																))}
+															</select>
+														</div>
+														<div className="flex-1 w-full">
+															<input
+																type="file"
+																accept=".pdf,application/pdf"
+																onChange={(e) => setSignedConsentFile(e.target.files?.[0] || null)}
+																className="w-full text-xs text-slate-500 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-black file:uppercase file:bg-slate-200 file:text-slate-700"
+															/>
+														</div>
+														<LoadingButton
+															loading={uploadingSignedConsent}
+															disabled={!signedConsentTreatmentId || !signedConsentFile || !user?.id}
+															onClick={async () => {
+																if (!signedConsentTreatmentId || !signedConsentFile || !selectedClient?.id || !user?.id) return;
+																const treatment = treatments.find((t) => t.id === signedConsentTreatmentId);
+																setUploadingSignedConsent(true);
+																try {
+																	if (!clinicId) { showToast("No hay clínica activa", "error"); return; }
+																	await uploadSignedConsent({
+																		userId: user.id, clinicId, clientId: selectedClient.id,
+																		treatmentId: signedConsentTreatmentId, treatmentName: treatment?.name || "Tratamiento", file: signedConsentFile,
+																	});
+																	refetchSignedConsents();
+																	setSignedConsentTreatmentId(""); setSignedConsentFile(null);
+																	showToast("Consentimiento subido correctamente");
+																} catch (err) {
+																	showToast(err?.message || "Error al subir", "error");
+																} finally {
+																	setUploadingSignedConsent(false);
+																}
+															}}
+															className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-lg disabled:opacity-50 transition-colors">
+															Subir
+														</LoadingButton>
+													</div>
+												</div>
+
+												{signedConsentsLoading ? (
+													<div className="space-y-3">
+														{[1, 2].map((i) => <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />)}
+													</div>
+												) : signedConsents.length > 0 ? (
+													<div className="space-y-3">
+														{signedConsents.map((consent) => (
+															<div key={consent.id} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-3 group">
+																<div>
+																	<p className="font-bold text-slate-800 text-sm">{consent.treatment_name}</p>
+																	<p className="text-[11px] text-slate-500 font-medium">Subido {new Date(consent.uploaded_at).toLocaleDateString("es-ES")}</p>
+																</div>
+																<button onClick={async () => {
+																		try {
+																			const url = await getSignedConsentDownloadUrl(consent.storage_path);
+																			if (url) window.open(url, "_blank");
+																			else showToast("No se pudo generar el enlace", "error");
+																		} catch { showToast("Error al descargar", "error"); }
+																	}} className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors">
+																	<FileDown size={16} />
+																</button>
+															</div>
+														))}
+													</div>
+												) : (
+													<div className="flex flex-col items-center justify-center h-32 bg-white rounded-xl border border-slate-100 text-slate-300">
+														<FileCheck size={24} className="mb-2 opacity-50 text-slate-300" />
+														<p className="font-bold text-xs text-slate-500">Ningún consentimiento firmado</p>
+													</div>
+												)}
+											</div>
+
+											<div className="space-y-4">
+												<div className="flex justify-between items-center pb-2 border-b border-gray-100">
+													<h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
+														<Shield size={16} className="text-rose-600" /> Estado Legal
+													</h3>
+												</div>
+												<div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-5">
+													<label className="flex items-start gap-3 cursor-pointer">
+														<input
+															type="checkbox"
+															checked={formData.has_consent}
+															onChange={async (e) => {
+																const val = e.target.checked;
+																setFormData({ ...formData, has_consent: val });
+																await supabase.from("clients").update({ has_consent: val }).eq("id", selectedClient.id);
+																showToast("Estado legal actualizado");
+															}}
+															className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-700 focus:ring-rose-700"
+														/>
+														<div>
+															<span className="font-bold text-slate-800 block text-sm">Protección de Datos (LOPD) Firmada</span>
+															<span className="text-xs text-slate-500 font-medium block mt-1">El paciente ha firmado el consentimiento de tratamiento de datos.</span>
+														</div>
+													</label>
+													
+													<label className="flex items-start gap-3 cursor-pointer pt-4 border-t border-slate-100">
+														<input
+															type="checkbox"
+															checked={formData.has_image_rights}
+															onChange={async (e) => {
+																const val = e.target.checked;
+																setFormData({ ...formData, has_image_rights: val });
+																await supabase.from("clients").update({ has_image_rights: val }).eq("id", selectedClient.id);
+																showToast("Estado de imagen actualizado");
+															}}
+															className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-700 focus:ring-rose-700"
+														/>
+														<div>
+															<span className="font-bold text-slate-800 block text-sm">Derechos de Imagen</span>
+															<span className="text-xs text-slate-500 font-medium block mt-1">Permiso para uso anónimo de fotos de Antes/Después en RRSS.</span>
+														</div>
+													</label>
+
+													<div className="pt-4 border-t border-slate-100">
+														<label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
+															Carpeta Compartida (Drive/Dropbox)
+														</label>
+														<div className="flex gap-2">
+															<input
+																type="url"
+																placeholder="Enlace a la nube..."
+																className="flex-1 p-3 bg-gray-50 border border-transparent focus:bg-white focus:border-rose-100 rounded-xl text-sm font-medium text-slate-800 outline-none"
+																value={formData.drive_url}
+																onBlur={async (e) => {
+																	await supabase.from("clients").update({ drive_url: e.target.value }).eq("id", selectedClient.id);
+																}}
+																onChange={(e) => setFormData({ ...formData, drive_url: e.target.value })}
+															/>
+															{formData.drive_url && (
+																<a href={formData.drive_url} target="_blank" rel="noopener noreferrer" className="px-4 bg-slate-800 text-white rounded-xl flex items-center justify-center hover:bg-slate-900 transition-colors" title="Abrir enlace">
+																	<ExternalLink size={16} />
+																</a>
+															)}
+														</div>
+													</div>
+												</div>
+											</div>
 										</div>
-									) : (
-										<div className="flex flex-col items-center justify-center h-32 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
-											<FileCheck size={28} className="mb-2 opacity-50" />
-											<p className="font-bold text-sm">
-												Ningún consentimiento firmado aún
-											</p>
-											<p className="text-xs text-slate-400 mt-1">
-												Sube un PDF firmado arriba
-											</p>
-										</div>
-									)}
-								</>
+									</div>
+								</div>
 							)}
 						</div>
 					</>
