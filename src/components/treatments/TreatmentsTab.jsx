@@ -60,8 +60,20 @@ export const TreatmentsTab = ({
 	}, [treatments, groups]);
 
 	const calculateCost = (recipe) => {
-if (!recipe || recipe.length === 0) return 0;
-	
+		if (!recipe || recipe.length === 0) return 0;
+		return (
+			recipe?.reduce((total, item) => {
+				const material = inventory.find((m) => m.id === item.materialId);
+				return (
+					total +
+					(material
+						? (Number(material.unit_cost) || 0) * Number(item.quantity)
+						: 0)
+				);
+			}, 0) || 0
+		);
+	};
+
 	const renderTreatmentTableRow = (t) => {
 		const materialCost = calculateCost(t.recipe);
 		const profit = Number(t.price) - materialCost;
@@ -93,19 +105,6 @@ if (!recipe || recipe.length === 0) return 0;
 					</div>
 				</td>
 			</tr>
-		);
-	};
-
-	return (
-			recipe?.reduce((total, item) => {
-				const material = inventory.find((m) => m.id === item.materialId);
-				return (
-					total +
-					(material
-						? (Number(material.unit_cost) || 0) * Number(item.quantity)
-						: 0)
-				);
-			}, 0) || 0
 		);
 	};
 
