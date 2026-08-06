@@ -3,6 +3,8 @@ export const NAV_LABELS = {
 	clients: "Clientes",
 	treatments: "Tratamientos",
 	bonos: "Bonos",
+	consents: "Consentimientos",
+	budgets: "Presupuestos",
 	documents: "Documentos",
 	inventory: "Stock",
 	calendar: "Agenda",
@@ -11,7 +13,7 @@ export const NAV_LABELS = {
 	suppliers: "Proveedores",
 	taxes: "Fiscalidad",
 	settings: "Ajustes",
-	daily_cash: "Caja Rápida",
+
 	finance_movements: "Movimientos",
 	financial_analysis: "Análisis Financiero",
 	assets: "Bienes de Inversión",

@@ -270,7 +270,7 @@ export const TreatmentsTab = ({
 							<button
 								type="button"
 								onClick={() => { setTreatmentToDelete(t); setShowDeleteModal(true); }}
-								className="p-1.5 text-gray-300 hover:text-red-500 rounded-lg"
+								className="p-1.5 text-gray-300 hover:text-rose-600 rounded-lg"
 								title="Eliminar">
 								<Trash2 size={14} />
 							</button>
@@ -302,149 +302,22 @@ export const TreatmentsTab = ({
 		);
 	};
 
-	return (
-		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
-			<ConfirmModal
-				isOpen={showDeleteModal}
-				title="Archivar tratamiento"
-				message={`¿Archivar "${treatmentToDelete?.name}"? Dejará de mostrarse en listas y sesiones nuevas.`}
-				onConfirm={confirmDeleteTreatment}
-				onCancel={() => { setShowDeleteModal(false); setTreatmentToDelete(null); }}
-				isDestructive
-			/>
-			<ConfirmModal
-				isOpen={showDeleteGroupModal}
-				title="Eliminar grupo"
-				message={`¿Eliminar el grupo "${groupToDelete?.name}"? Los tratamientos quedarán sin grupo.`}
-				onConfirm={confirmDeleteGroup}
-				onCancel={() => { setShowDeleteGroupModal(false); setGroupToDelete(null); }}
-				isDestructive
-			/>
-			{/* HEADER */}
-			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-				<h2 className="text-2xl xl:text-3xl font-bold text-gray-900 tracking-tight">
-					Tratamientos
-				</h2>
-				<div className="flex flex-wrap gap-2 w-full sm:w-auto">
-					<div className="flex bg-slate-100 p-1 rounded-lg">
+
+	if (showGroupsModal) {
+		const title = 'Grupos de tratamientos';
+		return (
+			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
+				<div className="max-w-3xl mx-auto">
+					<div className="flex flex-col gap-2 mb-8">
 						<button
-							onClick={() => setViewMode("grid")}
-							className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white shadow-sm text-rose-700" : "text-slate-500 hover:text-slate-700"}`}
-							title="Vista Tarjetas">
-							<LayoutGrid size={18} />
+							onClick={() => { setShowGroupsModal(false) }}
+							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
 						</button>
-						<button
-							onClick={() => setViewMode("list")}
-							className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-rose-700" : "text-slate-500 hover:text-slate-700"}`}
-							title="Vista Lista">
-							<ListIcon size={18} />
-						</button>
+						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
 					</div>
-					<button
-						type="button"
-						onClick={openGroupsModal}
-						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 transition-colors">
-						<FolderOpen size={16} /> Grupos
-					</button>
-					<button
-						type="button"
-						onClick={() => openModal()}
-						className="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors">
-						<Plus size={18} /> Nuevo tratamiento
-					</button>
-				</div>
-			</div>
-
-			{/* CONTENIDO: por grupos o lista vacía */}
-			{treatments.length === 0 ? (
-				<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-					<EmptyState
-						icon={Zap}
-						title="No hay tratamientos"
-						description="Crea tu primer servicio para poder registrar sesiones y facturar."
-						actionLabel="Crear tratamiento"
-						onAction={() => openModal()}
-					/>
-				</div>
-			) : (
-				<div className="space-y-6">
-					{/* Grupos ordenados + Sin grupo al final */}
-					{treatmentsByGroup.sortedGroups.map((gr) => {
-						const list = treatmentsByGroup.byGroup[gr.id] || [];
-						if (list.length === 0) return null;
-						return (
-							<div key={gr.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-								<div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-									<FolderOpen size={16} className="text-rose-500" />
-									<span className="font-black text-sm text-gray-800 uppercase tracking-wide">{gr.name}</span>
-									<span className="text-xs text-gray-400 font-medium">({list.length})</span>
-								</div>
-								{viewMode === "grid" ? (
-									<div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-										{list.map((t) => renderTreatmentCard(t))}
-									</div>
-								) : (
-									<div className="overflow-x-auto">
-										<table className="w-full text-left border-collapse">
-											<thead>
-												<tr className="bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
-													<th className="p-3">Tratamiento</th>
-													<th className="p-3">Notas</th>
-													<th className="p-3">Precio PVP</th>
-													<th className="p-3">Beneficio Neto</th>
-													<th className="p-3 text-right">Acciones</th>
-												</tr>
-											</thead>
-											<tbody className="divide-y divide-slate-100">
-												{list.map((t) => renderTreatmentTableRow(t))}
-											</tbody>
-										</table>
-									</div>
-								)}
-							</div>
-						);
-					})}
-					{/* Sin grupo */}
-					{(treatmentsByGroup.byGroup[UNGROUPED_KEY]?.length ?? 0) > 0 && (
-						<div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-							<div className="px-4 py-2.5 bg-gray-50/70 border-b border-gray-100 flex items-center gap-2">
-								<span className="font-bold text-xs text-gray-500 uppercase tracking-wide">Sin grupo</span>
-								<span className="text-xs text-gray-400">({treatmentsByGroup.byGroup[UNGROUPED_KEY].length})</span>
-							</div>
-							{viewMode === "grid" ? (
-								<div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-									{treatmentsByGroup.byGroup[UNGROUPED_KEY].map((t) => renderTreatmentCard(t))}
-								</div>
-							) : (
-								<div className="overflow-x-auto">
-									<table className="w-full text-left border-collapse">
-										<thead>
-											<tr className="bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
-												<th className="p-3">Tratamiento</th>
-												<th className="p-3">Notas</th>
-												<th className="p-3">Precio PVP</th>
-												<th className="p-3">Beneficio Neto</th>
-												<th className="p-3 text-right">Acciones</th>
-											</tr>
-										</thead>
-										<tbody className="divide-y divide-slate-100">
-											{treatmentsByGroup.byGroup[UNGROUPED_KEY].map((t) => renderTreatmentTableRow(t))}
-										</tbody>
-									</table>
-								</div>
-							)}
-						</div>
-					)}
-				</div>
-			)}
-
-			{/* Modal: Gestionar grupos */}
-			<AdaptiveModal
-				isOpen={showGroupsModal}
-				onClose={() => setShowGroupsModal(false)}
-				title="Grupos de tratamientos"
-				maxWidth="max-w-md">
-				<p className="text-sm text-gray-500 mb-4">
+					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
+						<p className="text-sm text-gray-500 mb-4">
 					Agrupa tratamientos (ej. Mesoterapia) para encontrarlos más rápido. Asigna el grupo al crear o editar cada tratamiento.
 				</p>
 				<form onSubmit={handleSaveGroup} className="flex gap-2 mb-6">
@@ -490,7 +363,7 @@ export const TreatmentsTab = ({
 										<button
 											type="button"
 											onClick={() => { setGroupToDelete(g); setShowDeleteGroupModal(true); }}
-											className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg"
+											className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg"
 											title="Eliminar grupo">
 											<Trash2 size={14} />
 										</button>
@@ -500,14 +373,27 @@ export const TreatmentsTab = ({
 						))
 					)}
 				</div>
-			</AdaptiveModal>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
-			<AdaptiveModal
-				isOpen={isModalOpen}
-				onClose={() => setIsModalOpen(false)}
-				title={editingTreatment ? "Editar" : "Nuevo Tratamiento"}
-				maxWidth="max-w-lg">
-				<form onSubmit={handleSave} className="space-y-6">
+	if (isModalOpen) {
+		const title = editingTreatment ? 'Editar Tratamiento' : 'Nuevo Tratamiento';
+		return (
+			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
+				<div className="max-w-3xl mx-auto">
+					<div className="flex flex-col gap-2 mb-8">
+						<button
+							onClick={() => { setIsModalOpen(false) }}
+							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
+						</button>
+						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
+					</div>
+					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
+						<form onSubmit={handleSave} className="space-y-6">
 								<div>
 									<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">Nombre</label>
 									<input
@@ -656,7 +542,7 @@ export const TreatmentsTab = ({
 															),
 														})
 													}
-													className="text-gray-300 hover:text-red-500">
+													className="text-gray-300 hover:text-rose-600">
 													<X size={16} />
 												</button>
 											</div>
@@ -703,7 +589,152 @@ export const TreatmentsTab = ({
 									</LoadingButton>
 								</div>
 							</form>
-			</AdaptiveModal>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
+			<ConfirmModal
+				isOpen={showDeleteModal}
+				title="Archivar tratamiento"
+				message={`¿Archivar "${treatmentToDelete?.name}"? Dejará de mostrarse en listas y sesiones nuevas.`}
+				onConfirm={confirmDeleteTreatment}
+				onCancel={() => { setShowDeleteModal(false); setTreatmentToDelete(null); }}
+				isDestructive
+			/>
+			<ConfirmModal
+				isOpen={showDeleteGroupModal}
+				title="Eliminar grupo"
+				message={`¿Eliminar el grupo "${groupToDelete?.name}"? Los tratamientos quedarán sin grupo.`}
+				onConfirm={confirmDeleteGroup}
+				onCancel={() => { setShowDeleteGroupModal(false); setGroupToDelete(null); }}
+				isDestructive
+			/>
+			{/* HEADER */}
+			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+				<h2 className="text-2xl xl:text-3xl font-bold text-gray-900 tracking-tight">
+					Tratamientos
+				</h2>
+				<div className="flex flex-wrap gap-2 w-full sm:w-auto">
+					<div className="flex bg-slate-100 p-1 rounded-lg">
+						<button
+							onClick={() => setViewMode("grid")}
+							className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white shadow-sm text-rose-700" : "text-slate-500 hover:text-slate-700"}`}
+							title="Vista Tarjetas">
+							<LayoutGrid size={18} />
+						</button>
+						<button
+							onClick={() => setViewMode("list")}
+							className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-rose-700" : "text-slate-500 hover:text-slate-700"}`}
+							title="Vista Lista">
+							<ListIcon size={18} />
+						</button>
+					</div>
+					<button
+						type="button"
+						onClick={openGroupsModal}
+						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 transition-colors">
+						<FolderOpen size={16} /> Grupos
+					</button>
+					<button
+						type="button"
+						onClick={() => openModal()}
+						className="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors">
+						<Plus size={18} /> Nuevo tratamiento
+					</button>
+				</div>
+			</div>
+
+			{/* CONTENIDO: por grupos o lista vacía */}
+			{treatments.length === 0 ? (
+				<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+					<EmptyState
+						icon={Zap}
+						title="No hay tratamientos"
+						description="Crea tu primer servicio para poder registrar sesiones y facturar."
+						actionLabel="Crear tratamiento"
+						onAction={() => openModal()}
+					/>
+				</div>
+			) : (
+				<div className="space-y-6">
+					{/* Grupos ordenados + Sin grupo al final */}
+					{treatmentsByGroup.sortedGroups.map((gr) => {
+						const list = treatmentsByGroup.byGroup[gr.id] || [];
+						if (list.length === 0) return null;
+						return (
+							<div key={gr.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+								<div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
+									<FolderOpen size={16} className="text-rose-500" />
+									<span className="font-black text-sm text-gray-800 uppercase tracking-wide">{gr.name}</span>
+									<span className="text-xs text-gray-400 font-medium">({list.length})</span>
+								</div>
+								{viewMode === "grid" ? (
+									<div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+										{list.map((t) => renderTreatmentCard(t))}
+									</div>
+								) : (
+									<div className="overflow-x-auto">
+										<table className="w-full text-left border-collapse">
+											<thead>
+												<tr className="bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
+													<th className="p-3">Tratamiento</th>
+													<th className="p-3">Notas</th>
+													<th className="p-3">Precio PVP</th>
+													<th className="p-3">Beneficio Neto</th>
+													<th className="p-3 text-right">Acciones</th>
+												</tr>
+											</thead>
+											<tbody className="divide-y divide-slate-100">
+												{list.map((t) => renderTreatmentTableRow(t))}
+											</tbody>
+										</table>
+									</div>
+								)}
+							</div>
+						);
+					})}
+					{/* Sin grupo */}
+					{(treatmentsByGroup.byGroup[UNGROUPED_KEY]?.length ?? 0) > 0 && (
+						<div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+							<div className="px-4 py-2.5 bg-gray-50/70 border-b border-gray-100 flex items-center gap-2">
+								<span className="font-bold text-xs text-gray-500 uppercase tracking-wide">Sin grupo</span>
+								<span className="text-xs text-gray-400">({treatmentsByGroup.byGroup[UNGROUPED_KEY].length})</span>
+							</div>
+							{viewMode === "grid" ? (
+								<div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+									{treatmentsByGroup.byGroup[UNGROUPED_KEY].map((t) => renderTreatmentCard(t))}
+								</div>
+							) : (
+								<div className="overflow-x-auto">
+									<table className="w-full text-left border-collapse">
+										<thead>
+											<tr className="bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
+												<th className="p-3">Tratamiento</th>
+												<th className="p-3">Notas</th>
+												<th className="p-3">Precio PVP</th>
+												<th className="p-3">Beneficio Neto</th>
+												<th className="p-3 text-right">Acciones</th>
+											</tr>
+										</thead>
+										<tbody className="divide-y divide-slate-100">
+											{treatmentsByGroup.byGroup[UNGROUPED_KEY].map((t) => renderTreatmentTableRow(t))}
+										</tbody>
+									</table>
+								</div>
+							)}
+						</div>
+					)}
+				</div>
+			)}
+
+			{/* Modal: Gestionar grupos */}
+			
+
+			
 		</div>
 	);
 };

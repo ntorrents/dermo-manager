@@ -631,7 +631,7 @@ export const CalendarTab = ({
 							<button
 								type="button"
 								onClick={() => setShowDeleteConfirm(true)}
-								className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 font-bold">
+								className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-red-200 text-rose-700 hover:bg-red-50 font-bold">
 								<Trash2 size={18} /> Eliminar
 							</button>
 						)}

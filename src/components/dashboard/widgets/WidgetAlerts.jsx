@@ -13,7 +13,7 @@ export const WidgetAlerts = ({ lowStockItems = [], expiredStockItems = [] }) => 
 			<div className="flex items-start gap-4 w-full">
 				<div
 					className={`p-2 rounded-lg shrink-0 ${
-						hasAlerts ? "bg-red-100 text-red-600" : "bg-gray-200 text-gray-500"
+						hasAlerts ? "bg-red-100 text-rose-700" : "bg-gray-200 text-gray-500"
 					}`}>
 					{hasAlerts ? <AlertTriangle size={24} /> : <CheckCircle size={24} />}
 				</div>

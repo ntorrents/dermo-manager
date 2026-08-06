@@ -107,8 +107,8 @@ export const LoginScreen = () => {
 					</div>
 
 					{error && (
-						<div className="p-4 bg-red-50 text-red-500 text-sm font-bold rounded-2xl flex items-center gap-2 animate-in shake">
-							<span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+						<div className="p-4 bg-red-50 text-rose-600 text-sm font-bold rounded-2xl flex items-center gap-2 animate-in shake">
+							<span className="w-1.5 h-1.5 bg-rose-600 rounded-full" />
 							{error}
 						</div>
 					)}

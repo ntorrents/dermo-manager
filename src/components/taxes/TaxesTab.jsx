@@ -315,7 +315,7 @@ export const TaxesTab = ({
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			<div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-				<h2 className="text-2xl xl:text-3xl font-black text-gray-800 tracking-tight flex items-center gap-2">
+				<h2 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2">
 					<Landmark className="text-rose-500" size={28} /> Fiscalidad
 				</h2>
 				<div className="flex gap-3 flex-wrap">
@@ -402,7 +402,7 @@ export const TaxesTab = ({
 						Bases Ingresos − Gastos corrientes − Amortización trimestral
 					</p>
 					<p
-						className={`text-3xl font-black ${
+						className={`text-2xl font-black ${
 							resultadoOperativo >= 0 ? "text-emerald-600" : "text-rose-500"
 						}`}>
 						{formatCurrency(resultadoOperativo)}
@@ -423,7 +423,7 @@ export const TaxesTab = ({
 						IVA Repercutido − IVA Soportado
 					</p>
 					<p
-						className={`text-3xl font-black ${
+						className={`text-2xl font-black ${
 							liquidacionIVA >= 0 ? "text-blue-600" : "text-rose-500"
 						}`}>
 						{formatCurrency(liquidacionIVA)}
@@ -448,7 +448,7 @@ export const TaxesTab = ({
 					<p className="text-xs text-gray-500 mb-2">
 						20% del Resultado Operativo
 					</p>
-					<p className="text-3xl font-black text-amber-600">
+					<p className="text-2xl font-black text-amber-600">
 						{formatCurrency(irpf130)}
 					</p>
 					{retencionesSoportadas > 0 && (
@@ -482,7 +482,7 @@ export const TaxesTab = ({
 					<p className="text-xs text-gray-500 mb-2">
 						Modelo 111/115 (IRPF retenido)
 					</p>
-					<p className="text-3xl font-black text-violet-600">
+					<p className="text-2xl font-black text-violet-600">
 						{formatCurrency(retencionesIngresar)}
 					</p>
 					{retencionesIngresar > 0 && (

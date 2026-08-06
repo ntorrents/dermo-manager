@@ -105,6 +105,85 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 		}
 	};
 
+
+	if (showModal) {
+		const title = editingId ? 'Editar Plantilla' : 'Nueva Plantilla';
+		return (
+			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
+				<div className="max-w-3xl mx-auto">
+					<div className="flex flex-col gap-2 mb-8">
+						<button
+							onClick={() => { setShowModal(false); setEditingId(null); setForm({ nombre: '', treatment_id: '', contenido: '' }); }}
+							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
+						</button>
+						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
+					</div>
+					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
+						<form onSubmit={save} className="space-y-4">
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+							Nombre de la plantilla
+						</label>
+						<input
+							required
+							className="w-full p-3 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
+							value={form.nombre}
+							onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+							placeholder="Ej: Consentimiento depilación láser"
+						/>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+							Tratamiento (opcional)
+						</label>
+						<select
+							className="w-full p-3 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
+							value={form.treatment_id}
+							onChange={(e) => setForm({ ...form, treatment_id: e.target.value })}>
+							<option value="">— Genérica (cualquier tratamiento) —</option>
+							{treatments.map((t) => (
+								<option key={t.id} value={t.id}>
+									{t.name}
+								</option>
+							))}
+						</select>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+							Contenido (negrita, cursiva, listas; o importa un .docx)
+						</label>
+						<p className="text-[10px] text-gray-500 mb-2">
+							Variables disponibles: {CONSENT_VARIABLES.join(", ")}
+						</p>
+						<ConsentEditor
+							value={form.contenido}
+							onChange={(html) => setForm({ ...form, contenido: html })}
+							placeholder="Yo, {{NOMBRE}} {{APELLIDOS}}, con DNI {{DNI}}..."
+						/>
+					</div>
+					<div className="flex gap-2 pt-2">
+						<button
+							type="button"
+							onClick={() => setShowModal(false)}
+							className="flex-1 py-3 rounded-xl font-bold border border-gray-200 text-gray-600 hover:bg-gray-50">
+							Cancelar
+						</button>
+						<button
+							type="submit"
+							disabled={saving || !form.nombre?.trim()}
+							className="flex-1 py-3 rounded-xl font-bold bg-rose-500 text-white hover:bg-rose-600 disabled:opacity-50 flex items-center justify-center gap-2">
+							{saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+							{saving ? "Guardando..." : "Guardar"}
+						</button>
+					</div>
+				</form>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="space-y-6 animate-in fade-in">
 			<div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
@@ -171,74 +250,7 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 				</div>
 			)}
 
-			<AdaptiveModal
-				isOpen={showModal}
-				onClose={() => {
-					setShowModal(false);
-					setEditingId(null);
-					setForm({ nombre: "", treatment_id: "", contenido: "" });
-				}}
-				title={editingId ? "Editar plantilla" : "Nueva plantilla de consentimiento"}
-				maxWidth="max-w-4xl">
-				<form onSubmit={save} className="space-y-4">
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
-							Nombre de la plantilla
-						</label>
-						<input
-							required
-							className="w-full p-3 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
-							value={form.nombre}
-							onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-							placeholder="Ej: Consentimiento depilación láser"
-						/>
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
-							Tratamiento (opcional)
-						</label>
-						<select
-							className="w-full p-3 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
-							value={form.treatment_id}
-							onChange={(e) => setForm({ ...form, treatment_id: e.target.value })}>
-							<option value="">— Genérica (cualquier tratamiento) —</option>
-							{treatments.map((t) => (
-								<option key={t.id} value={t.id}>
-									{t.name}
-								</option>
-							))}
-						</select>
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
-							Contenido (negrita, cursiva, listas; o importa un .docx)
-						</label>
-						<p className="text-[10px] text-gray-500 mb-2">
-							Variables disponibles: {CONSENT_VARIABLES.join(", ")}
-						</p>
-						<ConsentEditor
-							value={form.contenido}
-							onChange={(html) => setForm({ ...form, contenido: html })}
-							placeholder="Yo, {{NOMBRE}} {{APELLIDOS}}, con DNI {{DNI}}..."
-						/>
-					</div>
-					<div className="flex gap-2 pt-2">
-						<button
-							type="button"
-							onClick={() => setShowModal(false)}
-							className="flex-1 py-3 rounded-xl font-bold border border-gray-200 text-gray-600 hover:bg-gray-50">
-							Cancelar
-						</button>
-						<button
-							type="submit"
-							disabled={saving || !form.nombre?.trim()}
-							className="flex-1 py-3 rounded-xl font-bold bg-rose-500 text-white hover:bg-rose-600 disabled:opacity-50 flex items-center justify-center gap-2">
-							{saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-							{saving ? "Guardando..." : "Guardar"}
-						</button>
-					</div>
-				</form>
-			</AdaptiveModal>
+			
 		</div>
 	);
 };

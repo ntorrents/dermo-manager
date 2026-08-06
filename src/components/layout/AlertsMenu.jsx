@@ -188,7 +188,7 @@ export const AlertsMenu = ({
 								{expired.length > 0 && (
 									<div className="px-3 py-2">
 										<p className="text-[10px] font-black text-gray-400 uppercase px-1 mb-1 flex items-center gap-1">
-											<AlertTriangle size={12} className="text-red-500" /> Lotes caducados
+											<AlertTriangle size={12} className="text-rose-600" /> Lotes caducados
 										</p>
 										<ul className="space-y-1">
 											{expired.map((i) => (

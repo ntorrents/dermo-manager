@@ -34,9 +34,7 @@ const InventoryTab = lazy(() =>
 const FinanceMovementsTab = lazy(() =>
 	import("./components/finance/FinanceMovementsTab").then((m) => ({ default: m.FinanceMovementsTab })),
 );
-const DailyCashTab = lazy(() =>
-	import("./components/finance/DailyCashTab").then((m) => ({ default: m.DailyCashTab })),
-);
+
 const FinancialAnalysisTab = lazy(() =>
 	import("./components/finance/FinancialAnalysisTab").then((m) => ({ default: m.FinancialAnalysisTab })),
 );
@@ -67,8 +65,11 @@ const BonosTab = lazy(() =>
 	import("./components/bonos/BonosTab").then((m) => ({ default: m.BonosTab })),
 );
 import { RequirePlan } from "./components/guards/RequirePlan";
-const DocumentsTab = lazy(() =>
-	import("./components/documents/DocumentsTab").then((m) => ({ default: m.DocumentsTab })),
+const ConsentTemplatesTab = lazy(() =>
+	import("./components/documents/ConsentTemplatesTab").then((m) => ({ default: m.ConsentTemplatesTab })),
+);
+const BudgetsTab = lazy(() =>
+	import("./components/budgets/BudgetsTab").then((m) => ({ default: m.BudgetsTab })),
 );
 import { getReportingRange } from "./utils/dateUtils";
 import {
@@ -91,7 +92,7 @@ const TAB_META = {
 	documents: { title: "Documentos", subtitle: "Presupuestos y plantillas" },
 	inventory: { title: "Stock", subtitle: "Materiales y lotes" },
 	calendar: { title: "Agenda", subtitle: "Citas y recordatorios" },
-	daily_cash: { title: "Caja Diaria", subtitle: "Cierre de caja y mostrador" },
+
 	finance: { title: "Movimientos", subtitle: "Ingresos, gastos y recurrentes" },
 	invoices: { title: "Facturas", subtitle: "Emitidas, filtros y estadísticas" },
 	financial_analysis: { title: "Análisis Financiero", subtitle: "Gráficos y reportes" },
@@ -157,6 +158,8 @@ const DermoManager = () => {
 	const [activeTab, setActiveTab] = useState("dashboard");
 	const [financeNavIntent, setFinanceNavIntent] = useState(null);
 	const [invoicesNavIntent, setInvoicesNavIntent] = useState(null);
+	const clearInvoicesNavIntent = useCallback(() => setInvoicesNavIntent(null), []);
+	const clearFinanceNavIntent = useCallback(() => setFinanceNavIntent(null), []);
 	const [sessionBootstrap, setSessionBootstrap] = useState(null);
 	const [settingsAnchor, setSettingsAnchor] = useState(null);
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
@@ -188,8 +191,6 @@ const DermoManager = () => {
 
 	useEffect(() => {
 		if (!user || tenantLoading) return;
-		// Compat: antiguo tab "budgets" ahora vive en "documents"
-		if (activeTab === "budgets") setActiveTab("documents");
 		if (!allowsPresupuestosBonos && activeTab === "bonos") setActiveTab("dashboard");
 	}, [user, tenantLoading, allowsPresupuestosBonos, activeTab]);
 
@@ -595,7 +596,7 @@ const DermoManager = () => {
 						setReportingCustomTo={setReportingCustomTo}
 						onReportingGoToday={goReportingToday}
 						navIntent={invoicesNavIntent}
-						onNavIntentConsumed={() => setInvoicesNavIntent(null)}
+						onNavIntentConsumed={clearInvoicesNavIntent}
 					/>
 				)}
 												{activeTab === "finance_movements" && (
@@ -616,16 +617,8 @@ const DermoManager = () => {
 						showToast={showToastMsg}
 						onRefresh={refreshData}
 						navIntent={financeNavIntent}
-						onNavIntentConsumed={() => setFinanceNavIntent(null)}
+						onNavIntentConsumed={clearFinanceNavIntent}
 					/>
-				)}
-				{activeTab === "daily_cash" && (
-					
-						<DailyCashTab
-							user={user}
-							showToast={showToastMsg}
-						/>
-					
 				)}
 				{activeTab === "financial_analysis" && (
 					
@@ -647,15 +640,23 @@ const DermoManager = () => {
 						/>
 					
 				)}
-				{activeTab === "documents" && (
-					<DocumentsTab
+				{activeTab === "consents" && (
+					<ConsentTemplatesTab
 						user={user}
-						clients={clients}
-						treatments={treatments}
-						profile={profile}
 						showToast={showToastMsg}
-						onStartSessionFromBudget={startSessionFromBudget}
 					/>
+				)}
+				{activeTab === "budgets" && (
+					<RequirePlan>
+						<BudgetsTab
+							user={user}
+							clients={clients}
+							treatments={treatments}
+							profile={profile}
+							showToast={showToastMsg}
+							onStartSessionFromBudget={startSessionFromBudget}
+						/>
+					</RequirePlan>
 				)}
 				{activeTab === "calendar" && (
 					<CalendarTab

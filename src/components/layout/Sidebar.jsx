@@ -36,8 +36,9 @@ const NAV_GROUPS = [
 		label: "Documentos & Ventas",
 		icon: FolderOpen,
 		items: [
-			{ id: "documents", l: NAV_LABELS.documents },
-			{ id: "bonos", l: NAV_LABELS.bonos, requireBonos: true }
+			{ id: "bonos", l: NAV_LABELS.bonos, requireBonos: true },
+			{ id: "consents", l: NAV_LABELS.consents },
+			{ id: "budgets", l: NAV_LABELS.budgets }
 		]
 	},
 	{
@@ -54,7 +55,7 @@ const NAV_GROUPS = [
 		label: "Finanzas & Caja",
 		icon: DollarSign,
 		items: [
-			{ id: "daily_cash", l: NAV_LABELS.daily_cash },
+
 			{ id: "finance_movements", l: NAV_LABELS.finance_movements },
 			{ id: "financial_analysis", l: NAV_LABELS.financial_analysis },
 			{ id: "invoices", l: NAV_LABELS.invoices }

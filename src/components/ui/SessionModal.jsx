@@ -426,7 +426,7 @@ export const SessionModal = ({
 											<button
 												type="button"
 												onClick={() => removeFromRecipe(idx)}
-												className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors shrink-0"
+												className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg hover:bg-red-50 transition-colors shrink-0"
 												title="Eliminar de esta sesión">
 												<Trash2 size={14} />
 											</button>
@@ -477,7 +477,7 @@ export const SessionModal = ({
 										<button
 											type="button"
 											onClick={() => removeExtra(idx)}
-											className="text-gray-400 hover:text-red-500"
+											className="text-gray-400 hover:text-rose-600"
 											title="Eliminar extra">
 											<Trash2 size={14} />
 										</button>

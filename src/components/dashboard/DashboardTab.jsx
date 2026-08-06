@@ -107,7 +107,7 @@ function SortableWidgetItem({
 		<div
 			ref={setNodeRef}
 			style={style}
-			className={`relative z-[1] w-full h-full min-h-[200px] ${spanClasses} ${isDragging ? "z-[20] opacity-90 shadow-xl" : ""}`}>
+			className={`relative z-[1] w-full h-full min-h-[160px] ${spanClasses} ${isDragging ? "z-[20] opacity-90 shadow-xl" : ""}`}>
 			{isEditing && (
 				<>
 					<div className="absolute top-2 left-2 right-2 z-10 flex items-center justify-between gap-2">
@@ -556,7 +556,7 @@ export const DashboardTab = ({
 				<SortableContext
 					items={sortableIds}
 					strategy={verticalListSortingStrategy}>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full grid-auto-rows-[minmax(200px,auto)]">
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full ">
 						{widgets.map((item, index) => (
 							<SortableWidgetItem
 								key={`${item.id}-${index}`}

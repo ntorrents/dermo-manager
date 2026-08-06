@@ -1,6 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Plus, FileDown, Archive, Search, X, Percent, CalendarCheck } from "lucide-react";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { Plus, FileDown, Archive, Search, X, Percent, CalendarCheck, ArrowLeft } from "lucide-react";
 import { generateBudgetPDF, sumBudgetLinesTTC, sumBudgetLinesOriginalTTC } from "../../utils/budgetGenerator";
 import { formatCurrency } from "../../utils/format";
 import { useBudgets } from "../../hooks/useBudgets";
@@ -29,7 +28,7 @@ export const BudgetsSection = ({
 	const { clinic } = useTenant();
 	const { budgets, loading, createBudget, creating, archiveBudget, archiving } = useBudgets(user?.id);
 	const [searchTerm, setSearchTerm] = useState("");
-	const [modalOpen, setModalOpen] = useState(false);
+	const [isCreating, setIsCreating] = useState(false);
 	const [clientId, setClientId] = useState("");
 	const [nombre, setNombre] = useState("");
 	const [notas, setNotas] = useState("");
@@ -58,7 +57,7 @@ export const BudgetsSection = ({
 		setPricingMode("manual");
 		setGlobalDiscountPercent("");
 		setLines([emptyLine()]);
-		setModalOpen(true);
+		setIsCreating(true);
 	};
 
 	const updateLine = (idx, patch) => {
@@ -144,7 +143,7 @@ export const BudgetsSection = ({
 				})),
 			});
 			showToast("Presupuesto guardado");
-			setModalOpen(false);
+			setIsCreating(false);
 		} catch (err) {
 			showToast(err?.message || "Error al guardar", "error");
 		}
@@ -202,90 +201,327 @@ export const BudgetsSection = ({
 		}
 	};
 
+	if (isCreating) {
+		return (
+			<div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
+				<div className="flex items-center gap-4">
+					<button
+						onClick={() => setIsCreating(false)}
+						className="p-2 -ml-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
+						aria-label="Volver">
+						<ArrowLeft size={24} />
+					</button>
+					<div>
+						<h2 className="text-2xl font-bold text-gray-900">Nuevo Presupuesto</h2>
+						<p className="text-sm text-gray-500">Configura la información y añade tratamientos</p>
+					</div>
+				</div>
+
+				<form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-8">
+					<div className="space-y-4">
+						<h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Datos Principales</h3>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div>
+								<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">Cliente</label>
+								<select
+									required
+									className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border border-transparent focus:border-rose-100 transition-colors"
+									value={clientId}
+									onChange={(e) => setClientId(e.target.value)}>
+									<option value="">Seleccionar…</option>
+									{clients.map((c) => (
+										<option key={c.id} value={c.id}>
+											{c.name} {c.surname || ""}
+										</option>
+									))}
+								</select>
+							</div>
+							<div>
+								<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">
+									Identificador (opcional)
+								</label>
+								<input
+									className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border border-transparent focus:border-rose-100 transition-colors"
+									value={nombre}
+									onChange={(e) => setNombre(e.target.value)}
+									placeholder="Ej: María - peeling promo"
+								/>
+							</div>
+							<div>
+								<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">
+									Válido hasta (opcional)
+								</label>
+								<input
+									type="date"
+									className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border border-transparent focus:border-rose-100 transition-colors"
+									value={validUntil}
+									onChange={(e) => setValidUntil(e.target.value)}
+								/>
+							</div>
+						</div>
+					</div>
+
+					<div className="space-y-4">
+						<h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Líneas del Presupuesto</h3>
+						
+						<div className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100 space-y-4">
+							<div className="flex flex-col sm:flex-row gap-3">
+								<label className="flex items-center gap-2 text-sm font-bold text-gray-700 bg-white px-4 py-2 rounded-xl border border-gray-200 cursor-pointer hover:border-rose-300 transition-colors">
+									<input
+										type="radio"
+										name="pricingMode"
+										checked={pricingMode === "manual"}
+										onChange={() => setPricingMode("manual")}
+										className="text-rose-500 focus:ring-rose-500"
+									/>
+									Precio manual
+								</label>
+								<label className="flex items-center gap-2 text-sm font-bold text-gray-700 bg-white px-4 py-2 rounded-xl border border-gray-200 cursor-pointer hover:border-rose-300 transition-colors">
+									<input
+										type="radio"
+										name="pricingMode"
+										checked={pricingMode === "global_percent"}
+										onChange={() => setPricingMode("global_percent")}
+										className="text-rose-500 focus:ring-rose-500"
+									/>
+									Descuento global (%)
+								</label>
+							</div>
+							{pricingMode === "global_percent" && (
+								<div className="flex items-center gap-3 bg-amber-50 p-3 rounded-xl border border-amber-100">
+									<Percent size={18} className="text-amber-700" />
+									<input
+										type="number"
+										min="0"
+										max="100"
+										step="0.1"
+										className="w-24 p-2.5 bg-white border border-amber-200 rounded-lg text-sm font-black text-amber-900 outline-none focus:border-amber-400"
+										value={globalDiscountPercent}
+										onChange={(e) => setGlobalDiscountPercent(e.target.value)}
+										placeholder="10"
+									/>
+									<button
+										type="button"
+										onClick={reapplyGlobalDiscountToTreatmentLines}
+										className="px-4 py-2.5 rounded-lg bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 transition-colors">
+										Aplicar a todas
+									</button>
+									<span className="text-[11px] font-bold text-amber-700/70 hidden md:block">
+										Aplica descuento base a los tratamientos (se puede ajustar luego)
+									</span>
+								</div>
+							)}
+						</div>
+
+						<div className="space-y-4">
+							{lines.map((ln, idx) => (
+								<div
+									key={idx}
+									className="p-5 bg-white rounded-2xl border-2 border-gray-100 space-y-4 relative group hover:border-rose-100 transition-colors shadow-sm">
+									{lines.length > 1 && (
+										<button
+											type="button"
+											onClick={() => removeLine(idx)}
+											className="absolute -top-3 -right-3 p-2 bg-white text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-full border border-gray-100 shadow-sm transition-all"
+											aria-label="Quitar línea">
+											<X size={16} />
+										</button>
+									)}
+									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+										<div>
+											<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">Tratamiento</label>
+											<select
+												className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border border-transparent focus:border-rose-100"
+												value={ln.treatment_id || ""}
+												onChange={(e) => onTreatmentPick(idx, e.target.value)}>
+												<option value="">— Concepto Libre —</option>
+												{treatments.map((t) => (
+													<option key={t.id} value={t.id}>
+														{t.name} ({formatCurrency(Number(t.price) || 0)})
+													</option>
+												))}
+											</select>
+										</div>
+										<div>
+											<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">Descripción</label>
+											<input
+												className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border border-transparent focus:border-rose-100"
+												value={ln.description}
+												onChange={(e) => updateLine(idx, { description: e.target.value })}
+												placeholder="Ej: Higiene facial profunda"
+											/>
+										</div>
+									</div>
+									<div className="grid grid-cols-3 gap-4">
+										<div>
+											<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">Cant.</label>
+											<input
+												type="number"
+												min="0.01"
+												step="0.01"
+												className="w-full p-4 bg-gray-50 rounded-2xl font-black outline-none border border-transparent focus:border-rose-100"
+												value={ln.quantity}
+												onChange={(e) => updateLine(idx, { quantity: e.target.value })}
+											/>
+										</div>
+										<div>
+											<label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-2 block mb-1">Precio Total (IVA inc.)</label>
+											<input
+												type="number"
+												min="0"
+												step="0.01"
+												className="w-full p-4 bg-rose-50/30 border-2 border-rose-100 rounded-2xl font-black text-rose-600 text-lg outline-none focus:border-rose-300 transition-colors"
+												value={ln.unit_price_ttc}
+												onChange={(e) =>
+													updateLine(idx, {
+														unit_price_ttc: e.target.value,
+														line_kind: ln.treatment_id ? "treatment" : "extra",
+													})
+												}
+											/>
+											{ln.original_unit_price_ttc != null && Number(ln.original_unit_price_ttc) > Number(ln.unit_price_ttc || 0) && (
+												<p className="text-[10px] font-bold text-gray-500 mt-2 px-2">
+													Original: {formatCurrency(Number(ln.original_unit_price_ttc) || 0)}
+													<span className="text-emerald-500 ml-2">
+														DTO: {formatCurrency(Math.max(0, (Number(ln.original_unit_price_ttc) - Number(ln.unit_price_ttc || 0)) * (Number(ln.quantity) || 0)))}
+													</span>
+												</p>
+											)}
+										</div>
+										<div>
+											<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">IVA (%)</label>
+											<input
+												type="number"
+												min="0"
+												className="w-full p-4 bg-gray-50 rounded-2xl font-black text-gray-600 outline-none border border-transparent focus:border-rose-100"
+												value={ln.tax_rate}
+												onChange={(e) => updateLine(idx, { tax_rate: e.target.value })}
+											/>
+										</div>
+									</div>
+								</div>
+							))}
+							<button
+								type="button"
+								onClick={addLine}
+								className="w-full py-4 border-2 border-dashed border-gray-200 text-gray-400 hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50/30 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
+								+ Añadir otra línea
+							</button>
+						</div>
+					</div>
+
+					<div className="space-y-4">
+						<h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Observaciones</h3>
+						<textarea
+							rows={3}
+							className="w-full p-4 bg-gray-50 rounded-2xl font-medium outline-none border border-transparent focus:border-rose-100 transition-colors resize-none"
+							value={notas}
+							onChange={(e) => setNotas(e.target.value)}
+							placeholder="Condiciones particulares, notas adicionales para el cliente…"
+						/>
+					</div>
+
+					<div className="pt-6 border-t border-gray-100">
+						<LoadingButton
+							type="submit"
+							loading={creating}
+							className="w-full md:w-auto px-10 py-4 bg-surface-dark hover:bg-gray-800 text-white font-black text-lg rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all">
+							Guardar Presupuesto
+						</LoadingButton>
+					</div>
+				</form>
+			</div>
+		);
+	}
+
 	return (
 		<div className="space-y-6 animate-in fade-in">
 			<div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
-				<div>
-					<h2 className="text-xl font-bold text-gray-900">Presupuestos</h2>
-					<p className="text-sm text-gray-500 mt-1">
-						Cotizaciones con PDF informativo (sin numeración fiscal).
-					</p>
+				<div className="relative w-full sm:w-auto flex-1 max-w-md">
+					<Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+					<input
+						className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-100 rounded-2xl text-sm font-bold shadow-sm focus:border-rose-200 focus:ring-4 focus:ring-rose-50 outline-none transition-all"
+						placeholder="Buscar por cliente o título..."
+						value={searchTerm}
+						onChange={(e) => setSearchTerm(e.target.value)}
+					/>
 				</div>
 				<button
 					type="button"
 					onClick={openNew}
-					className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors">
-					<Plus size={20} /> Nuevo presupuesto
+					className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-black bg-rose-500 text-white shadow-lg hover:shadow-xl hover:bg-rose-600 hover:-translate-y-0.5 transition-all">
+					<Plus size={20} /> Crear Presupuesto
 				</button>
 			</div>
 
-			<div className="relative">
-				<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-				<input
-					className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium"
-					placeholder="Buscar por cliente..."
-					value={searchTerm}
-					onChange={(e) => setSearchTerm(e.target.value)}
-				/>
-			</div>
-
 			{loading ? (
-				<div className="grid gap-3">
+				<div className="grid gap-4">
 					{[1, 2, 3].map((i) => (
-						<div key={i} className="h-24 bg-gray-100 rounded-2xl animate-pulse" />
+						<div key={i} className="h-28 bg-gray-100 rounded-3xl animate-pulse" />
 					))}
 				</div>
 			) : filtered.length === 0 ? (
-				<div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-400 text-sm">
-					No hay presupuestos. Crea uno para guardarlo y exportar PDF.
+				<div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100 text-gray-400">
+					<div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
+						<FileDown size={24} className="text-gray-300" />
+					</div>
+					<h3 className="text-lg font-black text-gray-600 mb-1">Aún no hay presupuestos</h3>
+					<p className="text-sm font-medium">Crea uno nuevo para empezar a guardarlos y exportarlos a PDF.</p>
 				</div>
 			) : (
-				<div className="space-y-3">
+				<div className="grid gap-4">
 					{filtered.map((b) => {
 						const client = clients.find((c) => c.id === b.client_id);
-						const name = client ? `${client.name} ${client.surname || ""}`.trim() : "Cliente";
+						const name = client ? `${client.name} ${client.surname || ""}`.trim() : "Cliente no encontrado";
 						const title = b.nombre ? String(b.nombre) : null;
 						const total = sumBudgetLinesTTC(b.presupuesto_lineas || []);
 						const totalOriginal = sumBudgetLinesOriginalTTC(b.presupuesto_lineas || []);
 						const totalDiscount = Math.max(0, totalOriginal - total);
 						const dateStr = b.created_at
-							? new Date(b.created_at).toLocaleDateString("es-ES")
+							? new Date(b.created_at).toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' })
 							: "";
 						return (
 							<div
 								key={b.id}
-								className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-								<div className="min-w-0">
-									<p className="font-bold text-gray-800">{title ? `${title} · ${name}` : name}</p>
-									<p className="text-xs text-gray-500 mt-0.5">{dateStr}</p>
-									<p className="text-sm font-bold text-rose-600 mt-1">{formatCurrency(total)}</p>
-									{totalDiscount > 0 && (
-										<p className="text-[11px] text-gray-500 mt-0.5">
-											DTO total: <span className="font-bold text-gray-700">{formatCurrency(totalDiscount)}</span>
-										</p>
-									)}
+								className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-6 group">
+								<div className="min-w-0 flex-1">
+									<div className="flex items-center gap-3 mb-1">
+										<p className="font-black text-gray-900 text-lg">{title || "Presupuesto sin título"}</p>
+										<span className="px-2.5 py-1 bg-gray-100 text-gray-500 rounded-lg text-[10px] font-black uppercase tracking-wider">
+											{dateStr}
+										</span>
+									</div>
+									<p className="text-sm font-bold text-rose-500 mb-3">{name}</p>
+									<div className="flex items-baseline gap-3">
+										<p className="text-xl font-black text-gray-900">{formatCurrency(total)}</p>
+										{totalDiscount > 0 && (
+											<p className="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md">
+												-{formatCurrency(totalDiscount)} ahorrado
+											</p>
+										)}
+									</div>
 								</div>
-								<div className="flex gap-2 shrink-0 flex-wrap">
+								<div className="flex flex-wrap gap-2 shrink-0">
 									{onStartSessionFromBudget && (
 										<button
 											type="button"
 											onClick={() => startSessionFromBudget(b)}
-											className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold">
-											<CalendarCheck size={16} /> Aceptar → sesión
+											className="flex-1 lg:flex-none flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-dark hover:bg-gray-800 text-white text-sm font-bold shadow-sm transition-all">
+											<CalendarCheck size={16} /> Aplicar a Sesión
 										</button>
 									)}
 									<button
 										type="button"
 										onClick={() => downloadPdf(b)}
-										className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold">
-										<FileDown size={16} /> PDF
+										className="flex-1 lg:flex-none flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-gray-100 hover:border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-bold transition-all">
+										<FileDown size={16} /> Descargar PDF
 									</button>
 									<button
 										type="button"
 										onClick={() => setArchiveId(b.id)}
 										disabled={archiving}
-										className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-sm font-bold">
-										<Archive size={16} /> Archivar
+										className="flex-none flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-transparent text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition-all group-hover:opacity-100 lg:opacity-0">
+										<Archive size={16} />
 									</button>
 								</div>
 							</div>
@@ -294,225 +530,17 @@ export const BudgetsSection = ({
 				</div>
 			)}
 
-			<AdaptiveModal
-				isOpen={modalOpen}
-				onClose={() => setModalOpen(false)}
-				title="Nuevo presupuesto"
-				maxWidth="max-w-lg">
-				<form onSubmit={handleSubmit} className="space-y-4">
-					<div>
-						<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">Cliente</label>
-						<select
-							required
-							className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm"
-							value={clientId}
-							onChange={(e) => setClientId(e.target.value)}>
-							<option value="">Seleccionar…</option>
-							{clients.map((c) => (
-								<option key={c.id} value={c.id}>
-									{c.name} {c.surname || ""}
-								</option>
-							))}
-						</select>
-					</div>
-					<div>
-						<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
-							Nombre / identificador (opcional)
-						</label>
-						<input
-							className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium"
-							value={nombre}
-							onChange={(e) => setNombre(e.target.value)}
-							placeholder="Ej: María - peeling (promo)"
-						/>
-					</div>
-					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						<div>
-							<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
-								Válido hasta (opcional)
-							</label>
-							<input
-								type="date"
-								className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm"
-								value={validUntil}
-								onChange={(e) => setValidUntil(e.target.value)}
-							/>
-						</div>
-					</div>
-					<div className="bg-white border border-gray-100 rounded-2xl p-3">
-						<p className="text-[10px] font-black text-gray-400 uppercase mb-2">Precios</p>
-						<div className="flex flex-col sm:flex-row gap-2">
-							<label className="flex items-center gap-2 text-sm font-bold text-gray-700">
-								<input
-									type="radio"
-									name="pricingMode"
-									checked={pricingMode === "manual"}
-									onChange={() => setPricingMode("manual")}
-								/>
-								Precio manual por línea
-							</label>
-							<label className="flex items-center gap-2 text-sm font-bold text-gray-700">
-								<input
-									type="radio"
-									name="pricingMode"
-									checked={pricingMode === "global_percent"}
-									onChange={() => setPricingMode("global_percent")}
-								/>
-								Descuento global %
-							</label>
-						</div>
-						{pricingMode === "global_percent" && (
-							<div className="mt-2 flex items-center gap-2">
-								<Percent size={16} className="text-amber-700" />
-								<input
-									type="number"
-									min="0"
-									max="100"
-									step="0.1"
-									className="w-28 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold"
-									value={globalDiscountPercent}
-									onChange={(e) => setGlobalDiscountPercent(e.target.value)}
-									placeholder="10"
-								/>
-								<button
-									type="button"
-									onClick={reapplyGlobalDiscountToTreatmentLines}
-									className="px-3 py-2 rounded-lg bg-amber-50 text-amber-800 border border-amber-100 text-sm font-black hover:bg-amber-100 transition-colors">
-									Aplicar
-								</button>
-								<span className="text-xs text-gray-500">
-									Se aplica a tratamientos al seleccionarlos (puedes ajustar el precio aplicado).
-								</span>
-							</div>
-						)}
-					</div>
-					<div>
-						<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">Notas</label>
-						<textarea
-							rows={2}
-							className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none"
-							value={notas}
-							onChange={(e) => setNotas(e.target.value)}
-							placeholder="Condiciones, observaciones…"
-						/>
-					</div>
-
-					<div className="border-t border-gray-100 pt-3 space-y-3">
-						<p className="text-xs font-black text-gray-500 uppercase">Líneas</p>
-						{lines.map((ln, idx) => (
-							<div
-								key={idx}
-								className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-2 relative">
-								{lines.length > 1 && (
-									<button
-										type="button"
-										onClick={() => removeLine(idx)}
-										className="absolute top-2 right-2 p-1 text-gray-400 hover:text-rose-600"
-										aria-label="Quitar línea">
-										<X size={16} />
-									</button>
-								)}
-								<div>
-									<label className="text-[10px] font-black text-gray-400 uppercase">Tratamiento</label>
-									<select
-										className="w-full p-2 rounded-lg border border-gray-200 text-sm font-medium mt-0.5"
-										value={ln.treatment_id || ""}
-										onChange={(e) => onTreatmentPick(idx, e.target.value)}>
-										<option value="">— Manual / extra —</option>
-										{treatments.map((t) => (
-											<option key={t.id} value={t.id}>
-												{t.name} ({formatCurrency(Number(t.price) || 0)})
-											</option>
-										))}
-									</select>
-								</div>
-								<div>
-									<label className="text-[10px] font-black text-gray-400 uppercase">Concepto</label>
-									<input
-										className="w-full p-2 rounded-lg border border-gray-200 text-sm font-medium"
-										value={ln.description}
-										onChange={(e) => updateLine(idx, { description: e.target.value })}
-										placeholder="Descripción en el presupuesto"
-									/>
-								</div>
-								<div className="grid grid-cols-3 gap-2">
-									<div>
-										<label className="text-[10px] font-black text-gray-400 uppercase">Cant.</label>
-										<input
-											type="number"
-											min="0.01"
-											step="0.01"
-											className="w-full p-2 rounded-lg border border-gray-200 text-sm"
-											value={ln.quantity}
-											onChange={(e) => updateLine(idx, { quantity: e.target.value })}
-										/>
-									</div>
-									<div>
-										<label className="text-[10px] font-black text-gray-400 uppercase">P. u. IVA inc.</label>
-										<input
-											type="number"
-											min="0"
-											step="0.01"
-											className="w-full p-2 rounded-lg border border-gray-200 text-sm"
-											value={ln.unit_price_ttc}
-											onChange={(e) =>
-												updateLine(idx, {
-													unit_price_ttc: e.target.value,
-													line_kind: ln.treatment_id ? "treatment" : "extra",
-												})
-											}
-										/>
-										{ln.original_unit_price_ttc != null && Number(ln.original_unit_price_ttc) > Number(ln.unit_price_ttc || 0) && (
-											<p className="text-[10px] text-gray-500 mt-1">
-												Original: <span className="font-bold">{formatCurrency(Number(ln.original_unit_price_ttc) || 0)}</span>{" "}
-												· DTO:{" "}
-												<span className="font-bold">
-													{formatCurrency(Math.max(0, (Number(ln.original_unit_price_ttc) - Number(ln.unit_price_ttc || 0)) * (Number(ln.quantity) || 0)))}
-												</span>
-											</p>
-										)}
-									</div>
-									<div>
-										<label className="text-[10px] font-black text-gray-400 uppercase">IVA %</label>
-										<input
-											type="number"
-											min="0"
-											className="w-full p-2 rounded-lg border border-gray-200 text-sm"
-											value={ln.tax_rate}
-											onChange={(e) => updateLine(idx, { tax_rate: e.target.value })}
-										/>
-									</div>
-								</div>
-							</div>
-						))}
-						<button
-							type="button"
-							onClick={addLine}
-							className="text-sm font-bold text-amber-700 hover:text-amber-900">
-							+ Añadir línea
-						</button>
-					</div>
-
-					<LoadingButton
-						type="submit"
-						loading={creating}
-						className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-black rounded-xl">
-						Guardar presupuesto
-					</LoadingButton>
-				</form>
-			</AdaptiveModal>
-
 			<ConfirmModal
 				isOpen={!!archiveId}
 				title="Archivar presupuesto"
-				message="Dejará de mostrarse en la lista. Los datos se conservan en la base de datos."
+				message="Este presupuesto dejará de mostrarse en la lista principal, pero se conservará en el sistema de forma segura."
 				onCancel={() => setArchiveId(null)}
 				onConfirm={async () => {
 					try {
 						await archiveBudget(archiveId);
-						showToast("Presupuesto archivado");
+						showToast("Presupuesto archivado con éxito", "success");
 					} catch {
-						showToast("Error al archivar", "error");
+						showToast("Error al archivar el presupuesto", "error");
 					} finally {
 						setArchiveId(null);
 					}

@@ -513,13 +513,19 @@ export const FinanceMovementsTab = ({
 	useEffect(() => {
 		if (formData.is_deductible && formData.supplier_nif) {
 			const validation = validateSpanishTaxId(formData.supplier_nif);
-			setNifValidation(validation);
+			setNifValidation(prev => 
+				prev?.valid === validation?.valid && prev?.error === validation?.error && prev?.normalized === validation?.normalized
+					? prev
+					: validation
+			);
 
 			if (validation.valid && validation.normalized) {
-				setFormData((prev) => ({
-					...prev,
-					supplier_nif: validation.normalized,
-				}));
+				if (validation.normalized !== formData.supplier_nif) {
+					setFormData((prev) => ({
+						...prev,
+						supplier_nif: validation.normalized,
+					}));
+				}
 				const expenseEntries = entries.filter(
 					(e) => e.type === "expense" && e.is_deductible,
 				);
@@ -537,7 +543,11 @@ export const FinanceMovementsTab = ({
 				setShowSuggestions(false);
 			}
 		} else {
-			setNifValidation({ valid: true, error: null });
+			setNifValidation(prev => 
+				prev?.valid === true && prev?.error === null
+					? prev
+					: { valid: true, error: null }
+			);
 			setInvoiceSuggestions([]);
 			setShowSuggestions(false);
 		}
@@ -593,7 +603,11 @@ export const FinanceMovementsTab = ({
 				formData.invoice_number,
 				entries.filter((e) => e.type === "expense" && e.is_deductible),
 			);
-			setDateWarning(validation);
+			setDateWarning(prev => 
+				prev?.code === validation?.code && prev?.message === validation?.message
+					? prev 
+					: validation
+			);
 		} else {
 			setDateWarning(null);
 		}
@@ -950,6 +964,742 @@ export const FinanceMovementsTab = ({
 			showToast("Error al configurar", "error");
 		}
 	};
+
+
+	if (isModalOpen) {
+		const title = editingEntry ? 'Editar Movimiento' : (formData.recurring_id ? 'Registrar pago recurrente' : (formData.type === 'income' ? 'Registrar Ingreso' : 'Registrar Gasto'));
+		return (
+			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
+				<div className="max-w-3xl mx-auto">
+					<div className="flex flex-col gap-2 mb-8">
+						<button
+							onClick={() => { setIsModalOpen(false) }}
+							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
+						</button>
+						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
+					</div>
+					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
+						<form onSubmit={handleSaveEntry} className="space-y-5">
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Descripción
+						</label>
+						<input
+							required
+							className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-gray-200 outline-none"
+							value={formData.description}
+							onChange={(e) =>
+								setFormData({ ...formData, description: e.target.value })
+							}
+						/>
+					</div>
+					{formData.type === "expense" && (isAdvanced || editingEntry?.is_deductible) && (
+						<div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
+							<input
+								type="checkbox"
+								id="is_deductible"
+								checked={formData.is_deductible}
+								onChange={(e) => {
+									const checked = e.target.checked;
+									const baseForDefault = Number(taxCalc.base_amount) || 0;
+									setFormData({
+										...formData,
+										is_deductible: checked,
+										is_investment: checked
+											? formData.is_investment || baseForDefault > INVESTMENT_MIN_BASE
+											: false,
+										amortization_rate: checked
+											? formData.amortization_rate || 26
+											: 26,
+										tax_rate: checked ? 21 : 0,
+										irpf_rate: checked ? formData.irpf_rate : 0,
+										supplier_nif: checked ? formData.supplier_nif : "",
+										invoice_number: checked ? formData.invoice_number : "",
+									});
+								}}
+								className="w-5 h-5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+							/>
+							<label
+								htmlFor="is_deductible"
+								className="font-bold text-gray-800 cursor-pointer flex-1">
+								¿Es Factura Deducible?
+							</label>
+						</div>
+					)}
+					{formData.type === "expense" && formData.is_deductible && (
+						<div className="space-y-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+							<label className="flex items-center gap-3 cursor-pointer">
+								<input
+									type="checkbox"
+									checked={!!formData.is_investment}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											is_investment: e.target.checked,
+											amortization_rate: e.target.checked
+												? formData.amortization_rate || 26
+												: 26,
+										})
+									}
+									className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+								/>
+								<span className="font-bold text-gray-800">
+									¿Es Bien de Inversión (Amortizable)?
+								</span>
+							</label>
+							{formData.is_investment && (
+								<div>
+									<label className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-1 block ml-1">
+										% Amortización anual
+									</label>
+									<input
+										type="number"
+										min="0.01"
+										step="0.01"
+										className="w-full p-3 bg-white rounded-xl font-bold border border-blue-200 outline-none"
+										value={formData.amortization_rate ?? 26}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												amortization_rate: Number(e.target.value) || 26,
+											})
+										}
+									/>
+									{Number(taxCalc.base_amount) <= INVESTMENT_MIN_BASE && (
+										<p className="mt-2 text-xs text-blue-700 font-bold">
+											Si la base no supera {INVESTMENT_MIN_BASE}€, este gasto se
+											imputa de golpe (no amortiza).
+										</p>
+									)}
+								</div>
+							)}
+						</div>
+					)}
+					<div className="flex gap-4">
+						<div className="flex-1">
+							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+								{formData.type === "income"
+									? "Precio / PVP (€, IVA incluido)"
+									: "Total a pagar (€)"}
+							</label>
+							<input
+								required
+								type="number"
+								step="0.01"
+								placeholder="0.00 €"
+								className="w-full p-4 bg-gray-50 rounded-xl font-black text-rose-500 text-xl placeholder:text-rose-300"
+								value={formData.amount}
+								onChange={(e) =>
+									setFormData({ ...formData, amount: e.target.value })
+								}
+							/>
+						</div>
+						{(formData.type === "expense" && formData.is_deductible) ||
+						formData.type === "income" ? (
+							<div className="flex-1">
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									IVA (%)
+								</label>
+								<select
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+									value={formData.tax_rate}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											tax_rate: Number(e.target.value),
+										})
+									}>
+									{IVA_OPTIONS.map((v) => (
+										<option key={v} value={v}>
+											{v === 0 ? "0 % (exento)" : `${v}%`}
+										</option>
+									))}
+								</select>
+							</div>
+						) : null}
+					</div>
+					{formData.type === "income" && (
+						<div className="p-4 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
+							<label className="flex items-center gap-3 cursor-pointer">
+								<input
+									type="checkbox"
+									checked={Number(formData.irpf_rate) > 0}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											irpf_rate: e.target.checked
+												? formData.irpf_rate || 7
+												: 0,
+										})
+									}
+									className="w-5 h-5 rounded border-gray-300 text-blue-600"
+								/>
+								<span className="font-bold text-gray-800 text-sm">
+									Factura a empresa (retención IRPF)
+								</span>
+							</label>
+							{Number(formData.irpf_rate) > 0 && (
+								<select
+									className="w-full p-3 bg-white rounded-xl font-bold border border-blue-200"
+									value={formData.irpf_rate}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											irpf_rate: Number(e.target.value),
+										})
+									}>
+									{IRPF_OPTIONS.filter((v) => v > 0).map((v) => (
+										<option key={v} value={v}>
+											Retención {v}%
+										</option>
+									))}
+								</select>
+							)}
+						</div>
+					)}
+					{((formData.type === "expense" && formData.is_deductible) ||
+						formData.type === "income") &&
+						formData.amount && (
+							<div className="text-xs font-bold text-gray-500 bg-gray-50 p-3 rounded-xl">
+								Base: {formatCurrency(taxCalc.base_amount)}
+								{Number(formData.tax_rate) > 0 && (
+									<> | IVA: +{formatCurrency(taxCalc.tax_amount)}</>
+								)}
+								{Number(taxCalc.irpf_amount) > 0 && (
+									<> | Ret. IRPF: −{formatCurrency(taxCalc.irpf_amount)}</>
+								)}
+								<span className="block mt-1 text-gray-700">
+									{formData.type === "income"
+										? Number(taxCalc.irpf_amount) > 0
+											? `Total a cobrar (empresa): ${formatCurrency(taxCalc.total_amount)} · PVP particular: ${formatCurrency(formData.amount)}`
+											: `Total a cobrar: ${formatCurrency(formData.amount)}`
+										: `Total pagado: ${formatCurrency(formData.amount)}`}
+								</span>
+							</div>
+						)}
+					{formData.type === "expense" && formData.is_deductible && (
+						<div className="flex gap-4 -mt-2">
+							<div className="flex-1">
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									IRPF retenido (%)
+								</label>
+								<select
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+									value={formData.irpf_rate}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											irpf_rate: Number(e.target.value),
+										})
+									}>
+									{IRPF_OPTIONS.map((v) => (
+										<option key={v} value={v}>
+											{v}%
+										</option>
+									))}
+								</select>
+							</div>
+						</div>
+					)}
+					{formData.type === "expense" &&
+						formData.recurring_id &&
+						recurringBaseAmount != null && (
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+								<div>
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+										Nº de meses a pagar
+									</label>
+									<input
+										type="number"
+										min={1}
+										className="w-full p-3 bg-gray-50 rounded-xl font-bold"
+										value={formData.months_paid}
+										onChange={(e) => {
+											const m = Math.max(1, parseInt(e.target.value, 10) || 1);
+											setFormData({
+												...formData,
+												months_paid: m,
+												amount: String(recurringBaseAmount * m),
+											});
+										}}
+									/>
+									<p className="text-[10px] text-gray-400 mt-1">
+										Total:{" "}
+										{formatCurrency(
+											recurringBaseAmount * (formData.months_paid || 1),
+										)}{" "}
+										(importe × meses)
+									</p>
+								</div>
+								<div>
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+										Mes de inicio de cobertura
+									</label>
+									<input
+										type="month"
+										className="w-full p-3 bg-gray-50 rounded-xl font-bold"
+										value={formData.coverage_start_month || ""}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												coverage_start_month: e.target.value,
+											})
+										}
+									/>
+									<p className="text-[10px] text-gray-400 mt-1">
+										Se considerará pagado desde ese mes durante{" "}
+										{formData.months_paid || 1} mes(es).
+									</p>
+								</div>
+							</div>
+						)}
+					{formData.type === "expense" && formData.is_deductible && (
+						<>
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									Proveedor (nombre)
+								</label>
+								<input
+									placeholder="Ej: Distribuciones Estéticas SL"
+									list="finance-providers-list"
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
+									value={formData.provider_name || ""}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											provider_name: e.target.value,
+										})
+									}
+									onBlur={(e) => applyProviderFromName(e.target.value)}
+								/>
+							</div>
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									NIF/CIF Proveedor *
+								</label>
+								<div className="relative">
+									<input
+										required={formData.is_deductible}
+										placeholder="Ej: B12345678"
+										className={`w-full p-4 bg-gray-50 rounded-xl font-bold border-2 outline-none transition-colors ${
+											nifValidation.valid
+												? "border-transparent focus:bg-white focus:border-rose-100"
+												: "border-red-300 bg-red-50 focus:bg-white focus:border-red-400"
+										}`}
+										value={formData.supplier_nif}
+										onChange={(e) =>
+											setFormData({ ...formData, supplier_nif: e.target.value })
+										}
+										onFocus={() =>
+											setShowSuggestions(invoiceSuggestions.length > 0)
+										}
+									/>
+									{nifValidation.error && (
+										<p className="mt-1 text-xs font-bold text-rose-700 flex items-center gap-1">
+											<AlertCircle size={12} />
+											{nifValidation.error}
+										</p>
+									)}
+									{nifValidation.valid && nifValidation.type && (
+										<p className="mt-1 text-xs font-bold text-emerald-600">
+											✓ {nifValidation.type} válido
+										</p>
+									)}
+								</div>
+								{showSuggestions && invoiceSuggestions.length > 0 && (
+									<div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+										<p className="text-xs font-bold text-blue-800 mb-2">
+											Facturas anteriores de este proveedor:
+										</p>
+										<div className="space-y-2">
+											{invoiceSuggestions.map((sug, idx) => (
+												<button
+													key={idx}
+													type="button"
+													onClick={() => useInvoiceSuggestion(sug)}
+													className="w-full p-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-left flex items-center justify-between group">
+													<div className="flex-1 min-w-0">
+														<p className="text-xs font-bold text-gray-800 truncate">
+															Factura: {sug.invoice_number}
+														</p>
+														<p className="text-[10px] text-gray-500">
+															{sug.date} • {sug.count} material(es)
+														</p>
+													</div>
+													<Copy
+														size={14}
+														className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
+													/>
+												</button>
+											))}
+										</div>
+									</div>
+								)}
+							</div>
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									Nº Factura Proveedor *
+								</label>
+								<input
+									required={formData.is_deductible}
+									placeholder="Ej: F2026-001"
+									className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
+									value={formData.invoice_number}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											invoice_number: normalizeInvoiceNumber(e.target.value),
+										})
+									}
+								/>
+							</div>
+							{dateWarning?.warning && (
+								<div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+									<p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
+										<AlertCircle size={14} />
+										{dateWarning.warning}
+									</p>
+									{dateWarning.suggestedDate && (
+										<button
+											type="button"
+											onClick={() =>
+												setFormData((prev) => ({
+													...prev,
+													date: dateWarning.suggestedDate,
+												}))
+											}
+											className="text-xs font-bold text-amber-700 hover:underline">
+											Usar fecha: {dateWarning.suggestedDate}
+										</button>
+									)}
+								</div>
+							)}
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+									Justificante (foto o PDF){" "}
+									{editingEntry?.file_url || formData.file_url ? "" : "*"}
+								</label>
+								{(editingEntry?.file_url || formData.file_url) &&
+									!receiptFile && (
+										<div className="mb-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+											<div className="flex items-center justify-between mb-2">
+												<span className="text-sm font-bold text-emerald-700 flex items-center gap-2">
+													<FileText size={16} />
+													Archivo existente:{" "}
+													{(editingEntry?.file_url || formData.file_url)
+														.split("/")
+														.pop()}
+												</span>
+												<a
+													href="#"
+													onClick={async (e) => {
+														e.preventDefault();
+														const fileUrl =
+															editingEntry?.file_url || formData.file_url;
+														if (fileUrl) {
+															try {
+																const url = await getReceiptSignedUrl(fileUrl);
+																if (url) {
+																	window.open(url, "_blank");
+																} else {
+																	const publicUrl = getReceiptUrl(fileUrl);
+																	if (publicUrl)
+																		window.open(publicUrl, "_blank");
+																}
+															} catch (err) {
+																showToast("Error al abrir archivo", "error");
+															}
+														}
+													}}
+													className="text-xs font-bold text-emerald-600 hover:underline">
+													Ver
+												</a>
+											</div>
+											<p className="text-xs text-emerald-600 italic">
+												Este archivo se reutilizará. Puedes cambiarlo si lo
+												deseas.
+											</p>
+											<button
+												type="button"
+												onClick={(e) => {
+													e.preventDefault();
+													const input =
+														document.getElementById("receipt-file-input");
+													if (input) input.click();
+												}}
+												className="mt-2 text-xs font-bold text-emerald-600 hover:underline">
+												Cambiar archivo
+											</button>
+										</div>
+									)}
+								{receiptPreview && (
+									<div className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-xl">
+										<p className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
+											<ImageIcon size={14} />
+											Vista previa:
+										</p>
+										<img
+											src={receiptPreview}
+											alt="Preview"
+											className="max-w-full h-auto max-h-32 rounded-lg border border-gray-300"
+										/>
+									</div>
+								)}
+								<input
+									id="receipt-file-input"
+									required={
+										formData.is_deductible &&
+										!editingEntry?.file_url &&
+										!formData.file_url
+									}
+									type="file"
+									accept="image/jpeg,image/png,image/webp,application/pdf"
+									className="w-full p-3 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:font-bold file:bg-rose-50 file:text-rose-600"
+									onChange={handleFileChange}
+								/>
+								{receiptFile && (
+									<p className="mt-2 text-xs font-bold text-emerald-600">
+										✓ Archivo seleccionado: {receiptFile.name} (
+										{(receiptFile.size / 1024 / 1024).toFixed(2)} MB)
+									</p>
+								)}
+								{fileValidation.error && (
+									<p className="mt-2 text-xs font-bold text-rose-700 flex items-center gap-1">
+										<AlertCircle size={12} />
+										{fileValidation.error}
+									</p>
+								)}
+							</div>
+						</>
+					)}
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Fecha
+						</label>
+						<input
+							required
+							type="date"
+							className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm"
+							value={formData.date}
+							onChange={(e) =>
+								setFormData({ ...formData, date: e.target.value })
+							}
+						/>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Categoría
+						</label>
+						{formData.recurring_id ? (
+							<input
+								required
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold border-2 border-transparent focus:bg-white focus:border-gray-200 outline-none"
+								value={formData.category}
+								onChange={(e) =>
+									setFormData({ ...formData, category: e.target.value })
+								}
+								placeholder="Ej: Cuota autónomos"
+							/>
+						) : (
+							<select
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold"
+								value={formData.category}
+								onChange={(e) =>
+									setFormData({ ...formData, category: e.target.value })
+								}>
+								{formData.type === "income" ? (
+									<>
+										<option>Servicio</option>
+										<option>Producto</option>
+										<option>Otros</option>
+									</>
+								) : (
+									<>
+										<option>Material</option>
+										<option>Alquiler</option>
+										<option>Marketing</option>
+										<option>Suministros</option>
+										<option>Otros</option>
+									</>
+								)}
+							</select>
+						)}
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Notas
+						</label>
+						<textarea
+							rows="2"
+							className="w-full p-4 bg-gray-50 rounded-2xl font-bold resize-none"
+							value={formData.notes}
+							onChange={(e) =>
+								setFormData({ ...formData, notes: e.target.value })
+							}
+						/>
+					</div>
+					<LoadingButton
+						loading={savingEntry}
+						type="submit"
+						className={`w-full py-4 rounded-xl font-black text-white shadow-lg ${
+							formData.type === "income" ? "bg-emerald-500" : "bg-rose-500"
+						}`}>
+						{savingEntry ? "Guardando..." : "Guardar"}
+					</LoadingButton>
+				</form>
+					</div>
+				</div>
+			</div>
+		);
+	}
+
+	if (isConfigOpen) {
+		const title = 'Gastos Fijos';
+		return (
+			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
+				<div className="max-w-3xl mx-auto">
+					<div className="flex flex-col gap-2 mb-8">
+						<button
+							onClick={() => { setIsConfigOpen(false) }}
+							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
+						</button>
+						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
+					</div>
+					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
+						<form onSubmit={handleSaveConfig} className="space-y-6">
+					<div className="max-h-[400px] overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+						{recurringExpenses.map((exp, idx) => (
+							<div
+								key={exp.id ?? `new-${idx}`}
+								className="space-y-3 p-4 bg-gray-50 rounded-[1.5rem] relative group border border-transparent hover:border-gray-200 transition-all">
+								{isAdmin && (
+									<button
+										type="button"
+										onClick={() =>
+											setRecurringExpenses(
+												recurringExpenses.filter((_, i) => i !== idx),
+											)
+										}
+										className="absolute -top-2 -right-2 bg-white text-gray-300 hover:text-rose-500 p-1 rounded-full shadow-sm border border-gray-100">
+										<X size={14} />
+									</button>
+								)}
+								<div>
+									<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
+										Categoría / Concepto
+									</label>
+									<input
+										required
+										className="w-full p-3 bg-white border border-gray-100 rounded-xl font-bold text-sm"
+										value={exp.category ?? ""}
+										onChange={(e) => {
+											const newExps = [...recurringExpenses];
+											newExps[idx] = { ...newExps[idx], category: e.target.value };
+											setRecurringExpenses(newExps);
+										}}
+										placeholder="Ej: Cuota autónomos, Alquiler"
+									/>
+								</div>
+								<div>
+									<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
+										Importe (€/mes)
+									</label>
+									<input
+										type="number"
+										step="0.01"
+										required
+										placeholder="0.00 €"
+										className="w-full p-3 bg-white border border-gray-100 rounded-xl font-black text-lg placeholder:text-gray-300"
+										value={exp.amount ?? ""}
+										onChange={(e) => {
+											const newExps = [...recurringExpenses];
+											newExps[idx] = { ...newExps[idx], amount: e.target.value };
+											setRecurringExpenses(newExps);
+										}}
+									/>
+								</div>
+								<div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
+									<input
+										type="checkbox"
+										id={`recurring-deductible-${idx}`}
+										checked={exp.is_deductible ?? false}
+										onChange={(e) => {
+											const newExps = [...recurringExpenses];
+											newExps[idx] = {
+												...newExps[idx],
+												is_deductible: e.target.checked,
+												tax_rate: e.target.checked ? (newExps[idx].tax_rate ?? 21) : 0,
+												irpf_rate: e.target.checked ? (newExps[idx].irpf_rate ?? 0) : 0,
+											};
+											setRecurringExpenses(newExps);
+										}}
+										className="w-4 h-4 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+									/>
+									<label htmlFor={`recurring-deductible-${idx}`} className="text-xs font-bold text-gray-700">
+										Es deducible
+									</label>
+								</div>
+								{(exp.is_deductible ?? false) && (
+									<div className="grid grid-cols-2 gap-2">
+										<div>
+											<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">IVA (%)</label>
+											<select
+												className="w-full p-2 bg-white border border-gray-100 rounded-lg font-bold text-sm"
+												value={exp.tax_rate ?? 21}
+												onChange={(e) => {
+													const newExps = [...recurringExpenses];
+													newExps[idx] = { ...newExps[idx], tax_rate: Number(e.target.value) };
+													setRecurringExpenses(newExps);
+												}}>
+												{IVA_OPTIONS.map((v) => (
+													<option key={v} value={v}>{v}%</option>
+												))}
+											</select>
+										</div>
+										<div>
+											<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">IRPF (%)</label>
+											<select
+												className="w-full p-2 bg-white border border-gray-100 rounded-lg font-bold text-sm"
+												value={exp.irpf_rate ?? 0}
+												onChange={(e) => {
+													const newExps = [...recurringExpenses];
+													newExps[idx] = { ...newExps[idx], irpf_rate: Number(e.target.value) };
+													setRecurringExpenses(newExps);
+												}}>
+												{IRPF_OPTIONS.map((v) => (
+													<option key={v} value={v}>{v}%</option>
+												))}
+											</select>
+										</div>
+									</div>
+								)}
+							</div>
+						))}
+						<button
+							type="button"
+							onClick={() =>
+								setRecurringExpenses([
+									...recurringExpenses,
+									{ category: "", amount: 0, is_deductible: false, tax_rate: 21, irpf_rate: 0 },
+								])
+							}
+							className="w-full py-3 border-2 border-dashed border-gray-100 text-gray-400 rounded-2xl font-black text-[10px] uppercase hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
+							<Plus size={14} /> Añadir concepto
+						</button>
+					</div>
+					<button
+						type="submit"
+						className="w-full bg-surface-dark text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg mt-4">
+						Guardar
+					</button>
+				</form>
+					</div>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
@@ -1573,722 +2323,9 @@ export const FinanceMovementsTab = ({
 				</div>
 			)}
 
-			<AdaptiveModal
-				isOpen={isModalOpen}
-				onClose={() => setIsModalOpen(false)}
-				title={
-					editingEntry
-						? "Editar Movimiento"
-						: formData.recurring_id
-							? "Registrar pago recurrente"
-							: formData.type === "income"
-								? "Registrar Ingreso"
-								: "Registrar Gasto"
-				}
-				maxWidth="max-w-md">
-				<form onSubmit={handleSaveEntry} className="space-y-5">
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-							Descripción
-						</label>
-						<input
-							required
-							className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-gray-200 outline-none"
-							value={formData.description}
-							onChange={(e) =>
-								setFormData({ ...formData, description: e.target.value })
-							}
-						/>
-					</div>
-					{formData.type === "expense" && (isAdvanced || editingEntry?.is_deductible) && (
-						<div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
-							<input
-								type="checkbox"
-								id="is_deductible"
-								checked={formData.is_deductible}
-								onChange={(e) => {
-									const checked = e.target.checked;
-									const baseForDefault = Number(taxCalc.base_amount) || 0;
-									setFormData({
-										...formData,
-										is_deductible: checked,
-										is_investment: checked
-											? formData.is_investment || baseForDefault > INVESTMENT_MIN_BASE
-											: false,
-										amortization_rate: checked
-											? formData.amortization_rate || 26
-											: 26,
-										tax_rate: checked ? 21 : 0,
-										irpf_rate: checked ? formData.irpf_rate : 0,
-										supplier_nif: checked ? formData.supplier_nif : "",
-										invoice_number: checked ? formData.invoice_number : "",
-									});
-								}}
-								className="w-5 h-5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
-							/>
-							<label
-								htmlFor="is_deductible"
-								className="font-bold text-gray-800 cursor-pointer flex-1">
-								¿Es Factura Deducible?
-							</label>
-						</div>
-					)}
-					{formData.type === "expense" && formData.is_deductible && (
-						<div className="space-y-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
-							<label className="flex items-center gap-3 cursor-pointer">
-								<input
-									type="checkbox"
-									checked={!!formData.is_investment}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											is_investment: e.target.checked,
-											amortization_rate: e.target.checked
-												? formData.amortization_rate || 26
-												: 26,
-										})
-									}
-									className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-								/>
-								<span className="font-bold text-gray-800">
-									¿Es Bien de Inversión (Amortizable)?
-								</span>
-							</label>
-							{formData.is_investment && (
-								<div>
-									<label className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-1 block ml-1">
-										% Amortización anual
-									</label>
-									<input
-										type="number"
-										min="0.01"
-										step="0.01"
-										className="w-full p-3 bg-white rounded-xl font-bold border border-blue-200 outline-none"
-										value={formData.amortization_rate ?? 26}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												amortization_rate: Number(e.target.value) || 26,
-											})
-										}
-									/>
-									{Number(taxCalc.base_amount) <= INVESTMENT_MIN_BASE && (
-										<p className="mt-2 text-xs text-blue-700 font-bold">
-											Si la base no supera {INVESTMENT_MIN_BASE}€, este gasto se
-											imputa de golpe (no amortiza).
-										</p>
-									)}
-								</div>
-							)}
-						</div>
-					)}
-					<div className="flex gap-4">
-						<div className="flex-1">
-							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-								{formData.type === "income"
-									? "Precio / PVP (€, IVA incluido)"
-									: "Total a pagar (€)"}
-							</label>
-							<input
-								required
-								type="number"
-								step="0.01"
-								placeholder="0.00 €"
-								className="w-full p-4 bg-gray-50 rounded-xl font-black text-rose-500 text-xl placeholder:text-rose-300"
-								value={formData.amount}
-								onChange={(e) =>
-									setFormData({ ...formData, amount: e.target.value })
-								}
-							/>
-						</div>
-						{(formData.type === "expense" && formData.is_deductible) ||
-						formData.type === "income" ? (
-							<div className="flex-1">
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									IVA (%)
-								</label>
-								<select
-									className="w-full p-4 bg-gray-50 rounded-xl font-bold"
-									value={formData.tax_rate}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											tax_rate: Number(e.target.value),
-										})
-									}>
-									{IVA_OPTIONS.map((v) => (
-										<option key={v} value={v}>
-											{v === 0 ? "0 % (exento)" : `${v}%`}
-										</option>
-									))}
-								</select>
-							</div>
-						) : null}
-					</div>
-					{formData.type === "income" && (
-						<div className="p-4 bg-blue-50 rounded-xl border border-blue-100 space-y-3">
-							<label className="flex items-center gap-3 cursor-pointer">
-								<input
-									type="checkbox"
-									checked={Number(formData.irpf_rate) > 0}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											irpf_rate: e.target.checked
-												? formData.irpf_rate || 7
-												: 0,
-										})
-									}
-									className="w-5 h-5 rounded border-gray-300 text-blue-600"
-								/>
-								<span className="font-bold text-gray-800 text-sm">
-									Factura a empresa (retención IRPF)
-								</span>
-							</label>
-							{Number(formData.irpf_rate) > 0 && (
-								<select
-									className="w-full p-3 bg-white rounded-xl font-bold border border-blue-200"
-									value={formData.irpf_rate}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											irpf_rate: Number(e.target.value),
-										})
-									}>
-									{IRPF_OPTIONS.filter((v) => v > 0).map((v) => (
-										<option key={v} value={v}>
-											Retención {v}%
-										</option>
-									))}
-								</select>
-							)}
-						</div>
-					)}
-					{((formData.type === "expense" && formData.is_deductible) ||
-						formData.type === "income") &&
-						formData.amount && (
-							<div className="text-xs font-bold text-gray-500 bg-gray-50 p-3 rounded-xl">
-								Base: {formatCurrency(taxCalc.base_amount)}
-								{Number(formData.tax_rate) > 0 && (
-									<> | IVA: +{formatCurrency(taxCalc.tax_amount)}</>
-								)}
-								{Number(taxCalc.irpf_amount) > 0 && (
-									<> | Ret. IRPF: −{formatCurrency(taxCalc.irpf_amount)}</>
-								)}
-								<span className="block mt-1 text-gray-700">
-									{formData.type === "income"
-										? Number(taxCalc.irpf_amount) > 0
-											? `Total a cobrar (empresa): ${formatCurrency(taxCalc.total_amount)} · PVP particular: ${formatCurrency(formData.amount)}`
-											: `Total a cobrar: ${formatCurrency(formData.amount)}`
-										: `Total pagado: ${formatCurrency(formData.amount)}`}
-								</span>
-							</div>
-						)}
-					{formData.type === "expense" && formData.is_deductible && (
-						<div className="flex gap-4 -mt-2">
-							<div className="flex-1">
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									IRPF retenido (%)
-								</label>
-								<select
-									className="w-full p-4 bg-gray-50 rounded-xl font-bold"
-									value={formData.irpf_rate}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											irpf_rate: Number(e.target.value),
-										})
-									}>
-									{IRPF_OPTIONS.map((v) => (
-										<option key={v} value={v}>
-											{v}%
-										</option>
-									))}
-								</select>
-							</div>
-						</div>
-					)}
-					{formData.type === "expense" &&
-						formData.recurring_id &&
-						recurringBaseAmount != null && (
-							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-								<div>
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-										Nº de meses a pagar
-									</label>
-									<input
-										type="number"
-										min={1}
-										className="w-full p-3 bg-gray-50 rounded-xl font-bold"
-										value={formData.months_paid}
-										onChange={(e) => {
-											const m = Math.max(1, parseInt(e.target.value, 10) || 1);
-											setFormData({
-												...formData,
-												months_paid: m,
-												amount: String(recurringBaseAmount * m),
-											});
-										}}
-									/>
-									<p className="text-[10px] text-gray-400 mt-1">
-										Total:{" "}
-										{formatCurrency(
-											recurringBaseAmount * (formData.months_paid || 1),
-										)}{" "}
-										(importe × meses)
-									</p>
-								</div>
-								<div>
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-										Mes de inicio de cobertura
-									</label>
-									<input
-										type="month"
-										className="w-full p-3 bg-gray-50 rounded-xl font-bold"
-										value={formData.coverage_start_month || ""}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												coverage_start_month: e.target.value,
-											})
-										}
-									/>
-									<p className="text-[10px] text-gray-400 mt-1">
-										Se considerará pagado desde ese mes durante{" "}
-										{formData.months_paid || 1} mes(es).
-									</p>
-								</div>
-							</div>
-						)}
-					{formData.type === "expense" && formData.is_deductible && (
-						<>
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									Proveedor (nombre)
-								</label>
-								<input
-									placeholder="Ej: Distribuciones Estéticas SL"
-									list="finance-providers-list"
-									className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
-									value={formData.provider_name || ""}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											provider_name: e.target.value,
-										})
-									}
-									onBlur={(e) => applyProviderFromName(e.target.value)}
-								/>
-							</div>
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									NIF/CIF Proveedor *
-								</label>
-								<div className="relative">
-									<input
-										required={formData.is_deductible}
-										placeholder="Ej: B12345678"
-										className={`w-full p-4 bg-gray-50 rounded-xl font-bold border-2 outline-none transition-colors ${
-											nifValidation.valid
-												? "border-transparent focus:bg-white focus:border-rose-100"
-												: "border-red-300 bg-red-50 focus:bg-white focus:border-red-400"
-										}`}
-										value={formData.supplier_nif}
-										onChange={(e) =>
-											setFormData({ ...formData, supplier_nif: e.target.value })
-										}
-										onFocus={() =>
-											setShowSuggestions(invoiceSuggestions.length > 0)
-										}
-									/>
-									{nifValidation.error && (
-										<p className="mt-1 text-xs font-bold text-red-600 flex items-center gap-1">
-											<AlertCircle size={12} />
-											{nifValidation.error}
-										</p>
-									)}
-									{nifValidation.valid && nifValidation.type && (
-										<p className="mt-1 text-xs font-bold text-emerald-600">
-											✓ {nifValidation.type} válido
-										</p>
-									)}
-								</div>
-								{showSuggestions && invoiceSuggestions.length > 0 && (
-									<div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-										<p className="text-xs font-bold text-blue-800 mb-2">
-											Facturas anteriores de este proveedor:
-										</p>
-										<div className="space-y-2">
-											{invoiceSuggestions.map((sug, idx) => (
-												<button
-													key={idx}
-													type="button"
-													onClick={() => useInvoiceSuggestion(sug)}
-													className="w-full p-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-left flex items-center justify-between group">
-													<div className="flex-1 min-w-0">
-														<p className="text-xs font-bold text-gray-800 truncate">
-															Factura: {sug.invoice_number}
-														</p>
-														<p className="text-[10px] text-gray-500">
-															{sug.date} • {sug.count} material(es)
-														</p>
-													</div>
-													<Copy
-														size={14}
-														className="text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity"
-													/>
-												</button>
-											))}
-										</div>
-									</div>
-								)}
-							</div>
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									Nº Factura Proveedor *
-								</label>
-								<input
-									required={formData.is_deductible}
-									placeholder="Ej: F2026-001"
-									className="w-full p-4 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
-									value={formData.invoice_number}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											invoice_number: normalizeInvoiceNumber(e.target.value),
-										})
-									}
-								/>
-							</div>
-							{dateWarning?.warning && (
-								<div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
-									<p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
-										<AlertCircle size={14} />
-										{dateWarning.warning}
-									</p>
-									{dateWarning.suggestedDate && (
-										<button
-											type="button"
-											onClick={() =>
-												setFormData((prev) => ({
-													...prev,
-													date: dateWarning.suggestedDate,
-												}))
-											}
-											className="text-xs font-bold text-amber-700 hover:underline">
-											Usar fecha: {dateWarning.suggestedDate}
-										</button>
-									)}
-								</div>
-							)}
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									Justificante (foto o PDF){" "}
-									{editingEntry?.file_url || formData.file_url ? "" : "*"}
-								</label>
-								{(editingEntry?.file_url || formData.file_url) &&
-									!receiptFile && (
-										<div className="mb-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-											<div className="flex items-center justify-between mb-2">
-												<span className="text-sm font-bold text-emerald-700 flex items-center gap-2">
-													<FileText size={16} />
-													Archivo existente:{" "}
-													{(editingEntry?.file_url || formData.file_url)
-														.split("/")
-														.pop()}
-												</span>
-												<a
-													href="#"
-													onClick={async (e) => {
-														e.preventDefault();
-														const fileUrl =
-															editingEntry?.file_url || formData.file_url;
-														if (fileUrl) {
-															try {
-																const url = await getReceiptSignedUrl(fileUrl);
-																if (url) {
-																	window.open(url, "_blank");
-																} else {
-																	const publicUrl = getReceiptUrl(fileUrl);
-																	if (publicUrl)
-																		window.open(publicUrl, "_blank");
-																}
-															} catch (err) {
-																showToast("Error al abrir archivo", "error");
-															}
-														}
-													}}
-													className="text-xs font-bold text-emerald-600 hover:underline">
-													Ver
-												</a>
-											</div>
-											<p className="text-xs text-emerald-600 italic">
-												Este archivo se reutilizará. Puedes cambiarlo si lo
-												deseas.
-											</p>
-											<button
-												type="button"
-												onClick={(e) => {
-													e.preventDefault();
-													const input =
-														document.getElementById("receipt-file-input");
-													if (input) input.click();
-												}}
-												className="mt-2 text-xs font-bold text-emerald-600 hover:underline">
-												Cambiar archivo
-											</button>
-										</div>
-									)}
-								{receiptPreview && (
-									<div className="mb-2 p-3 bg-gray-50 border border-gray-200 rounded-xl">
-										<p className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-2">
-											<ImageIcon size={14} />
-											Vista previa:
-										</p>
-										<img
-											src={receiptPreview}
-											alt="Preview"
-											className="max-w-full h-auto max-h-32 rounded-lg border border-gray-300"
-										/>
-									</div>
-								)}
-								<input
-									id="receipt-file-input"
-									required={
-										formData.is_deductible &&
-										!editingEntry?.file_url &&
-										!formData.file_url
-									}
-									type="file"
-									accept="image/jpeg,image/png,image/webp,application/pdf"
-									className="w-full p-3 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:font-bold file:bg-rose-50 file:text-rose-600"
-									onChange={handleFileChange}
-								/>
-								{receiptFile && (
-									<p className="mt-2 text-xs font-bold text-emerald-600">
-										✓ Archivo seleccionado: {receiptFile.name} (
-										{(receiptFile.size / 1024 / 1024).toFixed(2)} MB)
-									</p>
-								)}
-								{fileValidation.error && (
-									<p className="mt-2 text-xs font-bold text-red-600 flex items-center gap-1">
-										<AlertCircle size={12} />
-										{fileValidation.error}
-									</p>
-								)}
-							</div>
-						</>
-					)}
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-							Fecha
-						</label>
-						<input
-							required
-							type="date"
-							className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm"
-							value={formData.date}
-							onChange={(e) =>
-								setFormData({ ...formData, date: e.target.value })
-							}
-						/>
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-							Categoría
-						</label>
-						{formData.recurring_id ? (
-							<input
-								required
-								className="w-full p-4 bg-gray-50 rounded-2xl font-bold border-2 border-transparent focus:bg-white focus:border-gray-200 outline-none"
-								value={formData.category}
-								onChange={(e) =>
-									setFormData({ ...formData, category: e.target.value })
-								}
-								placeholder="Ej: Cuota autónomos"
-							/>
-						) : (
-							<select
-								className="w-full p-4 bg-gray-50 rounded-2xl font-bold"
-								value={formData.category}
-								onChange={(e) =>
-									setFormData({ ...formData, category: e.target.value })
-								}>
-								{formData.type === "income" ? (
-									<>
-										<option>Servicio</option>
-										<option>Producto</option>
-										<option>Otros</option>
-									</>
-								) : (
-									<>
-										<option>Material</option>
-										<option>Alquiler</option>
-										<option>Marketing</option>
-										<option>Suministros</option>
-										<option>Otros</option>
-									</>
-								)}
-							</select>
-						)}
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-							Notas
-						</label>
-						<textarea
-							rows="2"
-							className="w-full p-4 bg-gray-50 rounded-2xl font-bold resize-none"
-							value={formData.notes}
-							onChange={(e) =>
-								setFormData({ ...formData, notes: e.target.value })
-							}
-						/>
-					</div>
-					<LoadingButton
-						loading={savingEntry}
-						type="submit"
-						className={`w-full py-4 rounded-xl font-black text-white shadow-lg ${
-							formData.type === "income" ? "bg-emerald-500" : "bg-rose-500"
-						}`}>
-						{savingEntry ? "Guardando..." : "Guardar"}
-					</LoadingButton>
-				</form>
-			</AdaptiveModal>
+			
 
-			<AdaptiveModal
-				isOpen={isConfigOpen}
-				onClose={() => setIsConfigOpen(false)}
-				title="Gastos Fijos"
-				maxWidth="max-w-md">
-				<form onSubmit={handleSaveConfig} className="space-y-6">
-					<div className="max-h-[400px] overflow-y-auto space-y-6 pr-2 custom-scrollbar">
-						{recurringExpenses.map((exp, idx) => (
-							<div
-								key={exp.id ?? `new-${idx}`}
-								className="space-y-3 p-4 bg-gray-50 rounded-[1.5rem] relative group border border-transparent hover:border-gray-200 transition-all">
-								{isAdmin && (
-									<button
-										type="button"
-										onClick={() =>
-											setRecurringExpenses(
-												recurringExpenses.filter((_, i) => i !== idx),
-											)
-										}
-										className="absolute -top-2 -right-2 bg-white text-gray-300 hover:text-rose-500 p-1 rounded-full shadow-sm border border-gray-100">
-										<X size={14} />
-									</button>
-								)}
-								<div>
-									<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
-										Categoría / Concepto
-									</label>
-									<input
-										required
-										className="w-full p-3 bg-white border border-gray-100 rounded-xl font-bold text-sm"
-										value={exp.category ?? ""}
-										onChange={(e) => {
-											const newExps = [...recurringExpenses];
-											newExps[idx] = { ...newExps[idx], category: e.target.value };
-											setRecurringExpenses(newExps);
-										}}
-										placeholder="Ej: Cuota autónomos, Alquiler"
-									/>
-								</div>
-								<div>
-									<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">
-										Importe (€/mes)
-									</label>
-									<input
-										type="number"
-										step="0.01"
-										required
-										placeholder="0.00 €"
-										className="w-full p-3 bg-white border border-gray-100 rounded-xl font-black text-lg placeholder:text-gray-300"
-										value={exp.amount ?? ""}
-										onChange={(e) => {
-											const newExps = [...recurringExpenses];
-											newExps[idx] = { ...newExps[idx], amount: e.target.value };
-											setRecurringExpenses(newExps);
-										}}
-									/>
-								</div>
-								<div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
-									<input
-										type="checkbox"
-										id={`recurring-deductible-${idx}`}
-										checked={exp.is_deductible ?? false}
-										onChange={(e) => {
-											const newExps = [...recurringExpenses];
-											newExps[idx] = {
-												...newExps[idx],
-												is_deductible: e.target.checked,
-												tax_rate: e.target.checked ? (newExps[idx].tax_rate ?? 21) : 0,
-												irpf_rate: e.target.checked ? (newExps[idx].irpf_rate ?? 0) : 0,
-											};
-											setRecurringExpenses(newExps);
-										}}
-										className="w-4 h-4 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
-									/>
-									<label htmlFor={`recurring-deductible-${idx}`} className="text-xs font-bold text-gray-700">
-										Es deducible
-									</label>
-								</div>
-								{(exp.is_deductible ?? false) && (
-									<div className="grid grid-cols-2 gap-2">
-										<div>
-											<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">IVA (%)</label>
-											<select
-												className="w-full p-2 bg-white border border-gray-100 rounded-lg font-bold text-sm"
-												value={exp.tax_rate ?? 21}
-												onChange={(e) => {
-													const newExps = [...recurringExpenses];
-													newExps[idx] = { ...newExps[idx], tax_rate: Number(e.target.value) };
-													setRecurringExpenses(newExps);
-												}}>
-												{IVA_OPTIONS.map((v) => (
-													<option key={v} value={v}>{v}%</option>
-												))}
-											</select>
-										</div>
-										<div>
-											<label className="text-[10px] font-black text-gray-400 uppercase mb-1 block">IRPF (%)</label>
-											<select
-												className="w-full p-2 bg-white border border-gray-100 rounded-lg font-bold text-sm"
-												value={exp.irpf_rate ?? 0}
-												onChange={(e) => {
-													const newExps = [...recurringExpenses];
-													newExps[idx] = { ...newExps[idx], irpf_rate: Number(e.target.value) };
-													setRecurringExpenses(newExps);
-												}}>
-												{IRPF_OPTIONS.map((v) => (
-													<option key={v} value={v}>{v}%</option>
-												))}
-											</select>
-										</div>
-									</div>
-								)}
-							</div>
-						))}
-						<button
-							type="button"
-							onClick={() =>
-								setRecurringExpenses([
-									...recurringExpenses,
-									{ category: "", amount: 0, is_deductible: false, tax_rate: 21, irpf_rate: 0 },
-								])
-							}
-							className="w-full py-3 border-2 border-dashed border-gray-100 text-gray-400 rounded-2xl font-black text-[10px] uppercase hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
-							<Plus size={14} /> Añadir concepto
-						</button>
-					</div>
-					<button
-						type="submit"
-						className="w-full bg-surface-dark text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg mt-4">
-						Guardar
-					</button>
-				</form>
-			</AdaptiveModal>
+			
 
 			<ProviderDatalist
 				id="finance-providers-list"

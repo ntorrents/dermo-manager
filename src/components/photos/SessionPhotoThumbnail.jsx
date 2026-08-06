@@ -87,7 +87,7 @@ export const SessionPhotoThumbnail = ({
 						e.stopPropagation();
 						onDelete?.(photo);
 					}}
-					className="p-1.5 bg-white rounded-lg text-gray-700 hover:bg-red-50 hover:text-red-600 shadow"
+					className="p-1.5 bg-white rounded-lg text-gray-700 hover:bg-red-50 hover:text-rose-700 shadow"
 					title="Eliminar">
 					<Trash2 size={14} />
 				</button>
