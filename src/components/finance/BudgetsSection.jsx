@@ -272,7 +272,7 @@ export const BudgetsSection = ({
 										name="pricingMode"
 										checked={pricingMode === "manual"}
 										onChange={() => setPricingMode("manual")}
-										className="text-rose-500 focus:ring-rose-500"
+										className="text-rose-700 focus:ring-rose-500"
 									/>
 									Precio manual
 								</label>
@@ -282,7 +282,7 @@ export const BudgetsSection = ({
 										name="pricingMode"
 										checked={pricingMode === "global_percent"}
 										onChange={() => setPricingMode("global_percent")}
-										className="text-rose-500 focus:ring-rose-500"
+										className="text-rose-700 focus:ring-rose-500"
 									/>
 									Descuento global (%)
 								</label>
@@ -322,7 +322,7 @@ export const BudgetsSection = ({
 										<button
 											type="button"
 											onClick={() => removeLine(idx)}
-											className="absolute -top-3 -right-3 p-2 bg-white text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-full border border-gray-100 shadow-sm transition-all"
+											className="absolute -top-3 -right-3 p-2 bg-white text-gray-400 hover:text-rose-700 hover:bg-rose-50 rounded-full border border-gray-100 shadow-sm transition-all"
 											aria-label="Quitar línea">
 											<X size={16} />
 										</button>
@@ -365,12 +365,12 @@ export const BudgetsSection = ({
 											/>
 										</div>
 										<div>
-											<label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-2 block mb-1">Precio Total (IVA inc.)</label>
+											<label className="text-[10px] font-black text-rose-700 uppercase tracking-widest ml-2 block mb-1">Precio Total (IVA inc.)</label>
 											<input
 												type="number"
 												min="0"
 												step="0.01"
-												className="w-full p-4 bg-rose-50/30 border-2 border-rose-100 rounded-2xl font-black text-rose-600 text-lg outline-none focus:border-rose-300 transition-colors"
+												className="w-full p-4 bg-rose-50/30 border-2 border-rose-100 rounded-2xl font-black text-rose-700 text-lg outline-none focus:border-rose-300 transition-colors"
 												value={ln.unit_price_ttc}
 												onChange={(e) =>
 													updateLine(idx, {
@@ -404,7 +404,7 @@ export const BudgetsSection = ({
 							<button
 								type="button"
 								onClick={addLine}
-								className="w-full py-4 border-2 border-dashed border-gray-200 text-gray-400 hover:text-rose-500 hover:border-rose-200 hover:bg-rose-50/30 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
+								className="w-full py-4 border-2 border-dashed border-gray-200 text-gray-400 hover:text-rose-700 hover:border-rose-200 hover:bg-rose-50/30 rounded-2xl font-black text-xs uppercase tracking-widest transition-all">
 								+ Añadir otra línea
 							</button>
 						</div>
@@ -449,7 +449,7 @@ export const BudgetsSection = ({
 				<button
 					type="button"
 					onClick={openNew}
-					className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-black bg-rose-500 text-white shadow-lg hover:shadow-xl hover:bg-rose-600 hover:-translate-y-0.5 transition-all">
+					className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-black bg-rose-700 text-white shadow-lg hover:shadow-xl hover:bg-rose-800 hover:-translate-y-0.5 transition-all">
 					<Plus size={20} /> Crear Presupuesto
 				</button>
 			</div>
@@ -483,46 +483,49 @@ export const BudgetsSection = ({
 						return (
 							<div
 								key={b.id}
-								className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md hover:border-gray-200 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-6 group">
-								<div className="min-w-0 flex-1">
-									<div className="flex items-center gap-3 mb-1">
-										<p className="font-black text-gray-900 text-lg">{title || "Presupuesto sin título"}</p>
-										<span className="px-2.5 py-1 bg-gray-100 text-gray-500 rounded-lg text-[10px] font-black uppercase tracking-wider">
-											{dateStr}
-										</span>
+								className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+								<div className="min-w-0">
+									<div className="flex items-center gap-2">
+										<p className="font-bold text-gray-800">{title || "Presupuesto sin título"}</p>
+										<span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-bold uppercase">{dateStr}</span>
 									</div>
-									<p className="text-sm font-bold text-rose-500 mb-3">{name}</p>
-									<div className="flex items-baseline gap-3">
-										<p className="text-xl font-black text-gray-900">{formatCurrency(total)}</p>
+									<p className="text-xs text-rose-700 font-semibold mt-0.5">{name}</p>
+								</div>
+
+								<div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto shrink-0">
+									<div className="text-left sm:text-right">
+										<div className="text-lg font-black text-gray-900 leading-none">
+											{formatCurrency(total)}
+										</div>
 										{totalDiscount > 0 && (
-											<p className="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md">
-												-{formatCurrency(totalDiscount)} ahorrado
-											</p>
+											<div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded mt-1 inline-block">
+												-{formatCurrency(totalDiscount)}
+											</div>
 										)}
 									</div>
-								</div>
-								<div className="flex flex-wrap gap-2 shrink-0">
-									{onStartSessionFromBudget && (
+									<div className="flex gap-2 shrink-0">
+										{onStartSessionFromBudget && (
+											<button
+												type="button"
+												onClick={() => startSessionFromBudget(b)}
+												className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold transition-colors">
+												<CalendarCheck size={16} /> Aplicar
+											</button>
+										)}
 										<button
 											type="button"
-											onClick={() => startSessionFromBudget(b)}
-											className="flex-1 lg:flex-none flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-dark hover:bg-gray-800 text-white text-sm font-bold shadow-sm transition-all">
-											<CalendarCheck size={16} /> Aplicar a Sesión
+											onClick={() => downloadPdf(b)}
+											className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold transition-colors">
+											<FileDown size={16} /> PDF
 										</button>
-									)}
-									<button
-										type="button"
-										onClick={() => downloadPdf(b)}
-										className="flex-1 lg:flex-none flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-gray-100 hover:border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-bold transition-all">
-										<FileDown size={16} /> Descargar PDF
-									</button>
-									<button
-										type="button"
-										onClick={() => setArchiveId(b.id)}
-										disabled={archiving}
-										className="flex-none flex justify-center items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-transparent text-gray-400 hover:bg-rose-50 hover:text-rose-600 transition-all group-hover:opacity-100 lg:opacity-0">
-										<Archive size={16} />
-									</button>
+										<button
+											type="button"
+											onClick={() => setArchiveId(b.id)}
+											disabled={archiving}
+											className="flex items-center justify-center w-9 h-9 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 transition-colors">
+											<Archive size={16} />
+										</button>
+									</div>
 								</div>
 							</div>
 						);

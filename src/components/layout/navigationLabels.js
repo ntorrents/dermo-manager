@@ -18,3 +18,21 @@ export const NAV_LABELS = {
 	financial_analysis: "Análisis Financiero",
 	assets: "Bienes de Inversión",
 };
+
+export const PATH_MAP = {
+	dashboard: "/",
+	clients: "/clientes",
+	treatments: "/tratamientos",
+	bonos: "/bonos",
+	consents: "/consentimientos",
+	inventory: "/inventario",
+	calendar: "/agenda",
+	finance_movements: "/finanzas/movimientos",
+	invoices: "/finanzas/facturas",
+	financial_analysis: "/finanzas/analisis",
+	suppliers: "/proveedores",
+	taxes: "/fiscalidad",
+	assets: "/fiscalidad/bienes-inversion",
+	settings: "/configuracion",
+	budgets: "/presupuestos"
+};

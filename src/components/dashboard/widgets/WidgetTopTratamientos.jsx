@@ -20,7 +20,7 @@ export const WidgetTopTratamientos = ({ topTreatments = [] }) => (
 								<div
 									className={`h-full rounded-lg transition-all ${
 										index === 0
-											? "bg-rose-500"
+											? "bg-rose-700"
 											: index === 1
 												? "bg-rose-400"
 												: index === 2

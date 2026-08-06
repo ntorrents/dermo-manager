@@ -47,7 +47,7 @@ export const LoginScreen = () => {
 			<div className="bg-white w-full max-w-md p-8 rounded-[2.5rem] shadow-xl border border-gray-100 animate-in fade-in zoom-in-95 duration-300">
 				{/* Logo / Header */}
 				<div className="text-center mb-10">
-					<div className="w-16 h-16 bg-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-rose-200 transform rotate-3">
+					<div className="w-16 h-16 bg-rose-700 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-rose-200 transform rotate-3">
 						<LayoutDashboard className="text-white" size={32} />
 					</div>
 					<h1 className="text-3xl font-black text-gray-800 tracking-tight">
@@ -66,7 +66,7 @@ export const LoginScreen = () => {
 						</label>
 						<div className="relative group">
 							<Mail
-								className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-rose-500 transition-colors"
+								className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-rose-700 transition-colors"
 								size={20}
 							/>
 							<input
@@ -86,7 +86,7 @@ export const LoginScreen = () => {
 						</label>
 						<div className="relative group">
 							<Lock
-								className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-rose-500 transition-colors"
+								className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-rose-700 transition-colors"
 								size={20}
 							/>
 							<input
@@ -107,7 +107,7 @@ export const LoginScreen = () => {
 					</div>
 
 					{error && (
-						<div className="p-4 bg-red-50 text-rose-600 text-sm font-bold rounded-2xl flex items-center gap-2 animate-in shake">
+						<div className="p-4 bg-red-50 text-rose-700 text-sm font-bold rounded-2xl flex items-center gap-2 animate-in shake">
 							<span className="w-1.5 h-1.5 bg-rose-600 rounded-full" />
 							{error}
 						</div>

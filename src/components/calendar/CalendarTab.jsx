@@ -339,7 +339,7 @@ export const CalendarTab = ({
 										new Date(gcStatus.last_sync_at).toLocaleString("es-ES")
 									:	"—"}
 									{gcStatus.last_error ?
-										<span className="text-rose-600"> · Error previo: {gcStatus.last_error}</span>
+										<span className="text-rose-700"> · Error previo: {gcStatus.last_error}</span>
 									:	null}
 								</p>
 							)}
@@ -554,7 +554,7 @@ export const CalendarTab = ({
 								onChange={(e) =>
 									setFormData({ ...formData, allDay: e.target.checked })
 								}
-								className="rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+								className="rounded border-gray-300 text-rose-700 focus:ring-rose-500"
 							/>
 							<span className="text-sm font-bold text-gray-700">
 								Todo el día
@@ -737,7 +737,7 @@ function SessionDetail({ entry, clients }) {
 				<span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
 					Importe
 				</span>
-				<p className="font-bold text-rose-600 mt-1 text-lg">
+				<p className="font-bold text-rose-700 mt-1 text-lg">
 					{formatCurrency(entry.amount ?? 0)}
 				</p>
 			</div>

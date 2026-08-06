@@ -316,7 +316,7 @@ export const TaxesTab = ({
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			<div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
 				<h2 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2">
-					<Landmark className="text-rose-500" size={28} /> Fiscalidad
+					<Landmark className="text-rose-700" size={28} /> Fiscalidad
 				</h2>
 				<div className="flex gap-3 flex-wrap">
 					<select
@@ -403,7 +403,7 @@ export const TaxesTab = ({
 					</p>
 					<p
 						className={`text-2xl font-black ${
-							resultadoOperativo >= 0 ? "text-emerald-600" : "text-rose-500"
+							resultadoOperativo >= 0 ? "text-emerald-600" : "text-rose-700"
 						}`}>
 						{formatCurrency(resultadoOperativo)}
 					</p>
@@ -424,7 +424,7 @@ export const TaxesTab = ({
 					</p>
 					<p
 						className={`text-2xl font-black ${
-							liquidacionIVA >= 0 ? "text-blue-600" : "text-rose-500"
+							liquidacionIVA >= 0 ? "text-blue-600" : "text-rose-700"
 						}`}>
 						{formatCurrency(liquidacionIVA)}
 					</p>
@@ -553,7 +553,7 @@ export const TaxesTab = ({
 							<button
 								type="button"
 								onClick={() => openFinanceIssues("missing_invoice")}
-								className="mt-2 text-[11px] font-bold text-rose-600 hover:underline">
+								className="mt-2 text-[11px] font-bold text-rose-700 hover:underline">
 								Ver en Finanzas
 							</button>
 						)}
@@ -569,7 +569,7 @@ export const TaxesTab = ({
 							<button
 								type="button"
 								onClick={() => openFinanceIssues("missing_nif")}
-								className="mt-2 text-[11px] font-bold text-rose-600 hover:underline">
+								className="mt-2 text-[11px] font-bold text-rose-700 hover:underline">
 								Ver en Finanzas
 							</button>
 						)}
@@ -585,7 +585,7 @@ export const TaxesTab = ({
 							<button
 								type="button"
 								onClick={() => openFinanceIssues("invalid_nif")}
-								className="mt-2 text-[11px] font-bold text-rose-600 hover:underline">
+								className="mt-2 text-[11px] font-bold text-rose-700 hover:underline">
 								Ver en Finanzas
 							</button>
 						)}
@@ -601,7 +601,7 @@ export const TaxesTab = ({
 							<button
 								type="button"
 								onClick={() => openFinanceIssues("missing_attachment")}
-								className="mt-2 text-[11px] font-bold text-rose-600 hover:underline">
+								className="mt-2 text-[11px] font-bold text-rose-700 hover:underline">
 								Ver en Finanzas
 							</button>
 						)}
@@ -627,7 +627,7 @@ export const TaxesTab = ({
 			{/* Desglose Mensual */}
 			<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
 				<h3 className="font-black text-gray-800 text-lg mb-4 flex items-center gap-2">
-					<BarChart3 className="text-rose-500" size={20} />
+					<BarChart3 className="text-rose-700" size={20} />
 					Desglose Mensual
 				</h3>
 				{monthlyBreakdown.length > 0 ? (
@@ -657,7 +657,7 @@ export const TaxesTab = ({
 										</div>
 										<div className="flex justify-between sm:block">
 											<span className="text-gray-500 font-medium">Gastos</span>
-											<span className="font-bold text-rose-500 sm:block">
+											<span className="font-bold text-rose-700 sm:block">
 												{formatCurrency(row.expense)}
 											</span>
 										</div>
@@ -667,7 +667,7 @@ export const TaxesTab = ({
 											</span>
 											<span
 												className={`font-bold sm:block ${
-													row.profit >= 0 ? "text-emerald-600" : "text-rose-500"
+													row.profit >= 0 ? "text-emerald-600" : "text-rose-700"
 												}`}>
 												{row.profit >= 0 ? "+" : ""}
 												{formatCurrency(row.profit)}
@@ -680,7 +680,7 @@ export const TaxesTab = ({
 											style={{ width: `${incomePct}%` }}
 										/>
 										<div
-											className="bg-rose-500"
+											className="bg-rose-700"
 											style={{ width: `${expensePct}%` }}
 										/>
 									</div>

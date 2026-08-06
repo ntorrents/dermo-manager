@@ -77,7 +77,7 @@ export const SessionPhotoThumbnail = ({
 						e.stopPropagation();
 						onEdit?.(photo);
 					}}
-					className="p-1.5 bg-white rounded-lg text-gray-700 hover:bg-rose-50 hover:text-rose-600 shadow"
+					className="p-1.5 bg-white rounded-lg text-gray-700 hover:bg-rose-50 hover:text-rose-700 shadow"
 					title="Editar">
 					<Edit2 size={14} />
 				</button>

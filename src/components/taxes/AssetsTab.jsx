@@ -191,7 +191,7 @@ export const AssetsTab = ({ user, showToast }) => {
 							<div className="mt-2 h-1.5 bg-slate-200 rounded-full overflow-hidden">
 								<div
 									className={`h-full rounded-full ${
-										investmentAnnualStatus.exceeded ? "bg-rose-500" : "bg-slate-800"
+										investmentAnnualStatus.exceeded ? "bg-rose-700" : "bg-slate-800"
 									}`}
 									style={{ width: `${investmentAnnualStatus.pct}%` }}
 								/>
@@ -199,7 +199,7 @@ export const AssetsTab = ({ user, showToast }) => {
 							<p
 								className={`mt-2 text-[10px] font-bold ${
 									investmentAnnualStatus.exceeded
-										? "text-rose-600"
+										? "text-rose-700"
 										: "text-slate-500"
 								}`}>
 								{investmentAnnualStatus.exceeded

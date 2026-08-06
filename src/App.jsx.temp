@@ -89,13 +89,11 @@ const TAB_META = {
 	dashboard: { title: "Resumen", subtitle: "Indicadores y widgets" },
 	clients: { title: "Clientes", subtitle: "Ficha, historial y documentos" },
 	treatments: { title: "Tratamientos", subtitle: "Servicios y sesiones" },
-	bonos: { title: "Bonos de Sesiones", subtitle: "Plantillas y bonos de clientes" },
-	consents: { title: "Consentimientos", subtitle: "Plantillas de consentimiento informado" },
-	budgets: { title: "Presupuestos", subtitle: "Presupuestos para clientes" },
-	inventory: { title: "Inventario", subtitle: "Materiales, stock y lotes" },
+	bonos: { title: "Bonos", subtitle: "Plantillas y bonos de clientes" },
+	documents: { title: "Documentos", subtitle: "Presupuestos y plantillas" },
+	inventory: { title: "Stock", subtitle: "Materiales y lotes" },
 	calendar: { title: "Agenda", subtitle: "Citas y recordatorios" },
 
-	finance_movements: { title: "Movimientos", subtitle: "Ingresos, gastos y recurrentes" },
 	finance: { title: "Movimientos", subtitle: "Ingresos, gastos y recurrentes" },
 	invoices: { title: "Facturas", subtitle: "Emitidas, filtros y estadísticas" },
 	financial_analysis: { title: "Análisis Financiero", subtitle: "Gráficos y reportes" },
@@ -111,16 +109,17 @@ const PATH_MAP = {
 	clients: "/clientes",
 	treatments: "/tratamientos",
 	bonos: "/bonos",
+	documents: "/documentos",
 	inventory: "/inventario",
 	calendar: "/agenda",
 	finance_movements: "/finanzas/movimientos",
-	invoices: "/finanzas/facturas",
+	invoices: "/facturacion",
 	financial_analysis: "/finanzas/analisis",
 	suppliers: "/proveedores",
-	taxes: "/fiscalidad",
-	assets: "/fiscalidad/bienes-inversion",
+	taxes: "/impuestos",
+	assets: "/impuestos/bienes-inversion",
 	settings: "/configuracion",
-	budgets: "/presupuestos"
+	budgets: "/finanzas/presupuestos"
 };
 
 const DermoManager = () => {
@@ -185,16 +184,16 @@ const DermoManager = () => {
 		if (p.startsWith("/clientes")) return "clients";
 		if (p.startsWith("/tratamientos")) return "treatments";
 		if (p.startsWith("/bonos")) return "bonos";
-		if (p.startsWith("/consentimientos")) return "consents";
+		if (p.startsWith("/documentos")) return "documents";
 		if (p.startsWith("/inventario")) return "inventory";
 		if (p.startsWith("/agenda")) return "calendar";
 		if (p.startsWith("/finanzas/movimientos")) return "finance_movements";
-		if (p.startsWith("/presupuestos")) return "budgets";
+		if (p.startsWith("/finanzas/presupuestos")) return "budgets";
 		if (p.startsWith("/finanzas/analisis")) return "financial_analysis";
-		if (p.startsWith("/finanzas/facturas")) return "invoices";
+		if (p.startsWith("/facturacion")) return "invoices";
 		if (p.startsWith("/proveedores")) return "suppliers";
-		if (p.startsWith("/fiscalidad/bienes-inversion")) return "assets";
-		if (p.startsWith("/fiscalidad")) return "taxes";
+		if (p.startsWith("/impuestos/bienes-inversion")) return "assets";
+		if (p.startsWith("/impuestos")) return "taxes";
 		if (p.startsWith("/configuracion")) return "settings";
 		return "dashboard";
 	}, [location.pathname]);
@@ -278,7 +277,7 @@ const DermoManager = () => {
 	const navigateToClientInvoices = useCallback((clientId) => {
 		if (!clientId) return;
 		setInvoicesNavIntent({ clientId, appliedAt: Date.now() });
-		navigate("/finanzas/facturas");
+		navigate("/facturacion");
 	}, []);
 
 	const navigateFinanceFromTaxChecklist = useCallback(({ year, quarter, issue }) => {
@@ -466,7 +465,7 @@ const DermoManager = () => {
 			<div className="min-h-screen flex items-center justify-center bg-slate-50">
 				<div className="flex flex-col items-center gap-4">
 					<Loader2 className="animate-spin text-rose-700" size={40} />
-					<p className="text-rose-700 font-medium">
+					<p className="text-rose-600 font-medium">
 						Sincronizando Datos...
 					</p>
 				</div>
@@ -512,9 +511,10 @@ const DermoManager = () => {
 				isSubmitting={sessionMutation.isPending}
 			/>
 			<Sidebar
+				activeTab={activeTab}
+				setActiveTab={setActiveTab}
 				companyName={clinic?.name}
 				collapsed={sidebarCollapsed}
-				setCollapsed={setSidebarCollapsed}
 			/>
 			<AppHeader
 				title={pageMeta.title}
@@ -532,16 +532,6 @@ const DermoManager = () => {
 				clinic={clinic}
 				onLogout={() => setShowLogout(true)}
 				onOpenSettings={goSettings}
-				reportingRange={reportingRange}
-				reportingPreset={reportingPreset}
-				setReportingPreset={setReportingPreset}
-				reportingAnchorYm={reportingAnchorYm}
-				setReportingAnchorYm={setReportingAnchorYm}
-				reportingCustomFrom={reportingCustomFrom}
-				setReportingCustomFrom={setReportingCustomFrom}
-				reportingCustomTo={reportingCustomTo}
-				setReportingCustomTo={setReportingCustomTo}
-				onReportingGoToday={goReportingToday}
 			/>
 			<main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-5 max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-5 min-h-[calc(100dvh-8rem)]">
 				{dataFetchErrors.length > 0 && (
@@ -571,197 +561,202 @@ const DermoManager = () => {
 							<Loader2 className="animate-spin text-rose-700" size={30} />
 						</div>
 					}>
+				{activeTab === "dashboard" && (
+					<DashboardTab
+						user={user}
+						entries={entries}
+						inventory={inventory}
+						batches={batches ?? []}
+						treatments={treatments}
+						appointments={appointments}
+						clients={clients}
+						reportingRange={reportingRange}
+						reportingPreset={reportingPreset}
+						setReportingPreset={setReportingPreset}
+						reportingAnchorYm={reportingAnchorYm}
+						setReportingAnchorYm={setReportingAnchorYm}
+						reportingCustomFrom={reportingCustomFrom}
+						setReportingCustomFrom={setReportingCustomFrom}
+						reportingCustomTo={reportingCustomTo}
+						setReportingCustomTo={setReportingCustomTo}
+						onReportingGoToday={goReportingToday}
+						userName={profile?.name}
+						onNavigateTab={setActiveTab}
+					/>
+				)}
+				{activeTab === "clients" && (
+					<ClientsTab
+						user={user}
+						showToast={showToastMsg}
+						profile={profile}
+						clients={clients}
+						onRefresh={refreshClients}
+						onNavigateToInvoices={navigateToClientInvoices}
+					/>
+				)}
+				{activeTab === "treatments" && (
+					<TreatmentsTab
+						user={user}
+						treatments={treatments}
+						inventory={inventory}
+						showToast={showToastMsg}
+						onSelectTreatment={setSelectedTreatment}
+						onRefresh={refreshData}
+					/>
+				)}
+				{activeTab === "bonos" && (
+					<RequirePlan>
+						<BonosTab
+							user={user}
+							clients={clients}
+							treatments={treatments}
+							showToast={showToastMsg}
+							onRefresh={refreshData}
+						/>
+					</RequirePlan>
+				)}
+				{activeTab === "inventory" && (
+					<InventoryTab
+						user={user}
+						inventory={inventory}
+						entries={entries}
+						showToast={showToastMsg}
+						onRefresh={refreshData}
+					/>
+				)}
+				{activeTab === "invoices" && (
+					<InvoicesTab
+						user={user}
+						entries={entries}
+						clients={clients}
+						profile={profile}
+						clinic={clinic}
+						showToast={showToastMsg}
+						reportingRange={reportingRange}
+						reportingPreset={reportingPreset}
+						setReportingPreset={setReportingPreset}
+						reportingAnchorYm={reportingAnchorYm}
+						setReportingAnchorYm={setReportingAnchorYm}
+						reportingCustomFrom={reportingCustomFrom}
+						setReportingCustomFrom={setReportingCustomFrom}
+						reportingCustomTo={reportingCustomTo}
+						setReportingCustomTo={setReportingCustomTo}
+						onReportingGoToday={goReportingToday}
+						navIntent={invoicesNavIntent}
+						onNavIntentConsumed={clearInvoicesNavIntent}
+					/>
+				)}
+												{activeTab === "finance_movements" && (
+					<FinanceMovementsTab
+						user={user}
+						entries={entries}
+						clients={clients}
+						reportingRange={reportingRange}
+						reportingPreset={reportingPreset}
+						setReportingPreset={setReportingPreset}
+						reportingAnchorYm={reportingAnchorYm}
+						setReportingAnchorYm={setReportingAnchorYm}
+						reportingCustomFrom={reportingCustomFrom}
+						setReportingCustomFrom={setReportingCustomFrom}
+						reportingCustomTo={reportingCustomTo}
+						setReportingCustomTo={setReportingCustomTo}
+						onReportingGoToday={goReportingToday}
+						showToast={showToastMsg}
+						onRefresh={refreshData}
+						navIntent={financeNavIntent}
+						onNavIntentConsumed={clearFinanceNavIntent}
+					/>
+				)}
+				{activeTab === "financial_analysis" && (
+					
+						<FinancialAnalysisTab
+							user={user}
+							entries={entries}
+							clients={clients}
+							showToast={showToastMsg}
+							reportingPreset={reportingPreset}
+							setReportingPreset={setReportingPreset}
+							reportingAnchorYm={reportingAnchorYm}
+							setReportingAnchorYm={setReportingAnchorYm}
+							reportingCustomFrom={reportingCustomFrom}
+							setReportingCustomFrom={setReportingCustomFrom}
+							reportingCustomTo={reportingCustomTo}
+							setReportingCustomTo={setReportingCustomTo}
+							reportingRange={reportingRange}
+							onReportingGoToday={goReportingToday}
+						/>
+					
+				)}
+				{activeTab === "consents" && (
+					<ConsentTemplatesTab
+						user={user}
+						showToast={showToastMsg}
+					/>
+				)}
+				{activeTab === "budgets" && (
+					<RequirePlan>
+						<BudgetsTab
+							user={user}
+							clients={clients}
+							treatments={treatments}
+							profile={profile}
+							showToast={showToastMsg}
+							onStartSessionFromBudget={startSessionFromBudget}
+						/>
+					</RequirePlan>
+				)}
+				{activeTab === "calendar" && (
+					<CalendarTab
+						user={user}
+						entries={entries}
+						appointments={appointments}
+						clients={clients}
+						treatments={treatments}
+						showToast={showToastMsg}
+						onRefresh={refreshAppointments}
+					/>
+				)}
+								{activeTab === "assets" && (
+					
+						<AssetsTab
+							user={user}
+							showToast={showToastMsg}
+						/>
+					
+				)}
+{activeTab === "taxes" && (
+					<TaxesTab
+						entries={entries}
+						clients={clients}
+						user={user}
+						showToast={showToastMsg}
+						onNavigateFinanceIssues={navigateFinanceFromTaxChecklist}
+					/>
+				)}
+				{activeTab === "suppliers" && (
+					<SuppliersTab
+						entries={entries}
+						showToast={showToastMsg}
+						onRefresh={refreshData}
+					/>
+				)}
+				{activeTab === "settings" && (
+					<SettingsTab
+						user={user}
+						profile={profile}
+						showToast={showToastMsg}
+						navigateAnchor={settingsAnchor}
+						onNavigateAnchorConsumed={clearSettingsAnchor}
+					/>
+				)}
 				
-					<Routes>
-						<Route path="/" element={
-							<DashboardTab
-								user={user}
-								entries={entries}
-								inventory={inventory}
-								batches={batches ?? []}
-								treatments={treatments}
-								appointments={appointments}
-								clients={clients}
-								reportingRange={reportingRange}
-								reportingPreset={reportingPreset}
-								setReportingPreset={setReportingPreset}
-								reportingAnchorYm={reportingAnchorYm}
-								setReportingAnchorYm={setReportingAnchorYm}
-								reportingCustomFrom={reportingCustomFrom}
-								setReportingCustomFrom={setReportingCustomFrom}
-								reportingCustomTo={reportingCustomTo}
-								setReportingCustomTo={setReportingCustomTo}
-								onReportingGoToday={goReportingToday}
-								userName={profile?.name}
-								onNavigateTab={setActiveTab}
-							/>
-						} />
-						<Route path="/clientes/*" element={
-							<ClientsTab
-								user={user}
-								showToast={showToastMsg}
-								profile={profile}
-								clients={clients}
-								onRefresh={refreshClients}
-								onNavigateToInvoices={navigateToClientInvoices}
-							/>
-						} />
-						<Route path="/tratamientos" element={
-							<TreatmentsTab
-								user={user}
-								treatments={treatments}
-								inventory={inventory}
-								showToast={showToastMsg}
-								onSelectTreatment={setSelectedTreatment}
-								onRefresh={refreshData}
-							/>
-						} />
-						<Route path="/bonos" element={
-							<RequirePlan>
-								<BonosTab
-									user={user}
-									clients={clients}
-									treatments={treatments}
-									showToast={showToastMsg}
-									onRefresh={refreshData}
-								/>
-							</RequirePlan>
-						} />
-						<Route path="/inventario" element={
-							<InventoryTab
-								user={user}
-								inventory={inventory}
-								entries={entries}
-								showToast={showToastMsg}
-								onRefresh={refreshData}
-							/>
-						} />
-						<Route path="/finanzas/facturas" element={
-							<InvoicesTab
-								user={user}
-								entries={entries}
-								clients={clients}
-								profile={profile}
-								clinic={clinic}
-								showToast={showToastMsg}
-								reportingRange={reportingRange}
-								reportingPreset={reportingPreset}
-								setReportingPreset={setReportingPreset}
-								reportingAnchorYm={reportingAnchorYm}
-								setReportingAnchorYm={setReportingAnchorYm}
-								reportingCustomFrom={reportingCustomFrom}
-								setReportingCustomFrom={setReportingCustomFrom}
-								reportingCustomTo={reportingCustomTo}
-								setReportingCustomTo={setReportingCustomTo}
-								onReportingGoToday={goReportingToday}
-								navIntent={invoicesNavIntent}
-								onNavIntentConsumed={clearInvoicesNavIntent}
-							/>
-						} />
-						<Route path="/finanzas/movimientos" element={
-							<FinanceMovementsTab
-								user={user}
-								entries={entries}
-								clients={clients}
-								reportingRange={reportingRange}
-								reportingPreset={reportingPreset}
-								setReportingPreset={setReportingPreset}
-								reportingAnchorYm={reportingAnchorYm}
-								setReportingAnchorYm={setReportingAnchorYm}
-								reportingCustomFrom={reportingCustomFrom}
-								setReportingCustomFrom={setReportingCustomFrom}
-								reportingCustomTo={reportingCustomTo}
-								setReportingCustomTo={setReportingCustomTo}
-								onReportingGoToday={goReportingToday}
-								showToast={showToastMsg}
-								onRefresh={refreshData}
-								navIntent={financeNavIntent}
-								onNavIntentConsumed={clearFinanceNavIntent}
-							/>
-						} />
-						<Route path="/finanzas/analisis" element={
-							<FinancialAnalysisTab
-								user={user}
-								entries={entries}
-								clients={clients}
-								showToast={showToastMsg}
-								reportingPreset={reportingPreset}
-								setReportingPreset={setReportingPreset}
-								reportingAnchorYm={reportingAnchorYm}
-								setReportingAnchorYm={setReportingAnchorYm}
-								reportingCustomFrom={reportingCustomFrom}
-								setReportingCustomFrom={setReportingCustomFrom}
-								reportingCustomTo={reportingCustomTo}
-								setReportingCustomTo={setReportingCustomTo}
-								reportingRange={reportingRange}
-								onReportingGoToday={goReportingToday}
-							/>
-						} />
-						<Route path="/consentimientos" element={
-							<ConsentTemplatesTab
-								user={user}
-								showToast={showToastMsg}
-							/>
-						} />
-						<Route path="/presupuestos" element={
-							<RequirePlan>
-								<BudgetsTab
-									user={user}
-									clients={clients}
-									treatments={treatments}
-									profile={profile}
-									showToast={showToastMsg}
-									onStartSessionFromBudget={startSessionFromBudget}
-								/>
-							</RequirePlan>
-						} />
-						<Route path="/agenda/*" element={
-							<CalendarTab
-								user={user}
-								entries={entries}
-								appointments={appointments}
-								clients={clients}
-								treatments={treatments}
-								showToast={showToastMsg}
-								onRefresh={refreshAppointments}
-							/>
-						} />
-						<Route path="/fiscalidad/bienes-inversion" element={
-							<AssetsTab
-								user={user}
-								showToast={showToastMsg}
-							/>
-						} />
-						<Route path="/fiscalidad" element={
-							<TaxesTab
-								entries={entries}
-								clients={clients}
-								user={user}
-								showToast={showToastMsg}
-								onNavigateFinanceIssues={navigateFinanceFromTaxChecklist}
-							/>
-						} />
-						<Route path="/proveedores" element={
-							<SuppliersTab
-								entries={entries}
-								showToast={showToastMsg}
-								onRefresh={refreshData}
-							/>
-						} />
-						<Route path="/configuracion" element={
-							<SettingsTab
-								user={user}
-								profile={profile}
-								showToast={showToastMsg}
-								navigateAnchor={settingsAnchor}
-								onNavigateAnchorConsumed={clearSettingsAnchor}
-							/>
-						} />
-						<Route path="*" element={<Navigate to="/" replace />} />
-					</Routes>
-</Suspense>
+			</Suspense>
 			</main>
-			<MobileNav className="md:hidden" />
+			<MobileNav
+				activeTab={activeTab}
+				setActiveTab={setActiveTab}
+				className="md:hidden"
+			/>
 		</div>
 	);
 };

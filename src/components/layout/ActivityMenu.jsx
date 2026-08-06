@@ -97,7 +97,7 @@ export const ActivityMenu = ({ clinicId, isAdmin, onOpenFullAudit }) => {
 					</div>
 					<div className="max-h-72 overflow-y-auto custom-scrollbar py-1">
 						{loading ? (
-							<div className="flex justify-center py-8 text-rose-500">
+							<div className="flex justify-center py-8 text-rose-700">
 								<Loader2 className="animate-spin" size={22} />
 							</div>
 						) : error?.message ? (
@@ -111,7 +111,7 @@ export const ActivityMenu = ({ clinicId, isAdmin, onOpenFullAudit }) => {
 							rows.map((r) => (
 								<div key={r.id} className="px-4 py-2.5 hover:bg-gray-50 border-b border-gray-50 last:border-0">
 									<p className="text-xs font-semibold text-gray-800 line-clamp-2">
-										<span className="text-rose-600">{auditActionLabel(r.action)}</span>
+										<span className="text-rose-700">{auditActionLabel(r.action)}</span>
 										{" · "}
 										{auditEntityLabel(r.entity_type)}
 									</p>
@@ -127,7 +127,7 @@ export const ActivityMenu = ({ clinicId, isAdmin, onOpenFullAudit }) => {
 							setOpen(false);
 							onOpenFullAudit?.();
 						}}
-						className="w-full border-t border-gray-100 px-4 py-2.5 text-center text-xs font-bold text-rose-600 hover:bg-rose-50">
+						className="w-full border-t border-gray-100 px-4 py-2.5 text-center text-xs font-bold text-rose-700 hover:bg-rose-50">
 						Ver auditoría completa
 					</button>
 				</div>

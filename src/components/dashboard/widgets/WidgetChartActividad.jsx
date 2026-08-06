@@ -5,7 +5,7 @@ import { DailyBarChart } from "../DailyBarChart";
 export const WidgetChartActividad = ({ currentData, chartMonthYm, reportingPreset }) => (
 	<div className="h-full min-h-[320px] w-full bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
 		<h3 className="font-bold text-lg text-gray-800 mb-6 flex items-center gap-2">
-			<BarChart3 className="text-rose-500" size={20} /> Actividad{" "}
+			<BarChart3 className="text-rose-700" size={20} /> Actividad{" "}
 			{reportingPreset === "month" ? "diaria" : "del periodo"}
 		</h3>
 		<div className="h-64">

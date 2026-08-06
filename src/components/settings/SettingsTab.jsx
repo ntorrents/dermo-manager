@@ -412,7 +412,7 @@ export const SettingsTab = ({
 			key={id}
 			onClick={onClick}
 			className="w-full text-left bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-rose-200 hover:shadow-md transition-all flex items-center gap-4 group">
-			<div className="shrink-0 w-12 h-12 rounded-xl bg-rose-50 text-rose-500 flex items-center justify-center group-hover:bg-rose-100">
+			<div className="shrink-0 w-12 h-12 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center group-hover:bg-rose-100">
 				<Icon size={22} />
 			</div>
 			<div className="flex-1 min-w-0">
@@ -705,7 +705,7 @@ export const SettingsTab = ({
 					{subHeader("Perfiles del equipo")}
 					<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-4">
 						<h4 className="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
-							<UserPlus size={16} className="text-rose-500" /> Añadir persona
+							<UserPlus size={16} className="text-rose-700" /> Añadir persona
 						</h4>
 						<p className="text-xs text-gray-500 mb-3">
 							La cuenta debe existir ya (mismo correo con el que se registró en la app). Se asignará a esta
@@ -738,7 +738,7 @@ export const SettingsTab = ({
 							<button
 								type="submit"
 								disabled={inviting}
-								className="bg-rose-500 text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-rose-600 disabled:opacity-50 flex items-center justify-center gap-2">
+								className="bg-rose-700 text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-rose-800 disabled:opacity-50 flex items-center justify-center gap-2">
 								{inviting ? <Loader2 className="animate-spin" size={16} /> : <UserPlus size={16} />}
 								Añadir
 							</button>
@@ -764,7 +764,7 @@ export const SettingsTab = ({
 												<p className="font-bold text-gray-800 truncate">{display}</p>
 												<p className="text-xs text-gray-500 truncate">{p.email || m.userId}</p>
 												{isSelf && (
-													<span className="text-[10px] font-bold text-rose-600 uppercase">Tú</span>
+													<span className="text-[10px] font-bold text-rose-700 uppercase">Tú</span>
 												)}
 											</div>
 											<div className="flex flex-wrap items-center gap-2">
@@ -788,7 +788,7 @@ export const SettingsTab = ({
 													<button
 														type="button"
 														onClick={() => setConfirmRemove({ userId: m.userId, label: display })}
-														className="text-xs font-bold text-rose-600 hover:underline px-2">
+														className="text-xs font-bold text-rose-700 hover:underline px-2">
 														Quitar
 													</button>
 												)}
@@ -807,7 +807,7 @@ export const SettingsTab = ({
 					{subHeader("Cuenta y seguridad")}
 					<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-4">
 						<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-							<Lock size={20} className="text-rose-500" /> Acceso
+							<Lock size={20} className="text-rose-700" /> Acceso
 						</h3>
 
 						{isGoogleUser ? (
@@ -886,7 +886,7 @@ export const SettingsTab = ({
 										<button
 											onClick={handleUpdatePassword}
 											disabled={loadingPass || !password}
-											className="bg-rose-50 text-rose-600 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-100 flex items-center gap-2">
+											className="bg-rose-50 text-rose-700 px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-rose-100 flex items-center gap-2">
 											{loadingPass ? <Loader2 className="animate-spin" size={16} /> : <ShieldAlert size={16} />}{" "}
 											Actualizar contraseña
 										</button>
@@ -915,7 +915,7 @@ export const SettingsTab = ({
 					<div className="text-center pt-2">
 						<button
 							onClick={logout}
-							className="text-rose-500 font-bold flex items-center gap-2 mx-auto hover:bg-rose-50 px-8 py-3 rounded-xl border border-transparent hover:border-rose-100">
+							className="text-rose-700 font-bold flex items-center gap-2 mx-auto hover:bg-rose-50 px-8 py-3 rounded-xl border border-transparent hover:border-rose-100">
 							<LogOut size={18} /> Cerrar sesión
 						</button>
 					</div>
@@ -951,7 +951,7 @@ export const SettingsTab = ({
 								type="button"
 								onClick={() => refreshAudit()}
 								disabled={auditLoading}
-								className="text-sm font-bold text-rose-600 hover:bg-rose-50 px-4 py-2 rounded-xl border border-rose-100 disabled:opacity-50">
+								className="text-sm font-bold text-rose-700 hover:bg-rose-50 px-4 py-2 rounded-xl border border-rose-100 disabled:opacity-50">
 								{auditLoading ? "Cargando…" : "Actualizar"}
 							</button>
 						</div>
@@ -1009,7 +1009,7 @@ export const SettingsTab = ({
 															<span className="text-gray-400">—</span>
 														)}
 													</td>
-													<td className="px-3 py-2 text-xs font-semibold text-rose-600 whitespace-nowrap">
+													<td className="px-3 py-2 text-xs font-semibold text-rose-700 whitespace-nowrap">
 														{auditActionLabel(r.action)}
 													</td>
 													<td className="px-3 py-2 text-xs text-gray-700 whitespace-nowrap">

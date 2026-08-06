@@ -21,7 +21,7 @@ export const WidgetKpiFacturacion = ({
 			<p className="text-3xl font-black text-slate-800 tracking-tight">{formatCurrency(current)}</p>
 			<p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide flex items-center gap-1">
 				{pctChange !== 0 && (
-					<span className={pctChange > 0 ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
+					<span className={pctChange > 0 ? "text-emerald-600 font-bold" : "text-rose-700 font-bold"}>
 						{pctChange > 0 ? "+" : ""}
 						{pctChange.toFixed(1)}%
 					</span>

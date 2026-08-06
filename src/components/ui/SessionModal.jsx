@@ -194,7 +194,7 @@ export const SessionModal = ({
 						<h3 className="text-2xl font-black text-gray-800 tracking-tight leading-none">
 							Nueva Sesión
 						</h3>
-						<p className="text-rose-500 font-bold mt-2 text-lg">
+						<p className="text-rose-700 font-bold mt-2 text-lg">
 							{treatment.name}
 						</p>
 					</div>
@@ -217,7 +217,7 @@ export const SessionModal = ({
 						{!selectedClient ? (
 							<div className="relative group">
 								<Search
-									className="absolute left-4 top-4 text-gray-400 group-focus-within:text-rose-500 transition-colors"
+									className="absolute left-4 top-4 text-gray-400 group-focus-within:text-rose-700 transition-colors"
 									size={20}
 								/>
 								<input
@@ -244,7 +244,7 @@ export const SessionModal = ({
 														setIsClientDropdownOpen(false);
 													}}
 													className="w-full text-left p-4 hover:bg-rose-50 flex items-center gap-3 transition-colors border-b border-gray-50 last:border-0">
-													<div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-black text-xs">
+													<div className="w-8 h-8 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-black text-xs">
 														{(client.name || "?")[0]}
 													</div>
 													<div>
@@ -265,7 +265,7 @@ export const SessionModal = ({
 						) : (
 							<div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex justify-between items-center animate-in fade-in slide-in-from-bottom-2">
 								<div className="flex items-center gap-3">
-									<div className="w-10 h-10 rounded-xl bg-white text-rose-500 flex items-center justify-center font-black shadow-sm">
+									<div className="w-10 h-10 rounded-xl bg-white text-rose-700 flex items-center justify-center font-black shadow-sm">
 										{selectedClient.name[0]}
 									</div>
 									<div>
@@ -279,7 +279,7 @@ export const SessionModal = ({
 								</div>
 								<button
 									onClick={() => setSelectedClient(null)}
-									className="text-xs font-black bg-white text-gray-400 hover:text-rose-500 px-3 py-2 rounded-lg border border-gray-100 transition-colors">
+									className="text-xs font-black bg-white text-gray-400 hover:text-rose-700 px-3 py-2 rounded-lg border border-gray-100 transition-colors">
 									CAMBIAR
 								</button>
 							</div>
@@ -391,7 +391,7 @@ export const SessionModal = ({
 							</p>
 							<button
 								onClick={addExtra}
-								className="text-[10px] font-black uppercase text-rose-500 flex items-center gap-1 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors">
+								className="text-[10px] font-black uppercase text-rose-700 flex items-center gap-1 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors">
 								<Plus size={12} /> Añadir Extra
 							</button>
 						</div>
@@ -426,7 +426,7 @@ export const SessionModal = ({
 											<button
 												type="button"
 												onClick={() => removeFromRecipe(idx)}
-												className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg hover:bg-red-50 transition-colors shrink-0"
+												className="p-1.5 text-gray-400 hover:text-rose-700 rounded-lg hover:bg-red-50 transition-colors shrink-0"
 												title="Eliminar de esta sesión">
 												<Trash2 size={14} />
 											</button>
@@ -477,7 +477,7 @@ export const SessionModal = ({
 										<button
 											type="button"
 											onClick={() => removeExtra(idx)}
-											className="text-gray-400 hover:text-rose-600"
+											className="text-gray-400 hover:text-rose-700"
 											title="Eliminar extra">
 											<Trash2 size={14} />
 										</button>
@@ -534,7 +534,7 @@ export const SessionModal = ({
 						{isSubmitting ? (
 							<Loader2 size={20} className="animate-spin" />
 						) : (
-							<Calendar size={20} className="text-rose-500" />
+							<Calendar size={20} className="text-rose-700" />
 						)}
 						{isSubmitting ? "Guardando..." : "Confirmar Sesión"}
 					</button>

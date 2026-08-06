@@ -3,8 +3,6 @@ import { PanelLeftClose, PanelLeft } from "lucide-react";
 import { GlobalSearch } from "./GlobalSearch";
 import { UserMenu } from "./UserMenu";
 import { AlertsMenu } from "./AlertsMenu";
-import { GlobalDateFilter } from "./GlobalDateFilter";
-
 
 export const AppHeader = ({
 	title,
@@ -23,16 +21,6 @@ export const AppHeader = ({
 	onLogout,
 	onOpenSettings,
 	showSidebarToggle = true,
-	reportingRange,
-	reportingPreset,
-	setReportingPreset,
-	reportingAnchorYm,
-	setReportingAnchorYm,
-	reportingCustomFrom,
-	setReportingCustomFrom,
-	reportingCustomTo,
-	setReportingCustomTo,
-	onReportingGoToday,
 }) => {
 	return (
 		<header className="sticky top-0 z-40 border-b border-gray-200/80 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/75 shadow-sm">
@@ -66,20 +54,6 @@ export const AppHeader = ({
 							inventory={inventory}
 							setActiveTab={setActiveTab}
 							variant="toolbar"
-						/>
-					</div>
-					<div className="hidden sm:block">
-						<GlobalDateFilter
-							preset={reportingPreset}
-							onPresetChange={setReportingPreset}
-							anchorYm={reportingAnchorYm}
-							onAnchorYmChange={setReportingAnchorYm}
-							customFrom={reportingCustomFrom}
-							customTo={reportingCustomTo}
-							onCustomFromChange={setReportingCustomFrom}
-							onCustomToChange={setReportingCustomTo}
-							rangeLabel={reportingRange?.label}
-							onTodayClick={onReportingGoToday}
 						/>
 					</div>
 					<AlertsMenu

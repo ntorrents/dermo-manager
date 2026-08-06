@@ -11,7 +11,8 @@ import {
 	FileText,
 } from "lucide-react";
 import { useTenant } from "../../context/TenantContext";
-import { NAV_LABELS } from "./navigationLabels";
+import { NAV_LABELS, PATH_MAP } from "./navigationLabels";
+import { useNavigate } from "react-router-dom";
 
 const DRAWER_ITEMS = [
 	{ id: "calendar", label: NAV_LABELS.calendar, icon: Calendar },
@@ -24,7 +25,8 @@ const DRAWER_ITEMS = [
 	{ id: "settings", label: NAV_LABELS.settings, icon: Settings },
 ];
 
-export const MobileDrawer = ({ isOpen, onClose, activeTab, setActiveTab }) => {
+export const MobileDrawer = ({ isOpen, onClose, activeTabId }) => {
+	const navigate = useNavigate();
 	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
 
 	const drawerItems = useMemo(
@@ -88,8 +90,8 @@ export const MobileDrawer = ({ isOpen, onClose, activeTab, setActiveTab }) => {
 							key={item.id}
 							onClick={() => handleSelect(item.id)}
 							className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-left transition-colors ${
-								activeTab === item.id
-									? "bg-rose-500 text-white"
+								activeTabId === item.id
+									? "bg-rose-700 text-white"
 									: "text-gray-600 hover:bg-gray-50"
 							}`}>
 							<item.icon size={20} />

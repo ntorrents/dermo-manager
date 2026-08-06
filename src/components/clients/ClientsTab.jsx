@@ -517,7 +517,7 @@ export const ClientsTab = ({
 						<h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">Datos Generales</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 							<div>
-								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Nombre <span className="text-rose-500">*</span></label>
+								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Nombre <span className="text-rose-700">*</span></label>
 								<input
 									required
 									className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold text-sm"
@@ -673,7 +673,7 @@ export const ClientsTab = ({
 							</div>
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 								<div>
-									<label className="text-[11px] font-black text-rose-600 uppercase block mb-1">Alergias</label>
+									<label className="text-[11px] font-black text-rose-700 uppercase block mb-1">Alergias</label>
 									<textarea
 										rows="2"
 										className={`w-full p-3 rounded-xl outline-none font-bold resize-none border-2 text-sm ${formData.allergies ? "bg-red-50 border-red-200 focus:border-red-300 text-red-900" : "bg-gray-50 border-transparent focus:bg-white focus:border-rose-100"}`}
@@ -954,7 +954,7 @@ export const ClientsTab = ({
 									<div className="flex justify-between items-end mb-6">
 										<div>
 											<h3 className="font-black text-slate-800 text-lg flex items-center gap-2">
-												<BookOpen size={20} className="text-rose-600" /> Línea de tiempo
+												<BookOpen size={20} className="text-rose-700" /> Línea de tiempo
 											</h3>
 											<p className="text-sm text-slate-500 mt-1">
 												Historial unificado de sesiones, facturación y notas de evolución.
@@ -983,9 +983,9 @@ export const ClientsTab = ({
 											<div className="flex justify-between items-center mb-4">
 												<h4 className="font-bold text-slate-800 flex items-center gap-2">
 													{editingVisitId ? (
-														<><Edit2 size={16} className="text-rose-500"/> Editar nota</>
+														<><Edit2 size={16} className="text-rose-700"/> Editar nota</>
 													) : (
-														<><Plus size={16} className="text-rose-500"/> Nueva nota</>
+														<><Plus size={16} className="text-rose-700"/> Nueva nota</>
 													)}
 												</h4>
 												<button
@@ -1149,7 +1149,7 @@ export const ClientsTab = ({
 																				<h4 className="font-bold text-slate-800">
 																					{session.description?.split("(")[0] || "Sesión Facturada"}
 																				</h4>
-																				{session.plan_amigo && <span className="text-[10px] font-black text-rose-600 bg-rose-50 px-2 py-0.5 rounded uppercase">Plan Amigo</span>}
+																				{session.plan_amigo && <span className="text-[10px] font-black text-rose-700 bg-rose-50 px-2 py-0.5 rounded uppercase">Plan Amigo</span>}
 																			</div>
 																			<div className="text-right shrink-0">
 																				<span className="block font-black text-slate-800 text-lg">
@@ -1162,7 +1162,7 @@ export const ClientsTab = ({
 																			{beforePhoto && <SessionPhotoThumbnail photo={beforePhoto} label="Antes" onView={openPhotoViewer} onEdit={handlePhotoEdit} onDelete={handlePhotoDelete} />}
 																			{afterPhoto && <SessionPhotoThumbnail photo={afterPhoto} label="Después" onView={openPhotoViewer} onEdit={handlePhotoEdit} onDelete={handlePhotoDelete} />}
 																			{extraPhotos.map((ph) => <SessionPhotoThumbnail key={ph.id} photo={ph} compact onView={openPhotoViewer} onEdit={handlePhotoEdit} onDelete={handlePhotoDelete} />)}
-																			<button onClick={() => { setPhotoUploadSession(session); setShowPhotoUploadModal(true); }} className="w-14 h-14 rounded-lg border-2 border-dashed border-slate-200 hover:border-rose-300 hover:bg-rose-50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors shrink-0" title="Añadir foto">
+																			<button onClick={() => { setPhotoUploadSession(session); setShowPhotoUploadModal(true); }} className="w-14 h-14 rounded-lg border-2 border-dashed border-slate-200 hover:border-rose-300 hover:bg-rose-50 flex items-center justify-center text-slate-400 hover:text-rose-700 transition-colors shrink-0" title="Añadir foto">
 																				<Camera size={16} />
 																			</button>
 																		</div>
@@ -1216,7 +1216,7 @@ export const ClientsTab = ({
 																					indicaciones_post: seg.indicaciones_post || "",
 																				});
 																				setVisitFormOpen(true);
-																			}} className="p-1.5 text-slate-400 hover:text-rose-600 rounded bg-white shadow-sm">
+																			}} className="p-1.5 text-slate-400 hover:text-rose-700 rounded bg-white shadow-sm">
 																				<Edit2 size={14} />
 																			</button>
 																			{canDeleteOperational && (
@@ -1228,7 +1228,7 @@ export const ClientsTab = ({
 																					} catch {
 																						showToast("Error al eliminar", "error");
 																					}
-																				}} className="p-1.5 text-slate-400 hover:text-rose-600 rounded bg-white shadow-sm">
+																				}} className="p-1.5 text-slate-400 hover:text-rose-700 rounded bg-white shadow-sm">
 																					<Trash2 size={14} />
 																				</button>
 																			)}
@@ -1418,7 +1418,7 @@ export const ClientsTab = ({
 
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 										<div>
-											<label className="text-[11px] font-black text-rose-500 uppercase tracking-widest mb-1 block ml-1">
+											<label className="text-[11px] font-black text-rose-700 uppercase tracking-widest mb-1 block ml-1">
 												Alergias / Contraindicaciones
 											</label>
 											<textarea
@@ -1524,7 +1524,7 @@ export const ClientsTab = ({
 										<div className="space-y-4">
 											<div className="flex justify-between items-center pb-2 border-b border-gray-100">
 												<h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
-													<Ticket size={16} className="text-rose-600" /> Bonos Activos
+													<Ticket size={16} className="text-rose-700" /> Bonos Activos
 												</h3>
 											</div>
 											
@@ -1570,7 +1570,7 @@ export const ClientsTab = ({
 																</p>
 																<div className="w-full bg-slate-100 h-2 rounded-full mt-1.5 overflow-hidden">
 																	<div 
-																		className={`h-full rounded-full transition-all ${isExhausted ? "bg-slate-400" : "bg-rose-500"}`}
+																		className={`h-full rounded-full transition-all ${isExhausted ? "bg-slate-400" : "bg-rose-700"}`}
 																		style={{ width: `${Math.min(pct, 100)}%` }}
 																	/>
 																</div>
@@ -1592,7 +1592,7 @@ export const ClientsTab = ({
 											<div className="space-y-4">
 												<div className="flex justify-between items-center pb-2 border-b border-gray-100">
 													<h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
-														<FileCheck size={16} className="text-rose-600" /> Consentimientos
+														<FileCheck size={16} className="text-rose-700" /> Consentimientos
 													</h3>
 													<button
 														onClick={() => {
@@ -1676,7 +1676,7 @@ export const ClientsTab = ({
 																			if (url) window.open(url, "_blank");
 																			else showToast("No se pudo generar el enlace", "error");
 																		} catch { showToast("Error al descargar", "error"); }
-																	}} className="p-2 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors">
+																	}} className="p-2 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors">
 																	<FileDown size={16} />
 																</button>
 															</div>
@@ -1852,7 +1852,7 @@ export const ClientsTab = ({
 										setConsentTreatmentId("");
 										setConsentTemplateId("");
 									}}
-									className="w-full py-4 bg-rose-500 hover:bg-rose-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2">
+									className="w-full py-4 bg-rose-700 hover:bg-rose-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-black rounded-xl transition-colors flex items-center justify-center gap-2">
 									<FileDown size={20} />
 									Generar PDF
 								</button>

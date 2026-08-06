@@ -50,7 +50,7 @@ export const ConfirmModal = ({
 				onClick={(e) => e.stopPropagation()}>
 				<div className="p-6 text-center">
 					<div
-						className={`mx-auto mb-4 w-12 h-12 rounded-full flex items-center justify-center ${isDestructive ? "bg-red-100 text-rose-700" : "bg-rose-100 text-rose-600"}`}>
+						className={`mx-auto mb-4 w-12 h-12 rounded-full flex items-center justify-center ${isDestructive ? "bg-red-100 text-rose-700" : "bg-rose-100 text-rose-700"}`}>
 						{isDestructive ? <LogOut size={24} /> : <AlertCircle size={24} />}
 					</div>
 					<h3 id="confirm-modal-title" className="text-lg font-bold text-gray-900 mb-2">
@@ -65,7 +65,7 @@ export const ConfirmModal = ({
 						</button>
 						<button
 							onClick={onConfirm}
-							className={`flex-1 px-4 py-2.5 text-white font-medium rounded-xl shadow-sm active:scale-95 ${isDestructive ? "bg-rose-600" : "bg-rose-500"}`}>
+							className={`flex-1 px-4 py-2.5 text-white font-medium rounded-xl shadow-sm active:scale-95 ${isDestructive ? "bg-rose-600" : "bg-rose-700"}`}>
 							Confirmar
 						</button>
 					</div>

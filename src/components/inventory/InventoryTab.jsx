@@ -571,7 +571,7 @@ export const InventoryTab = ({
 					</div>
 					{formData.item_type === "maquina" ? (
 						<div>
-							<label className="text-[11px] font-black text-rose-500 uppercase tracking-widest mb-2 block ml-1">
+							<label className="text-[11px] font-black text-rose-700 uppercase tracking-widest mb-2 block ml-1">
 								Coste por uso (€/sesión)
 							</label>
 							<input
@@ -579,7 +579,7 @@ export const InventoryTab = ({
 								step="0.01"
 								min="0"
 								placeholder="Ej: 10"
-								className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-rose-500 placeholder-rose-300"
+								className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-rose-700 placeholder-rose-300"
 								value={formData.costPerUse}
 								onChange={(e) =>
 									setFormData({ ...formData, costPerUse: e.target.value })
@@ -635,14 +635,14 @@ export const InventoryTab = ({
 					</div>
 					<div className="grid grid-cols-2 gap-4">
 						<div>
-							<label className="text-[11px] font-black text-rose-500 uppercase tracking-widest mb-2 block ml-1">
+							<label className="text-[11px] font-black text-rose-700 uppercase tracking-widest mb-2 block ml-1">
 								Coste Total (€)
 							</label>
 							<input
 								type="number"
 								step="0.01"
 								placeholder="Ej: 25.50"
-								className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-rose-500 placeholder-rose-300"
+								className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-rose-700 placeholder-rose-300"
 								value={formData.totalCost}
 								onChange={(e) =>
 									setFormData({ ...formData, totalCost: e.target.value })
@@ -727,7 +727,7 @@ export const InventoryTab = ({
 							</p>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-									Fecha de compra <span className="text-rose-500">*</span>
+									Fecha de compra <span className="text-rose-700">*</span>
 								</label>
 								<input
 									type="date"
@@ -741,7 +741,7 @@ export const InventoryTab = ({
 							</div>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-									Nº de Lote <span className="text-rose-500">*</span>
+									Nº de Lote <span className="text-rose-700">*</span>
 								</label>
 								<input
 									type="text"
@@ -756,7 +756,7 @@ export const InventoryTab = ({
 							</div>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-									Fecha de Caducidad <span className="text-rose-500">*</span>
+									Fecha de Caducidad <span className="text-rose-700">*</span>
 								</label>
 								<input
 									type="date"
@@ -778,7 +778,7 @@ export const InventoryTab = ({
 											is_deductible: e.target.checked,
 										})
 									}
-									className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-600"
+									className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-700"
 								/>
 								<span className="text-xs font-semibold text-gray-800">
 									Factura deducible (IVA en modelo 303)
@@ -792,7 +792,7 @@ export const InventoryTab = ({
 								<div className="space-y-4 pt-1 border-t border-amber-200">
 									<div>
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-											Proveedor (nombre) <span className="text-rose-500">*</span>
+											Proveedor (nombre) <span className="text-rose-700">*</span>
 										</label>
 										<input
 											type="text"
@@ -814,7 +814,7 @@ export const InventoryTab = ({
 									</div>
 									<div>
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-											NIF/CIF Proveedor <span className="text-rose-500">*</span>
+											NIF/CIF Proveedor <span className="text-rose-700">*</span>
 										</label>
 										<input
 											required
@@ -831,7 +831,7 @@ export const InventoryTab = ({
 									</div>
 									<div>
 										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-											Nº Factura Proveedor <span className="text-rose-500">*</span>
+											Nº Factura Proveedor <span className="text-rose-700">*</span>
 										</label>
 										<input
 											required
@@ -909,7 +909,7 @@ export const InventoryTab = ({
 						<form onSubmit={handleRestock} className="space-y-6">
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Fecha de compra <span className="text-rose-500">*</span>
+							Fecha de compra <span className="text-rose-700">*</span>
 						</label>
 						<input
 							type="date"
@@ -923,7 +923,7 @@ export const InventoryTab = ({
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Nº de Lote <span className="text-rose-500">*</span>
+							Nº de Lote <span className="text-rose-700">*</span>
 						</label>
 						<input
 							type="text"
@@ -938,7 +938,7 @@ export const InventoryTab = ({
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Fecha de Caducidad <span className="text-rose-500">*</span>
+							Fecha de Caducidad <span className="text-rose-700">*</span>
 						</label>
 						<input
 							type="date"
@@ -1032,7 +1032,7 @@ export const InventoryTab = ({
 					<>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Proveedor (nombre) <span className="text-rose-500">*</span>
+							Proveedor (nombre) <span className="text-rose-700">*</span>
 						</label>
 						<input
 							type="text"
@@ -1051,7 +1051,7 @@ export const InventoryTab = ({
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							NIF/CIF Proveedor <span className="text-rose-500">*</span>
+							NIF/CIF Proveedor <span className="text-rose-700">*</span>
 						</label>
 						<div className="relative">
 							<input
@@ -1119,7 +1119,7 @@ export const InventoryTab = ({
 					</div>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Nº Factura Proveedor <span className="text-rose-500">*</span>
+							Nº Factura Proveedor <span className="text-rose-700">*</span>
 						</label>
 						<input
 							required
@@ -1260,7 +1260,7 @@ export const InventoryTab = ({
 				<button
 					type="button"
 					onClick={() => openModal()}
-					className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors w-full md:w-auto shrink-0">
+					className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors w-full md:w-auto shrink-0">
 					<Plus size={20} /> Nuevo material o máquina
 				</button>
 			</div>
@@ -1328,7 +1328,7 @@ export const InventoryTab = ({
 										{canDeleteOperational && (
 											<button
 												onClick={() => handleDeleteClick(item)}
-												className="p-2 bg-red-50 text-rose-600 rounded-lg"
+												className="p-2 bg-red-50 text-rose-700 rounded-lg"
 												title="Eliminar">
 												<Trash2 size={16} />
 											</button>
@@ -1346,7 +1346,7 @@ export const InventoryTab = ({
 												(item.item_type || "material") === "maquina"
 													? "text-gray-800"
 													: item.stock <= item.min_stock
-														? "text-rose-600"
+														? "text-rose-700"
 														: "text-gray-800"
 											}`}>
 											{(item.item_type || "material") === "maquina"
@@ -1397,7 +1397,7 @@ export const InventoryTab = ({
 									className="hover:bg-gray-50/30 transition-colors group">
 									<td className="p-3">
 										<div className="flex items-center gap-4">
-											<div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-rose-50 group-hover:text-rose-500 transition-colors">
+											<div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-rose-50 group-hover:text-rose-700 transition-colors">
 												<Package size={24} />
 											</div>
 											<div>
@@ -1424,7 +1424,7 @@ export const InventoryTab = ({
 											<span
 												className={`px-4 py-1.5 rounded-full text-sm font-black shadow-sm ${
 													Number(item.stock) <= Number(item.min_stock)
-														? "bg-rose-50 text-rose-600 border border-rose-100"
+														? "bg-rose-50 text-rose-700 border border-rose-100"
 														: "bg-emerald-50 text-emerald-600 border border-emerald-100"
 												}`}>
 												{item.stock}
@@ -1483,7 +1483,7 @@ export const InventoryTab = ({
 											{canDeleteOperational && (
 												<button
 													onClick={() => handleDeleteClick(item)}
-													className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-rose-600 transition-all shadow-sm"
+													className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-rose-700 transition-all shadow-sm"
 													title="Eliminar material">
 													<Trash2 size={18} />
 												</button>

@@ -249,7 +249,7 @@ export const BonosTab = ({
 								min="0"
 								required
 								placeholder="0.00"
-								className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-rose-600"
+								className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-rose-700"
 								value={templateForm.default_price}
 								onChange={(e) =>
 									setTemplateForm({ ...templateForm, default_price: e.target.value })
@@ -317,7 +317,7 @@ export const BonosTab = ({
 														setSellClientDropdown(false);
 													}}
 													className="w-full text-left p-4 hover:bg-rose-50 flex items-center gap-3 border-b border-gray-50 last:border-0">
-													<div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-black text-xs">
+													<div className="w-8 h-8 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center font-black text-xs">
 														{(c.name || "?")[0]}
 													</div>
 													<span className="font-bold text-gray-800 text-sm">
@@ -341,7 +341,7 @@ export const BonosTab = ({
 								<button
 									type="button"
 									onClick={() => setSellForm((prev) => ({ ...prev, client_id: "" }))}
-									className="text-xs font-bold text-rose-600 hover:underline">
+									className="text-xs font-bold text-rose-700 hover:underline">
 									Cambiar
 								</button>
 							</div>
@@ -391,7 +391,7 @@ export const BonosTab = ({
 								min="0"
 								required
 								placeholder="0.00"
-								className="w-full p-4 bg-gray-50 rounded-2xl font-bold text-rose-600 outline-none border-2 border-transparent focus:border-rose-100"
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold text-rose-700 outline-none border-2 border-transparent focus:border-rose-100"
 								value={sellForm.price_paid}
 								onChange={(e) =>
 									setSellForm((prev) => ({ ...prev, price_paid: e.target.value }))
@@ -404,7 +404,7 @@ export const BonosTab = ({
 						loading={sellBono.isPending}
 						type="submit"
 						disabled={!sellForm.client_id || !sellForm.template_id}
-						className="w-full bg-rose-500 hover:bg-rose-600 text-white font-black py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed">
+						className="w-full bg-rose-700 hover:bg-rose-800 text-white font-black py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed">
 						Vender bono
 					</LoadingButton>
 				</form>
@@ -428,7 +428,7 @@ export const BonosTab = ({
 			{/* Header */}
 			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 				<h2 className="text-2xl xl:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-					<Ticket className="text-rose-500" size={28} /> Bonos de sesiones
+					<Ticket className="text-rose-700" size={28} /> Bonos de sesiones
 				</h2>
 				<div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
 					<button
@@ -440,78 +440,70 @@ export const BonosTab = ({
 					<button
 						type="button"
 						onClick={openSellModal}
-						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors w-full sm:w-auto order-1 sm:order-2">
+						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors w-full sm:w-auto order-1 sm:order-2">
 						<Plus size={20} /> Vender bono
 					</button>
 				</div>
 			</div>
 
-			{/* Plantillas de Bonos */}
-			<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-				<div className="p-4 sm:p-6 border-b border-gray-100">
-					<h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-						<Ticket size={20} className="text-rose-500" /> Plantillas de bonos
-					</h3>
-					<p className="text-sm text-gray-500 mt-1">
-						Catálogo de bonos que puedes vender a los pacientes.
-					</p>
-				</div>
-				<div className="p-4 sm:p-6">
-					{templatesLoading ? (
-						<div className="flex items-center justify-center py-12 gap-2 text-gray-400">
-							<Loader2 size={24} className="animate-spin" />
-							<span className="font-medium">Cargando plantillas...</span>
-						</div>
-					) : templates.length === 0 ? (
-						<EmptyState
-							icon={Ticket}
-							title="No hay plantillas"
-							description="Crea tu primera plantilla para poder vender bonos (ej. 5 sesiones de Bótox)."
-							actionLabel="Nueva plantilla"
-							onAction={() => openTemplateModal()}
-						/>
-					) : (
-						<>
-						<div className="grid gap-3">
-							{templates.map((t) => (
-								<div
-									key={t.id}
-									className="flex flex-wrap items-center justify-between gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-rose-100 transition-colors">
-									<div>
-										<p className="font-bold text-gray-900">{t.name}</p>
-										<p className="text-sm text-gray-500">
-											{t.treatments?.name ?? "Tratamiento"} · {t.total_sessions} sesiones
-										</p>
-									</div>
-									<div className="flex items-center gap-3">
-										<span className="font-black text-rose-600 text-lg">
-											{formatCurrency(t.default_price)}
-										</span>
-										<button
-											type="button"
-											onClick={() => openTemplateModal(t)}
-											className="p-2 bg-white text-gray-400 rounded-lg hover:bg-gray-100 hover:text-gray-600"
-											title="Editar">
-											<Edit2 size={16} />
-										</button>
-										<button
-											type="button"
-											onClick={() => {
-												setTemplateToDelete(t);
-												setShowDeleteTemplateModal(true);
-											}}
-											className="p-2 bg-white text-gray-400 rounded-lg hover:bg-red-50 hover:text-rose-600"
-											title="Eliminar">
-											<Trash2 size={16} />
-										</button>
-									</div>
-								</div>
-							))}
-						</div>
-						</>
-					)}
-				</div>
+			{/* Search */}
+			<div className="relative">
+				<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+				<input
+					className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-rose-100"
+					placeholder="Buscar por nombre de bono o tratamiento…"
+				/>
 			</div>
+
+			{/* Plantillas de Bonos */}
+			{templatesLoading ? (
+				<div className="flex items-center justify-center py-12 gap-2 text-gray-400">
+					<Loader2 size={24} className="animate-spin" />
+					<span className="font-medium">Cargando plantillas...</span>
+				</div>
+			) : templates.length === 0 ? (
+				<div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-400 text-sm">
+					<Ticket className="mx-auto mb-3 size-10 opacity-40 text-rose-400" />
+					No hay plantillas. Crea tu primera plantilla para poder vender bonos.
+				</div>
+			) : (
+				<div className="space-y-3">
+					{templates.map((t) => (
+						<div
+							key={t.id}
+							className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div className="min-w-0">
+								<p className="font-bold text-gray-800">{t.name}</p>
+								<p className="text-xs text-gray-500 mt-0.5">
+									{t.treatments?.name ?? "Tratamiento"} · {t.total_sessions} sesiones
+								</p>
+							</div>
+							<div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto shrink-0">
+								<div className="text-lg font-black text-rose-700">
+									{formatCurrency(t.default_price)}
+								</div>
+								<div className="flex gap-2 shrink-0">
+									<button
+										type="button"
+										onClick={() => openTemplateModal(t)}
+										className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold">
+										<Edit2 size={16} /> Editar
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											setTemplateToDelete(t);
+											setShowDeleteTemplateModal(true);
+										}}
+										className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-bold">
+										<Trash2 size={16} /> Eliminar
+									</button>
+								</div>
+							</div>
+						</div>
+					))}
+				</div>
+			)}
 
 			{/* Modal: Nueva/Editar plantilla */}
 			

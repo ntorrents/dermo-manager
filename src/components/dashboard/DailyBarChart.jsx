@@ -42,7 +42,7 @@ export const DailyBarChart = ({ data, currentMonth }) => {
 								className={`w-full rounded-t-sm transition-all duration-500 ease-out ${
 									d.amount > 0
 										? isToday
-											? "bg-rose-500"
+											? "bg-rose-700"
 											: "bg-rose-300 group-hover:bg-rose-400"
 										: "bg-gray-100 h-1"
 								}`}

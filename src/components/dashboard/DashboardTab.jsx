@@ -31,7 +31,6 @@ import {
 	CalendarDays,
 } from "lucide-react";
 import { filterByReportingRange } from "../../utils/dateUtils";
-import { ReportingPeriodToolbar } from "../ui/ReportingPeriodToolbar";
 import {
 	calculateStats,
 	calculateGrowth,
@@ -151,7 +150,7 @@ function SortableWidgetItem({
 						<button
 							type="button"
 							onClick={() => onRemove(widgetId)}
-							className="p-1.5 rounded text-rose-600 hover:bg-rose-50 shrink-0"
+							className="p-1.5 rounded text-rose-700 hover:bg-rose-50 shrink-0"
 							aria-label="Eliminar widget">
 							<X size={18} />
 						</button>
@@ -436,7 +435,7 @@ export const DashboardTab = ({
 			<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 				<div>
 					<h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-						Hola, <span className="text-rose-500">{userName || "Nil"}</span>
+						Hola, <span className="text-rose-700">{userName || "Nil"}</span>
 					</h2>
 					<p className="text-gray-500 text-sm font-medium mt-0.5">
 						Resumen del periodo seleccionado.
@@ -444,18 +443,7 @@ export const DashboardTab = ({
 				</div>
 				<div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full min-w-0 lg:flex-1 lg:max-w-none">
 					<div className="min-w-0 w-full flex-1 lg:min-w-[24rem]">
-						<ReportingPeriodToolbar
-							preset={reportingPreset}
-							onPresetChange={setReportingPreset}
-							anchorYm={reportingAnchorYm}
-							onAnchorYmChange={setReportingAnchorYm}
-							customFrom={reportingCustomFrom}
-							customTo={reportingCustomTo}
-							onCustomFromChange={setReportingCustomFrom}
-							onCustomToChange={setReportingCustomTo}
-							rangeLabel={reportingRange?.label}
-							onTodayClick={onReportingGoToday}
-						/>
+						
 					</div>
 					<button
 						type="button"
@@ -493,7 +481,7 @@ export const DashboardTab = ({
 						€
 					</p>
 					<p
-						className={`text-xs font-semibold flex items-center gap-1 ${incomeGrowth >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+						className={`text-xs font-semibold flex items-center gap-1 ${incomeGrowth >= 0 ? "text-emerald-600" : "text-rose-700"}`}>
 						{incomeGrowth >= 0 ? (
 							<TrendingUp size={14} />
 						) : (
@@ -506,7 +494,7 @@ export const DashboardTab = ({
 				</div>
 				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
 					<div className="flex items-center gap-2 erp-label">
-						<TrendingDown size={14} className="text-rose-500" /> Gastos período
+						<TrendingDown size={14} className="text-rose-700" /> Gastos período
 					</div>
 					<p className="text-xl font-bold text-gray-900 tabular-nums">
 						{currentStats.expense.toLocaleString("es-ES", {
@@ -578,7 +566,7 @@ export const DashboardTab = ({
 						<button
 							type="button"
 							onClick={() => setShowAddDropdown((v) => !v)}
-							className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-500 hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50/50 transition-colors font-medium">
+							className="inline-flex items-center gap-2 px-4 py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-500 hover:border-rose-300 hover:text-rose-700 hover:bg-rose-50/50 transition-colors font-medium">
 							<Plus size={20} />
 							<span>Añadir widget</span>
 							<ChevronDownIcon

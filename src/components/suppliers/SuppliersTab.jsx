@@ -355,7 +355,7 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			<div className="flex items-center justify-between gap-3">
 				<h2 className="text-2xl xl:text-3xl font-black text-gray-800 tracking-tight flex items-center gap-2">
-					<Building2 className="text-rose-500" size={28} /> Proveedores
+					<Building2 className="text-rose-700" size={28} /> Proveedores
 				</h2>
 				<div className="flex items-center gap-2">
 					<button
@@ -414,7 +414,7 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 								}`}>
 								<p className="font-bold text-gray-800 truncate">{s.name || "Proveedor sin nombre"}</p>
 								<p className="text-xs text-gray-500 truncate">{s.nif || "NIF no indicado"}</p>
-								<p className="text-xs font-bold text-rose-500 mt-1">
+								<p className="text-xs font-bold text-rose-700 mt-1">
 									{formatCurrency(s.totalSpent)} · {s.invoicesCount} facturas
 								</p>
 							</button>
@@ -481,7 +481,7 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 										<span className="inline-flex items-center gap-1">
 											<CalendarDays size={13} /> Media: {formatCurrency(monthlyAvg)}
 										</span>
-										<span className={`inline-flex items-center gap-1 font-bold ${monthDeltaPct >= 0 ? "text-rose-500" : "text-emerald-600"}`}>
+										<span className={`inline-flex items-center gap-1 font-bold ${monthDeltaPct >= 0 ? "text-rose-700" : "text-emerald-600"}`}>
 											<Percent size={13} />
 											{monthDeltaPct >= 0 ? "+" : ""}
 											{monthDeltaPct.toFixed(1)}%
@@ -631,7 +631,7 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 					loading={normalizing}
 					onClick={applyMergeGuide}
 					disabled={duplicateNifs.length === 0}
-					className="w-full bg-rose-500 text-white font-black py-3 rounded-xl">
+					className="w-full bg-rose-700 text-white font-black py-3 rounded-xl">
 					Aplicar merge
 				</LoadingButton>
 			</div>

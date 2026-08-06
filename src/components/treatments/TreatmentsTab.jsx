@@ -97,10 +97,10 @@ export const TreatmentsTab = ({
 				</td>
 				<td className="p-3 text-right">
 					<div className="flex justify-end gap-1.5">
-						<button onClick={() => onSelectTreatment(t)} className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors" title="Nueva Sesión"><Zap size={16} /></button>
+						<button onClick={() => onSelectTreatment(t)} className="p-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg transition-colors" title="Nueva Sesión"><Zap size={16} /></button>
 						<button onClick={() => openModal(t)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors" title="Editar"><Edit2 size={16} /></button>
 						{canDeleteOperational && (
-							<button onClick={() => { setTreatmentToDelete(t); setShowDeleteModal(true); }} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Eliminar"><Trash2 size={16} /></button>
+							<button onClick={() => { setTreatmentToDelete(t); setShowDeleteModal(true); }} className="p-1.5 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors" title="Eliminar"><Trash2 size={16} /></button>
 						)}
 					</div>
 				</td>
@@ -255,7 +255,7 @@ export const TreatmentsTab = ({
 				key={t.id}
 				className="bg-gray-50/50 hover:bg-rose-50/30 p-3 rounded-xl border border-gray-100 hover:border-rose-100 transition-all flex flex-col group">
 				<div className="flex justify-between items-start gap-1 mb-1.5">
-					<h3 className="font-bold text-sm text-gray-800 group-hover:text-rose-600 transition-colors leading-tight line-clamp-2">
+					<h3 className="font-bold text-sm text-gray-800 group-hover:text-rose-700 transition-colors leading-tight line-clamp-2">
 						{t.name}
 					</h3>
 					<div className="flex gap-0.5 shrink-0">
@@ -270,7 +270,7 @@ export const TreatmentsTab = ({
 							<button
 								type="button"
 								onClick={() => { setTreatmentToDelete(t); setShowDeleteModal(true); }}
-								className="p-1.5 text-gray-300 hover:text-rose-600 rounded-lg"
+								className="p-1.5 text-gray-300 hover:text-rose-700 rounded-lg"
 								title="Eliminar">
 								<Trash2 size={14} />
 							</button>
@@ -330,7 +330,7 @@ export const TreatmentsTab = ({
 					<LoadingButton
 						loading={isCreatingGroup}
 						type="submit"
-						className="bg-rose-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap">
+						className="bg-rose-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap">
 						{editingGroup ? "Guardar" : "Añadir"}
 					</LoadingButton>
 				</form>
@@ -363,7 +363,7 @@ export const TreatmentsTab = ({
 										<button
 											type="button"
 											onClick={() => { setGroupToDelete(g); setShowDeleteGroupModal(true); }}
-											className="p-1.5 text-gray-400 hover:text-rose-600 rounded-lg"
+											className="p-1.5 text-gray-400 hover:text-rose-700 rounded-lg"
 											title="Eliminar grupo">
 											<Trash2 size={14} />
 										</button>
@@ -417,13 +417,13 @@ export const TreatmentsTab = ({
 									</select>
 								</div>
 								<div className="flex flex-col gap-1">
-									<label className="text-[10px] font-black text-rose-500 uppercase ml-2">
+									<label className="text-[10px] font-black text-rose-700 uppercase ml-2">
 										Precio PVP (€)
 									</label>
 									<input
 										type="number"
 										required
-										className="w-full p-4 bg-rose-50/30 border-2 border-rose-100 rounded-2xl font-black text-rose-600 text-xl"
+										className="w-full p-4 bg-rose-50/30 border-2 border-rose-100 rounded-2xl font-black text-rose-700 text-xl"
 										value={formData.price}
 										onChange={(e) =>
 											setFormData({ ...formData, price: e.target.value })
@@ -525,7 +525,7 @@ export const TreatmentsTab = ({
 															? "0.1"
 															: "1"
 													}
-													className="w-16 p-2 bg-white rounded-lg text-center font-black text-rose-500 text-sm"
+													className="w-16 p-2 bg-white rounded-lg text-center font-black text-rose-700 text-sm"
 													value={item.quantity}
 													onChange={(e) =>
 														updateMaterial(index, "quantity", e.target.value)
@@ -542,7 +542,7 @@ export const TreatmentsTab = ({
 															),
 														})
 													}
-													className="text-gray-300 hover:text-rose-600">
+													className="text-gray-300 hover:text-rose-700">
 													<X size={16} />
 												</button>
 											</div>
@@ -642,7 +642,7 @@ export const TreatmentsTab = ({
 					<button
 						type="button"
 						onClick={() => openModal()}
-						className="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors">
+						className="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors">
 						<Plus size={18} /> Nuevo tratamiento
 					</button>
 				</div>
@@ -668,7 +668,7 @@ export const TreatmentsTab = ({
 						return (
 							<div key={gr.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
 								<div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-2">
-									<FolderOpen size={16} className="text-rose-500" />
+									<FolderOpen size={16} className="text-rose-700" />
 									<span className="font-black text-sm text-gray-800 uppercase tracking-wide">{gr.name}</span>
 									<span className="text-xs text-gray-400 font-medium">({list.length})</span>
 								</div>

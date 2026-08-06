@@ -172,7 +172,7 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 						<button
 							type="submit"
 							disabled={saving || !form.nombre?.trim()}
-							className="flex-1 py-3 rounded-xl font-bold bg-rose-500 text-white hover:bg-rose-600 disabled:opacity-50 flex items-center justify-center gap-2">
+							className="flex-1 py-3 rounded-xl font-bold bg-rose-700 text-white hover:bg-rose-800 disabled:opacity-50 flex items-center justify-center gap-2">
 							{saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
 							{saving ? "Guardando..." : "Guardar"}
 						</button>
@@ -197,7 +197,7 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 				<button
 					type="button"
 					onClick={() => open()}
-					className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors shrink-0">
+					className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors shrink-0">
 					<Plus size={20} /> Nueva plantilla
 				</button>
 			</div>
@@ -241,7 +241,7 @@ export const ConsentTemplatesTab = ({ user, showToast }) => {
 								<button
 									type="button"
 									onClick={() => remove(tpl.id)}
-									className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-sm font-bold">
+									className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-bold">
 									<Trash2 size={16} /> Eliminar
 								</button>
 							</div>

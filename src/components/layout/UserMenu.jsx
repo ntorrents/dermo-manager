@@ -91,7 +91,7 @@ export const UserMenu = ({
 				}`}
 				aria-expanded={open}
 				aria-haspopup="menu">
-				<span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-rose-50 text-rose-600 text-xs font-bold ring-1 ring-rose-100">
+				<span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-rose-50 text-rose-700 text-xs font-bold ring-1 ring-rose-100">
 					{logoUrl ? (
 						<img src={logoUrl} alt="" className="h-full w-full object-cover" />
 					) : (
@@ -114,7 +114,7 @@ export const UserMenu = ({
 						<p className="truncate text-sm font-bold text-gray-900">{displayName}</p>
 						<p className="truncate text-xs text-gray-500">{user?.email}</p>
 						{clinic?.name && (
-							<p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wide text-rose-500">
+							<p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wide text-rose-700">
 								{clinic.name}
 							</p>
 						)}

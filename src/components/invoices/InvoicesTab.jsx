@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
 import { filterByReportingRange } from "../../utils/dateUtils";
-import { ReportingPeriodToolbar } from "../ui/ReportingPeriodToolbar";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { generateInvoice } from "../../utils/invoiceGenerator";
 import {
@@ -37,13 +36,13 @@ const StatBar = ({ label, total, count, maxTotal, active, onClick }) => {
 			}`}>
 			<div className="flex justify-between gap-2 mb-1.5">
 				<span className="text-xs font-bold text-gray-800 truncate">{label}</span>
-				<span className="text-xs font-black text-rose-600 shrink-0">
+				<span className="text-xs font-black text-rose-700 shrink-0">
 					{formatCurrency(total)}
 				</span>
 			</div>
 			<div className="h-2 bg-gray-100 rounded-full overflow-hidden">
 				<div
-					className="h-full bg-rose-500 rounded-full transition-all"
+					className="h-full bg-rose-700 rounded-full transition-all"
 					style={{ width: `${pct}%` }}
 				/>
 			</div>
@@ -254,7 +253,7 @@ export const InvoicesTab = ({
 		<div className="space-y-6 animate-in fade-in pb-24 md:pb-8">
 			<div className="flex flex-col gap-1">
 				<h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-					<FileText className="text-rose-500" size={28} />
+					<FileText className="text-rose-700" size={28} />
 					Facturas emitidas
 				</h2>
 				<p className="text-sm text-gray-500 font-medium">
@@ -263,18 +262,7 @@ export const InvoicesTab = ({
 				</p>
 			</div>
 
-			<ReportingPeriodToolbar
-				preset={reportingPreset}
-				onPresetChange={setReportingPreset}
-				anchorYm={reportingAnchorYm}
-				onAnchorYmChange={setReportingAnchorYm}
-				customFrom={reportingCustomFrom}
-				customTo={reportingCustomTo}
-				onCustomFromChange={setReportingCustomFrom}
-				onCustomToChange={setReportingCustomTo}
-				rangeLabel={reportingRange?.label}
-				onTodayClick={onReportingGoToday}
-			/>
+			
 
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
 				<div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
@@ -361,7 +349,7 @@ export const InvoicesTab = ({
 							type="checkbox"
 							checked={hideAbonos}
 							onChange={(e) => setHideAbonos(e.target.checked)}
-							className="rounded text-rose-600"
+							className="rounded text-rose-700"
 						/>
 						Ocultar abonos
 					</label>
@@ -369,7 +357,7 @@ export const InvoicesTab = ({
 						<button
 							type="button"
 							onClick={clearFilters}
-							className="inline-flex items-center gap-1 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl">
+							className="inline-flex items-center gap-1 px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-xl">
 							<X size={14} /> Limpiar filtros
 						</button>
 					)}
@@ -516,7 +504,7 @@ export const InvoicesTab = ({
 														title="Descargar PDF"
 														disabled={downloadingId === row.entry.id}
 														onClick={() => handleDownload(row)}
-														className="p-2 rounded-lg hover:bg-rose-100 text-rose-600 disabled:opacity-40">
+														className="p-2 rounded-lg hover:bg-rose-100 text-rose-700 disabled:opacity-40">
 														{downloadingId === row.entry.id ? (
 															<Receipt
 																size={18}

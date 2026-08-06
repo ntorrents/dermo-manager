@@ -10,8 +10,7 @@ import {
 	Settings,
 	ChevronDown
 } from "lucide-react";
-import { NAV_LABELS, PATH_MAP } from "./navigationLabels";
-import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { NAV_LABELS } from "./navigationLabels";
 
 const NAV_GROUPS = [
 	{
@@ -82,26 +81,22 @@ const NAV_GROUPS = [
 ];
 
 export const Sidebar = ({
+	activeTab,
+	setActiveTab,
 	companyName,
 	collapsed,
-	setCollapsed
 }) => {
-	const [tempExpanded, setTempExpanded] = useState(false);
-	const location = useLocation();
-	const navigate = useNavigate();
 	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
 	
 	// Por defecto, abrimos el grupo que contenga el tab activo
 	const [expandedGroups, setExpandedGroups] = useState({});
-
-	const activeTab = location.pathname;
 
 	// Abrir el grupo activo al cambiar de tab o al montar
 	useEffect(() => {
 		setExpandedGroups(prev => {
 			const next = { ...prev };
 			for (const group of NAV_GROUPS) {
-				if (group.items.some(item => activeTab.startsWith(PATH_MAP[item.id]))) {
+				if (group.items.some(item => item.id === activeTab)) {
 					next[group.id] = true;
 				}
 			}
@@ -148,32 +143,14 @@ export const Sidebar = ({
 					
 					const isExpanded = !!expandedGroups[group.id];
 					// Considerar el grupo activo si alguno de sus hijos está activo
-					const isGroupActive = validItems.some(item => activeTab.startsWith(PATH_MAP[item.id]));
+					const isGroupActive = validItems.some(item => item.id === activeTab);
 
 					const hasMultipleItems = validItems.length > 1;
 
 					return (
 						<div key={group.id} className="space-y-1">
 							<button
-								onClick={() => {
-									if (narrow) {
-										if (hasMultipleItems) {
-											setCollapsed(false);
-											setTempExpanded(true);
-											setExpandedGroups(prev => ({...prev, [group.id]: true}));
-										} else {
-											navigate(PATH_MAP[validItems[0].id]);
-										}
-									} else if (hasMultipleItems) {
-										toggleGroup(group.id);
-									} else {
-										navigate(PATH_MAP[validItems[0].id]);
-										if (tempExpanded) {
-											setCollapsed(true);
-											setTempExpanded(false);
-										}
-									}
-								}}
+								onClick={() => hasMultipleItems ? toggleGroup(group.id) : setActiveTab(validItems[0].id)}
 								title={group.label}
 								className={`w-full flex items-center justify-between rounded-xl font-semibold transition-colors ${
 									narrow ? "px-0 py-3 justify-center" : "px-3 py-2.5"
@@ -197,24 +174,18 @@ export const Sidebar = ({
 							{!narrow && isExpanded && hasMultipleItems && (
 								<div className="pl-9 space-y-1 mt-1">
 									{validItems.map((item) => {
-										
+										const isActive = activeTab === item.id;
 										return (
-											<NavLink
+											<button
 												key={item.id}
-												to={PATH_MAP[item.id]}
-												onClick={() => {
-													if (tempExpanded) {
-														setCollapsed(true);
-														setTempExpanded(false);
-													}
-												}}
-												className={({ isActive }) => `w-full block text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
-													isActive || activeTab.startsWith(PATH_MAP[item.id]) && PATH_MAP[item.id] !== "/" 
+												onClick={() => setActiveTab(item.id)}
+												className={`w-full text-left px-3 py-2 rounded-lg text-[13px] font-medium transition-colors ${
+													isActive
 														? "bg-rose-700 text-white shadow-sm"
 														: "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
 												}`}>
 												{item.l}
-											</NavLink>
+											</button>
 										);
 									})}
 								</div>

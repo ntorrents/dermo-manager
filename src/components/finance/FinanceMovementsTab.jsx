@@ -33,7 +33,6 @@ import {
 import { ProviderDatalist } from "../ui/ProviderDatalist";
 import { exportToCSV, exportTrimestreToExcel } from "../../utils/export";
 import { filterByReportingRange } from "../../utils/dateUtils";
-import { ReportingPeriodToolbar } from "../ui/ReportingPeriodToolbar";
 import {
 	uploadReceipt,
 	getReceiptUrl,
@@ -1018,7 +1017,7 @@ export const FinanceMovementsTab = ({
 										invoice_number: checked ? formData.invoice_number : "",
 									});
 								}}
-								className="w-5 h-5 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+								className="w-5 h-5 rounded border-gray-300 text-rose-700 focus:ring-rose-500"
 							/>
 							<label
 								htmlFor="is_deductible"
@@ -1088,7 +1087,7 @@ export const FinanceMovementsTab = ({
 								type="number"
 								step="0.01"
 								placeholder="0.00 €"
-								className="w-full p-4 bg-gray-50 rounded-xl font-black text-rose-500 text-xl placeholder:text-rose-300"
+								className="w-full p-4 bg-gray-50 rounded-xl font-black text-rose-700 text-xl placeholder:text-rose-300"
 								value={formData.amount}
 								onChange={(e) =>
 									setFormData({ ...formData, amount: e.target.value })
@@ -1455,7 +1454,7 @@ export const FinanceMovementsTab = ({
 									}
 									type="file"
 									accept="image/jpeg,image/png,image/webp,application/pdf"
-									className="w-full p-3 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:font-bold file:bg-rose-50 file:text-rose-600"
+									className="w-full p-3 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:font-bold file:bg-rose-50 file:text-rose-700"
 									onChange={handleFileChange}
 								/>
 								{receiptFile && (
@@ -1543,7 +1542,7 @@ export const FinanceMovementsTab = ({
 						loading={savingEntry}
 						type="submit"
 						className={`w-full py-4 rounded-xl font-black text-white shadow-lg ${
-							formData.type === "income" ? "bg-emerald-500" : "bg-rose-500"
+							formData.type === "income" ? "bg-emerald-500" : "bg-rose-700"
 						}`}>
 						{savingEntry ? "Guardando..." : "Guardar"}
 					</LoadingButton>
@@ -1582,7 +1581,7 @@ export const FinanceMovementsTab = ({
 												recurringExpenses.filter((_, i) => i !== idx),
 											)
 										}
-										className="absolute -top-2 -right-2 bg-white text-gray-300 hover:text-rose-500 p-1 rounded-full shadow-sm border border-gray-100">
+										className="absolute -top-2 -right-2 bg-white text-gray-300 hover:text-rose-700 p-1 rounded-full shadow-sm border border-gray-100">
 										<X size={14} />
 									</button>
 								)}
@@ -1635,7 +1634,7 @@ export const FinanceMovementsTab = ({
 											};
 											setRecurringExpenses(newExps);
 										}}
-										className="w-4 h-4 rounded border-gray-300 text-rose-500 focus:ring-rose-500"
+										className="w-4 h-4 rounded border-gray-300 text-rose-700 focus:ring-rose-500"
 									/>
 									<label htmlFor={`recurring-deductible-${idx}`} className="text-xs font-bold text-gray-700">
 										Es deducible
@@ -1721,25 +1720,14 @@ export const FinanceMovementsTab = ({
 					</p>
 					<h2
 						className={`text-4xl font-black tracking-tighter ${
-							netProfit >= 0 ? "text-gray-800" : "text-rose-500"
+							netProfit >= 0 ? "text-gray-800" : "text-rose-700"
 						}`}>
 						{formatCurrency(netProfit)}
 					</h2>
 				</div>
 				<div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
 					<div className="min-w-0 w-full flex-1">
-						<ReportingPeriodToolbar
-							preset={reportingPreset}
-							onPresetChange={setReportingPreset}
-							anchorYm={reportingAnchorYm}
-							onAnchorYmChange={setReportingAnchorYm}
-							customFrom={reportingCustomFrom}
-							customTo={reportingCustomTo}
-							onCustomFromChange={setReportingCustomFrom}
-							onCustomToChange={setReportingCustomTo}
-							rangeLabel={reportingRange?.label}
-							onTodayClick={onReportingGoToday}
-						/>
+						
 					</div>
 					{isAdvanced && (
 					<div className="flex shrink-0 items-center gap-1.5">
@@ -1786,7 +1774,7 @@ export const FinanceMovementsTab = ({
 				</button>
 				<button
 					onClick={() => openEntryModal("expense")}
-					className="py-4 md:py-5 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-black shadow-lg shadow-rose-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
+					className="py-4 md:py-5 bg-rose-700 hover:bg-rose-800 text-white rounded-2xl font-black shadow-lg shadow-rose-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
 					<Plus size={22} />{" "}
 					<span className="uppercase tracking-widest text-sm">Gasto</span>
 				</button>
@@ -1873,7 +1861,7 @@ export const FinanceMovementsTab = ({
 										className={`font-black text-sm ${
 											entry.type === "income"
 												? "text-emerald-500"
-												: "text-rose-500"
+												: "text-rose-700"
 										}`}>
 										{entry.type === "income" ? "+" : "-"}
 										{formatCurrency(entry.amount)}
@@ -1900,7 +1888,7 @@ export const FinanceMovementsTab = ({
 						</h3>
 						<button
 							onClick={() => setIsConfigOpen(true)}
-							className="text-[10px] font-black text-gray-400 hover:text-rose-500 uppercase italic flex items-center gap-1">
+							className="text-[10px] font-black text-gray-400 hover:text-rose-700 uppercase italic flex items-center gap-1">
 							<Settings size={12} /> Configurar
 						</button>
 					</div>
@@ -1986,7 +1974,7 @@ export const FinanceMovementsTab = ({
 											{isAdmin && (
 												<button
 													onClick={() => handleDeleteClick(entry.id)}
-													className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+													className="text-gray-300 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity"
 													title="Eliminar">
 													<Trash2 size={14} />
 												</button>
@@ -2012,9 +2000,9 @@ export const FinanceMovementsTab = ({
 				<div className="space-y-4">
 					<div className="flex justify-between items-center px-4">
 						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest flex items-center gap-2">
-							<TrendingDown size={16} className="text-rose-500" /> Gastos
+							<TrendingDown size={16} className="text-rose-700" /> Gastos
 						</h3>
-						<span className="text-rose-600 font-black">
+						<span className="text-rose-700 font-black">
 							{formatCurrency(totalExpense)}
 						</span>
 					</div>
@@ -2099,7 +2087,7 @@ export const FinanceMovementsTab = ({
 													<Download size={16} />
 												</a>
 											)}
-											<span className="font-black text-rose-500 mr-1">
+											<span className="font-black text-rose-700 mr-1">
 												-{formatCurrency(entry.amount)}
 											</span>
 											<button
@@ -2111,7 +2099,7 @@ export const FinanceMovementsTab = ({
 											{isAdmin && (
 												<button
 													onClick={() => handleDeleteClick(entry.id)}
-													className="text-gray-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+													className="text-gray-300 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity"
 													title="Eliminar">
 													<Trash2 size={14} />
 												</button>
@@ -2141,7 +2129,7 @@ export const FinanceMovementsTab = ({
 						</h3>
 						<button
 							onClick={() => setIsConfigOpen(true)}
-							className="text-[10px] font-black text-gray-400 hover:text-rose-500 flex items-center gap-1 uppercase tracking-widest italic transition-colors">
+							className="text-[10px] font-black text-gray-400 hover:text-rose-700 flex items-center gap-1 uppercase tracking-widest italic transition-colors">
 							<Settings size={14} /> Configurar
 						</button>
 					</div>
@@ -2189,7 +2177,7 @@ export const FinanceMovementsTab = ({
 					<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
 						<div className="bg-white p-4 rounded-2xl border border-gray-100">
 							<p className="text-[10px] font-black uppercase text-gray-400">Gasto periodo</p>
-							<p className="text-2xl font-black text-rose-600">
+							<p className="text-2xl font-black text-rose-700">
 								{formatCurrency(financialAnalysis.totalSpent)}
 							</p>
 						</div>
@@ -2203,7 +2191,7 @@ export const FinanceMovementsTab = ({
 							<p className="text-[10px] font-black uppercase text-gray-400">Resultado periodo</p>
 							<p
 								className={`text-2xl font-black ${
-									financialAnalysis.net >= 0 ? "text-emerald-600" : "text-rose-600"
+									financialAnalysis.net >= 0 ? "text-emerald-600" : "text-rose-700"
 								}`}>
 								{formatCurrency(financialAnalysis.net)}
 							</p>
@@ -2311,7 +2299,7 @@ export const FinanceMovementsTab = ({
 												{s.invoices} factura{s.invoices === 1 ? "" : "s"}
 											</p>
 										</div>
-										<p className="font-black text-rose-600">{formatCurrency(s.amount)}</p>
+										<p className="font-black text-rose-700">{formatCurrency(s.amount)}</p>
 									</div>
 								))}
 								{financialAnalysis.topSuppliers.length === 0 && (

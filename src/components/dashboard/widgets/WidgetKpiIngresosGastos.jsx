@@ -11,7 +11,7 @@ export const WidgetKpiIngresosGastos = ({ currentStats }) => (
 		</div>
 		<div className="flex justify-between items-center">
 			<span className="text-gray-500 text-sm font-medium">Gastos</span>
-			<span className="font-bold text-rose-600">
+			<span className="font-bold text-rose-700">
 				{formatCurrency(currentStats.expense)}
 			</span>
 		</div>

@@ -66,7 +66,7 @@ export const DailyCashCloseCard = ({ entries = [], dateYmd }) => {
 				</div>
 				<div className="bg-white rounded-xl p-3 border border-emerald-100">
 					<p className="text-[10px] font-black text-gray-400 uppercase">Gastos</p>
-					<p className="text-lg font-black text-rose-600">
+					<p className="text-lg font-black text-rose-700">
 						{formatCurrency(close.expenseTotal)}
 					</p>
 					<p className="text-[10px] text-gray-500">{close.expenseCount} gasto(s)</p>

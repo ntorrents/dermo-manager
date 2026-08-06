@@ -159,7 +159,7 @@ export const PhotoUploadModal = ({
 								key={v}
 								className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border-2 cursor-pointer transition-all text-center ${
 									photoType === v
-										? "border-rose-500 bg-rose-50 text-rose-600"
+										? "border-rose-500 bg-rose-50 text-rose-700"
 										: "border-gray-100 bg-gray-50 text-gray-500"
 								}`}>
 								<input

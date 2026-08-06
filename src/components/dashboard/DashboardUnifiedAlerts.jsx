@@ -76,7 +76,7 @@ export const DashboardUnifiedAlerts = ({
 								<button
 									type="button"
 									onClick={onGoCalendar}
-									className="text-xs font-bold text-rose-600 mt-1 hover:underline">
+									className="text-xs font-bold text-rose-700 mt-1 hover:underline">
 									Ver agenda
 								</button>
 							)}
@@ -108,7 +108,7 @@ export const DashboardUnifiedAlerts = ({
 								<button
 									type="button"
 									onClick={onGoInventory}
-									className="text-xs font-bold text-rose-600 mt-1 hover:underline">
+									className="text-xs font-bold text-rose-700 mt-1 hover:underline">
 									Ver stock
 								</button>
 							)}

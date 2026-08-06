@@ -113,7 +113,7 @@ export const AlertsMenu = ({
 				aria-label="Alertas">
 				<Bell size={20} />
 				{count > 0 && (
-					<span className="absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] px-0.5 rounded-full bg-rose-500 text-[10px] font-bold text-white flex items-center justify-center">
+					<span className="absolute -top-1 -right-1 min-w-[1.1rem] h-[1.1rem] px-0.5 rounded-full bg-rose-700 text-[10px] font-bold text-white flex items-center justify-center">
 						{count > 9 ? "9+" : count}
 					</span>
 				)}
@@ -188,7 +188,7 @@ export const AlertsMenu = ({
 								{expired.length > 0 && (
 									<div className="px-3 py-2">
 										<p className="text-[10px] font-black text-gray-400 uppercase px-1 mb-1 flex items-center gap-1">
-											<AlertTriangle size={12} className="text-rose-600" /> Lotes caducados
+											<AlertTriangle size={12} className="text-rose-700" /> Lotes caducados
 										</p>
 										<ul className="space-y-1">
 											{expired.map((i) => (
@@ -217,7 +217,7 @@ export const AlertsMenu = ({
 							setOpen(false);
 							setActiveTab("calendar");
 						}}
-						className="w-full border-t border-gray-100 px-4 py-2 text-center text-xs font-bold text-rose-600 hover:bg-rose-50">
+						className="w-full border-t border-gray-100 px-4 py-2 text-center text-xs font-bold text-rose-700 hover:bg-rose-50">
 						Ir a la agenda
 					</button>
 				</div>

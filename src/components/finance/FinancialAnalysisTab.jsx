@@ -33,7 +33,6 @@ import {
 import { ProviderDatalist } from "../ui/ProviderDatalist";
 import { exportToCSV, exportTrimestreToExcel } from "../../utils/export";
 import { filterByReportingRange } from "../../utils/dateUtils";
-import { ReportingPeriodToolbar } from "../ui/ReportingPeriodToolbar";
 import {
 	uploadReceipt,
 	getReceiptUrl,
@@ -954,23 +953,12 @@ export const FinancialAnalysisTab = ({
 	return (
 		<div className="flex-1 min-w-0 bg-gray-50 overflow-y-auto custom-scrollbar pb-20 md:pb-0">
 			<div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
-				<ReportingPeriodToolbar
-							preset={reportingPreset}
-							onPresetChange={setReportingPreset}
-							anchorYm={reportingAnchorYm}
-							onAnchorYmChange={setReportingAnchorYm}
-							customFrom={reportingCustomFrom}
-							customTo={reportingCustomTo}
-							onCustomFromChange={setReportingCustomFrom}
-							onCustomToChange={setReportingCustomTo}
-							rangeLabel={reportingRange?.label}
-							onTodayClick={onReportingGoToday}
-						/>
+				
 								<div className="space-y-5">
 					<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
 						<div className="bg-white p-4 rounded-2xl border border-gray-100">
 							<p className="text-[10px] font-black uppercase text-gray-400">Gasto periodo</p>
-							<p className="text-2xl font-black text-rose-600">
+							<p className="text-2xl font-black text-rose-700">
 								{formatCurrency(financialAnalysis.totalSpent)}
 							</p>
 						</div>
@@ -984,7 +972,7 @@ export const FinancialAnalysisTab = ({
 							<p className="text-[10px] font-black uppercase text-gray-400">Resultado periodo</p>
 							<p
 								className={`text-2xl font-black ${
-									financialAnalysis.net >= 0 ? "text-emerald-600" : "text-rose-600"
+									financialAnalysis.net >= 0 ? "text-emerald-600" : "text-rose-700"
 								}`}>
 								{formatCurrency(financialAnalysis.net)}
 							</p>
@@ -1092,7 +1080,7 @@ export const FinancialAnalysisTab = ({
 												{s.invoices} factura{s.invoices === 1 ? "" : "s"}
 											</p>
 										</div>
-										<p className="font-black text-rose-600">{formatCurrency(s.amount)}</p>
+										<p className="font-black text-rose-700">{formatCurrency(s.amount)}</p>
 									</div>
 								))}
 								{financialAnalysis.topSuppliers.length === 0 && (

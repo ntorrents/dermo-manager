@@ -8,8 +8,7 @@ import {
 	MoreHorizontal,
 } from "lucide-react";
 import { MobileDrawer } from "./MobileDrawer";
-import { NAV_LABELS, PATH_MAP } from "./navigationLabels";
-import { useNavigate, useLocation } from "react-router-dom";
+import { NAV_LABELS } from "./navigationLabels";
 
 const MAIN_NAV_ITEMS = [
 	{ id: "dashboard", label: NAV_LABELS.dashboard, icon: <LayoutDashboard size={20} /> },
@@ -18,10 +17,7 @@ const MAIN_NAV_ITEMS = [
 	{ id: "inventory", label: NAV_LABELS.inventory, icon: <Package size={20} /> },
 ];
 
-export const MobileNav = () => {
-	const location = useLocation();
-	const navigate = useNavigate();
-	const activeTabId = Object.keys(PATH_MAP).find(k => location.pathname.startsWith(PATH_MAP[k]) && PATH_MAP[k] !== "/") || (location.pathname === "/" ? "dashboard" : "");
+export const MobileNav = ({ activeTab, setActiveTab }) => {
 	const [drawerOpen, setDrawerOpen] = useState(false);
 	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
 
@@ -33,7 +29,7 @@ export const MobileNav = () => {
 		return base;
 	}, [tenantLoading, allowsPresupuestosBonos]);
 
-	const isInDrawer = drawerTabIds.includes(activeTabId);
+	const isInDrawer = drawerTabIds.includes(activeTab);
 
 	return (
 		<>
@@ -42,13 +38,13 @@ export const MobileNav = () => {
 					{MAIN_NAV_ITEMS.map((item) => (
 						<button
 							key={item.id}
-							onClick={() => navigate(PATH_MAP[item.id] || "/")}
+							onClick={() => setActiveTab(item.id)}
 							className={`flex flex-col items-center justify-center gap-1 transition-all ${
-								activeTabId === item.id ? "text-rose-700" : "text-gray-400"
+								activeTab === item.id ? "text-rose-700" : "text-gray-400"
 							}`}>
 							<div
 								className={`p-1.5 rounded-xl ${
-									activeTabId === item.id ? "bg-rose-50" : ""
+									activeTab === item.id ? "bg-rose-50" : ""
 								}`}>
 								{item.icon}
 							</div>
@@ -77,7 +73,8 @@ export const MobileNav = () => {
 			<MobileDrawer
 				isOpen={drawerOpen}
 				onClose={() => setDrawerOpen(false)}
-				activeTabId={activeTabId}
+				activeTab={activeTab}
+				setActiveTab={setActiveTab}
 			/>
 		</>
 	);
