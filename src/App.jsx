@@ -31,6 +31,9 @@ const TreatmentsTab = lazy(() =>
 const InventoryTab = lazy(() =>
 	import("./components/inventory/InventoryTab").then((m) => ({ default: m.InventoryTab })),
 );
+const FinanceMovementsTab = lazy(() =>
+	import("./components/finance/FinanceMovementsTab").then((m) => ({ default: m.FinanceMovementsTab })),
+);
 const DailyCashTab = lazy(() =>
 	import("./components/finance/DailyCashTab").then((m) => ({ default: m.DailyCashTab })),
 );
@@ -39,9 +42,6 @@ const FinancialAnalysisTab = lazy(() =>
 );
 const AssetsTab = lazy(() =>
 	import("./components/taxes/AssetsTab").then((m) => ({ default: m.AssetsTab })),
-);
-const FinanceTab = lazy(() =>
-	import("./components/finance/FinanceTab").then((m) => ({ default: m.FinanceTab })),
 );
 const InvoicesTab = lazy(() =>
 	import("./components/invoices/InvoicesTab").then((m) => ({ default: m.InvoicesTab })),
@@ -598,29 +598,8 @@ const DermoManager = () => {
 						onNavIntentConsumed={() => setInvoicesNavIntent(null)}
 					/>
 				)}
-								{activeTab === "daily_cash" && (
-					
-						<DailyCashTab
-							user={user}
-							showToast={showToast}
-						/>
-					
-				)}
-				{activeTab === "financial_analysis" && (
-					
-						<FinancialAnalysisTab
-							user={user}
-							showToast={showToast}
-							reportingPreset={reportingPreset}
-							reportingAnchorYm={reportingAnchorYm}
-							reportingCustomFrom={reportingCustomFrom}
-							reportingCustomTo={reportingCustomTo}
-							reportingRange={reportingRange}
-						/>
-					
-				)}
-{activeTab === "finance" && (
-					<FinanceTab
+												{activeTab === "finance_movements" && (
+					<FinanceMovementsTab
 						user={user}
 						entries={entries}
 						clients={clients}
@@ -639,6 +618,34 @@ const DermoManager = () => {
 						navIntent={financeNavIntent}
 						onNavIntentConsumed={() => setFinanceNavIntent(null)}
 					/>
+				)}
+				{activeTab === "daily_cash" && (
+					
+						<DailyCashTab
+							user={user}
+							showToast={showToastMsg}
+						/>
+					
+				)}
+				{activeTab === "financial_analysis" && (
+					
+						<FinancialAnalysisTab
+							user={user}
+							entries={entries}
+							clients={clients}
+							showToast={showToastMsg}
+							reportingPreset={reportingPreset}
+							setReportingPreset={setReportingPreset}
+							reportingAnchorYm={reportingAnchorYm}
+							setReportingAnchorYm={setReportingAnchorYm}
+							reportingCustomFrom={reportingCustomFrom}
+							setReportingCustomFrom={setReportingCustomFrom}
+							reportingCustomTo={reportingCustomTo}
+							setReportingCustomTo={setReportingCustomTo}
+							reportingRange={reportingRange}
+							onReportingGoToday={goReportingToday}
+						/>
+					
 				)}
 				{activeTab === "documents" && (
 					<DocumentsTab
@@ -665,7 +672,7 @@ const DermoManager = () => {
 					
 						<AssetsTab
 							user={user}
-							showToast={showToast}
+							showToast={showToastMsg}
 						/>
 					
 				)}

@@ -62,16 +62,6 @@ export const DailyCashTab = ({
 	user,
 	entries = [],
 	clients = [],
-	reportingRange,
-	reportingPreset,
-	setReportingPreset,
-	reportingAnchorYm,
-	setReportingAnchorYm,
-	reportingCustomFrom,
-	setReportingCustomFrom,
-	reportingCustomTo,
-	setReportingCustomTo,
-	onReportingGoToday,
 	showToast,
 	onRefresh,
 	navIntent = null,
@@ -244,10 +234,11 @@ export const DailyCashTab = ({
 	useEffect(() => {
 		if (user) fetchConfig();
 	}, [user]);
+	const todayDate = new Date().toLocaleDateString("en-CA");
+	const rangeStart = todayDate;
+	const rangeEnd = todayDate;
+	const refMonthYm = todayDate.substring(0, 7);
 
-	const rangeStart = reportingRange?.start ?? "";
-	const rangeEnd = reportingRange?.end ?? "";
-	const refMonthYm = reportingRange?.refMonthYm ?? "";
 
 	// Entradas filtradas solo por fecha para cálculos globales
 	const periodEntries = useMemo(() => {
@@ -513,7 +504,7 @@ export const DailyCashTab = ({
 	useEffect(() => {
 		if (formData.is_deductible && formData.supplier_nif) {
 			const validation = validateSpanishTaxId(formData.supplier_nif);
-			setNifValidation(validation);
+			setNifValidation(prev => JSON.stringify(prev) === JSON.stringify(validation) ? prev : validation);
 
 			if (validation.valid && validation.normalized) {
 				setFormData((prev) => ({
@@ -593,7 +584,7 @@ export const DailyCashTab = ({
 				formData.invoice_number,
 				entries.filter((e) => e.type === "expense" && e.is_deductible),
 			);
-			setDateWarning(validation);
+			setDateWarning(prev => JSON.stringify(prev) === JSON.stringify(validation) ? prev : validation);
 		} else {
 			setDateWarning(null);
 		}
@@ -632,7 +623,7 @@ export const DailyCashTab = ({
 		const file = e.target.files?.[0] || null;
 		if (file) {
 			const validation = validateFile(file);
-			setFileValidation(validation);
+			setFileValidation(prev => JSON.stringify(prev) === JSON.stringify(validation) ? prev : validation);
 
 			if (validation.valid) {
 				setReceiptFile(file);
@@ -953,64 +944,7 @@ export const DailyCashTab = ({
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
-			<div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<div className="inline-flex bg-gray-100 p-1 rounded-xl">
-						<button
-							type="button"
-							onClick={() => setFinanceMode("basic")}
-							className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
-								!isAdvanced
-									? "bg-white text-gray-800 shadow-sm"
-									: "text-gray-500 hover:text-gray-700"
-							}`}>
-							Mostrador
-						</button>
-						<button
-							type="button"
-							onClick={() => setFinanceMode("advanced")}
-							className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
-								isAdvanced
-									? "bg-white text-gray-800 shadow-sm"
-									: "text-gray-500 hover:text-gray-700"
-							}`}>
-							Gestión completa
-						</button>
-					</div>
-					{!isAdvanced && (
-						<div className="flex gap-1.5 flex-wrap">
-							{[
-								{ id: "today", label: "Hoy" },
-								{ id: "week", label: "Semana" },
-								{ id: "month", label: "Mes" },
-							].map((p) => (
-								<button
-									key={p.id}
-									type="button"
-									onClick={() => applyQuickPeriod(p.id)}
-									className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-50 border border-gray-200 text-gray-700 hover:bg-rose-50 hover:border-rose-200">
-									{p.label}
-								</button>
-							))}
-						</div>
-					)}
-				</div>
-				<p className="text-xs text-gray-500 font-medium leading-relaxed">
-					{isAdvanced ? (
-						<>
-							Vista completa: tres columnas (ingresos, gastos, fijos), pestaña
-							Análisis, exportación CSV/Excel, filtros fiscales y gastos con factura
-							deducible.
-						</>
-					) : (
-						<>
-							Vista simplificada para el día a día: lista única de movimientos del
-							periodo y cierre de caja al pulsar <strong>Hoy</strong>. Sin fijos ni
-							opciones de gestoría.
-						</>
-					)}
-				</p>
-			</div>
+			
 
 			{cashCloseDate && (
 				<DailyCashCloseCard entries={entries} dateYmd={cashCloseDate} />
@@ -1030,7 +964,7 @@ export const DailyCashTab = ({
 			<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
 				<div className="shrink-0">
 					<p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">
-						Balance · {reportingRange?.label ?? "—"}
+						Balance · {"Hoy"}
 					</p>
 					<h2
 						className={`text-4xl font-black tracking-tighter ${
@@ -1040,20 +974,7 @@ export const DailyCashTab = ({
 					</h2>
 				</div>
 				<div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-					<div className="min-w-0 w-full flex-1">
-						<ReportingPeriodToolbar
-							preset={reportingPreset}
-							onPresetChange={setReportingPreset}
-							anchorYm={reportingAnchorYm}
-							onAnchorYmChange={setReportingAnchorYm}
-							customFrom={reportingCustomFrom}
-							customTo={reportingCustomTo}
-							onCustomFromChange={setReportingCustomFrom}
-							onCustomToChange={setReportingCustomTo}
-							rangeLabel={reportingRange?.label}
-							onTodayClick={onReportingGoToday}
-						/>
-					</div>
+					<div className="min-w-0 w-full flex-1"></div>
 					{isAdvanced && (
 					<div className="flex shrink-0 items-center gap-1.5">
 						<button

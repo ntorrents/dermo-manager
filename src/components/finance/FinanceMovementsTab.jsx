@@ -58,7 +58,7 @@ import { DailyCashCloseCard } from "./DailyCashCloseCard";
 const INVESTMENT_MIN_BASE = 300;
 const FINANCE_UI_MODE_KEY = "financeUiMode.v1";
 
-export const FinanceTab = ({
+export const FinanceMovementsTab = ({
 	user,
 	entries = [],
 	clients = [],
@@ -96,10 +96,10 @@ export const FinanceTab = ({
 
 	// NUEVO: Filtro para la vista móvil (Gasto por defecto)
 	const [typeFilter, setTypeFilter] = useState("expense");
-	const [financeView, setFinanceView] = useState("movements");
+	const financeView = "movements";
 	const [issueFilter, setIssueFilter] = useState("all");
 	const financeUiMode = "movements";
-	const isAdvanced = financeUiMode === "advanced";
+	const isAdvanced = true;
 
 	const setFinanceMode = (mode) => {
 		// setFinanceUiMode(mode);
@@ -953,69 +953,6 @@ export const FinanceTab = ({
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
-			<div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<div className="inline-flex bg-gray-100 p-1 rounded-xl">
-						<button
-							type="button"
-							onClick={() => setFinanceMode("basic")}
-							className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
-								!isAdvanced
-									? "bg-white text-gray-800 shadow-sm"
-									: "text-gray-500 hover:text-gray-700"
-							}`}>
-							Mostrador
-						</button>
-						<button
-							type="button"
-							onClick={() => setFinanceMode("advanced")}
-							className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
-								isAdvanced
-									? "bg-white text-gray-800 shadow-sm"
-									: "text-gray-500 hover:text-gray-700"
-							}`}>
-							Gestión completa
-						</button>
-					</div>
-					{!isAdvanced && (
-						<div className="flex gap-1.5 flex-wrap">
-							{[
-								{ id: "today", label: "Hoy" },
-								{ id: "week", label: "Semana" },
-								{ id: "month", label: "Mes" },
-							].map((p) => (
-								<button
-									key={p.id}
-									type="button"
-									onClick={() => applyQuickPeriod(p.id)}
-									className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-50 border border-gray-200 text-gray-700 hover:bg-rose-50 hover:border-rose-200">
-									{p.label}
-								</button>
-							))}
-						</div>
-					)}
-				</div>
-				<p className="text-xs text-gray-500 font-medium leading-relaxed">
-					{isAdvanced ? (
-						<>
-							Vista completa: tres columnas (ingresos, gastos, fijos), pestaña
-							Análisis, exportación CSV/Excel, filtros fiscales y gastos con factura
-							deducible.
-						</>
-					) : (
-						<>
-							Vista simplificada para el día a día: lista única de movimientos del
-							periodo y cierre de caja al pulsar <strong>Hoy</strong>. Sin fijos ni
-							opciones de gestoría.
-						</>
-					)}
-				</p>
-			</div>
-
-			{cashCloseDate && (
-				<DailyCashCloseCard entries={entries} dateYmd={cashCloseDate} />
-			)}
-
 			{/* MODALES DE CONFIRMACIÓN */}
 			<ConfirmModal
 				isOpen={showDeleteModal}
@@ -1115,130 +1052,7 @@ export const FinanceTab = ({
 							: "text-gray-500 hover:text-gray-700"
 					}`}>
 					Movimientos
-				</button>
-				{isAdvanced && (
-					<button
-						type="button"
-						onClick={() => setFinanceView("analysis")}
-						className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
-							financeView === "analysis"
-								? "bg-white text-gray-800 shadow-sm"
-								: "text-gray-500 hover:text-gray-700"
-						}`}>
-						Análisis
-					</button>
-				)}
-			</div>
-
-			{/* --- MODO MOSTRADOR: lista única (todas las pantallas) --- */}
-			{financeView === "movements" && !isAdvanced && (
-			<div className="space-y-4">
-				<div className="grid grid-cols-3 gap-3">
-					<div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
-						<p className="text-[10px] font-black text-gray-400 uppercase">Ingresos</p>
-						<p className="text-lg font-black text-emerald-600">
-							{formatCurrency(totalIncome)}
-						</p>
-					</div>
-					<div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
-						<p className="text-[10px] font-black text-gray-400 uppercase">Gastos</p>
-						<p className="text-lg font-black text-rose-600">
-							{formatCurrency(totalExpense)}
-						</p>
-					</div>
-					<div className="bg-white rounded-xl border border-gray-100 p-3 text-center">
-						<p className="text-[10px] font-black text-gray-400 uppercase">Neto</p>
-						<p className="text-lg font-black text-gray-800">
-							{formatCurrency(netProfit)}
-						</p>
-					</div>
-				</div>
-				{/* Pestañas de Filtro */}
-				<div className="flex bg-gray-100 p-1 rounded-xl">
-					{["all", "income", "expense"].map((type) => (
-						<button
-							key={type}
-							onClick={() => setTypeFilter(type)}
-							className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
-								typeFilter === type
-									? "bg-white text-gray-800 shadow-sm"
-									: "text-gray-400"
-							}`}>
-							{type === "all"
-								? "Todo"
-								: type === "income"
-									? "Ingresos"
-									: "Gastos"}
-						</button>
-					))}
-				</div>
-
-				{/* Buscador Móvil */}
-				<div className="relative">
-					<Search className="absolute left-3 top-3 text-gray-400" size={18} />
-					<input
-						placeholder="Buscar en la lista..."
-						className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl outline-none"
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
-					/>
-				</div>
-
-				<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-					{filteredEntries.length > 0 ? (
-						filteredEntries.map((entry) => (
-							<div
-								key={entry.id}
-								className="p-4 border-b last:border-0 hover:bg-gray-50 transition-colors flex justify-between items-center group">
-								<div>
-									<p className="font-bold text-gray-800 text-sm">
-										{entry.description}
-									</p>
-									<p className="text-[10px] text-gray-400 font-bold uppercase">
-										{entry.date} • {entry.category}
-										{entry.plan_amigo && " • Plan Amigo (sin factura)"}
-									</p>
-									{entry.notes && (
-										<p className="text-[10px] text-gray-400 italic mt-1 flex items-center gap-1">
-											<FileText size={10} /> {entry.notes}
-										</p>
-									)}
-								</div>
-								<div className="flex items-center gap-2">
-									<span
-										className={`font-black text-sm ${
-											entry.type === "income"
-												? "text-emerald-500"
-												: "text-rose-500"
-										}`}>
-										{entry.type === "income" ? "+" : "-"}
-										{formatCurrency(entry.amount)}
-									</span>
-									<button
-										onClick={() => openEntryModal(null, entry)}
-										className="text-gray-300 p-1"
-										title="Editar">
-										<Edit2 size={14} />
-									</button>
-									{isAdmin && (
-										<button
-											onClick={() => handleDeleteClick(entry.id)}
-											className="text-gray-300 p-1"
-											title="Eliminar">
-											<Trash2 size={14} />
-										</button>
-									)}
-								</div>
-							</div>
-						))
-					) : (
-						<div className="p-10 text-center text-gray-300 font-bold uppercase text-xs">
-							Sin movimientos
-						</div>
-					)}
-				</div>
-			</div>
-			)}
+				</button></div>
 
 			{/* --- GESTIÓN COMPLETA: móvil + fijos --- */}
 			{financeView === "movements" && isAdvanced && (

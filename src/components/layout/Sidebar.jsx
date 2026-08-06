@@ -54,7 +54,9 @@ const NAV_GROUPS = [
 		label: "Finanzas & Caja",
 		icon: DollarSign,
 		items: [
-			{ id: "finance", l: NAV_LABELS.finance },
+			{ id: "daily_cash", l: NAV_LABELS.daily_cash },
+			{ id: "finance_movements", l: NAV_LABELS.finance_movements },
+			{ id: "financial_analysis", l: NAV_LABELS.financial_analysis },
 			{ id: "invoices", l: NAV_LABELS.invoices }
 		]
 	},
@@ -63,7 +65,8 @@ const NAV_GROUPS = [
 		label: "Fiscalidad & AEAT",
 		icon: Landmark,
 		items: [
-			{ id: "taxes", l: NAV_LABELS.taxes }
+			{ id: "taxes", l: NAV_LABELS.taxes },
+			{ id: "assets", l: NAV_LABELS.assets }
 		]
 	},
 	{

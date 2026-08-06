@@ -270,24 +270,6 @@ export const TaxesTab = ({
 			}))
 			.sort((a, b) => a.month.localeCompare(b.month));
 	}, [quarterEntries]);
-
-	const investmentAnnualStatus = useMemo(() => {
-		const yearStart = `${selectedYear}-01-01`;
-		const yearEnd = `${selectedYear}-12-31`;
-		const annualInvestmentBase = entries
-			.filter(
-				(e) => isEffectiveInvestment(e) && e.date >= yearStart && e.date <= yearEnd,
-			)
-			.reduce((acc, e) => acc + toBaseAmount(e), 0);
-		const pct = Math.min(100, (annualInvestmentBase / INVESTMENT_ANNUAL_LIMIT) * 100);
-		return {
-			annualInvestmentBase,
-			remaining: Math.max(0, INVESTMENT_ANNUAL_LIMIT - annualInvestmentBase),
-			pct,
-			exceeded: annualInvestmentBase > INVESTMENT_ANNUAL_LIMIT,
-		};
-	}, [entries, selectedYear]);
-
 	const fiscalChecklist = useMemo(() => {
 		const deductibleExpenses = quarterEntries.filter(
 			(e) => e.type === "expense" && e.is_deductible === true,
@@ -715,101 +697,6 @@ export const TaxesTab = ({
 				)}
 			</div>
 
-			<div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-				<h3 className="font-black text-gray-800 text-lg mb-2 flex items-center gap-2">
-					<Package className="text-indigo-500" size={20} />
-					Bienes de Inversión (Amortizaciones en curso)
-				</h3>
-				<p className="text-xs text-gray-500 mb-4">
-					En IRPF se deduce la cuota trimestral prorrateada por días activos.
-				</p>
-				<div className="p-4 rounded-2xl bg-amber-50 border border-amber-100 mb-4">
-					<p className="text-xs text-amber-700 font-bold uppercase tracking-wider mb-1">
-						Límite anual bienes de inversión ({selectedYear})
-					</p>
-					<p className="text-lg font-black text-amber-700">
-						{formatCurrency(investmentAnnualStatus.annualInvestmentBase)} /{" "}
-						{formatCurrency(INVESTMENT_ANNUAL_LIMIT)}
-					</p>
-					<div className="mt-2 h-2 bg-amber-100 rounded-full overflow-hidden">
-						<div
-							className={`h-full rounded-full ${
-								investmentAnnualStatus.exceeded ? "bg-rose-500" : "bg-amber-500"
-							}`}
-							style={{ width: `${investmentAnnualStatus.pct}%` }}
-						/>
 					</div>
-					<p
-						className={`mt-2 text-xs font-bold ${
-							investmentAnnualStatus.exceeded
-								? "text-rose-600"
-								: "text-amber-700"
-						}`}>
-						{investmentAnnualStatus.exceeded
-							? "Se ha superado el límite anual de 25.000€."
-							: `Disponible restante: ${formatCurrency(investmentAnnualStatus.remaining)}`}
-					</p>
-				</div>
-				<div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100 mb-4">
-					<p className="text-xs text-indigo-700 font-bold uppercase tracking-wider mb-1">
-						Amortización deducible este trimestre
-					</p>
-					<p className="text-2xl font-black text-indigo-700">
-						{formatCurrency(amortizacionData.amortizacionTrimestre)}
-					</p>
-				</div>
-				{amortizacionData.activosEnCurso.length === 0 ? (
-					<EmptyState
-						icon={Package}
-						title="Sin bienes de inversión en curso"
-						description="No hay activos amortizables pendientes para el periodo seleccionado."
-					/>
-				) : (
-					<div className="space-y-4">
-						{amortizacionData.activosEnCurso.map((asset) => (
-							<div
-								key={asset.id}
-								className="border border-gray-100 rounded-2xl p-4 hover:border-indigo-100 transition-colors">
-								<div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-									<div>
-										<p className="font-black text-gray-800">{asset.description}</p>
-										<p className="text-xs text-gray-500 mt-1">
-											Compra: {asset.date} · Base: {formatCurrency(asset.base)} · %
-											amortización anual: {asset.rate}%
-										</p>
-									</div>
-									<div className="text-left sm:text-right">
-										<p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider">
-											Cuota trimestre
-										</p>
-										<p className="font-black text-indigo-700">
-											{formatCurrency(asset.deducedThisQuarter)}
-										</p>
-									</div>
-								</div>
-								<div className="mt-3">
-									<div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-										<div
-											className="h-full bg-indigo-500 rounded-full"
-											style={{ width: `${asset.progressPct}%` }}
-										/>
-									</div>
-									<div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-xs">
-										<span className="text-gray-600">
-											Amortizado: {formatCurrency(asset.amortizedAccum)} (
-											{asset.progressPct.toFixed(1)}%)
-										</span>
-										<span className="text-gray-500">
-											Pendiente: {formatCurrency(asset.pending)} · Vida útil restante:{" "}
-											{asset.remainingLifeDays} días
-										</span>
-									</div>
-								</div>
-							</div>
-						))}
-					</div>
-				)}
-			</div>
-		</div>
 	);
 };
