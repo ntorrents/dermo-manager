@@ -11,4 +11,7 @@ export const NAV_LABELS = {
 	suppliers: "Proveedores",
 	taxes: "Fiscalidad",
 	settings: "Ajustes",
+	daily_cash: "Caja Diaria / Mostrador",
+	financial_analysis: "Análisis Financiero",
+	assets: "Bienes de Inversión",
 };

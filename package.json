@@ -7,6 +7,8 @@
 		"dev": "vite",
 		"build": "vite build",
 		"lint": "eslint .",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"preview": "vite preview",
 		"db:link": "supabase link --project-ref zturfaxtcbhvyllwirrj",
 		"db:pull": "supabase db pull",
@@ -60,6 +62,7 @@
 		"postcss": "^8.5.6",
 		"supabase": "^2.84.5",
 		"tailwindcss": "^4.1.18",
-		"vite": "^7.3.1"
+		"vite": "^7.3.1",
+		"vitest": "^3.2.6"
 	}
 }

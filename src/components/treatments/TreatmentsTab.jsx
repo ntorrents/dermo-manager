@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Plus, Trash2, Edit2, Zap, X, FolderOpen } from "lucide-react";
+import { Plus, Trash2, Edit2, Zap, X, FolderOpen, LayoutGrid, List as ListIcon } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useTreatmentGroups } from "../../hooks/useTreatmentGroups";
 import { ConfirmModal } from "../ui/ConfirmModal";
@@ -23,6 +23,7 @@ export const TreatmentsTab = ({
 	const { canDeleteOperational, clinicId } = useTenant();
 	const { groups, create: createGroup, update: updateGroup, delete: deleteGroup, isCreating: isCreatingGroup } = useTreatmentGroups(user);
 
+	const [viewMode, setViewMode] = useState("grid");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [editingTreatment, setEditingTreatment] = useState(null);
 	const [loading, setLoading] = useState(false);
@@ -59,7 +60,43 @@ export const TreatmentsTab = ({
 	}, [treatments, groups]);
 
 	const calculateCost = (recipe) => {
+if (!recipe || recipe.length === 0) return 0;
+	
+	const renderTreatmentTableRow = (t) => {
+		const materialCost = calculateCost(t.recipe);
+		const profit = Number(t.price) - materialCost;
+		const profitMargin = t.price > 0 ? (profit / Number(t.price)) * 100 : 0;
 		return (
+			<tr key={t.id} className="hover:bg-slate-50 transition-colors group">
+				<td className="p-3">
+					<p className="font-bold text-slate-800 text-sm leading-tight">{t.name}</p>
+				</td>
+				<td className="p-3 text-sm font-medium text-slate-600">
+					{t.internal_notes ? <span className="truncate max-w-[150px] inline-block" title={t.internal_notes}>{t.internal_notes}</span> : <span className="text-slate-300">—</span>}
+				</td>
+				<td className="p-3">
+					<span className="font-black text-rose-700">{Number(t.price).toFixed(2)} €</span>
+				</td>
+				<td className="p-3">
+					<div className="flex flex-col">
+						<span className="text-xs font-bold text-emerald-600">+{profit.toFixed(2)} € ({profitMargin.toFixed(0)}%)</span>
+						<span className="text-[10px] text-slate-400">Coste: {materialCost.toFixed(2)} €</span>
+					</div>
+				</td>
+				<td className="p-3 text-right">
+					<div className="flex justify-end gap-1.5">
+						<button onClick={() => onSelectTreatment(t)} className="p-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition-colors" title="Nueva Sesión"><Zap size={16} /></button>
+						<button onClick={() => openModal(t)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors" title="Editar"><Edit2 size={16} /></button>
+						{canDeleteOperational && (
+							<button onClick={() => { setTreatmentToDelete(t); setShowDeleteModal(true); }} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Eliminar"><Trash2 size={16} /></button>
+						)}
+					</div>
+				</td>
+			</tr>
+		);
+	};
+
+	return (
 			recipe?.reduce((total, item) => {
 				const material = inventory.find((m) => m.id === item.materialId);
 				return (
@@ -290,6 +327,20 @@ export const TreatmentsTab = ({
 					Tratamientos
 				</h2>
 				<div className="flex flex-wrap gap-2 w-full sm:w-auto">
+					<div className="flex bg-slate-100 p-1 rounded-lg">
+						<button
+							onClick={() => setViewMode("grid")}
+							className={`p-1.5 rounded-md transition-colors ${viewMode === "grid" ? "bg-white shadow-sm text-rose-700" : "text-slate-500 hover:text-slate-700"}`}
+							title="Vista Tarjetas">
+							<LayoutGrid size={18} />
+						</button>
+						<button
+							onClick={() => setViewMode("list")}
+							className={`p-1.5 rounded-md transition-colors ${viewMode === "list" ? "bg-white shadow-sm text-rose-700" : "text-slate-500 hover:text-slate-700"}`}
+							title="Vista Lista">
+							<ListIcon size={18} />
+						</button>
+					</div>
 					<button
 						type="button"
 						onClick={openGroupsModal}
@@ -329,9 +380,28 @@ export const TreatmentsTab = ({
 									<span className="font-black text-sm text-gray-800 uppercase tracking-wide">{gr.name}</span>
 									<span className="text-xs text-gray-400 font-medium">({list.length})</span>
 								</div>
-								<div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-									{list.map((t) => renderTreatmentCard(t))}
-								</div>
+								{viewMode === "grid" ? (
+									<div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+										{list.map((t) => renderTreatmentCard(t))}
+									</div>
+								) : (
+									<div className="overflow-x-auto">
+										<table className="w-full text-left border-collapse">
+											<thead>
+												<tr className="bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
+													<th className="p-3">Tratamiento</th>
+													<th className="p-3">Notas</th>
+													<th className="p-3">Precio PVP</th>
+													<th className="p-3">Beneficio Neto</th>
+													<th className="p-3 text-right">Acciones</th>
+												</tr>
+											</thead>
+											<tbody className="divide-y divide-slate-100">
+												{list.map((t) => renderTreatmentTableRow(t))}
+											</tbody>
+										</table>
+									</div>
+								)}
 							</div>
 						);
 					})}
@@ -342,9 +412,28 @@ export const TreatmentsTab = ({
 								<span className="font-bold text-xs text-gray-500 uppercase tracking-wide">Sin grupo</span>
 								<span className="text-xs text-gray-400">({treatmentsByGroup.byGroup[UNGROUPED_KEY].length})</span>
 							</div>
-							<div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-								{treatmentsByGroup.byGroup[UNGROUPED_KEY].map((t) => renderTreatmentCard(t))}
-							</div>
+							{viewMode === "grid" ? (
+								<div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+									{treatmentsByGroup.byGroup[UNGROUPED_KEY].map((t) => renderTreatmentCard(t))}
+								</div>
+							) : (
+								<div className="overflow-x-auto">
+									<table className="w-full text-left border-collapse">
+										<thead>
+											<tr className="bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
+												<th className="p-3">Tratamiento</th>
+												<th className="p-3">Notas</th>
+												<th className="p-3">Precio PVP</th>
+												<th className="p-3">Beneficio Neto</th>
+												<th className="p-3 text-right">Acciones</th>
+											</tr>
+										</thead>
+										<tbody className="divide-y divide-slate-100">
+											{treatmentsByGroup.byGroup[UNGROUPED_KEY].map((t) => renderTreatmentTableRow(t))}
+										</tbody>
+									</table>
+								</div>
+							)}
 						</div>
 					)}
 				</div>

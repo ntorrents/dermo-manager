@@ -13,6 +13,12 @@ import { supabase } from "../../services/supabase";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
+import {
+	loadSupplierRules,
+	saveSupplierRules,
+	setSupplierRule,
+	findDuplicateSupplierNifs,
+} from "../../utils/supplierRules";
 
 const fmtMonth = (ym) => {
 	const [y, m] = String(ym).split("-").map(Number);
@@ -23,7 +29,6 @@ const fmtMonth = (ym) => {
 };
 
 const toYm = (date) => (date && String(date).length >= 7 ? String(date).slice(0, 7) : null);
-const RULES_STORAGE_KEY = "suppliersCanonicalRules.v1";
 
 const Sparkline = ({ points = [] }) => {
 	if (!points.length) return null;
@@ -61,26 +66,18 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 	const [editNif, setEditNif] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [normalizing, setNormalizing] = useState(false);
-	const [canonicalRules, setCanonicalRules] = useState({});
+	const [canonicalRules, setCanonicalRules] = useState(() => loadSupplierRules());
+	const [mergeGuideOpen, setMergeGuideOpen] = useState(false);
+	const [mergeChoices, setMergeChoices] = useState({});
 
 	useEffect(() => {
-		try {
-			const raw = window.localStorage.getItem(RULES_STORAGE_KEY);
-			if (!raw) return;
-			const parsed = JSON.parse(raw);
-			if (parsed && typeof parsed === "object") setCanonicalRules(parsed);
-		} catch {
-			// ignore invalid local storage payload
-		}
-	}, []);
-
-	useEffect(() => {
-		try {
-			window.localStorage.setItem(RULES_STORAGE_KEY, JSON.stringify(canonicalRules));
-		} catch {
-			// ignore write failures (private mode, quota, etc.)
-		}
+		saveSupplierRules(canonicalRules);
 	}, [canonicalRules]);
+
+	const duplicateNifs = useMemo(
+		() => findDuplicateSupplierNifs(entries),
+		[entries],
+	);
 
 	const suppliers = useMemo(() => {
 		const expenses = (entries || []).filter(
@@ -285,6 +282,47 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 
 	const totalGlobal = filtered.reduce((a, s) => a + s.totalSpent, 0);
 
+	const openMergeGuide = () => {
+		const initial = {};
+		duplicateNifs.forEach(({ nif, names }) => {
+			initial[nif] = canonicalRules[nif] || names[0] || "";
+		});
+		setMergeChoices(initial);
+		setMergeGuideOpen(true);
+	};
+
+	const applyMergeGuide = async () => {
+		setNormalizing(true);
+		try {
+			let updates = 0;
+			const nextRules = { ...canonicalRules };
+			for (const [nif, canonicalName] of Object.entries(mergeChoices)) {
+				const name = String(canonicalName || "").trim();
+				if (!name) continue;
+				const { error } = await supabase
+					.from("finance_entries")
+					.update({ provider_name: name })
+					.eq("type", "expense")
+					.eq("supplier_nif", nif);
+				if (error) throw error;
+				Object.assign(nextRules, setSupplierRule(nextRules, nif, name));
+				updates += 1;
+			}
+			setCanonicalRules(nextRules);
+			setMergeGuideOpen(false);
+			showToast(
+				updates > 0
+					? `Merge guiado: ${updates} NIF unificados y reglas guardadas.`
+					: "Selecciona un nombre canónico por NIF.",
+			);
+			if (onRefresh) await onRefresh();
+		} catch (err) {
+			showToast(err?.message || "Error en merge guiado", "error");
+		} finally {
+			setNormalizing(false);
+		}
+	};
+
 	const applySavedRules = async () => {
 		const rules = Object.entries(canonicalRules).filter(
 			([nif, name]) => String(nif).trim() && String(name).trim(),
@@ -330,13 +368,21 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 					</button>
 					<button
 						type="button"
+						onClick={openMergeGuide}
+						disabled={normalizing || duplicateNifs.length === 0}
+						className="text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 hover:bg-rose-100 disabled:opacity-50 disabled:cursor-not-allowed"
+						title="Elige el nombre canónico por cada NIF duplicado">
+						Merge guiado ({duplicateNifs.length})
+					</button>
+					<button
+						type="button"
 						onClick={normalizeSuppliersByNif}
 						disabled={normalizing || normalizationPreview.affectedNifs === 0}
 						className="text-xs font-bold text-gray-700 bg-white border border-gray-200 rounded-xl px-3 py-2 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-						title="Unifica nombres cuando hay el mismo NIF con nombres distintos">
+						title="Unifica nombres automáticamente (más usado / importe)">
 						{normalizing
 							? "Normalizando..."
-							: `Normalizar NIF (${normalizationPreview.affectedNifs})`}
+							: `Auto NIF (${normalizationPreview.affectedNifs})`}
 					</button>
 					<div className="text-xs font-bold text-gray-500 bg-white border border-gray-100 rounded-xl px-3 py-2">
 						{filtered.length} proveedores · {formatCurrency(totalGlobal)}
@@ -538,6 +584,55 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 					onClick={saveSupplier}
 					className="w-full bg-surface-dark text-white font-black py-3 rounded-xl">
 					Guardar cambios
+				</LoadingButton>
+			</div>
+		</AdaptiveModal>
+		<AdaptiveModal
+			isOpen={mergeGuideOpen}
+			onClose={() => setMergeGuideOpen(false)}
+			title="Merge guiado por NIF"
+			maxWidth="max-w-lg">
+			<div className="space-y-4">
+				<p className="text-sm text-gray-600">
+					Elige el nombre canónico para cada NIF con varias denominaciones. Se
+					actualizarán los gastos y se guardará la regla para futuros registros.
+				</p>
+				{duplicateNifs.length === 0 ? (
+					<p className="text-sm text-gray-500">No hay NIF duplicados.</p>
+				) : (
+					<div className="space-y-3 max-h-[50vh] overflow-y-auto">
+						{duplicateNifs.map(({ nif, names }) => (
+							<div
+								key={nif}
+								className="p-3 rounded-xl border border-gray-100 bg-gray-50">
+								<p className="text-xs font-black text-gray-500 uppercase mb-2">
+									NIF {nif}
+								</p>
+								<select
+									value={mergeChoices[nif] || ""}
+									onChange={(e) =>
+										setMergeChoices((prev) => ({
+											...prev,
+											[nif]: e.target.value,
+										}))
+									}
+									className="w-full p-3 bg-white border border-gray-200 rounded-xl font-bold text-sm">
+									{names.map((name) => (
+										<option key={name} value={name}>
+											{name}
+										</option>
+									))}
+								</select>
+							</div>
+						))}
+					</div>
+				)}
+				<LoadingButton
+					loading={normalizing}
+					onClick={applyMergeGuide}
+					disabled={duplicateNifs.length === 0}
+					className="w-full bg-rose-500 text-white font-black py-3 rounded-xl">
+					Aplicar merge
 				</LoadingButton>
 			</div>
 		</AdaptiveModal>

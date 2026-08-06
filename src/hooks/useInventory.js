@@ -4,7 +4,11 @@ import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
 
 const fetchInventory = async () => {
-	const { data, error } = await supabase.from("inventory").select("*").order("name");
+	const { data, error } = await supabase
+		.from("inventory")
+		.select("*")
+		.eq("activo", true)
+		.order("name");
 	if (error) throw error;
 	return data || [];
 };

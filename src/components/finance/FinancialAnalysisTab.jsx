@@ -58,7 +58,7 @@ import { DailyCashCloseCard } from "./DailyCashCloseCard";
 const INVESTMENT_MIN_BASE = 300;
 const FINANCE_UI_MODE_KEY = "financeUiMode.v1";
 
-export const FinanceTab = ({
+export const FinancialAnalysisTab = ({
 	user,
 	entries = [],
 	clients = [],
@@ -98,7 +98,7 @@ export const FinanceTab = ({
 	const [typeFilter, setTypeFilter] = useState("expense");
 	const [financeView, setFinanceView] = useState("movements");
 	const [issueFilter, setIssueFilter] = useState("all");
-	const financeUiMode = "movements";
+	const financeUiMode = "management";
 	const isAdvanced = financeUiMode === "advanced";
 
 	const setFinanceMode = (mode) => {

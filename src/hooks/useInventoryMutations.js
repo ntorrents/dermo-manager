@@ -28,6 +28,7 @@ export const useCreateMaterial = (userId) => {
 					item_type: "maquina",
 					user_id: userId,
 					clinic_id: clinicId,
+					activo: true,
 				};
 				const { error: invError } = await supabase
 					.from("inventory")
@@ -80,6 +81,7 @@ export const useCreateMaterial = (userId) => {
 				item_type: "material",
 				user_id: userId,
 				clinic_id: clinicId,
+				activo: true,
 			};
 			const { data: inserted, error: invError } = await supabase
 				.from("inventory")
@@ -365,7 +367,10 @@ export const useDeleteMaterial = (userId) => {
 	const { clinicId } = useTenant();
 	return useMutation({
 		mutationFn: async (itemId) => {
-			const { error } = await supabase.from("inventory").delete().eq("id", itemId);
+			const { error } = await supabase
+				.from("inventory")
+				.update({ activo: false })
+				.eq("id", itemId);
 			if (error) throw error;
 		},
 		onSuccess: () => {

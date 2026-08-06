@@ -1,7 +1,14 @@
 import React from "react";
 import { BudgetsSection } from "../finance/BudgetsSection";
 
-export const BudgetsTab = ({ user, clients = [], treatments = [], profile, showToast }) => {
+export const BudgetsTab = ({
+	user,
+	clients = [],
+	treatments = [],
+	profile,
+	showToast,
+	onStartSessionFromBudget,
+}) => {
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
 			<BudgetsSection
@@ -10,6 +17,7 @@ export const BudgetsTab = ({ user, clients = [], treatments = [], profile, showT
 				treatments={treatments}
 				profile={profile}
 				showToast={showToast}
+				onStartSessionFromBudget={onStartSessionFromBudget}
 			/>
 		</div>
 	);

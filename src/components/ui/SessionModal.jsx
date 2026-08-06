@@ -12,7 +12,12 @@ import {
 	FileText,
 	Heart,
 	Sparkles,
+	AlertTriangle,
 } from "lucide-react";
+import {
+	companyMissingFiscalAddress,
+	COMPANY_FISCAL_ADDRESS_MSG,
+} from "../../utils/companyFiscal";
 import { useActiveBonoForSession } from "../../hooks/useBonos";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { formatCurrency } from "../../utils/format";
@@ -32,6 +37,8 @@ export const SessionModal = ({
 	onClose,
 	onConfirm,
 	isSubmitting = false,
+	sessionBootstrap = null,
+	onBootstrapConsumed,
 }) => {
 	const dialogRef = useRef(null);
 	const [selectedClient, setSelectedClient] = useState(null);
@@ -79,7 +86,23 @@ export const SessionModal = ({
 		}
 	}, [consumeBono, activeBono]);
 
+	useEffect(() => {
+		if (!isOpen || !sessionBootstrap?.clientId) return;
+		const client = (clients || []).find((c) => c.id === sessionBootstrap.clientId);
+		if (client) {
+			setSelectedClient(client);
+			setSearchTerm("");
+		}
+		if (sessionBootstrap.price != null && !Number.isNaN(Number(sessionBootstrap.price))) {
+			setFinalPrice(String(sessionBootstrap.price));
+		}
+		onBootstrapConsumed?.();
+	}, [isOpen, sessionBootstrap, clients, onBootstrapConsumed]);
+
 	useFocusTrap(Boolean(isOpen && treatment), dialogRef, { onEscape: onClose });
+
+	const companyAddressMissing =
+		selectedClient && !planAmigo && companyMissingFiscalAddress(selectedClient);
 
 	const isValidFinalPrice =
 		finalPrice !== "" &&
@@ -140,6 +163,7 @@ export const SessionModal = ({
 
 	const handleConfirm = () => {
 		if (!selectedClient) return;
+		if (companyAddressMissing) return;
 		onConfirm(
 			{ ...treatment, recipe: activeRecipe },
 			selectedClient,
@@ -261,6 +285,23 @@ export const SessionModal = ({
 							</div>
 						)}
 					</div>
+
+					{companyAddressMissing && (
+						<div
+							role="alert"
+							className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex gap-3">
+							<AlertTriangle className="text-amber-600 shrink-0" size={22} />
+							<div>
+								<p className="text-sm font-bold text-amber-900">
+									Empresa sin dirección fiscal
+								</p>
+								<p className="text-xs text-amber-800 mt-1">
+									{COMPANY_FISCAL_ADDRESS_MSG} Edítala en la ficha del cliente antes
+									de confirmar.
+								</p>
+							</div>
+						</div>
+					)}
 
 					{/* Bono activo: banner + toggle consumir sesión */}
 					{activeBono && remainingSessions > 0 && (
@@ -482,7 +523,12 @@ export const SessionModal = ({
 
 				<div className="p-8 border-t bg-gray-50">
 					<button
-						disabled={!selectedClient || !isValidFinalPrice || isSubmitting}
+						disabled={
+							!selectedClient ||
+							!isValidFinalPrice ||
+							isSubmitting ||
+							companyAddressMissing
+						}
 						onClick={handleConfirm}
 						className="w-full bg-surface-dark hover:bg-black text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
 						{isSubmitting ? (

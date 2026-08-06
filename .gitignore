@@ -42,3 +42,4 @@ supabase/.env.*
 .claude/
 .trae/
 .windsurf/
+.antigravityrules/

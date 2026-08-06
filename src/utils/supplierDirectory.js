@@ -1,11 +1,16 @@
+import { loadSupplierRules } from "./supplierRules";
+
 /** Directorio de proveedores a partir de gastos (misma fuente que Finanzas). */
 export const buildSupplierDirectory = (entries = []) => {
+	const rules = loadSupplierRules();
 	const map = new Map();
 	(entries || [])
 		.filter((e) => e.type === "expense" && (e.provider_name || e.supplier_nif))
 		.forEach((e) => {
 			const nif = (e.supplier_nif || "").trim();
-			const name = (e.provider_name || "").trim();
+			const rawName = (e.provider_name || "").trim();
+			const name =
+				(nif && rules[nif.toUpperCase()]) || rawName;
 			const key = `${nif}__${name}`.toLowerCase();
 			if (!map.has(key)) map.set(key, { nif, name });
 		});

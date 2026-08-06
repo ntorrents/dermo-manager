@@ -2,19 +2,19 @@
 
 @theme {
 	/* Paleta semántica DermoManager */
-	--color-primary: #f43f5e;
-	--color-primary-hover: #e11d48;
-	--color-primary-light: #ffe4e6;
+	--color-primary: #be185d; /* rose-700 */
+	--color-primary-hover: #9f1239; /* rose-800 */
+	--color-primary-light: #ffe4e6; /* rose-100 */
 	--color-surface-dark: #1e293b;
-	--color-warning-bg: #fffbeb;
-	--color-warning-border: #fef3c7;
-	--color-warning-icon: #d97706;
-	--color-warning-text: #92400e;
-	--color-warning-text-light: #b45309;
+	--color-warning-bg: #f8fafc; /* slate-50 */
+	--color-warning-border: #e2e8f0; /* slate-200 */
+	--color-warning-icon: #475569;
+	--color-warning-text: #334155;
+	--color-warning-text-light: #64748b;
 }
 
 body {
-	background-color: #f9fafb; /* gray-50 */
+	background-color: #f8fafc; /* slate-50 */
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
@@ -27,23 +27,38 @@ body {
 	background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-	background-color: #e2e8f0;
+	background-color: #cbd5e1; /* slate-300 */
 	border-radius: 20px;
 }
 
 /* Componentes Base - Ahora sí funcionarán los @apply con la importación correcta */
 @layer components {
 	.input-field {
-		@apply w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:border-rose-500 focus:ring-2 focus:ring-rose-200 outline-none transition-all placeholder:text-gray-400 bg-gray-50 focus:bg-white;
+		@apply w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:border-rose-700 focus:ring-2 focus:ring-rose-200 outline-none transition-all placeholder:text-slate-400 bg-slate-50 focus:bg-white;
 	}
 
 	.btn-primary {
-		@apply bg-rose-500 text-white font-semibold rounded-xl px-4 py-2 hover:bg-rose-600 transition-colors shadow-sm active:scale-95;
+		@apply bg-rose-700 text-white font-semibold rounded-xl px-4 py-2 hover:bg-rose-800 transition-colors shadow-sm active:scale-95;
 	}
 
 	.label {
-		@apply block text-xs font-semibold text-gray-500 mb-1 ml-1;
+		@apply block text-xs font-semibold text-gray-600 mb-1 ml-1;
 	}
+
+	/* Etiquetas de sección (legibilidad — Fase 0) */
+	.erp-label {
+		@apply text-[11px] font-black uppercase tracking-widest text-gray-600;
+	}
+
+	.erp-caption {
+		@apply text-xs font-medium text-gray-600;
+	}
+}
+
+/* Contraste en cabeceras de KPI / sidebar secundario */
+main .text-gray-400.uppercase,
+main .tracking-widest.text-gray-400 {
+	color: #4b5563;
 }
 
 /* Animaciones */

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Plus, FileDown, Archive, Search, X, Percent } from "lucide-react";
+import { Plus, FileDown, Archive, Search, X, Percent, CalendarCheck } from "lucide-react";
 import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { generateBudgetPDF, sumBudgetLinesTTC, sumBudgetLinesOriginalTTC } from "../../utils/budgetGenerator";
 import { formatCurrency } from "../../utils/format";
@@ -18,7 +18,14 @@ const emptyLine = () => ({
 	tax_rate: 21,
 });
 
-export const BudgetsSection = ({ user, clients = [], treatments = [], profile, showToast }) => {
+export const BudgetsSection = ({
+	user,
+	clients = [],
+	treatments = [],
+	profile,
+	showToast,
+	onStartSessionFromBudget,
+}) => {
 	const { clinic } = useTenant();
 	const { budgets, loading, createBudget, creating, archiveBudget, archiving } = useBudgets(user?.id);
 	const [searchTerm, setSearchTerm] = useState("");
@@ -150,6 +157,37 @@ export const BudgetsSection = ({ user, clients = [], treatments = [], profile, s
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [pricingMode]);
 
+	const startSessionFromBudget = (b) => {
+		if (!onStartSessionFromBudget) return;
+		const client = clients.find((c) => c.id === b.client_id);
+		if (!client) {
+			showToast("Cliente no encontrado", "error");
+			return;
+		}
+		const lines = b.presupuesto_lineas || [];
+		const treatmentLine = lines.find(
+			(l) => l.line_kind === "treatment" && l.treatment_id,
+		);
+		if (!treatmentLine) {
+			showToast("Añade una línea de tratamiento al presupuesto", "error");
+			return;
+		}
+		const treatment = treatments.find((t) => t.id === treatmentLine.treatment_id);
+		if (!treatment) {
+			showToast("Tratamiento no encontrado en el catálogo", "error");
+			return;
+		}
+		const treatmentLines = lines.filter(
+			(l) => l.line_kind === "treatment" && l.treatment_id,
+		);
+		if (treatmentLines.length > 1) {
+			showToast("Se usará la primera línea de tratamiento del presupuesto", "success");
+		}
+		const qty = Number(treatmentLine.quantity) || 1;
+		const price = Number(treatmentLine.unit_price_ttc) * qty;
+		onStartSessionFromBudget({ client, treatment, price });
+	};
+
 	const downloadPdf = async (b) => {
 		const client = clients.find((c) => c.id === b.client_id);
 		if (!client) {
@@ -227,7 +265,15 @@ export const BudgetsSection = ({ user, clients = [], treatments = [], profile, s
 										</p>
 									)}
 								</div>
-								<div className="flex gap-2 shrink-0">
+								<div className="flex gap-2 shrink-0 flex-wrap">
+									{onStartSessionFromBudget && (
+										<button
+											type="button"
+											onClick={() => startSessionFromBudget(b)}
+											className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold">
+											<CalendarCheck size={16} /> Aceptar → sesión
+										</button>
+									)}
 									<button
 										type="button"
 										onClick={() => downloadPdf(b)}

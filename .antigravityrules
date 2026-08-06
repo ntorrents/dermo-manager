@@ -1,0 +1,16 @@
+# Reglas de Trabajo - Migraciones de Base de Datos (Supabase PRE)
+
+## Automatización de Migraciones SQL
+Cada vez que crees, modifiques o generes un nuevo archivo de migración `.sql` dentro del directorio `supabase/migrations/`, debes aplicar inmediatamente los cambios en el entorno de **PREPRODUCCIÓN (PRE)** ejecutando estos comandos en la terminal:
+
+1. **Vincular con el proyecto de PRE:**
+   supabase link --project-ref zturfaxtcbhvyllwirrj
+
+2. **Aplicar migraciones pendientes:**
+   supabase db push
+
+---
+
+## Restricciones y Seguridad de Entornos
+- **Fijación de Entorno:** El único `project-ref` autorizado para ejecuciones automáticas desde este entorno de desarrollo es `zturfaxtcbhvyllwirrj` (PRE).
+- **Entorno PRO (Prohibido):** NUNCA intentes enlazar la CLI a Producción, ni solicitar credenciales de PRO, ni ejecutar despachos automáticos hacia la base de datos de producción. La aplicación en PRO la realizará el usuario manualmente.

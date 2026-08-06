@@ -48,7 +48,7 @@ import {
 	SPAN_MIN,
 	SPAN_MAX,
 } from "./widgets";
-import { WidgetAlerts } from "./widgets/WidgetAlerts";
+import { DashboardUnifiedAlerts } from "./DashboardUnifiedAlerts";
 
 /** Top clientes por número de sesiones (entries tipo income con client_id) */
 function useTopClients(entries = [], clients = [], startStr, endStr) {
@@ -184,6 +184,7 @@ export const DashboardTab = ({
 	setReportingCustomTo,
 	onReportingGoToday,
 	userName,
+	onNavigateTab,
 }) => {
 	const [isEditing, setIsEditing] = useState(false);
 	const [showAddDropdown, setShowAddDropdown] = useState(false);
@@ -273,6 +274,18 @@ export const DashboardTab = ({
 		[currentExpenses],
 	);
 	const taxHucha = ivaVentas - ivaGastos;
+	const todayYmd = new Date().toISOString().slice(0, 10);
+	const appointmentsToday = useMemo(
+		() =>
+			(appointments || [])
+				.filter((a) => {
+					if (a.status === "cancelled") return false;
+					const day = a.start_at ? String(a.start_at).slice(0, 10) : "";
+					return day === todayYmd;
+				})
+				.sort((a, b) => new Date(a.start_at) - new Date(b.start_at)),
+		[appointments, todayYmd],
+	);
 	const upcomingAppointments = useMemo(() => {
 		const now = new Date();
 		return (appointments || [])
@@ -470,7 +483,7 @@ export const DashboardTab = ({
 
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
 				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
-					<div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+					<div className="flex items-center gap-2 erp-label">
 						<Euro size={14} className="text-emerald-500" /> Ingresos período
 					</div>
 					<p className="text-xl font-bold text-gray-900 tabular-nums">
@@ -492,7 +505,7 @@ export const DashboardTab = ({
 					</p>
 				</div>
 				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
-					<div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+					<div className="flex items-center gap-2 erp-label">
 						<TrendingDown size={14} className="text-rose-500" /> Gastos período
 					</div>
 					<p className="text-xl font-bold text-gray-900 tabular-nums">
@@ -506,7 +519,7 @@ export const DashboardTab = ({
 					</p>
 				</div>
 				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
-					<div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+					<div className="flex items-center gap-2 erp-label">
 						<CalendarDays size={14} className="text-blue-500" /> Próximas citas
 					</div>
 					<p className="text-xl font-bold text-gray-900">
@@ -515,7 +528,7 @@ export const DashboardTab = ({
 					<p className="text-xs text-gray-500">En la agenda desde hoy</p>
 				</div>
 				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
-					<div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">
+					<div className="flex items-center gap-2 erp-label">
 						<Users size={14} className="text-violet-500" /> Clientes activos
 					</div>
 					<p className="text-xl font-bold text-gray-900">
@@ -526,9 +539,13 @@ export const DashboardTab = ({
 			</div>
 
 			<div className="w-full h-auto shrink-0">
-				<WidgetAlerts
+				<DashboardUnifiedAlerts
+					appointmentsToday={appointmentsToday}
 					lowStockItems={lowStockItems}
 					expiredStockItems={expiredStockItems}
+					clients={clients}
+					onGoCalendar={onNavigateTab ? () => onNavigateTab("calendar") : undefined}
+					onGoInventory={onNavigateTab ? () => onNavigateTab("inventory") : undefined}
 				/>
 			</div>
 

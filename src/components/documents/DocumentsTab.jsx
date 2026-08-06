@@ -9,7 +9,14 @@ const DOC_TABS = [
 	{ id: "budgets", label: "Presupuestos", icon: ReceiptText, requiresPlan: true },
 ];
 
-export const DocumentsTab = ({ user, clients = [], treatments = [], profile, showToast }) => {
+export const DocumentsTab = ({
+	user,
+	clients = [],
+	treatments = [],
+	profile,
+	showToast,
+	onStartSessionFromBudget,
+}) => {
 	const [activeDocTab, setActiveDocTab] = useState("consents");
 
 	const tabs = useMemo(() => DOC_TABS, []);
@@ -52,7 +59,14 @@ export const DocumentsTab = ({ user, clients = [], treatments = [], profile, sho
 
 			{activeDocTab === "budgets" && (
 				<RequirePlan>
-					<BudgetsTab user={user} clients={clients} treatments={treatments} profile={profile} showToast={showToast} />
+					<BudgetsTab
+						user={user}
+						clients={clients}
+						treatments={treatments}
+						profile={profile}
+						showToast={showToast}
+						onStartSessionFromBudget={onStartSessionFromBudget}
+					/>
 				</RequirePlan>
 			)}
 		</div>

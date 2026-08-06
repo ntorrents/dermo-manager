@@ -31,6 +31,15 @@ const TreatmentsTab = lazy(() =>
 const InventoryTab = lazy(() =>
 	import("./components/inventory/InventoryTab").then((m) => ({ default: m.InventoryTab })),
 );
+const DailyCashTab = lazy(() =>
+	import("./components/finance/DailyCashTab").then((m) => ({ default: m.DailyCashTab })),
+);
+const FinancialAnalysisTab = lazy(() =>
+	import("./components/finance/FinancialAnalysisTab").then((m) => ({ default: m.FinancialAnalysisTab })),
+);
+const AssetsTab = lazy(() =>
+	import("./components/taxes/AssetsTab").then((m) => ({ default: m.AssetsTab })),
+);
 const FinanceTab = lazy(() =>
 	import("./components/finance/FinanceTab").then((m) => ({ default: m.FinanceTab })),
 );
@@ -62,6 +71,15 @@ const DocumentsTab = lazy(() =>
 	import("./components/documents/DocumentsTab").then((m) => ({ default: m.DocumentsTab })),
 );
 import { getReportingRange } from "./utils/dateUtils";
+import {
+	companyMissingFiscalAddress,
+	COMPANY_FISCAL_ADDRESS_MSG,
+} from "./utils/companyFiscal";
+import { useClinicSeguimientos } from "./hooks/useClinicSeguimientos";
+import {
+	useSeguimientoNotifications,
+	requestSeguimientoNotificationPermission,
+} from "./hooks/useSeguimientoNotifications";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
@@ -73,10 +91,13 @@ const TAB_META = {
 	documents: { title: "Documentos", subtitle: "Presupuestos y plantillas" },
 	inventory: { title: "Stock", subtitle: "Materiales y lotes" },
 	calendar: { title: "Agenda", subtitle: "Citas y recordatorios" },
-	finance: { title: "Finanzas", subtitle: "Ingresos, gastos y fijos" },
+	daily_cash: { title: "Caja Diaria", subtitle: "Cierre de caja y mostrador" },
+	finance: { title: "Movimientos", subtitle: "Ingresos, gastos y recurrentes" },
 	invoices: { title: "Facturas", subtitle: "Emitidas, filtros y estadísticas" },
+	financial_analysis: { title: "Análisis Financiero", subtitle: "Gráficos y reportes" },
 	suppliers: { title: "Proveedores", subtitle: "KPI de compras y facturas" },
-	taxes: { title: "Fiscalidad", subtitle: "Resúmenes fiscales" },
+	taxes: { title: "Resumen Fiscal", subtitle: "Modelos y trimestres" },
+	assets: { title: "Bienes de Inversión", subtitle: "Amortizaciones en curso" },
 	settings: { title: "Configuración", subtitle: "Clínica, perfil y seguridad" },
 };
 
@@ -135,6 +156,8 @@ const DermoManager = () => {
 
 	const [activeTab, setActiveTab] = useState("dashboard");
 	const [financeNavIntent, setFinanceNavIntent] = useState(null);
+	const [invoicesNavIntent, setInvoicesNavIntent] = useState(null);
+	const [sessionBootstrap, setSessionBootstrap] = useState(null);
 	const [settingsAnchor, setSettingsAnchor] = useState(null);
 	const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
 		try {
@@ -203,6 +226,12 @@ const DermoManager = () => {
 		setReportingCustomTo(ymd);
 	}, []);
 
+	const navigateToClientInvoices = useCallback((clientId) => {
+		if (!clientId) return;
+		setInvoicesNavIntent({ clientId, appliedAt: Date.now() });
+		setActiveTab("invoices");
+	}, []);
+
 	const navigateFinanceFromTaxChecklist = useCallback(({ year, quarter, issue }) => {
 		const startMonth = (quarter - 1) * 3;
 		const startDate = `${year}-${String(startMonth + 1).padStart(2, "0")}-01`;
@@ -226,6 +255,14 @@ const DermoManager = () => {
 	const [showLogout, setShowLogout] = useState(false);
 	const [selectedTreatment, setSelectedTreatment] = useState(null);
 
+	const { data: clinicSeguimientos = [] } = useClinicSeguimientos(user?.id);
+	useSeguimientoNotifications(clinicSeguimientos, { enabled: !!user });
+
+	useEffect(() => {
+		if (!user) return;
+		requestSeguimientoNotificationPermission();
+	}, [user]);
+
 	const sessionMutation = useSessionMutation(user?.id, inventory);
 	const consumeBonoMutation = useConsumeBono();
 
@@ -245,6 +282,39 @@ const DermoManager = () => {
 
 	const showToastMsg = (msg, type = "success") =>
 		setToast({ message: msg, type });
+
+	const startSessionFromBudget = useCallback(
+		({ client, treatment, price }) => {
+			if (!client?.id) {
+				showToastMsg("Cliente no encontrado", "error");
+				return;
+			}
+			if (!treatment?.id) {
+				showToastMsg(
+					"El presupuesto no tiene línea de tratamiento vinculada",
+					"error",
+				);
+				return;
+			}
+			if (companyMissingFiscalAddress(client)) {
+				showToastMsg(COMPANY_FISCAL_ADDRESS_MSG, "error");
+				return;
+			}
+			setSessionBootstrap({
+				clientId: client.id,
+				price: price != null ? Number(price) : null,
+			});
+			setSelectedTreatment({
+				...treatment,
+				price:
+					price != null && !Number.isNaN(Number(price))
+						? Number(price)
+						: treatment.price,
+			});
+			setActiveTab("treatments");
+		},
+		[],
+	);
 
 	// Vuelta desde OAuth de Google Calendar (?google_calendar=connected|error)
 	useEffect(() => {
@@ -312,6 +382,11 @@ const DermoManager = () => {
 			return;
 		}
 
+		if (!planAmigo && companyMissingFiscalAddress(clientData)) {
+			showToastMsg(COMPANY_FISCAL_ADDRESS_MSG, "error");
+			return;
+		}
+
 		try {
 			await sessionMutation.mutateAsync({
 				treatment,
@@ -329,6 +404,7 @@ const DermoManager = () => {
 				showToastMsg(planAmigo ? `Sesión guardada (Plan Amigo, sin factura)` : `Sesión guardada (Fecha: ${date})`);
 			}
 			setSelectedTreatment(null);
+			setSessionBootstrap(null);
 			await refreshData();
 		} catch (e) {
 			console.error("Error en handleSession:", e);
@@ -338,10 +414,10 @@ const DermoManager = () => {
 
 	if (authLoading || (user && dataLoading && dataFetchErrors.length === 0) || (user && tenantLoading))
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-rose-50">
+			<div className="min-h-screen flex items-center justify-center bg-slate-50">
 				<div className="flex flex-col items-center gap-4">
-					<Loader2 className="animate-spin text-rose-500" size={40} />
-					<p className="text-rose-400 font-medium">
+					<Loader2 className="animate-spin text-rose-700" size={40} />
+					<p className="text-rose-600 font-medium">
 						Sincronizando Datos...
 					</p>
 				</div>
@@ -352,7 +428,7 @@ const DermoManager = () => {
 
 	return (
 		<div
-			className={`min-h-[100dvh] bg-gray-50 pb-24 md:pb-0 font-sans text-gray-800 overflow-x-hidden pl-0 ${mainPadClass} antialiased text-[15px] leading-snug`}>
+			className={`min-h-[100dvh] bg-slate-50 pb-24 md:pb-0 font-sans text-gray-800 overflow-x-hidden pl-0 ${mainPadClass} antialiased text-sm leading-tight`}>
 			{toast && (
 				<Toast
 					message={toast.message}
@@ -377,7 +453,12 @@ const DermoManager = () => {
 				treatment={selectedTreatment}
 				clients={clients}
 				inventory={inventory}
-				onClose={() => setSelectedTreatment(null)}
+				sessionBootstrap={sessionBootstrap}
+				onBootstrapConsumed={() => setSessionBootstrap(null)}
+				onClose={() => {
+					setSelectedTreatment(null);
+					setSessionBootstrap(null);
+				}}
 				onConfirm={handleSession}
 				isSubmitting={sessionMutation.isPending}
 			/>
@@ -429,7 +510,7 @@ const DermoManager = () => {
 				<Suspense
 					fallback={
 						<div className="min-h-[40vh] flex items-center justify-center">
-							<Loader2 className="animate-spin text-rose-500" size={30} />
+							<Loader2 className="animate-spin text-rose-700" size={30} />
 						</div>
 					}>
 				{activeTab === "dashboard" && (
@@ -452,6 +533,7 @@ const DermoManager = () => {
 						setReportingCustomTo={setReportingCustomTo}
 						onReportingGoToday={goReportingToday}
 						userName={profile?.name}
+						onNavigateTab={setActiveTab}
 					/>
 				)}
 				{activeTab === "clients" && (
@@ -461,6 +543,7 @@ const DermoManager = () => {
 						profile={profile}
 						clients={clients}
 						onRefresh={refreshClients}
+						onNavigateToInvoices={navigateToClientInvoices}
 					/>
 				)}
 				{activeTab === "treatments" && (
@@ -511,9 +594,32 @@ const DermoManager = () => {
 						reportingCustomTo={reportingCustomTo}
 						setReportingCustomTo={setReportingCustomTo}
 						onReportingGoToday={goReportingToday}
+						navIntent={invoicesNavIntent}
+						onNavIntentConsumed={() => setInvoicesNavIntent(null)}
 					/>
 				)}
-				{activeTab === "finance" && (
+								{activeTab === "daily_cash" && (
+					
+						<DailyCashTab
+							user={user}
+							showToast={showToast}
+						/>
+					
+				)}
+				{activeTab === "financial_analysis" && (
+					
+						<FinancialAnalysisTab
+							user={user}
+							showToast={showToast}
+							reportingPreset={reportingPreset}
+							reportingAnchorYm={reportingAnchorYm}
+							reportingCustomFrom={reportingCustomFrom}
+							reportingCustomTo={reportingCustomTo}
+							reportingRange={reportingRange}
+						/>
+					
+				)}
+{activeTab === "finance" && (
 					<FinanceTab
 						user={user}
 						entries={entries}
@@ -541,6 +647,7 @@ const DermoManager = () => {
 						treatments={treatments}
 						profile={profile}
 						showToast={showToastMsg}
+						onStartSessionFromBudget={startSessionFromBudget}
 					/>
 				)}
 				{activeTab === "calendar" && (
@@ -554,7 +661,15 @@ const DermoManager = () => {
 						onRefresh={refreshAppointments}
 					/>
 				)}
-				{activeTab === "taxes" && (
+								{activeTab === "assets" && (
+					
+						<AssetsTab
+							user={user}
+							showToast={showToast}
+						/>
+					
+				)}
+{activeTab === "taxes" && (
 					<TaxesTab
 						entries={entries}
 						clients={clients}
@@ -579,7 +694,8 @@ const DermoManager = () => {
 						onNavigateAnchorConsumed={clearSettingsAnchor}
 					/>
 				)}
-				</Suspense>
+				
+			</Suspense>
 			</main>
 			<MobileNav
 				activeTab={activeTab}

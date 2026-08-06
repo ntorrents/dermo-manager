@@ -453,7 +453,7 @@ export const ClientsTab = ({
 	};
 
 	return (
-		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0 h-[calc(100vh-120px)] md:h-auto flex flex-col md:flex-row gap-6">
+		<div className="space-y-4 animate-in fade-in pb-20 md:pb-0 min-h-[calc(100vh-120px)] flex flex-col">
 			<ConfirmModal
 				isOpen={showDeleteModal}
 				title="Archivar cliente"
@@ -471,181 +471,145 @@ export const ClientsTab = ({
 				isDestructive={true}
 			/>
 
-			{/* LISTA DE CLIENTES: Se oculta en móvil si hay uno seleccionado */}
-			<div
-				className={`flex-1 min-w-0 bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col ${
-					selectedClient ? "hidden md:flex" : "flex"
-				}`}>
-				<div className="p-6 border-b border-gray-50 flex flex-col gap-4">
-					<div className="flex justify-between items-center">
-						<h2 className="text-2xl font-black text-gray-800 tracking-tight flex items-center gap-2">
-							<Users className="text-rose-500" /> Clientes
-						</h2>
-						<span className="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">
-							{clients.length}
-						</span>
-					</div>
-					<div className="flex flex-col sm:flex-row gap-2 sm:items-stretch">
-						<div className="relative flex-1 min-w-0">
-							<Search
-								className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-								size={18}
-							/>
-							<input
-								placeholder="Buscar cliente…"
-								className="w-full pl-10 pr-3 py-3 bg-gray-50 border border-gray-100 focus:bg-white focus:border-rose-200 rounded-xl outline-none font-bold text-gray-700"
-								value={searchTerm}
-								onChange={(e) => setSearchTerm(e.target.value)}
-							/>
+						{!selectedClient ? (
+				<div className="flex-1 min-w-0 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+					<div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+						<div className="flex items-center gap-2">
+							<Users className="text-rose-700" size={20} />
+							<h2 className="text-lg font-black text-slate-800 tracking-tight">Directorio de Clientes</h2>
+							<span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold ml-2">
+								{clients.length}
+							</span>
 						</div>
-						<button
-							type="button"
-							onClick={() => handleOpenModal()}
-							className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors shrink-0">
-							<Plus size={20} />
-							<span className="hidden sm:inline">Nuevo cliente</span>
-						</button>
+						<div className="flex flex-col sm:flex-row gap-2 sm:items-center w-full sm:w-auto">
+							<div className="relative min-w-[240px]">
+								<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+								<input
+									placeholder="Buscar cliente (nombre, DNI, tel)..."
+									className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 focus:border-rose-700 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-slate-700"
+									value={searchTerm}
+									onChange={(e) => setSearchTerm(e.target.value)}
+								/>
+							</div>
+							<button
+								type="button"
+								onClick={() => handleOpenModal()}
+								className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors shrink-0">
+								<Plus size={16} />
+								<span>Nuevo Cliente</span>
+							</button>
+						</div>
 					</div>
-				</div>
 
-				<div className="flex-1 overflow-y-auto custom-scrollbar p-2">
-					{filteredClients.length === 0 ? (
-						<EmptyState
-							icon={Users}
-							title={searchTerm ? "Sin resultados" : "No hay clientes"}
-							description={
-								searchTerm
-									? "Prueba con otro término de búsqueda"
-									: "Añade tu primer cliente para empezar a gestionar citas y facturación."
-							}
-							actionLabel={searchTerm ? undefined : "Añadir cliente"}
-							onAction={searchTerm ? undefined : () => handleOpenModal()}
-						/>
-					) : (
-						<div className="space-y-2">
-							{filteredClients.map((client) => (
-								<div
-									key={client.id}
-									onClick={() => setSelectedClient(client)}
-									className={`p-4 rounded-2xl cursor-pointer transition-all border ${
-										selectedClient?.id === client.id
-											? "bg-rose-50 border-rose-200 shadow-sm"
-											: "bg-white border-transparent hover:bg-gray-50"
-									}`}>
-									<div className="flex justify-between items-start">
-										<div className="flex items-center gap-3 flex-1 min-w-0">
-											<div
-												className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-black shrink-0 ${
-													selectedClient?.id === client.id
-														? "bg-rose-200 text-rose-700"
-														: "bg-gray-100 text-gray-500"
-												}`}>
-												{client.name.charAt(0)}
-											</div>
-											<div className="min-w-0 flex-1">
-												<h4
-													className={`font-bold ${
-														selectedClient?.id === client.id
-															? "text-rose-900"
-															: "text-gray-800"
-													}`}>
-													{client.name} {client.surname}
-												</h4>
-												<div className="flex items-center gap-1.5">
-													<p className="text-xs text-gray-400">
-														{client.phone || "Sin tlf"}
-													</p>
+					<div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
+						{filteredClients.length === 0 ? (
+							<EmptyState
+								icon={Users}
+								title={searchTerm ? "Sin resultados" : "No hay clientes"}
+								description={
+									searchTerm
+										? "Prueba con otro término de búsqueda"
+										: "Añade tu primer cliente para empezar a gestionar citas y facturación."
+								}
+								actionLabel={searchTerm ? undefined : "Añadir cliente"}
+								onAction={searchTerm ? undefined : () => handleOpenModal()}
+							/>
+						) : (
+							<table className="w-full text-left border-collapse min-w-[800px]">
+								<thead>
+									<tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-widest text-slate-500 font-black">
+										<th className="p-3 pl-4">Paciente</th>
+										<th className="p-3">Contacto</th>
+										<th className="p-3">Identificación</th>
+										<th className="p-3 text-center">Legal</th>
+										<th className="p-3 text-right pr-4">Acciones</th>
+									</tr>
+								</thead>
+								<tbody className="divide-y divide-slate-100">
+									{filteredClients.map((client) => (
+										<tr
+											key={client.id}
+											onClick={() => setSelectedClient(client)}
+											className="hover:bg-slate-50 transition-colors cursor-pointer group">
+											<td className="p-3 pl-4">
+												<div className="flex items-center gap-3">
+													<div className="w-8 h-8 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-xs font-black shrink-0">
+														{client.name.charAt(0)}
+													</div>
+													<div>
+														<p className="font-bold text-slate-800 text-[13px]">{client.name} {client.surname}</p>
+													</div>
+												</div>
+											</td>
+											<td className="p-3">
+												<div className="flex items-center gap-2">
+													<span className="text-[13px] text-slate-600">{client.phone || "Sin tlf"}</span>
 													{client.phone && (
 														<a
-															href={buildWhatsAppUrl(
-																client.phone,
-																client.name,
-																clinic?.name,
-															)}
+															href={buildWhatsAppUrl(client.phone, client.name, clinic?.name)}
 															target="_blank"
 															rel="noopener noreferrer"
 															onClick={(e) => e.stopPropagation()}
-															className="p-1 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
-															title="Abrir WhatsApp">
+															className="p-1 rounded bg-green-50 text-green-600 hover:bg-green-100 opacity-0 group-hover:opacity-100 transition-all"
+															title="WhatsApp">
 															<MessageCircle size={14} />
 														</a>
 													)}
 												</div>
-												<div className="flex items-center gap-2 mt-1.5 flex-wrap">
-													<span
-														className="inline-flex items-center gap-0.5 text-[10px] font-bold"
-														title="Consentimiento">
-														{client.has_consent ? (
-															<Check size={12} className="text-emerald-500" />
-														) : (
-															<X size={12} className="text-gray-400" />
-														)}
-														<span className="text-gray-500">Cons.</span>
+											</td>
+											<td className="p-3">
+												<span className="text-[13px] font-mono text-slate-500">{client.nif || "-"}</span>
+											</td>
+											<td className="p-3 text-center">
+												<div className="flex items-center justify-center gap-2">
+													<span className="flex items-center gap-1 text-[11px] font-bold text-slate-500" title="Consentimiento">
+														{client.has_consent ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} C
 													</span>
-													<span
-														className="inline-flex items-center gap-0.5 text-[10px] font-bold"
-														title="Derechos de imagen">
-														{client.has_image_rights ? (
-															<Check size={12} className="text-emerald-500" />
-														) : (
-															<X size={12} className="text-gray-400" />
-														)}
-														<span className="text-gray-500">Imagen</span>
+													<span className="flex items-center gap-1 text-[11px] font-bold text-slate-500" title="Derechos de imagen">
+														{client.has_image_rights ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} I
 													</span>
-													{client.drive_url && (
-														<a
-															href={client.drive_url}
-															target="_blank"
-															rel="noopener noreferrer"
-															onClick={(e) => e.stopPropagation()}
-															className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-600 hover:text-blue-700"
-															title="Abrir carpeta en Drive">
-															<ExternalLink size={12} />
-															Ver Drive
-														</a>
+												</div>
+											</td>
+											<td className="p-3 pr-4 text-right">
+												<div className="flex justify-end gap-2">
+													{canDeleteOperational && (
+														<button
+															onClick={(e) => handleDeleteClick(e, client)}
+															className="p-1.5 text-slate-400 hover:text-rose-700 rounded hover:bg-rose-50 transition-colors opacity-0 group-hover:opacity-100"
+															title="Archivar">
+															<Trash2 size={16} />
+														</button>
 													)}
 												</div>
-											</div>
-										</div>
-										{canDeleteOperational && (
-											<button
-												onClick={(e) => handleDeleteClick(e, client)}
-												className="p-2 text-gray-300 hover:text-rose-500 shrink-0"
-												title="Archivar cliente">
-												<Trash2 size={16} />
-											</button>
-										)}
-									</div>
-								</div>
-							))}
-						</div>
-					)}
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						)}
+					</div>
 				</div>
-			</div>
-
-			{/* DETALLE CLIENTE (Panel derecho) */}
+			) : (
 			<div
-				className={`flex-[2] min-w-0 bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden flex flex-col ${
-					selectedClient ? "flex" : "hidden md:flex"
-				}`}>
+				className="flex-1 min-w-0 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col w-full max-w-5xl mx-auto">
 				{selectedClient ? (
 					<>
-						<div className="p-6 xl:p-8 border-b border-gray-50 bg-gray-50/50 flex justify-between items-start">
+						<div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 							<div className="flex items-center gap-4">
 								<button
 									onClick={() => setSelectedClient(null)}
-									className="md:hidden p-2 -ml-2 text-gray-400">
-									<X size={24} />
+									className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors mr-2">
+									<X size={16} /> Volver
 								</button>
 								<div className="w-12 h-12 xl:w-16 xl:h-16 bg-gradient-to-br from-rose-400 to-orange-400 rounded-2xl flex items-center justify-center text-white text-xl xl:text-2xl font-black shadow-lg shadow-rose-100">
 									{selectedClient.name.charAt(0)}
 								</div>
 								<div>
-									<h2 className="text-xl xl:text-3xl font-black text-gray-800 tracking-tight">
+									<h2 className="text-xl xl:text-3xl font-black text-slate-800 tracking-tight">
 										{selectedClient.name} {selectedClient.surname}
 									</h2>
 									<div className="flex items-center gap-2 mt-1">
-										<p className="text-sm font-bold text-gray-500">
+										<p className="text-sm font-bold text-slate-500">
 											{selectedClient.phone}
 										</p>
 										{selectedClient.phone && (
@@ -672,14 +636,14 @@ export const ClientsTab = ({
 										setConsentTemplateId("");
 										setShowConsentModal(true);
 									}}
-									className="p-3 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-rose-600 transition-all shadow-sm flex items-center gap-2"
+									className="p-3 bg-white border border-gray-200 rounded-xl text-slate-500 hover:text-rose-700 transition-all shadow-sm flex items-center gap-2"
 									title="Generar consentimiento informado">
 									<FileText size={18} />
 									<span className="hidden sm:inline text-sm font-bold">Consentimiento</span>
 								</button>
 								<button
 									onClick={() => handleOpenModal(selectedClient)}
-									className="p-3 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-rose-600 transition-all shadow-sm"
+									className="p-3 bg-white border border-gray-200 rounded-xl text-slate-500 hover:text-rose-700 transition-all shadow-sm"
 									title="Editar cliente">
 									<Edit2 size={18} />
 								</button>
@@ -705,8 +669,8 @@ export const ClientsTab = ({
 									onClick={() => setClientDetailTab(id)}
 									className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
 										clientDetailTab === id
-											? "border-rose-500 text-rose-600"
-											: "border-transparent text-gray-400 hover:text-gray-600"
+											? "border-rose-700 text-rose-700"
+											: "border-transparent text-slate-400 hover:text-slate-600"
 									}`}>
 									<Icon size={16} />
 									{label}
@@ -717,10 +681,10 @@ export const ClientsTab = ({
 						<div className="flex-1 overflow-y-auto p-6 xl:p-8 custom-scrollbar bg-gray-50/30">
 							{clientDetailTab === "visitas" && (
 								<>
-									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
+									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
 										<BookOpen size={14} /> Diario de visitas
 									</h3>
-									<p className="text-sm text-gray-500 mb-6 max-w-2xl">
+									<p className="text-sm text-slate-500 mb-6 max-w-2xl">
 										Registra cada cita o sesión: fecha, tratamientos realizados, notas de la sesión e
 										indicaciones al paciente. Las entradas más recientes aparecen primero.
 									</p>
@@ -730,20 +694,20 @@ export const ClientsTab = ({
 											type="button"
 											onClick={() => setVisitFormOpen(!visitFormOpen)}
 											className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left hover:bg-gray-50/80 transition-colors">
-											<span className="text-xs font-bold text-gray-500 uppercase tracking-widest flex items-center gap-2">
+											<span className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
 												<Plus size={14} />
 												{editingVisitId ? "Editar visita" : "Nueva entrada de visita"}
 											</span>
 											{visitFormOpen ? (
-												<ChevronUp size={18} className="text-gray-400 shrink-0" />
+												<ChevronUp size={18} className="text-slate-400 shrink-0" />
 											) : (
-												<ChevronDown size={18} className="text-gray-400 shrink-0" />
+												<ChevronDown size={18} className="text-slate-400 shrink-0" />
 											)}
 										</button>
 										{visitFormOpen && (
 											<div className="px-4 pb-4 pt-0 border-t border-gray-100 space-y-3">
 												<div>
-													<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+													<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
 														Resumen / título (opcional)
 													</label>
 													<input
@@ -758,7 +722,7 @@ export const ClientsTab = ({
 												</div>
 												<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 													<div>
-														<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+														<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
 															Fecha de la visita
 														</label>
 														<input
@@ -774,7 +738,7 @@ export const ClientsTab = ({
 														/>
 													</div>
 													<div>
-														<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+														<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
 															Tratamientos realizados
 														</label>
 														<input
@@ -792,7 +756,7 @@ export const ClientsTab = ({
 													</div>
 												</div>
 												<div>
-													<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+													<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
 														Notas de la sesión
 													</label>
 													<textarea
@@ -806,7 +770,7 @@ export const ClientsTab = ({
 													/>
 												</div>
 												<div>
-													<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+													<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
 														Indicaciones / cuidados post (opcional)
 													</label>
 													<textarea
@@ -910,7 +874,7 @@ export const ClientsTab = ({
 													<div className="min-w-0 flex-1 space-y-1.5">
 														<div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
 															{seg.fecha_proximo_contacto && (
-																<p className="text-sm font-black text-rose-600 flex items-center gap-1.5">
+																<p className="text-sm font-black text-rose-700 flex items-center gap-1.5">
 																	<CalendarCheck size={14} className="shrink-0" />
 																	{new Date(
 																		seg.fecha_proximo_contacto + "T12:00:00",
@@ -923,20 +887,20 @@ export const ClientsTab = ({
 																</p>
 															)}
 															{seg.titulo && (
-																<p className="text-sm font-bold text-gray-800">{seg.titulo}</p>
+																<p className="text-sm font-bold text-slate-800">{seg.titulo}</p>
 															)}
 														</div>
 														{seg.tratamientos_interes && (
-															<p className="text-sm text-gray-800">
-																<span className="text-[10px] font-black text-gray-400 uppercase tracking-wide">
+															<p className="text-sm text-slate-800">
+																<span className="text-[10px] font-black text-slate-400 uppercase tracking-wide">
 																	Tratamientos:{" "}
 																</span>
 																{seg.tratamientos_interes}
 															</p>
 														)}
 														{seg.notas && (
-															<p className="text-xs text-gray-600 whitespace-pre-wrap leading-relaxed">
-																<span className="text-[10px] font-black text-gray-400 uppercase tracking-wide block mb-0.5">
+															<p className="text-xs text-slate-600 whitespace-pre-wrap leading-relaxed">
+																<span className="text-[10px] font-black text-slate-400 uppercase tracking-wide block mb-0.5">
 																	Notas de sesión
 																</span>
 																{seg.notas}
@@ -955,7 +919,7 @@ export const ClientsTab = ({
 															!seg.tratamientos_interes &&
 															!seg.notas &&
 															!seg.indicaciones_post && (
-																<p className="text-xs text-gray-400">Sin detalles</p>
+																<p className="text-xs text-slate-400">Sin detalles</p>
 															)}
 													</div>
 													<div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
@@ -974,7 +938,7 @@ export const ClientsTab = ({
 																});
 																setVisitFormOpen(true);
 															}}
-															className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+															className="p-2 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
 															title="Editar">
 															<Pen size={16} />
 														</button>
@@ -1001,7 +965,7 @@ export const ClientsTab = ({
 																}
 															}}
 															disabled={deletingSeguimiento}
-															className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+															className="p-2 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
 															title="Eliminar">
 															<Trash2 size={16} />
 														</button>
@@ -1013,7 +977,7 @@ export const ClientsTab = ({
 										<div className="flex flex-col items-center justify-center h-32 text-gray-300 border-2 border-dashed border-gray-200 rounded-3xl">
 											<BookOpen size={28} className="mb-2 opacity-50" />
 											<p className="font-bold text-sm">Aún no hay visitas registradas</p>
-											<p className="text-xs text-gray-400 mt-1 text-center px-4">
+											<p className="text-xs text-slate-400 mt-1 text-center px-4">
 												Usa «Nueva entrada de visita» para añadir fecha, tratamientos y notas de cada
 												sesión.
 											</p>
@@ -1021,7 +985,7 @@ export const ClientsTab = ({
 									)}
 
 									<div className="mt-8 pt-6 border-t border-gray-100">
-										<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+										<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
 											<Clock size={14} /> Historial de sesiones
 										</h3>
 										{historyLoading ? (
@@ -1095,11 +1059,11 @@ export const ClientsTab = ({
 																		</span>
 																	</div>
 																	<div className="min-w-0 flex-1">
-																		<h4 className="font-bold text-gray-800 text-sm xl:text-lg">
+																		<h4 className="font-bold text-slate-800 text-sm xl:text-lg">
 																			{session.description?.split("(")[0] ||
 																				"Sesión"}
 																		</h4>
-																		<p className="text-[10px] text-gray-400 font-medium uppercase">
+																		<p className="text-[10px] text-slate-400 font-medium uppercase">
 																			{session.date}
 																			{session.plan_amigo && " • Plan Amigo (sin factura)"}
 																		</p>
@@ -1137,7 +1101,7 @@ export const ClientsTab = ({
 																					setPhotoUploadSession(session);
 																					setShowPhotoUploadModal(true);
 																				}}
-																				className="w-16 h-20 rounded-lg border-2 border-dashed border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 flex items-center justify-center text-gray-400 hover:text-rose-500 transition-colors shrink-0"
+																				className="w-16 h-20 rounded-lg border-2 border-dashed border-gray-200 hover:border-rose-300 hover:bg-rose-50/50 flex items-center justify-center text-slate-400 hover:text-rose-500 transition-colors shrink-0"
 																				title="Añadir foto">
 																				<Camera size={20} />
 																			</button>
@@ -1159,7 +1123,7 @@ export const ClientsTab = ({
 																					);
 																				}
 																			}}
-																			className="p-2 text-gray-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
+																			className="p-2 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50 transition-colors"
 																			title="Generar factura">
 																			<FileDown size={18} />
 																		</button>
@@ -1167,13 +1131,13 @@ export const ClientsTab = ({
 																	{Number(session.amount) > 0 && (
 																		<button
 																			onClick={() => openRefundModal(session)}
-																			className="p-2 text-gray-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
+																			className="p-2 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 transition-colors"
 																			title="Rectificar / Devolución">
 																			<RotateCcw size={18} />
 																		</button>
 																	)}
 																	<div className="text-right">
-																		<span className="block font-black text-gray-800 text-lg xl:text-xl">
+																		<span className="block font-black text-slate-800 text-lg xl:text-xl">
 																			{formatCurrency(session.amount)}
 																		</span>
 																		<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
@@ -1198,43 +1162,43 @@ export const ClientsTab = ({
 
 							{clientDetailTab === "datos" && (
 								<div className="space-y-6">
-									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
+									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest flex items-center gap-2">
 										<User size={14} /> Datos paciente
 									</h3>
 									<dl className="space-y-3 text-sm">
 										<div>
-											<dt className="text-[10px] font-black text-gray-400 uppercase">
+											<dt className="text-[10px] font-black text-slate-400 uppercase">
 												Nombre
 											</dt>
-											<dd className="font-bold text-gray-800">
+											<dd className="font-bold text-slate-800">
 												{selectedClient.name} {selectedClient.surname}
 											</dd>
 										</div>
 										{selectedClient.phone && (
 											<div>
-												<dt className="text-[10px] font-black text-gray-400 uppercase">
+												<dt className="text-[10px] font-black text-slate-400 uppercase">
 													Teléfono
 												</dt>
-												<dd className="font-bold text-gray-800">
+												<dd className="font-bold text-slate-800">
 													{selectedClient.phone}
 												</dd>
 											</div>
 										)}
 										{selectedClient.email && (
 											<div>
-												<dt className="text-[10px] font-black text-gray-400 uppercase">
+												<dt className="text-[10px] font-black text-slate-400 uppercase">
 													Email
 												</dt>
-												<dd className="font-bold text-gray-800">
+												<dd className="font-bold text-slate-800">
 													{selectedClient.email}
 												</dd>
 											</div>
 										)}
 										<div>
-											<dt className="text-[10px] font-black text-gray-400 uppercase">
+											<dt className="text-[10px] font-black text-slate-400 uppercase">
 												NIF/CIF
 											</dt>
-											<dd className="font-bold text-gray-800">
+											<dd className="font-bold text-slate-800">
 												{selectedClient.nif || "—"}
 												{selectedClient.is_company && (
 													<span className="ml-2 text-[10px] font-black uppercase text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg">
@@ -1248,10 +1212,10 @@ export const ClientsTab = ({
 										</div>
 										{selectedClient.is_company && (
 											<div>
-												<dt className="text-[10px] font-black text-gray-400 uppercase">
+												<dt className="text-[10px] font-black text-slate-400 uppercase">
 													Dirección fiscal
 												</dt>
-												<dd className="font-bold text-gray-800 whitespace-pre-line">
+												<dd className="font-bold text-slate-800 whitespace-pre-line">
 													{selectedClient.address?.trim() || (
 														<span className="text-amber-700">
 															Sin dirección — añádela para facturar
@@ -1262,13 +1226,13 @@ export const ClientsTab = ({
 										)}
 										{selectedClient.fecha_nacimiento && (
 											<div>
-												<dt className="text-[10px] font-black text-gray-400 uppercase">
+												<dt className="text-[10px] font-black text-slate-400 uppercase">
 													Fecha nacimiento
 												</dt>
-												<dd className="font-bold text-gray-800">
+												<dd className="font-bold text-slate-800">
 													{selectedClient.fecha_nacimiento}
 													{getAge(selectedClient.fecha_nacimiento) != null && (
-														<span className="text-gray-500 font-medium ml-2">
+														<span className="text-slate-500 font-medium ml-2">
 															({getAge(selectedClient.fecha_nacimiento)} años)
 														</span>
 													)}
@@ -1276,10 +1240,10 @@ export const ClientsTab = ({
 											</div>
 										)}
 										<div>
-											<dt className="text-[10px] font-black text-gray-400 uppercase">
+											<dt className="text-[10px] font-black text-slate-400 uppercase">
 												Origen
 											</dt>
-											<dd className="font-bold text-gray-800">
+											<dd className="font-bold text-slate-800">
 												{selectedClient.origin === "instagram"
 													? "Instagram"
 													: selectedClient.origin === "google"
@@ -1293,7 +1257,7 @@ export const ClientsTab = ({
 										</div>
 										{selectedClient.notes && (
 											<div>
-												<dt className="text-[10px] font-black text-gray-400 uppercase">
+												<dt className="text-[10px] font-black text-slate-400 uppercase">
 													Notas
 												</dt>
 												<dd className="font-medium text-gray-700">
@@ -1313,20 +1277,20 @@ export const ClientsTab = ({
 										)}
 									</dl>
 									<div>
-										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">
+										<dt className="text-[10px] font-black text-slate-400 uppercase mb-1">
 											Alergias
 										</dt>
 										<dd
 											className={`p-4 rounded-2xl text-sm font-medium ${
 												selectedClient.allergies
 													? "bg-red-50 border-2 border-red-200 text-red-900"
-													: "bg-gray-50 text-gray-500 border border-gray-100"
+													: "bg-gray-50 text-slate-500 border border-gray-100"
 											}`}>
 											{selectedClient.allergies || "Ninguna indicada"}
 										</dd>
 									</div>
 									<div>
-										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">
+										<dt className="text-[10px] font-black text-slate-400 uppercase mb-1">
 											Antecedentes
 										</dt>
 										<dd className="p-4 bg-gray-50 rounded-2xl text-sm font-medium text-gray-700 border border-gray-100 min-h-[80px]">
@@ -1338,24 +1302,24 @@ export const ClientsTab = ({
 
 							{clientDetailTab === "medico-deprecated" && (
 								<div className="space-y-6">
-									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
+									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest flex items-center gap-2">
 										<Stethoscope size={14} /> Datos médicos
 									</h3>
 									<div>
-										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">
+										<dt className="text-[10px] font-black text-slate-400 uppercase mb-1">
 											Alergias
 										</dt>
 										<dd
 											className={`p-4 rounded-2xl text-sm font-medium ${
 												selectedClient.allergies
 													? "bg-red-50 border-2 border-red-200 text-red-900"
-													: "bg-gray-50 text-gray-500 border border-gray-100"
+													: "bg-gray-50 text-slate-500 border border-gray-100"
 											}`}>
 											{selectedClient.allergies || "Ninguna indicada"}
 										</dd>
 									</div>
 									<div>
-										<dt className="text-[10px] font-black text-gray-400 uppercase mb-1">
+										<dt className="text-[10px] font-black text-slate-400 uppercase mb-1">
 											Antecedentes
 										</dt>
 										<dd className="p-4 bg-gray-50 rounded-2xl text-sm font-medium text-gray-700 border border-gray-100 min-h-[80px]">
@@ -1367,7 +1331,7 @@ export const ClientsTab = ({
 
 							{clientDetailTab === "legal" && (
 								<div className="space-y-6">
-									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
+									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest flex items-center gap-2">
 										<Shield size={14} /> Consentimientos
 									</h3>
 									<div className="flex flex-col gap-4">
@@ -1378,9 +1342,9 @@ export const ClientsTab = ({
 													className="text-emerald-500 shrink-0"
 												/>
 											) : (
-												<X size={22} className="text-gray-400 shrink-0" />
+												<X size={22} className="text-slate-400 shrink-0" />
 											)}
-											<span className="font-bold text-gray-800">
+											<span className="font-bold text-slate-800">
 												RGPD firmada
 											</span>
 										</div>
@@ -1391,9 +1355,9 @@ export const ClientsTab = ({
 													className="text-emerald-500 shrink-0"
 												/>
 											) : (
-												<X size={22} className="text-gray-400 shrink-0" />
+												<X size={22} className="text-slate-400 shrink-0" />
 											)}
-											<span className="font-bold text-gray-800">
+											<span className="font-bold text-slate-800">
 												Derechos de imagen
 											</span>
 										</div>
@@ -1412,7 +1376,7 @@ export const ClientsTab = ({
 
 							{clientDetailTab === "bonos" && (
 								<div className="space-y-6">
-									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest flex items-center gap-2">
+									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest flex items-center gap-2">
 										<Ticket size={14} /> Bonos adquiridos
 									</h3>
 									{bonosLoading ? (
@@ -1423,10 +1387,10 @@ export const ClientsTab = ({
 										</div>
 									) : clientBonos.length === 0 ? (
 										<div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 text-center">
-											<p className="text-sm font-medium text-gray-500">
+											<p className="text-sm font-medium text-slate-500">
 												Este paciente no tiene bonos registrados.
 											</p>
-											<p className="text-xs text-gray-400 mt-1">
+											<p className="text-xs text-slate-400 mt-1">
 												Vende un bono desde la pestaña Bonos.
 											</p>
 										</div>
@@ -1451,19 +1415,19 @@ export const ClientsTab = ({
 															<div>
 																<p className="font-bold text-gray-900">{name}</p>
 																{treatmentName && (
-																	<p className="text-xs text-gray-500">{treatmentName}</p>
+																	<p className="text-xs text-slate-500">{treatmentName}</p>
 																)}
 															</div>
 															<span
 																className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
 																	isExhausted
-																		? "bg-gray-200 text-gray-600"
+																		? "bg-gray-200 text-slate-600"
 																		: "bg-rose-100 text-rose-700"
 																}`}>
 																{isExhausted ? "Agotado" : "Activo"}
 															</span>
 														</div>
-														<p className="text-xs font-medium text-gray-600 mt-2">
+														<p className="text-xs font-medium text-slate-600 mt-2">
 															Consumidas: {used} de {total} sesiones
 														</p>
 														<div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -1485,18 +1449,18 @@ export const ClientsTab = ({
 
 							{clientDetailTab === "consentimientos" && (
 								<>
-									<h3 className="font-black text-gray-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
+									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest mb-6 flex items-center gap-2">
 										<FileCheck size={14} /> Consentimientos firmados
 									</h3>
 
 									{/* Subir nuevo */}
 									<div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6">
-										<p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+										<p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
 											Subir consentimiento firmado (PDF)
 										</p>
 										<div className="flex flex-wrap items-end gap-3">
 											<div className="min-w-[200px] flex-1">
-												<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+												<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
 													Tratamiento
 												</label>
 												<select
@@ -1514,7 +1478,7 @@ export const ClientsTab = ({
 												</select>
 											</div>
 											<div className="min-w-[180px] flex-1">
-												<label className="text-[10px] font-black text-gray-400 uppercase block mb-1">
+												<label className="text-[10px] font-black text-slate-400 uppercase block mb-1">
 													Archivo PDF
 												</label>
 												<input
@@ -1523,7 +1487,7 @@ export const ClientsTab = ({
 													onChange={(e) =>
 														setSignedConsentFile(e.target.files?.[0] || null)
 													}
-													className="w-full p-2 text-sm border border-gray-200 rounded-xl bg-gray-50 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-rose-50 file:text-rose-600"
+													className="w-full p-2 text-sm border border-gray-200 rounded-xl bg-gray-50 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-rose-50 file:text-rose-700"
 												/>
 											</div>
 											<LoadingButton
@@ -1593,10 +1557,10 @@ export const ClientsTab = ({
 													key={consent.id}
 													className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-3">
 													<div>
-														<p className="font-bold text-gray-800">
+														<p className="font-bold text-slate-800">
 															{consent.treatment_name}
 														</p>
-														<p className="text-xs text-gray-500">
+														<p className="text-xs text-slate-500">
 															Subido{" "}
 															{new Date(consent.uploaded_at).toLocaleDateString(
 																"es-ES",
@@ -1621,7 +1585,7 @@ export const ClientsTab = ({
 																showToast("Error al descargar", "error");
 															}
 														}}
-														className="p-2.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-sm flex items-center gap-2">
+														className="p-2.5 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-sm flex items-center gap-2">
 														<FileDown size={16} />
 														Descargar
 													</button>
@@ -1634,7 +1598,7 @@ export const ClientsTab = ({
 											<p className="font-bold text-sm">
 												Ningún consentimiento firmado aún
 											</p>
-											<p className="text-xs text-gray-400 mt-1">
+											<p className="text-xs text-slate-400 mt-1">
 												Sube un PDF firmado arriba
 											</p>
 										</div>
@@ -1646,12 +1610,13 @@ export const ClientsTab = ({
 				) : (
 					<div className="flex-1 flex flex-col items-center justify-center text-gray-300 p-8">
 						<UserPlus size={40} className="opacity-20 mb-4" />
-						<h3 className="text-xl font-black text-gray-400">
+						<h3 className="text-xl font-black text-slate-400">
 							Selecciona un cliente
 						</h3>
 					</div>
 				)}
 			</div>
+			)}
 
 			<AdaptiveModal
 				isOpen={isModalOpen}
@@ -1660,10 +1625,10 @@ export const ClientsTab = ({
 				maxWidth="max-w-lg">
 				<form onSubmit={handleSaveClient} className="space-y-5">
 					<div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest">
-						<span className={`px-2 py-1 rounded-lg ${clientFormStep === 1 ? "bg-rose-100 text-rose-700" : "bg-gray-100 text-gray-500"}`}>
+						<span className={`px-2 py-1 rounded-lg ${clientFormStep === 1 ? "bg-rose-100 text-rose-700" : "bg-gray-100 text-slate-500"}`}>
 							Paso 1 · Alta rápida
 						</span>
-						<span className={`px-2 py-1 rounded-lg ${clientFormStep === 2 ? "bg-rose-100 text-rose-700" : "bg-gray-100 text-gray-500"}`}>
+						<span className={`px-2 py-1 rounded-lg ${clientFormStep === 2 ? "bg-rose-100 text-rose-700" : "bg-gray-100 text-slate-500"}`}>
 							Paso 2 · Ficha ampliada
 						</span>
 					</div>
@@ -1747,13 +1712,13 @@ export const ClientsTab = ({
 								}
 								className="w-5 h-5 rounded border-gray-300 text-blue-600"
 							/>
-							<span className="font-bold text-gray-800 text-sm">
+							<span className="font-bold text-slate-800 text-sm">
 								Es empresa (factura con retención IRPF)
 							</span>
 						</label>
 						{formData.is_company && (
 							<div>
-								<label className="text-[11px] font-black text-gray-500 uppercase block mb-1">
+								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">
 									Retención IRPF en facturas (%)
 								</label>
 								<select
@@ -1779,7 +1744,7 @@ export const ClientsTab = ({
 						)}
 						{formData.is_company && (
 							<div>
-								<label className="text-[11px] font-black text-gray-500 uppercase block mb-1">
+								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">
 									Dirección fiscal <span className="text-rose-500">*</span>
 								</label>
 								<textarea
@@ -1799,7 +1764,7 @@ export const ClientsTab = ({
 						)}
 					</div>
 					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+						<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
 							Fecha de nacimiento
 						</label>
 						<input
@@ -1812,7 +1777,7 @@ export const ClientsTab = ({
 						/>
 					</div>
 					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+						<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
 							Origen
 						</label>
 						<select
@@ -1838,12 +1803,12 @@ export const ClientsTab = ({
 						}
 					/>
 					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+						<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
 							Notas privadas (historia clínica)
 						</label>
 						<textarea
 							rows="2"
-							className="w-full p-4 bg-amber-50/50 border-2 border-amber-100 focus:bg-white focus:border-amber-200 rounded-2xl outline-none font-bold resize-none placeholder:text-gray-400"
+							className="w-full p-4 bg-amber-50/50 border-2 border-amber-100 focus:bg-white focus:border-amber-200 rounded-2xl outline-none font-bold resize-none placeholder:text-slate-400"
 							placeholder="Solo visibles en el perfil del cliente..."
 							value={formData.notas_privadas || ""}
 							onChange={(e) =>
@@ -1852,7 +1817,7 @@ export const ClientsTab = ({
 						/>
 					</div>
 					<div>
-						<label className="text-[11px] font-black text-rose-600 uppercase tracking-widest mb-1 block ml-1">
+						<label className="text-[11px] font-black text-rose-700 uppercase tracking-widest mb-1 block ml-1">
 							Alergias
 						</label>
 						<textarea
@@ -1870,7 +1835,7 @@ export const ClientsTab = ({
 						/>
 					</div>
 					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+						<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
 							Antecedentes médicos
 						</label>
 						<textarea
@@ -1883,7 +1848,7 @@ export const ClientsTab = ({
 							}
 						/>
 					</div>
-					<p className="text-[11px] font-black text-gray-400 uppercase tracking-widest ml-1">
+					<p className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
 						Legal
 					</p>
 					<div className="flex flex-col gap-3 pt-2">
@@ -1918,7 +1883,7 @@ export const ClientsTab = ({
 						</label>
 					</div>
 					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+						<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-2 block ml-1">
 							Link carpeta Drive (cliente)
 						</label>
 						<input
@@ -2013,7 +1978,7 @@ export const ClientsTab = ({
 						) : (
 							<>
 								<div>
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Tratamiento</label>
+									<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Tratamiento</label>
 									<select
 										className="w-full p-3 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
 										value={consentTreatmentId}
@@ -2028,7 +1993,7 @@ export const ClientsTab = ({
 									</select>
 								</div>
 								<div>
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Plantilla</label>
+									<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block">Plantilla</label>
 									<select
 										className="w-full p-3 bg-gray-50 rounded-xl font-bold border-2 border-transparent focus:bg-white focus:border-rose-100 outline-none"
 										value={consentTemplateId}
@@ -2049,7 +2014,7 @@ export const ClientsTab = ({
 											))}
 									</select>
 								</div>
-								<p className="text-[10px] text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+								<p className="text-[10px] text-slate-500 bg-gray-50 rounded-lg px-3 py-2">
 									Logo y firma profesional se configuran en <strong>Ajustes → Datos de Facturación</strong> y se aplican a todos los PDF.
 								</p>
 								<button
@@ -2089,7 +2054,7 @@ export const ClientsTab = ({
 				maxWidth="max-w-sm">
 				{sessionToRefund && (
 					<div className="space-y-4">
-						<p className="text-sm text-gray-600">
+						<p className="text-sm text-slate-600">
 							Factura original:{" "}
 							<strong>
 								{sessionToRefund.description?.split("(")[0] || "Sesión"}
@@ -2097,7 +2062,7 @@ export const ClientsTab = ({
 							— {formatCurrency(sessionToRefund.amount)}
 						</p>
 						<div>
-							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+							<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block">
 								¿Cuánto quieres devolver? (máx.{" "}
 								{formatCurrency(sessionToRefund.amount)})
 							</label>

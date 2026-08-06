@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
 	Search,
 	FileText,
@@ -69,6 +69,8 @@ export const InvoicesTab = ({
 	reportingCustomTo,
 	setReportingCustomTo,
 	onReportingGoToday,
+	navIntent = null,
+	onNavIntentConsumed,
 }) => {
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
@@ -77,6 +79,11 @@ export const InvoicesTab = ({
 	const [companyOnly, setCompanyOnly] = useState(false);
 	const [hideAbonos, setHideAbonos] = useState(false);
 	const [downloadingId, setDownloadingId] = useState(null);
+	useEffect(() => {
+		if (!navIntent?.clientId) return;
+		setClientFilter(navIntent.clientId);
+		onNavIntentConsumed?.();
+	}, [navIntent, onNavIntentConsumed]);
 
 	const rangeStart = reportingRange?.start ?? "";
 	const rangeEnd = reportingRange?.end ?? "";

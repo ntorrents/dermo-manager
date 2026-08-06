@@ -66,7 +66,7 @@ function BatchEditRow({ batch, onSave, showToast }) {
 		<div className="flex gap-3 items-center bg-white p-3 rounded-xl border border-gray-200">
 			<input
 				type="text"
-				className="flex-1 p-2 rounded-lg text-sm font-bold outline-none border border-gray-200"
+				className="flex-1 p-2 rounded-lg text-xs font-semibold outline-none border border-gray-200"
 				value={lotNumber}
 				onChange={(e) => setLotNumber(e.target.value)}
 				onBlur={handleBlur}
@@ -74,7 +74,7 @@ function BatchEditRow({ batch, onSave, showToast }) {
 			/>
 			<input
 				type="date"
-				className="p-2 rounded-lg text-sm font-bold outline-none border border-gray-200 w-36"
+				className="p-2 rounded-lg text-xs font-semibold outline-none border border-gray-200 w-36"
 				value={expiryDate}
 				onChange={(e) => setExpiryDate(e.target.value)}
 				onBlur={handleBlur}
@@ -543,7 +543,7 @@ export const InventoryTab = ({
 				<button
 					type="button"
 					onClick={() => openModal()}
-					className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors w-full md:w-auto shrink-0">
+					className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold bg-rose-500 text-white shadow-sm hover:bg-rose-600 transition-colors w-full md:w-auto shrink-0">
 					<Plus size={20} /> Nuevo material o máquina
 				</button>
 			</div>
@@ -564,7 +564,7 @@ export const InventoryTab = ({
 
 			<div className="md:hidden">
 				{filteredInventory.length === 0 ? (
-					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
 						<EmptyState
 							icon={Package}
 							title="No hay materiales"
@@ -625,7 +625,7 @@ export const InventoryTab = ({
 											{(item.item_type || "material") === "maquina" ? "Coste por uso" : "Stock Actual"}
 										</span>
 										<span
-											className={`font-black text-lg ${
+											className={`font-black text-sm ${
 												(item.item_type || "material") === "maquina"
 													? "text-gray-800"
 													: item.stock <= item.min_stock
@@ -653,7 +653,7 @@ export const InventoryTab = ({
 
 			<div className="hidden md:block bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
 				{filteredInventory.length === 0 ? (
-					<div className="p-6">
+					<div className="p-3">
 						<EmptyState
 							icon={Package}
 							title="No hay materiales"
@@ -666,11 +666,11 @@ export const InventoryTab = ({
 					<table className="w-full text-left border-collapse">
 						<thead>
 							<tr className="bg-gray-50/50 border-b text-[11px] font-black text-gray-400 uppercase tracking-[0.1em]">
-								<th className="p-6">Material</th>
-								<th className="p-6 text-center">Stock</th>
-								<th className="p-6 text-center">Próx. caducidad</th>
-								<th className="p-6 text-center">Coste Unit.</th>
-								<th className="p-6 text-right">Acciones</th>
+								<th className="p-3">Material</th>
+								<th className="p-3 text-center">Stock</th>
+								<th className="p-3 text-center">Próx. caducidad</th>
+								<th className="p-3 text-center">Coste Unit.</th>
+								<th className="p-3 text-right">Acciones</th>
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-gray-100">
@@ -678,13 +678,13 @@ export const InventoryTab = ({
 								<tr
 									key={item.id}
 									className="hover:bg-gray-50/30 transition-colors group">
-									<td className="p-6">
+									<td className="p-3">
 										<div className="flex items-center gap-4">
 											<div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-rose-50 group-hover:text-rose-500 transition-colors">
 												<Package size={24} />
 											</div>
 											<div>
-												<p className="font-bold text-gray-900 text-lg leading-tight">
+												<p className="font-bold text-gray-900 text-sm leading-tight">
 													{item.name}
 													{(item.item_type || "material") === "maquina" && (
 														<span className="ml-2 text-[10px] font-medium text-amber-600 uppercase">Máquina</span>
@@ -700,7 +700,7 @@ export const InventoryTab = ({
 											</div>
 										</div>
 									</td>
-									<td className="p-6 text-center">
+									<td className="p-3 text-center">
 										{(item.item_type || "material") === "maquina" ? (
 											<span className="text-gray-300">—</span>
 										) : (
@@ -714,7 +714,7 @@ export const InventoryTab = ({
 											</span>
 										)}
 									</td>
-									<td className="p-6 text-center">
+									<td className="p-3 text-center">
 										{(item.item_type || "material") === "maquina" ? (
 											<span className="text-gray-300">—</span>
 										) : (
@@ -739,15 +739,15 @@ export const InventoryTab = ({
 											})()
 										)}
 									</td>
-									<td className="p-6 text-center">
-										<span className="font-bold text-gray-600 text-lg">
+									<td className="p-3 text-center">
+										<span className="font-bold text-gray-600 text-sm">
 											{Number(item.unit_cost).toFixed(2)} €
 											{(item.item_type || "material") === "maquina" && (
 												<span className="text-xs font-normal text-gray-400">/sesión</span>
 											)}
 										</span>
 									</td>
-									<td className="p-6 text-right">
+									<td className="p-3 text-right">
 										<div className="flex justify-end gap-2">
 											{(item.item_type || "material") !== "maquina" && (
 												<button
@@ -1039,7 +1039,7 @@ export const InventoryTab = ({
 									}
 									className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-600"
 								/>
-								<span className="text-sm font-bold text-gray-800">
+								<span className="text-xs font-semibold text-gray-800">
 									Factura deducible (IVA en modelo 303)
 									<span className="block text-xs font-normal text-gray-500 mt-0.5">
 										Sin marcar: compra rápida (farmacia, etc.). Solo trazabilidad;
@@ -1267,7 +1267,7 @@ export const InventoryTab = ({
 							}
 							className="mt-0.5 w-5 h-5 rounded border-gray-300 text-blue-600"
 						/>
-						<span className="text-sm font-bold text-gray-800">
+						<span className="text-xs font-semibold text-gray-800">
 							Factura deducible (IVA en modelo 303)
 							<span className="block text-xs font-normal text-gray-500 mt-0.5">
 								Desmarcado: compra sin factura completa (p. ej. farmacia).
