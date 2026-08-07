@@ -106,7 +106,7 @@ function SortableWidgetItem({
 		<div
 			ref={setNodeRef}
 			style={style}
-			className={`relative z-[1] w-full h-full min-h-[160px] ${spanClasses} ${isDragging ? "z-[20] opacity-90 shadow-xl" : ""}`}>
+			className={`relative z-[1] w-full h-full min-h-[100px] ${spanClasses} ${isDragging ? "z-[20] opacity-90 shadow-xl" : ""}`}>
 			{isEditing && (
 				<>
 					<div className="absolute top-2 left-2 right-2 z-10 flex items-center justify-between gap-2">
@@ -157,7 +157,7 @@ function SortableWidgetItem({
 					</div>
 				</>
 			)}
-			<div className="w-full h-full min-h-[200px]">
+			<div className="w-full h-full min-h-[100px]">
 				<WidgetComponent {...widgetData} />
 			</div>
 		</div>
@@ -470,7 +470,7 @@ export const DashboardTab = ({
 			</div>
 
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
+				<div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm flex flex-col gap-0.5">
 					<div className="flex items-center gap-2 erp-label">
 						<Euro size={14} className="text-emerald-500" /> Ingresos período
 					</div>
@@ -492,7 +492,7 @@ export const DashboardTab = ({
 							: "Comparativa mensual no aplica"}
 					</p>
 				</div>
-				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
+				<div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm flex flex-col gap-0.5">
 					<div className="flex items-center gap-2 erp-label">
 						<TrendingDown size={14} className="text-rose-700" /> Gastos período
 					</div>
@@ -506,7 +506,7 @@ export const DashboardTab = ({
 						Incluye costes operativos del rango
 					</p>
 				</div>
-				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
+				<div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm flex flex-col gap-0.5">
 					<div className="flex items-center gap-2 erp-label">
 						<CalendarDays size={14} className="text-blue-500" /> Próximas citas
 					</div>
@@ -515,7 +515,7 @@ export const DashboardTab = ({
 					</p>
 					<p className="text-xs text-gray-500">En la agenda desde hoy</p>
 				</div>
-				<div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm flex flex-col gap-1">
+				<div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm flex flex-col gap-0.5">
 					<div className="flex items-center gap-2 erp-label">
 						<Users size={14} className="text-violet-500" /> Clientes activos
 					</div>

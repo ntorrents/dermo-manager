@@ -14,7 +14,7 @@ export const WidgetKpiFacturacion = ({
 	}
 
 	return (
-		<div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col justify-center gap-1.5 h-full relative overflow-hidden">
+		<div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col justify-center gap-1 h-full relative overflow-hidden">
 			<div className="flex items-center gap-2 text-slate-500 font-semibold text-sm mb-1">
 				<DollarSign size={16} className="text-emerald-600" /> Facturación mes
 			</div>

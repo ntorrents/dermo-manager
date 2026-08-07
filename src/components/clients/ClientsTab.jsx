@@ -1119,8 +1119,8 @@ export const ClientsTab = ({
 										<div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
 											{timelineItems.map((group) => (
 												<div key={group.date} className="relative">
-													<div className="sticky top-4 md:absolute md:inset-0 md:flex md:items-center md:justify-center z-10 pointer-events-none mb-4 md:mb-0">
-														<div className="inline-block px-4 py-1.5 bg-slate-800 text-white text-[11px] font-black uppercase tracking-widest rounded-full shadow-sm ml-2 md:ml-0 pointer-events-auto">
+													<div className="sticky top-4 flex items-center justify-center z-10 pointer-events-none mb-6">
+														<div className="inline-block px-4 py-1.5 bg-slate-800 text-white text-[11px] font-black uppercase tracking-widest rounded-full shadow-sm pointer-events-auto">
 															{new Date(group.date).toLocaleDateString("es-ES", {
 																weekday: "long",
 																day: "numeric",

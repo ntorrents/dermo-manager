@@ -161,7 +161,7 @@ export const GlobalDateFilter = ({
 										<input
 											type="date"
 											value={customFrom}
-											onChange={(e) => { onCustomFromChange(e.target.value); if(e.target.value && customTo) close(); }}
+											onChange={(e) => onCustomFromChange(e.target.value)}
 											className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm font-semibold outline-none focus:border-rose-300 focus:bg-white transition-colors"
 										/>
 									</div>
@@ -170,7 +170,7 @@ export const GlobalDateFilter = ({
 										<input
 											type="date"
 											value={customTo}
-											onChange={(e) => { onCustomToChange(e.target.value); if(customFrom && e.target.value) close(); }}
+											onChange={(e) => onCustomToChange(e.target.value)}
 											className="w-full rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm font-semibold outline-none focus:border-rose-300 focus:bg-white transition-colors"
 										/>
 									</div>
