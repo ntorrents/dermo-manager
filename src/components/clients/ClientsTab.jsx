@@ -9,6 +9,7 @@ import {
 	FileText,
 	UserPlus,
 	X,
+	ArrowLeft,
 	Clock,
 	Check,
 	ExternalLink,
@@ -524,74 +525,85 @@ export const ClientsTab = ({
 	if (isModalOpen) {
 		const title = selectedClient ? 'Editar Cliente' : 'Nuevo Cliente';
 		return (
-			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
-				<div className="max-w-3xl mx-auto">
-					<div className="flex flex-col gap-2 mb-8">
+			<div className="animate-in fade-in pb-24 md:pb-0">
+				{/* Sticky toolbar */}
+				<div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 -mt-5 flex items-center justify-between gap-4">
+					<div className="flex items-center gap-4 min-w-0">
 						<button
+							type="button"
 							onClick={() => { setIsModalOpen(false) }}
-							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
+							className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-2xl text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors shrink-0 shadow-sm"
+							title="Volver">
+							<ArrowLeft size={20} />
 						</button>
-						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
+						<h2 className="text-xl font-semibold text-gray-900 truncate">{title}</h2>
 					</div>
-					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
-						<form onSubmit={handleSaveClient} className="space-y-8">
+					<LoadingButton
+						loading={savingClient}
+						type="submit"
+						form="client-form"
+						className="px-5 py-2 bg-rose-700 text-white font-semibold rounded-lg text-sm hover:bg-rose-800 transition-colors shrink-0">
+						{savingClient ? "Guardando..." : "Guardar"}
+					</LoadingButton>
+				</div>
+
+				<form id="client-form" onSubmit={handleSaveClient} className="mt-6">
 					{/* Sección: Datos Generales */}
-					<div>
-						<h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">Datos Generales</h3>
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+					<section className="pb-6 mb-6 border-b border-gray-200">
+						<h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Datos Generales</h3>
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
 							<div>
-								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Nombre <span className="text-rose-700">*</span></label>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Nombre <span className="text-rose-600">*</span></label>
 								<input
 									required
-									className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold text-sm"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
 									placeholder="Nombre"
 									value={formData.name}
 									onChange={(e) => setFormData({ ...formData, name: e.target.value })}
 								/>
 							</div>
 							<div>
-								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Apellidos</label>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Apellidos</label>
 								<input
-									className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold text-sm"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
 									placeholder="Apellidos"
 									value={formData.surname}
 									onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
 								/>
 							</div>
 							<div>
-								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Teléfono</label>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Teléfono</label>
 								<input
 									type="tel"
-									className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold text-sm"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
 									placeholder="Teléfono"
 									value={formData.phone}
 									onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
 								/>
 							</div>
 							<div>
-								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Email</label>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Email</label>
 								<input
 									type="email"
-									className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold text-sm"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
 									placeholder="Email"
 									value={formData.email}
 									onChange={(e) => setFormData({ ...formData, email: e.target.value })}
 								/>
 							</div>
 							<div>
-								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Fecha de nacimiento</label>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Fecha de nacimiento</label>
 								<input
 									type="date"
-									className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold text-sm"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
 									value={formData.fecha_nacimiento || ""}
 									onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
 								/>
 							</div>
 							<div>
-								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Origen</label>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Origen</label>
 								<select
-									className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold text-sm"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
 									value={formData.origin}
 									onChange={(e) => setFormData({ ...formData, origin: e.target.value })}>
 									<option value="">— Seleccionar —</option>
@@ -602,17 +614,17 @@ export const ClientsTab = ({
 								</select>
 							</div>
 						</div>
-					</div>
+					</section>
 
 					{/* Sección: Facturación */}
-					<div>
-						<h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">Facturación</h3>
-						<div className="space-y-4">
+					<section className="pb-6 mb-6 border-b border-gray-200">
+						<h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Facturación</h3>
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
 							<div>
-								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">NIF/CIF</label>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">NIF/CIF</label>
 								<input
 									type="text"
-									className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold text-sm"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
 									placeholder="NIF/CIF"
 									value={formData.nif}
 									onChange={(e) => {
@@ -626,8 +638,8 @@ export const ClientsTab = ({
 									}}
 								/>
 							</div>
-							<div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
-								<label className="flex items-center gap-3 cursor-pointer">
+							<div className="flex items-end pb-1">
+								<label className="flex items-center gap-2.5 cursor-pointer select-none">
 									<input
 										type="checkbox"
 										checked={!!formData.is_company}
@@ -638,109 +650,96 @@ export const ClientsTab = ({
 												irpf_withholding_rate: e.target.checked ? (formData.irpf_withholding_rate || 7) : 7,
 											})
 										}
-										className="w-5 h-5 rounded border-gray-300 text-slate-800"
+										className="w-4 h-4 rounded border-gray-300 text-rose-700 focus:ring-rose-200"
 									/>
-									<span className="font-bold text-slate-800 text-sm">Es empresa (factura con retención IRPF)</span>
+									<span className="text-sm font-medium text-gray-700">Es empresa (retención IRPF)</span>
 								</label>
-								{formData.is_company && (
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div>
-											<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Retención IRPF (%)</label>
-											<select
-												className="w-full p-3 bg-white rounded-xl font-bold border border-slate-200"
-												value={formData.irpf_withholding_rate ?? 7}
-												onChange={(e) => setFormData({ ...formData, irpf_withholding_rate: Number(e.target.value) })}>
-												{IRPF_OPTIONS.filter((v) => v > 0).map((v) => (
-													<option key={v} value={v}>{v} % {v === 7 ? "(habitual 1.er año)" : ""}</option>
-												))}
-											</select>
-										</div>
-										<div>
-											<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Dirección fiscal</label>
-											<textarea
-												rows={2}
-												className="w-full p-3 bg-white rounded-xl font-bold border border-slate-200 outline-none resize-y min-h-[3rem] text-sm"
-												placeholder="Calle, número, CP, ciudad"
-												value={formData.address}
-												onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-											/>
-										</div>
-									</div>
-								)}
 							</div>
+							{formData.is_company && (
+								<div>
+									<label className="text-xs font-medium text-gray-500 block mb-1.5">Retención IRPF (%)</label>
+									<select
+										className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
+										value={formData.irpf_withholding_rate ?? 7}
+										onChange={(e) => setFormData({ ...formData, irpf_withholding_rate: Number(e.target.value) })}>
+										{IRPF_OPTIONS.filter((v) => v > 0).map((v) => (
+											<option key={v} value={v}>{v} % {v === 7 ? "(habitual 1.er año)" : ""}</option>
+										))}
+									</select>
+								</div>
+							)}
 						</div>
-					</div>
-
-					{/* Sección: Médico y Notas */}
-					<div>
-						<h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 border-b border-slate-100 pb-2">Clínica e Historial</h3>
-						<div className="grid grid-cols-1 gap-4">
-							<div>
-								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Notas públicas</label>
+						{formData.is_company && (
+							<div className="mt-4 max-w-lg">
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Dirección fiscal</label>
 								<textarea
-									rows="2"
-									className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold resize-none text-sm"
+									rows={2}
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 resize-y min-h-[3rem] transition-colors"
+									placeholder="Calle, número, CP, ciudad"
+									value={formData.address}
+									onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+								/>
+							</div>
+						)}
+					</section>
+
+					{/* Sección: Clínica e Historial */}
+					<section className="pb-6">
+						<h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Clínica e Historial</h3>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Notas públicas</label>
+								<textarea
+									rows="3"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 resize-none transition-colors"
 									placeholder="Notas visibles en perfil..."
 									value={formData.notes}
 									onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
 								/>
 							</div>
 							<div>
-								<label className="text-[11px] font-black text-amber-600 uppercase block mb-1">Notas privadas (Historia clínica)</label>
+								<label className="text-xs font-medium text-amber-600 block mb-1.5">Notas privadas (Historia clínica)</label>
 								<textarea
-									rows="2"
-									className="w-full p-3 bg-amber-50/50 border-2 border-amber-100 focus:bg-white focus:border-amber-200 rounded-xl outline-none font-bold resize-none text-sm placeholder:text-slate-400"
+									rows="3"
+									className="w-full px-3 py-2.5 bg-amber-50/30 border border-amber-200 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100 placeholder:text-gray-400 resize-none transition-colors"
 									placeholder="Solo visibles en el perfil..."
 									value={formData.notas_privadas || ""}
 									onChange={(e) => setFormData({ ...formData, notas_privadas: e.target.value })}
 								/>
 							</div>
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div>
-									<label className="text-[11px] font-black text-rose-700 uppercase block mb-1">Alergias</label>
-									<textarea
-										rows="2"
-										className={`w-full p-3 rounded-xl outline-none font-bold resize-none border-2 text-sm ${formData.allergies ? "bg-red-50 border-red-200 focus:border-red-300 text-red-900" : "bg-gray-50 border-transparent focus:bg-white focus:border-rose-100"}`}
-										placeholder="Indicar alergias..."
-										value={formData.allergies}
-										onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
-									/>
-								</div>
-								<div>
-									<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Antecedentes médicos</label>
-									<textarea
-										rows="2"
-										className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold resize-none text-sm"
-										placeholder="Antecedentes..."
-										value={formData.medical_history}
-										onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
-									/>
-								</div>
+							<div>
+								<label className="text-xs font-medium text-rose-600 block mb-1.5">Alergias</label>
+								<textarea
+									rows="3"
+									className={`w-full px-3 py-2.5 rounded-lg outline-none font-medium resize-none border text-sm transition-colors placeholder:text-gray-400 ${formData.allergies ? "bg-red-50/50 border-red-300 focus:border-red-400 focus:ring-1 focus:ring-red-100 text-red-900" : "bg-white border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 text-gray-900"}`}
+									placeholder="Indicar alergias..."
+									value={formData.allergies}
+									onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
+								/>
 							</div>
 							<div>
-								<label className="text-[11px] font-black text-slate-500 uppercase block mb-1">Link carpeta Drive</label>
-								<input
-									type="url"
-									placeholder="https://drive.google.com/..."
-									className="w-full p-3 bg-gray-50 border-2 border-transparent focus:bg-white focus:border-rose-100 rounded-xl outline-none font-bold text-sm"
-									value={formData.drive_url}
-									onChange={(e) => setFormData({ ...formData, drive_url: e.target.value })}
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Antecedentes médicos</label>
+								<textarea
+									rows="3"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 resize-none transition-colors"
+									placeholder="Antecedentes..."
+									value={formData.medical_history}
+									onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
 								/>
 							</div>
 						</div>
-					</div>
-
-					<div className="pt-4 border-t border-slate-100">
-						<LoadingButton
-							loading={savingClient}
-							type="submit"
-							className="w-full md:w-auto md:px-12 bg-slate-800 text-white font-black py-4 rounded-xl shadow-md hover:bg-slate-900 transition-colors">
-							{savingClient ? "Guardando..." : "Guardar Cliente"}
-						</LoadingButton>
-					</div>
+						<div className="mt-4 max-w-lg">
+							<label className="text-xs font-medium text-gray-500 block mb-1.5">Link carpeta Drive</label>
+							<input
+								type="url"
+								placeholder="https://drive.google.com/..."
+								className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
+								value={formData.drive_url}
+								onChange={(e) => setFormData({ ...formData, drive_url: e.target.value })}
+							/>
+						</div>
+					</section>
 				</form>
-					</div>
-				</div>
 			</div>
 		);
 	}
@@ -765,21 +764,21 @@ export const ClientsTab = ({
 			/>
 
 						{!selectedClient ? (
-				<div className="flex-1 min-w-0 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-					<div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+				<div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+					<div className="pb-4 mb-1 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 						<div className="flex items-center gap-2">
-							<Users className="text-rose-700" size={20} />
-							<h2 className="text-lg font-black text-slate-800 tracking-tight">Directorio de Clientes</h2>
-							<span className="bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full text-xs font-bold ml-2">
+							<Users className="text-gray-400" size={18} />
+							<h2 className="text-lg font-semibold text-gray-900 tracking-tight">Clientes</h2>
+							<span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs font-semibold ml-1">
 								{clients.length}
 							</span>
 						</div>
 						<div className="flex flex-col sm:flex-row gap-2 sm:items-center w-full sm:w-auto">
 							<div className="relative min-w-[240px]">
-								<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+								<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
 								<input
-									placeholder="Buscar cliente (nombre, DNI, tel)..."
-									className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 focus:border-rose-700 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-slate-700"
+									placeholder="Buscar cliente..."
+									className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-gray-700"
 									value={searchTerm}
 									onChange={(e) => setSearchTerm(e.target.value)}
 								/>
@@ -787,7 +786,7 @@ export const ClientsTab = ({
 							<button
 								type="button"
 								onClick={() => handleOpenModal()}
-								className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors shrink-0">
+								className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-rose-700 text-white hover:bg-rose-800 transition-colors shrink-0">
 								<Plus size={16} />
 								<span>Nuevo Cliente</span>
 							</button>
@@ -810,7 +809,7 @@ export const ClientsTab = ({
 						) : (
 							<table className="w-full text-left border-collapse min-w-[800px]">
 								<thead>
-									<tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase tracking-widest text-slate-500 font-black">
+									<tr className="border-b border-gray-200 text-[11px] uppercase tracking-wide text-gray-400 font-semibold">
 										<th className="p-3 pl-4">Paciente</th>
 										<th className="p-3">Contacto</th>
 										<th className="p-3">Identificación</th>
@@ -818,12 +817,12 @@ export const ClientsTab = ({
 										<th className="p-3 text-right pr-4">Acciones</th>
 									</tr>
 								</thead>
-								<tbody className="divide-y divide-slate-100">
+								<tbody className="divide-y divide-gray-100">
 									{filteredClients.map((client) => (
 										<tr
 											key={client.id}
 											onClick={() => selectClient(client)}
-											className="hover:bg-slate-50 transition-colors cursor-pointer group">
+											className="hover:bg-gray-50/70 transition-colors cursor-pointer group">
 											<td className="p-3 pl-4">
 												<div className="flex items-center gap-3">
 													<div className="w-8 h-8 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-xs font-black shrink-0">
@@ -898,44 +897,26 @@ export const ClientsTab = ({
 				</div>
 			) : (
 			<div
-				className="flex-1 min-w-0 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col w-full max-w-5xl mx-auto">
+				className="flex-1 min-w-0 overflow-hidden flex flex-col w-full">
 				{selectedClient ? (
 					<>
-						<div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+						<div className="pb-4 mb-1 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 							<div className="flex items-center gap-4">
 								<button
 									onClick={() => selectClient(null)}
-									className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors mr-2">
-									<X size={16} /> Volver
+									className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-2xl text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors shrink-0 shadow-sm"
+									title="Volver">
+									<ArrowLeft size={20} />
 								</button>
 								<div>
-									<h2 className="text-xl xl:text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+									<h2 className="text-xl xl:text-2xl font-semibold text-gray-900 tracking-tight flex items-center gap-2">
 										{selectedClient.name} {selectedClient.surname}
 										{selectedClient.is_company && (
-											<span className="px-2 py-0.5 text-xs bg-slate-100 text-slate-700 font-medium rounded border border-slate-300">
+											<span className="px-2 py-0.5 text-[11px] bg-gray-100 text-gray-600 font-medium rounded border border-gray-200">
 												Empresa
 											</span>
 										)}
 									</h2>
-									<div className="flex items-center gap-2 mt-1">
-										<p className="text-sm font-bold text-slate-500">
-											{selectedClient.nif ? `${selectedClient.nif} • ` : ""}{selectedClient.phone}
-										</p>
-										{selectedClient.phone && (
-											<a
-												href={buildWhatsAppUrl(
-													selectedClient.phone,
-													selectedClient.name,
-													profile?.company_name,
-												)}
-												target="_blank"
-												rel="noopener noreferrer"
-												className="p-1.5 rounded bg-green-50 text-emerald-700 hover:bg-green-100 transition-colors"
-												title="Abrir WhatsApp">
-												<MessageCircle size={16} />
-											</a>
-										)}
-									</div>
 								</div>
 							</div>
 							<div className="flex items-center gap-2">
@@ -943,7 +924,7 @@ export const ClientsTab = ({
 									<button
 										onClick={(e) => handleSaveClient({ preventDefault: () => {} })}
 										disabled={savingClient}
-										className="px-4 py-2 bg-rose-700 text-white rounded-lg text-sm font-bold shadow-sm hover:bg-rose-800 transition-colors flex items-center gap-2 disabled:opacity-50">
+										className="px-4 py-2 bg-rose-700 text-white rounded-lg text-sm font-semibold hover:bg-rose-800 transition-colors flex items-center gap-2 disabled:opacity-50">
 										{savingClient ? "Guardando..." : "Guardar Cambios"}
 									</button>
 								)}
@@ -951,7 +932,7 @@ export const ClientsTab = ({
 						</div>
 
 						{/* Pestañas perfil 360º - Visitas primero */}
-						<div className="flex border-b border-gray-100 bg-white px-4 gap-1 overflow-x-auto">
+						<div className="flex border-b border-gray-200 gap-1 overflow-x-auto">
 							{[
 								{ id: "datos", label: "Datos Cliente", icon: User },
 								{ id: "visitas", label: "Historial/Sesiones", icon: BookOpen },
@@ -961,10 +942,10 @@ export const ClientsTab = ({
 									key={id}
 									type="button"
 									onClick={() => setClientDetailTab(id)}
-									className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${
+									className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
 										clientDetailTab === id
 											? "border-rose-700 text-rose-700"
-											: "border-transparent text-slate-400 hover:text-slate-600"
+											: "border-transparent text-gray-400 hover:text-gray-600"
 									}`}>
 									<Icon size={16} />
 									{label}
@@ -972,7 +953,7 @@ export const ClientsTab = ({
 							))}
 						</div>
 
-						<div className="flex-1 overflow-y-auto p-6 xl:p-8 custom-scrollbar bg-gray-50/30">
+						<div className="flex-1 overflow-y-auto pt-6 custom-scrollbar">
 							{clientDetailTab === "visitas" && (
 								<div className="space-y-8 pb-10">
 									<div className="flex justify-between items-end mb-6">
