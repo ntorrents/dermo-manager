@@ -432,10 +432,10 @@ export const DashboardTab = ({
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
-			<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+				<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
 				<div>
 					<h2 className="text-2xl font-bold text-gray-900 tracking-tight">
-						Hola, <span className="text-rose-700">{userName || "Nil"}</span>
+						Dashboard
 					</h2>
 					<p className="text-gray-500 text-sm font-medium mt-0.5">
 						Resumen del periodo seleccionado.

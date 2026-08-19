@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import {
 	Search, Eye,
 	Plus,
@@ -74,8 +75,31 @@ export const ClientsTab = ({
 	onRefresh,
 }) => {
 	const { clinicId, clinic, canDeleteOperational } = useTenant();
+	const { clientId: urlClientId } = useParams();
+	const navigate = useNavigate();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedClient, setSelectedClient] = useState(null);
+
+	// Sync selectedClient from URL param
+	useEffect(() => {
+		if (urlClientId && clients.length > 0) {
+			const found = clients.find((c) => c.id === urlClientId);
+			if (found) {
+				setSelectedClient(found);
+			}
+		} else if (!urlClientId) {
+			setSelectedClient(null);
+		}
+	}, [urlClientId, clients]);
+
+	// Helper to select/deselect clients via URL navigation
+	const selectClient = (client) => {
+		if (client) {
+			navigate(`/clientes/${client.id}`);
+		} else {
+			navigate("/clientes");
+		}
+	};
 	const [clientDetailTab, setClientDetailTab] = useState("datos");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [clientFormStep, setClientFormStep] = useState(1);
@@ -367,7 +391,7 @@ export const ClientsTab = ({
 				.eq("id", clientToDelete.id);
 			if (error) throw error;
 			showToast("Cliente archivado");
-			if (selectedClient?.id === clientToDelete.id) setSelectedClient(null);
+			if (selectedClient?.id === clientToDelete.id) selectClient(null);
 			if (onRefresh) await onRefresh();
 		} catch {
 			showToast("Error al eliminar", "error");
@@ -798,7 +822,7 @@ export const ClientsTab = ({
 									{filteredClients.map((client) => (
 										<tr
 											key={client.id}
-											onClick={() => setSelectedClient(client)}
+											onClick={() => selectClient(client)}
 											className="hover:bg-slate-50 transition-colors cursor-pointer group">
 											<td className="p-3 pl-4">
 												<div className="flex items-center gap-3">
@@ -880,7 +904,7 @@ export const ClientsTab = ({
 						<div className="p-4 sm:p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
 							<div className="flex items-center gap-4">
 								<button
-									onClick={() => setSelectedClient(null)}
+									onClick={() => selectClient(null)}
 									className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors mr-2">
 									<X size={16} /> Volver
 								</button>

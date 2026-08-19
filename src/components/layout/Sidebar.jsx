@@ -16,7 +16,7 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 const NAV_GROUPS = [
 	{
 		id: "dashboard-group",
-		label: "Resumen",
+		label: "Dashboard",
 		icon: BarChart3,
 		items: [
 			{ id: "dashboard", l: NAV_LABELS.dashboard }
@@ -125,15 +125,21 @@ export const Sidebar = ({
 			}`}>
 			<div
 				className={`h-16 flex items-center border-b border-slate-100 shrink-0 ${narrow ? "justify-center px-1" : "px-4"}`}>
-				{narrow ? (
-					<span
-						className="text-sm font-black text-rose-700"
-						title={companyName || "DermoApp"}>
-						{(companyName || "DM").slice(0, 2).toUpperCase()}
-					</span>
-				) : (
-					<h1 className="text-lg font-bold text-rose-700 truncate">{companyName || "DermoApp"}</h1>
-				)}
+				<button
+					type="button"
+					onClick={() => navigate("/")}
+					className="flex items-center gap-2 truncate hover:opacity-80 transition-opacity cursor-pointer"
+					title="Ir a inicio">
+					{narrow ? (
+						<span
+							className="text-sm font-black text-rose-700"
+							title={companyName || "DermoApp"}>
+							{(companyName || "DM").slice(0, 2).toUpperCase()}
+						</span>
+					) : (
+						<h1 className="text-lg font-bold text-rose-700 truncate">{companyName || "DermoApp"}</h1>
+					)}
+				</button>
 			</div>
 			<nav className={`flex-1 overflow-y-auto custom-scrollbar min-h-0 space-y-2 ${narrow ? "p-2" : "p-3 lg:p-4"}`}>
 				{NAV_GROUPS.map((group) => {

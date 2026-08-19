@@ -1,5 +1,6 @@
 export const NAV_LABELS = {
-	dashboard: "Resumen",
+	home: "Inicio",
+	dashboard: "Dashboard",
 	clients: "Clientes",
 	treatments: "Tratamientos",
 	bonos: "Bonos",
@@ -20,7 +21,8 @@ export const NAV_LABELS = {
 };
 
 export const PATH_MAP = {
-	dashboard: "/",
+	home: "/",
+	dashboard: "/dashboard",
 	clients: "/clientes",
 	treatments: "/tratamientos",
 	bonos: "/bonos",

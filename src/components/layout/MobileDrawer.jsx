@@ -9,12 +9,14 @@ import {
 	FolderOpen,
 	Building2,
 	FileText,
+	BarChart3,
 } from "lucide-react";
 import { useTenant } from "../../context/TenantContext";
 import { NAV_LABELS, PATH_MAP } from "./navigationLabels";
 import { useNavigate } from "react-router-dom";
 
 const DRAWER_ITEMS = [
+	{ id: "dashboard", label: NAV_LABELS.dashboard, icon: BarChart3 },
 	{ id: "calendar", label: NAV_LABELS.calendar, icon: Calendar },
 	{ id: "bonos", label: NAV_LABELS.bonos, icon: Ticket },
 	{ id: "documents", label: NAV_LABELS.documents, icon: FolderOpen },
@@ -58,7 +60,7 @@ export const MobileDrawer = ({ isOpen, onClose, activeTabId }) => {
 	if (!isOpen) return null;
 
 	const handleSelect = (id) => {
-		setActiveTab(id);
+		navigate(PATH_MAP[id] || "/");
 		onClose();
 	};
 

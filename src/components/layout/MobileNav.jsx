@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useTenant } from "../../context/TenantContext";
 import {
-	LayoutDashboard,
+	Home,
 	Users,
 	Sparkles,
 	Package,
@@ -12,7 +12,7 @@ import { NAV_LABELS, PATH_MAP } from "./navigationLabels";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const MAIN_NAV_ITEMS = [
-	{ id: "dashboard", label: NAV_LABELS.dashboard, icon: <LayoutDashboard size={20} /> },
+	{ id: "home", label: NAV_LABELS.home, icon: <Home size={20} /> },
 	{ id: "clients", label: NAV_LABELS.clients, icon: <Users size={20} /> },
 	{ id: "treatments", label: NAV_LABELS.treatments, icon: <Sparkles size={20} /> },
 	{ id: "inventory", label: NAV_LABELS.inventory, icon: <Package size={20} /> },
@@ -21,12 +21,12 @@ const MAIN_NAV_ITEMS = [
 export const MobileNav = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
-	const activeTabId = Object.keys(PATH_MAP).find(k => location.pathname.startsWith(PATH_MAP[k]) && PATH_MAP[k] !== "/") || (location.pathname === "/" ? "dashboard" : "");
+	const activeTabId = Object.keys(PATH_MAP).find(k => k !== "home" && location.pathname.startsWith(PATH_MAP[k]) && PATH_MAP[k] !== "/") || (location.pathname === "/" ? "home" : "");
 	const [drawerOpen, setDrawerOpen] = useState(false);
 	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
 
 	const drawerTabIds = useMemo(() => {
-		const base = ["calendar", "documents", "finance", "invoices", "suppliers", "taxes", "settings"];
+		const base = ["dashboard", "calendar", "documents", "finance", "invoices", "suppliers", "taxes", "settings"];
 		if (tenantLoading || allowsPresupuestosBonos) {
 			return [...base, "bonos"];
 		}

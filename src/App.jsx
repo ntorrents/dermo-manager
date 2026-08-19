@@ -54,6 +54,9 @@ const ClientsTab = lazy(() =>
 const CalendarTab = lazy(() =>
 	import("./components/calendar/CalendarTab").then((m) => ({ default: m.CalendarTab })),
 );
+const HomeTab = lazy(() =>
+	import("./components/home/HomeTab").then((m) => ({ default: m.HomeTab })),
+);
 const TaxesTab = lazy(() =>
 	import("./components/taxes/TaxesTab").then((m) => ({ default: m.TaxesTab })),
 );
@@ -86,7 +89,8 @@ import {
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
 const TAB_META = {
-	dashboard: { title: "Resumen", subtitle: "Indicadores y widgets" },
+	home: { title: "Inicio", subtitle: "Bienvenido" },
+	dashboard: { title: "Dashboard", subtitle: "Indicadores y widgets" },
 	clients: { title: "Clientes", subtitle: "Ficha, historial y documentos" },
 	treatments: { title: "Tratamientos", subtitle: "Servicios y sesiones" },
 	bonos: { title: "Bonos de Sesiones", subtitle: "Plantillas y bonos de clientes" },
@@ -107,7 +111,8 @@ const TAB_META = {
 
 
 const PATH_MAP = {
-	dashboard: "/",
+	home: "/",
+	dashboard: "/dashboard",
 	clients: "/clientes",
 	treatments: "/tratamientos",
 	bonos: "/bonos",
@@ -182,6 +187,7 @@ const DermoManager = () => {
 
 	const activeTab = useMemo(() => {
 		const p = location.pathname;
+		if (p.startsWith("/dashboard")) return "dashboard";
 		if (p.startsWith("/clientes")) return "clients";
 		if (p.startsWith("/tratamientos")) return "treatments";
 		if (p.startsWith("/bonos")) return "bonos";
@@ -196,7 +202,7 @@ const DermoManager = () => {
 		if (p.startsWith("/fiscalidad/bienes-inversion")) return "assets";
 		if (p.startsWith("/fiscalidad")) return "taxes";
 		if (p.startsWith("/configuracion")) return "settings";
-		return "dashboard";
+		return "home";
 	}, [location.pathname]);
 
 	const setActiveTab = useCallback((tabId) => {
@@ -574,6 +580,13 @@ const DermoManager = () => {
 				
 					<Routes>
 						<Route path="/" element={
+							<HomeTab
+								userName={profile?.name}
+								appointments={appointments}
+								clients={clients}
+							/>
+						} />
+						<Route path="/dashboard" element={
 							<DashboardTab
 								user={user}
 								entries={entries}
@@ -596,16 +609,26 @@ const DermoManager = () => {
 								onNavigateTab={setActiveTab}
 							/>
 						} />
-						<Route path="/clientes/*" element={
-							<ClientsTab
-								user={user}
-								showToast={showToastMsg}
-								profile={profile}
-								clients={clients}
-								onRefresh={refreshClients}
-								onNavigateToInvoices={navigateToClientInvoices}
-							/>
-						} />
+						<Route path="/clientes/:clientId" element={
+						<ClientsTab
+							user={user}
+							showToast={showToastMsg}
+							profile={profile}
+							clients={clients}
+							onRefresh={refreshClients}
+							onNavigateToInvoices={navigateToClientInvoices}
+						/>
+					} />
+					<Route path="/clientes" element={
+						<ClientsTab
+							user={user}
+							showToast={showToastMsg}
+							profile={profile}
+							clients={clients}
+							onRefresh={refreshClients}
+							onNavigateToInvoices={navigateToClientInvoices}
+						/>
+					} />
 						<Route path="/tratamientos" element={
 							<TreatmentsTab
 								user={user}
