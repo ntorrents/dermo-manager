@@ -43,3 +43,6 @@ supabase/.env.*
 .trae/
 .windsurf/
 .antigravityrules/
+
+# Queries locales de Studio (nunca secretos en git)
+supabase/snippets/

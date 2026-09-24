@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "supabase": {
-      "url": "https://mcp.supabase.com/mcp?project_ref=zturfaxtcbhvyllwirrj"
+      "url": "http://127.0.0.1:64321/mcp"
     }
   }
 }

@@ -29,6 +29,8 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Pen,
+	Filter,
+	ArrowUpDown,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useClientHistory } from "../../hooks/useClientHistory";
@@ -104,6 +106,8 @@ export const ClientsTab = ({
 	const [clientDetailTab, setClientDetailTab] = useState("datos");
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [clientFormStep, setClientFormStep] = useState(1);
+	const [filterEstado, setFilterEstado] = useState("todos");
+	const [sortBy, setSortBy] = useState("name_asc");
 	const [formData, setFormData] = useState({
 		name: "",
 		surname: "",
@@ -111,6 +115,7 @@ export const ClientsTab = ({
 		email: "",
 		nif: "",
 		origin: "",
+		estado: "activo",
 		notes: "",
 		allergies: "",
 		medical_history: "",
@@ -131,6 +136,7 @@ export const ClientsTab = ({
 				phone: selectedClient.phone || "",
 				nif: selectedClient.nif || "",
 				origin: selectedClient.origin || "",
+				estado: selectedClient.estado || "activo",
 				allergies: selectedClient.allergies || "",
 				medical_history: selectedClient.medical_history || "",
 				has_consent: selectedClient.has_consent || false,
@@ -254,12 +260,31 @@ export const ClientsTab = ({
 	const [signedConsentFile, setSignedConsentFile] = useState(null);
 	const [uploadingSignedConsent, setUploadingSignedConsent] = useState(false);
 
-	const filteredClients = clients.filter(
-		(c) =>
-			c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			c.surname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-			c.phone?.includes(searchTerm),
-	);
+	const filteredClients = clients
+		.filter((c) => {
+			const matchesSearch =
+				c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				c.surname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+				c.phone?.includes(searchTerm);
+			const matchesEstado =
+				filterEstado === "todos" ||
+				(filterEstado === "activo" && (!c.estado || c.estado === "activo")) ||
+				c.estado === filterEstado;
+			return matchesSearch && matchesEstado;
+		})
+		.sort((a, b) => {
+			switch (sortBy) {
+				case "name_desc":
+					return (b.name || "").localeCompare(a.name || "", "es");
+				case "recent":
+					return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+				case "oldest":
+					return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+				case "name_asc":
+				default:
+					return (a.name || "").localeCompare(b.name || "", "es");
+			}
+		});
 
 	const ensureCompanyFiscalAddress = (client) => {
 		if (client?.is_company && !client?.address?.trim()) {
@@ -306,6 +331,7 @@ export const ClientsTab = ({
 				email: "",
 				nif: "",
 				origin: "",
+				estado: "activo",
 				notes: "",
 				allergies: "",
 				medical_history: "",
@@ -336,6 +362,7 @@ export const ClientsTab = ({
 				user_id: user.id,
 				nif: formData.nif?.trim() || null,
 				origin: formData.origin || null,
+				estado: formData.estado || "activo",
 				allergies: formData.allergies?.trim() || null,
 				medical_history: formData.medical_history?.trim() || null,
 				has_consent: formData.has_consent,
@@ -613,6 +640,18 @@ export const ClientsTab = ({
 									<option value="other">Otro</option>
 								</select>
 							</div>
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Estado</label>
+								<select
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
+									value={formData.estado || "activo"}
+									onChange={(e) => setFormData({ ...formData, estado: e.target.value })}>
+									<option value="activo">Activo</option>
+									<option value="inactivo">Inactivo</option>
+									<option value="bloqueado">Bloqueado</option>
+									<option value="borrador">Borrador / Lead</option>
+								</select>
+							</div>
 						</div>
 					</section>
 
@@ -774,7 +813,7 @@ export const ClientsTab = ({
 							</span>
 						</div>
 						<div className="flex flex-col sm:flex-row gap-2 sm:items-center w-full sm:w-auto">
-							<div className="relative min-w-[240px]">
+							<div className="relative min-w-[200px]">
 								<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
 								<input
 									placeholder="Buscar cliente..."
@@ -783,6 +822,25 @@ export const ClientsTab = ({
 									onChange={(e) => setSearchTerm(e.target.value)}
 								/>
 							</div>
+							<select
+								value={filterEstado}
+								onChange={(e) => setFilterEstado(e.target.value)}
+								className="px-3 py-2 bg-white border border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-gray-700">
+								<option value="todos">Todos los estados</option>
+								<option value="activo">Activo</option>
+								<option value="inactivo">Inactivo</option>
+								<option value="bloqueado">Bloqueado</option>
+								<option value="borrador">Borrador / Lead</option>
+							</select>
+							<select
+								value={sortBy}
+								onChange={(e) => setSortBy(e.target.value)}
+								className="px-3 py-2 bg-white border border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-gray-700">
+								<option value="name_asc">A → Z</option>
+								<option value="name_desc">Z → A</option>
+								<option value="recent">Más recientes</option>
+								<option value="oldest">Más antiguos</option>
+							</select>
 							<button
 								type="button"
 								onClick={() => handleOpenModal()}
@@ -793,54 +851,70 @@ export const ClientsTab = ({
 						</div>
 					</div>
 
-					<div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
+					<div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar bg-white border border-gray-200 rounded-xl shadow-sm">
 						{filteredClients.length === 0 ? (
-							<EmptyState
-								icon={Users}
-								title={searchTerm ? "Sin resultados" : "No hay clientes"}
-								description={
-									searchTerm
-										? "Prueba con otro término de búsqueda"
-										: "Añade tu primer cliente para empezar a gestionar citas y facturación."
-								}
-								actionLabel={searchTerm ? undefined : "Añadir cliente"}
-								onAction={searchTerm ? undefined : () => handleOpenModal()}
-							/>
+							<div className="p-8">
+								<EmptyState
+									icon={Users}
+									title={searchTerm ? "Sin resultados" : "No hay clientes"}
+									description={
+										searchTerm
+											? "Prueba con otro término de búsqueda"
+											: "Añade tu primer cliente para empezar a gestionar citas y facturación."
+									}
+									actionLabel={searchTerm ? undefined : "Añadir cliente"}
+									onAction={searchTerm ? undefined : () => handleOpenModal()}
+								/>
+							</div>
 						) : (
 							<table className="w-full text-left border-collapse min-w-[800px]">
-								<thead>
-									<tr className="border-b border-gray-200 text-[11px] uppercase tracking-wide text-gray-400 font-semibold">
-										<th className="p-3 pl-4">Paciente</th>
-										<th className="p-3">Contacto</th>
-										<th className="p-3">Identificación</th>
-										<th className="p-3 text-center">Legal</th>
-										<th className="p-3 text-right pr-4">Acciones</th>
+								<thead className="sticky top-0 z-10">
+									<tr className="bg-gray-50 border-b border-gray-200 text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
+										<th className="p-3.5 pl-5 font-semibold">Paciente</th>
+										<th className="p-3.5 font-semibold">Estado</th>
+										<th className="p-3.5 font-semibold">Contacto</th>
+										<th className="p-3.5 font-semibold">Identificación</th>
+										<th className="p-3.5 text-center font-semibold">Legal</th>
+										<th className="p-3.5 text-right pr-5 font-semibold">Acciones</th>
+										<th className="p-3.5 text-right pr-5 font-semibold">Acciones</th>
 									</tr>
 								</thead>
-								<tbody className="divide-y divide-gray-100">
+								<tbody className="divide-y divide-gray-100 bg-white">
 									{filteredClients.map((client) => (
 										<tr
 											key={client.id}
 											onClick={() => selectClient(client)}
 											className="hover:bg-gray-50/70 transition-colors cursor-pointer group">
-											<td className="p-3 pl-4">
+											<td className="p-3.5 pl-5">
 												<div className="flex items-center gap-3">
-													<div className="w-8 h-8 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-xs font-black shrink-0">
+													<div className="w-9 h-9 rounded-full bg-rose-50 text-rose-700 flex items-center justify-center text-sm font-bold shrink-0 border border-rose-100">
 														{client.name.charAt(0)}
 													</div>
 													<div className="flex items-center gap-2">
-														<p className="font-bold text-slate-800 text-[13px]">{client.name} {client.surname}</p>
+														<p className="font-semibold text-gray-900 text-sm">{client.name} {client.surname}</p>
 														{client.is_company && (
-															<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-600 font-bold rounded border border-slate-200">
-																Empresa
-															</span>
+															<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-600 font-bold rounded border border-slate-200">Empresa</span>
 														)}
 													</div>
 												</div>
 											</td>
-											<td className="p-3">
+											<td className="p-3.5">
+												{client.estado === "inactivo" && (
+													<span className="px-2 py-1 text-[11px] bg-gray-100 text-gray-600 font-semibold rounded-md">Inactivo</span>
+												)}
+												{client.estado === "bloqueado" && (
+													<span className="px-2 py-1 text-[11px] bg-red-50 text-red-700 font-semibold rounded-md">Bloqueado</span>
+												)}
+												{client.estado === "borrador" && (
+													<span className="px-2 py-1 text-[11px] bg-amber-50 text-amber-700 font-semibold rounded-md">Borrador</span>
+												)}
+												{(!client.estado || client.estado === "activo") && (
+													<span className="px-2 py-1 text-[11px] bg-emerald-50 text-emerald-700 font-semibold rounded-md">Activo</span>
+												)}
+											</td>
+											<td className="p-3.5">
 												<div className="flex items-center gap-2">
-													<span className="text-[13px] text-slate-600">{client.phone || "Sin tlf"}</span>
+													<span className="text-sm text-gray-600">{client.phone || "Sin tlf"}</span>
 													{client.phone && (
 														<a
 															href={buildWhatsAppUrl(client.phone, client.name, clinic?.name)}
@@ -854,10 +928,10 @@ export const ClientsTab = ({
 													)}
 												</div>
 											</td>
-											<td className="p-3">
-												<span className="text-[13px] font-mono text-slate-500">{client.nif || "-"}</span>
+											<td className="p-3.5">
+												<span className="text-sm font-medium text-gray-500">{client.nif || "-"}</span>
 											</td>
-											<td className="p-3 text-center">
+											<td className="p-3.5 text-center">
 												<div className="flex items-center justify-center gap-2">
 													<span className="flex items-center gap-1 text-[11px] font-bold text-slate-500" title="Consentimiento">
 														{client.has_consent ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} C
@@ -1361,6 +1435,22 @@ export const ClientsTab = ({
 												<option value="Fisico">Pase por la clínica</option>
 												<option value="Doctoralia">Doctoralia</option>
 												<option value="Otro">Otro</option>
+											</select>
+										</div>
+										<div>
+											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
+												Estado
+											</label>
+											<select
+												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
+												value={formData.estado || "activo"}
+												onChange={(e) =>
+													setFormData({ ...formData, estado: e.target.value })
+												}>
+												<option value="activo">Activo</option>
+												<option value="inactivo">Inactivo</option>
+												<option value="bloqueado">Bloqueado</option>
+												<option value="borrador">Borrador / Lead</option>
 											</select>
 										</div>
 									</div>
