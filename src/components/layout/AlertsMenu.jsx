@@ -34,6 +34,7 @@ export const AlertsMenu = ({
 		const limit = new Date(now.getTime() + horizonHours * 3600 * 1000);
 		const upcomingAppts = (appointments || [])
 			.filter((a) => {
+				if (a.type === "tax_deadline" || a.type === "task") return false;
 				if (a.status === "cancelled") return false;
 				const s = a.start_at ? new Date(a.start_at) : null;
 				return s && s >= now && s <= limit;

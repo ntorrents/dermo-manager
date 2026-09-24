@@ -141,6 +141,7 @@ export const FinanceMovementsTab = ({
 		amount: "",
 		tax_rate: 0,
 		irpf_rate: 0,
+		withholding_kind: null,
 		category: "General",
 		description: "",
 		date: new Date().toISOString().split("T")[0],
@@ -416,6 +417,7 @@ export const FinanceMovementsTab = ({
 						: entry.amount,
 				tax_rate: entry.tax_rate ?? 0,
 				irpf_rate: entry.irpf_rate ?? 0,
+				withholding_kind: entry.withholding_kind || null,
 				category: entry.category,
 				description: entry.description,
 				date: entry.date,
@@ -442,6 +444,7 @@ export const FinanceMovementsTab = ({
 				amount: "",
 				tax_rate: 21,
 				irpf_rate: 0,
+				withholding_kind: null,
 				category: type === "income" ? "Servicio" : "Material",
 				description: "",
 				date: new Date().toISOString().split("T")[0],
@@ -762,6 +765,10 @@ export const FinanceMovementsTab = ({
 				tax_base: baseAmount,
 				irpf_rate: irpfRate,
 				irpf_amount: irpfAmount,
+				withholding_kind:
+					formData.type === "expense" && irpfAmount > 0
+						? formData.withholding_kind || "111"
+						: null,
 				category: formData.category,
 				description: formData.description,
 				date: formData.date,
@@ -1186,12 +1193,15 @@ export const FinanceMovementsTab = ({
 								<select
 									className="w-full p-4 bg-gray-50 rounded-xl font-bold"
 									value={formData.irpf_rate}
-									onChange={(e) =>
+									onChange={(e) => {
+										const rate = Number(e.target.value);
 										setFormData({
 											...formData,
-											irpf_rate: Number(e.target.value),
-										})
-									}>
+											irpf_rate: rate,
+											withholding_kind:
+												rate > 0 ? formData.withholding_kind || "111" : null,
+										});
+									}}>
 									{IRPF_OPTIONS.map((v) => (
 										<option key={v} value={v}>
 											{v}%
@@ -1199,6 +1209,25 @@ export const FinanceMovementsTab = ({
 									))}
 								</select>
 							</div>
+							{Number(formData.irpf_rate) > 0 && (
+								<div className="flex-1">
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+										Modelo retención
+									</label>
+									<select
+										className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+										value={formData.withholding_kind || "111"}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												withholding_kind: e.target.value,
+											})
+										}>
+										<option value="111">111 · Profesionales</option>
+										<option value="115">115 · Alquiler</option>
+									</select>
+								</div>
+							)}
 						</div>
 					)}
 					{formData.type === "expense" &&

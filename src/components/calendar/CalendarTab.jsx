@@ -153,6 +153,11 @@ export const CalendarTab = ({
 			setShowDetailModal(true);
 			return;
 		}
+		if (event.resource?.type === "tax_deadline") {
+			setSelectedEvent(event);
+			setShowDetailModal(true);
+			return;
+		}
 		if (event.resource?.type === "appointment") {
 			setSelectedEvent(event);
 			setShowDetailModal(true);
@@ -663,9 +668,11 @@ export const CalendarTab = ({
 				title={
 					selectedEvent?.resource?.type === "session"
 						? "Detalle de sesión"
-						: selectedEvent?.resource?.appointment?.type === "task"
-							? "Detalle de tarea"
-							: "Detalle de cita"
+						: selectedEvent?.resource?.type === "tax_deadline"
+							? "Ventana fiscal AEAT"
+							: selectedEvent?.resource?.appointment?.type === "task"
+								? "Detalle de tarea"
+								: "Detalle de cita"
 				}
 				maxWidth="max-w-md">
 				{selectedEvent?.resource?.type === "session" && (
@@ -673,6 +680,21 @@ export const CalendarTab = ({
 						entry={selectedEvent.resource.entry}
 						clients={clients}
 					/>
+				)}
+				{selectedEvent?.resource?.type === "tax_deadline" && (
+					<div className="space-y-3 text-sm text-gray-700">
+						<p className="font-bold text-gray-900">
+							{selectedEvent.resource.appointment?.title}
+						</p>
+						<p className="text-gray-500 whitespace-pre-wrap">
+							{selectedEvent.resource.appointment?.notes ||
+								"Plazo de presentación de impuestos. No cuenta como cita clínica."}
+						</p>
+						<p className="text-xs text-amber-800 bg-amber-50 rounded-lg p-3">
+							Evento automático del módulo Fiscalidad. No se incluye en KPIs ni
+							alertas de pacientes.
+						</p>
+					</div>
 				)}
 				{selectedEvent?.resource?.type === "appointment" && (
 					<>

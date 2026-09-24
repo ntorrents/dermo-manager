@@ -21,6 +21,8 @@ import { LoginScreen } from "./components/auth/LoginScreen";
 import { Sidebar } from "./components/layout/Sidebar";
 import { MobileNav } from "./components/layout/MobileNav";
 import { AppHeader } from "./components/layout/AppHeader";
+import { TaxAlertsBanner } from "./components/taxes/shared/TaxAlertsBanner";
+import { useTaxDeclarations } from "./hooks/useTaxDeclarations";
 const DashboardTab = lazy(() =>
 	import("./components/dashboard/DashboardTab").then((m) => ({ default: m.DashboardTab })),
 );
@@ -39,8 +41,8 @@ const FinanceMovementsTab = lazy(() =>
 const FinancialAnalysisTab = lazy(() =>
 	import("./components/finance/FinancialAnalysisTab").then((m) => ({ default: m.FinancialAnalysisTab })),
 );
-const AssetsTab = lazy(() =>
-	import("./components/taxes/AssetsTab").then((m) => ({ default: m.AssetsTab })),
+const TaxesShell = lazy(() =>
+	import("./components/taxes/TaxesShell").then((m) => ({ default: m.TaxesShell })),
 );
 const InvoicesTab = lazy(() =>
 	import("./components/invoices/InvoicesTab").then((m) => ({ default: m.InvoicesTab })),
@@ -56,9 +58,6 @@ const CalendarTab = lazy(() =>
 );
 const HomeTab = lazy(() =>
 	import("./components/home/HomeTab").then((m) => ({ default: m.HomeTab })),
-);
-const TaxesTab = lazy(() =>
-	import("./components/taxes/TaxesTab").then((m) => ({ default: m.TaxesTab })),
 );
 const SuppliersTab = lazy(() =>
 	import("./components/suppliers/SuppliersTab").then((m) => ({
@@ -104,7 +103,7 @@ const TAB_META = {
 	invoices: { title: "Facturas", subtitle: "Emitidas, filtros y estadísticas" },
 	financial_analysis: { title: "Análisis Financiero", subtitle: "Gráficos y reportes" },
 	suppliers: { title: "Proveedores", subtitle: "KPI de compras y facturas" },
-	taxes: { title: "Resumen Fiscal", subtitle: "Modelos y trimestres" },
+	taxes: { title: "Fiscalidad & AEAT", subtitle: "Modelos, plazos y declaraciones" },
 	assets: { title: "Bienes de Inversión", subtitle: "Amortizaciones en curso" },
 	settings: { title: "Configuración", subtitle: "Clínica, perfil y seguridad" },
 };
@@ -152,6 +151,7 @@ const DermoManager = () => {
 	} = useClients(user);
 	const { appointments, loading: appointmentsLoading, refreshAppointments } =
 		useAppointments(user?.id);
+	const { declarations: taxDeclarations } = useTaxDeclarations(user?.id);
 	const { batches } = useInventoryBatches(user?.id);
 
 	const dataLoading =
@@ -199,7 +199,6 @@ const DermoManager = () => {
 		if (p.startsWith("/finanzas/analisis")) return "financial_analysis";
 		if (p.startsWith("/finanzas/facturas")) return "invoices";
 		if (p.startsWith("/proveedores")) return "suppliers";
-		if (p.startsWith("/fiscalidad/bienes-inversion")) return "assets";
 		if (p.startsWith("/fiscalidad")) return "taxes";
 		if (p.startsWith("/configuracion")) return "settings";
 		return "home";
@@ -549,6 +548,7 @@ const DermoManager = () => {
 				setReportingCustomTo={setReportingCustomTo}
 				onReportingGoToday={goReportingToday}
 			/>
+			<TaxAlertsBanner declarations={taxDeclarations} />
 			<main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-5 max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-5 min-h-[calc(100dvh-8rem)]">
 				{dataFetchErrors.length > 0 && (
 					<div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -749,14 +749,8 @@ const DermoManager = () => {
 								onRefresh={refreshAppointments}
 							/>
 						} />
-						<Route path="/fiscalidad/bienes-inversion" element={
-							<AssetsTab
-								user={user}
-								showToast={showToastMsg}
-							/>
-						} />
-						<Route path="/fiscalidad" element={
-							<TaxesTab
+						<Route path="/fiscalidad/*" element={
+							<TaxesShell
 								entries={entries}
 								clients={clients}
 								user={user}

@@ -32,20 +32,34 @@ export const STATUS_COLORS = {
 
 /**
  * Convierte appointments a eventos del calendario.
+ * tax_deadline: ventanas fiscales (no clínicas, no arrastrables).
  */
 export const appointmentsToEvents = (appointments = []) =>
 	(appointments || []).map((a) => {
 		const start = a.start_at ? new Date(a.start_at) : new Date();
 		const end = a.end_at ? new Date(a.end_at) : new Date(start.getTime() + 60 * 60 * 1000);
+		const isTax = a.type === "tax_deadline";
 		return {
 			id: `appt-${a.id}`,
 			title: a.title,
 			start,
 			end,
-			allDay: !!a.all_day,
+			allDay: !!a.all_day || isTax,
 			status: a.status || "pending",
-			draggable: true,
-			resource: { type: "appointment", appointment: a },
+			draggable: !isTax,
+			resource: {
+				type: isTax ? "tax_deadline" : "appointment",
+				appointment: a,
+			},
+			...(isTax
+				? {
+						style: {
+							backgroundColor: "#fef3c7",
+							borderColor: "#f59e0b",
+							color: "#92400e",
+						},
+					}
+				: {}),
 		};
 	});
 

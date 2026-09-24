@@ -278,6 +278,7 @@ export const DashboardTab = ({
 		() =>
 			(appointments || [])
 				.filter((a) => {
+					if (a.type === "tax_deadline" || a.type === "task") return false;
 					if (a.status === "cancelled") return false;
 					const day = a.start_at ? String(a.start_at).slice(0, 10) : "";
 					return day === todayYmd;
@@ -289,6 +290,7 @@ export const DashboardTab = ({
 		const now = new Date();
 		return (appointments || [])
 			.filter((a) => {
+				if (a.type === "tax_deadline" || a.type === "task") return false;
 				const start = a.start_at ? new Date(a.start_at) : null;
 				return start && start >= now && a.status !== "cancelled";
 			})
