@@ -80,8 +80,10 @@ DermoManager es una plataforma de planificación de recursos empresariales (ERP)
 - **Análisis Financiero:** Informes detallados de flujo de caja, balance de pérdidas y ganancias.
 
 ### 11. ⚖️ Fiscalidad y Activos
-- **Cálculo de Impuestos:** Estimación de declaraciones trimestrales/anuales de IVA y retenciones de IRPF.
-- **Bienes de Inversión:** Registro de activos fijos amortizables de la clínica y cálculo automático de cuotas de amortización prorrateadas.
+- **Modelos AEAT (130 / 303 / 115 / 390 / 180):** liquidaciones con espejo de casillas, auditoría de facturas y estado «Presentado en la AEAT» (PDF opcional).
+- **Arrastre IVA (Casilla 110):** si el trimestre anterior está presentado, se usa el crédito congelado en BD (`credit_carry_amount`); si no, se estima con aviso en UI.
+- **Perceptores 115/180:** Casilla 01 = NIF/proveedor únicos, no número de líneas.
+- **Bienes de Inversión:** amortización lineal diaria en IRPF; IVA deducible entero en el trimestre de la factura.
 
 ---
 

@@ -1,4 +1,5 @@
 import { filterByQuarter, round2, toBaseAmount } from "./quarters";
+import { countUniquePerceptors } from "./perceptors";
 
 /**
  * Modelo 115 — Retenciones alquiler, trimestre AISLADO.
@@ -22,6 +23,7 @@ export const computeModelo115 = (entries, year, quarter) => {
 	const retenciones = round2(
 		rows.reduce((acc, e) => acc + (Number(e.irpf_amount) || 0), 0),
 	);
+	const perceptores = countUniquePerceptors(rows);
 
 	return {
 		mode: "isolated",
@@ -29,9 +31,14 @@ export const computeModelo115 = (entries, year, quarter) => {
 		quarter,
 		baseRetenciones,
 		retenciones,
+		perceptores,
 		audit: { expenses: rows },
 		boxes: [
-			{ id: "01", label: "Nº de perceptores (aprox. líneas)", value: rows.length },
+			{
+				id: "01",
+				label: "Nº de perceptores (NIF/proveedor únicos)",
+				value: perceptores,
+			},
 			{ id: "02", label: "Base de las retenciones", value: baseRetenciones },
 			{ id: "03", label: "Retenciones e ingresos a cuenta", value: retenciones },
 		],

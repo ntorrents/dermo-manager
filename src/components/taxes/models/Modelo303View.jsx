@@ -65,7 +65,17 @@ export const Modelo303View = ({
 				</div>
 			</div>
 
-			{data.casilla110 > 0 && (
+			{data.casilla110Estimated && quarter > 1 && (
+				<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+					<strong>Casilla 110 estimada:</strong> el{" "}
+					{data.previousPeriod || "trimestre anterior"} aún no está marcado como
+					presentado en la AEAT. El arrastre se recalcula con los movimientos
+					actuales. Al presentar el trimestre previo, este valor quedará congelado
+					y no cambiará si editas facturas antiguas.
+				</div>
+			)}
+
+			{(data.casilla110 > 0 || data.casilla110Source === "presented") && (
 				<div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950 space-y-1">
 					<p>
 						<strong>Casilla 110</strong> = crédito arrastrado del{" "}
@@ -74,7 +84,12 @@ export const Modelo303View = ({
 							style: "currency",
 							currency: "EUR",
 						})}
-						).
+						)
+						{data.casilla110Source === "presented"
+							? " — valor presentado en la AEAT (inmutable)."
+							: data.casilla110Source === "presented_legacy"
+								? " — presentado (legacy: solo Casilla 71; conviene re-marcar el T anterior)."
+								: " — estimado."}
 					</p>
 					<p>
 						Solo se aplica en la <strong>Casilla 78</strong> hasta el resultado positivo del
@@ -91,6 +106,7 @@ export const Modelo303View = ({
 					year={year}
 					period={`T${quarter}`}
 					resultAmount={data.resultado}
+					creditCarryAmount={data.creditCarryAmount}
 					declaration={declaration}
 					upsertDeclaration={upsertDeclaration}
 					showToast={showToast}

@@ -16,6 +16,8 @@ export const TaxPresentationToggle = ({
 	year,
 	period,
 	resultAmount,
+	/** Modelo 303: crédito que alimentará la Casilla 110 del trimestre siguiente. */
+	creditCarryAmount,
 	declaration,
 	upsertDeclaration,
 	showToast = () => {},
@@ -48,6 +50,8 @@ export const TaxPresentationToggle = ({
 				period: String(period),
 				status: "completed",
 				result_amount: resultAmount != null ? Number(resultAmount) : null,
+				credit_carry_amount:
+					creditCarryAmount != null ? Number(creditCarryAmount) : null,
 				presented_at: new Date().toISOString(),
 				presented_by: user.id,
 				storage_path: storagePath,
@@ -79,6 +83,7 @@ export const TaxPresentationToggle = ({
 				period: String(period),
 				status: "pending",
 				result_amount: null,
+				credit_carry_amount: null,
 				presented_at: null,
 				presented_by: null,
 				storage_path: null,
