@@ -60,6 +60,79 @@ export const TAX_DEADLINE_WINDOWS = [
 
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
+/** Ventana AEAT para un modelo + periodo + ejercicio fiscal. */
+export const getDeadlineWindowFor = (model, fiscalYear, period) => {
+	const window = TAX_DEADLINE_WINDOWS.find(
+		(w) => w.id === period && w.models.includes(String(model)),
+	);
+	if (!window) return null;
+	return window.getRange(fiscalYear);
+};
+
+/**
+ * Estado UX de una declaración:
+ * - presented: marcada completed
+ * - upcoming: aún no abre la ventana de presentación
+ * - pending: dentro de la ventana y no presentada
+ * - overdue: ventana cerrada y no presentada
+ */
+export const getDeclarationUiStatus = (
+	model,
+	fiscalYear,
+	period,
+	declaration,
+	now = new Date(),
+) => {
+	if (declaration?.status === "completed") {
+		return {
+			id: "presented",
+			label: "Presentado",
+			tone: "success",
+		};
+	}
+
+	const range = getDeadlineWindowFor(model, fiscalYear, period);
+	if (!range) {
+		return { id: "upcoming", label: "Próximamente", tone: "muted" };
+	}
+
+	const today = startOfDay(now);
+	const start = startOfDay(range.start);
+	const end = startOfDay(range.end);
+
+	if (today < start) {
+		return {
+			id: "upcoming",
+			label: "Próximamente",
+			tone: "muted",
+			windowStart: range.start,
+			windowEnd: range.end,
+		};
+	}
+
+	if (today > end) {
+		const daysLate = Math.ceil((today - end) / 86400000);
+		return {
+			id: "overdue",
+			label: "Retrasado",
+			tone: "danger",
+			windowStart: range.start,
+			windowEnd: range.end,
+			daysLate,
+		};
+	}
+
+	const daysLeft = Math.ceil((end - today) / 86400000);
+	return {
+		id: "pending",
+		label: "Pendiente",
+		tone: "warning",
+		windowStart: range.start,
+		windowEnd: range.end,
+		daysLeft,
+	};
+};
+
 /**
  * Alertas activas a fecha `now` que aún no están completed en declarations.
  */

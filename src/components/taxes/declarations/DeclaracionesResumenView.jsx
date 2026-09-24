@@ -1,11 +1,42 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Download, CheckCircle2, Circle } from "lucide-react";
+import {
+	Download,
+	CheckCircle2,
+	Circle,
+	Clock,
+	AlertTriangle,
+	Hourglass,
+} from "lucide-react";
 import { getTaxDeclarationDownloadUrl } from "../../../services/taxDeclarationStorage";
 import { formatCurrency } from "../../../utils/format";
 import { TaxPeriodToolbar } from "../shared/TaxPeriodToolbar";
+import { getDeclarationUiStatus } from "../../../utils/tax/deadlines";
 
 const PERIODS_Q = ["T1", "T2", "T3", "T4"];
+
+const STATUS_STYLES = {
+	presented: {
+		row: "border-t border-gray-50 bg-white",
+		badge: "text-emerald-700 bg-emerald-50 border border-emerald-100",
+		Icon: CheckCircle2,
+	},
+	upcoming: {
+		row: "border-t border-gray-50 bg-white",
+		badge: "text-slate-500 bg-slate-50 border border-slate-100",
+		Icon: Hourglass,
+	},
+	pending: {
+		row: "border-t border-rose-100 bg-rose-50/40",
+		badge: "text-rose-700 bg-rose-100 border border-rose-200",
+		Icon: Clock,
+	},
+	overdue: {
+		row: "border-t border-amber-300 bg-amber-100/80",
+		badge: "text-amber-950 bg-amber-200 border border-amber-400",
+		Icon: AlertTriangle,
+	},
+};
 
 export const DeclaracionesResumenView = ({ declarations = [], showToast = () => {} }) => {
 	const [year, setYear] = useState(new Date().getFullYear());
@@ -17,14 +48,16 @@ export const DeclaracionesResumenView = ({ declarations = [], showToast = () => 
 				const d = declarations.find(
 					(x) => x.model === model && Number(x.year) === year && x.period === period,
 				);
-				out.push({ model, period, year, declaration: d });
+				const status = getDeclarationUiStatus(model, year, period, d);
+				out.push({ model, period, year, declaration: d, status });
 			}
 		}
 		for (const model of ["390", "180"]) {
 			const d = declarations.find(
 				(x) => x.model === model && Number(x.year) === year && x.period === "ANUAL",
 			);
-			out.push({ model, period: "ANUAL", year, declaration: d });
+			const status = getDeclarationUiStatus(model, year, "ANUAL", d);
+			out.push({ model, period: "ANUAL", year, declaration: d, status });
 		}
 		return out;
 	}, [declarations, year]);
@@ -49,10 +82,26 @@ export const DeclaracionesResumenView = ({ declarations = [], showToast = () => 
 				<div>
 					<h2 className="text-xl font-black text-gray-900">Resumen Declaraciones</h2>
 					<p className="text-sm text-gray-500 mt-1">
-						Estado de todas las liquidaciones del ejercicio y descarga de PDFs presentados.
+						Estado según plazos AEAT: Próximamente · Pendiente (en plazo) · Retrasado ·
+						Presentado.
 					</p>
 				</div>
 				<TaxPeriodToolbar year={year} setYear={setYear} showQuarter={false} />
+			</div>
+
+			<div className="flex flex-wrap gap-2 text-[11px] font-semibold">
+				<span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+					Presentado
+				</span>
+				<span className="px-2.5 py-1 rounded-full bg-slate-50 text-slate-500 border border-slate-100">
+					Próximamente
+				</span>
+				<span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
+					Pendiente (en plazo)
+				</span>
+				<span className="px-2.5 py-1 rounded-full bg-amber-200 text-amber-950 border border-amber-400">
+					Retrasado
+				</span>
 			</div>
 
 			<div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
@@ -69,18 +118,23 @@ export const DeclaracionesResumenView = ({ declarations = [], showToast = () => 
 					</thead>
 					<tbody>
 						{rows.map((row) => {
-							const done = row.declaration?.status === "completed";
+							const style = STATUS_STYLES[row.status.id] || STATUS_STYLES.upcoming;
+							const Icon = style.Icon;
 							return (
-								<tr key={`${row.model}-${row.period}`} className="border-t border-gray-50">
+								<tr key={`${row.model}-${row.period}`} className={style.row}>
 									<td className="px-4 py-3 font-bold text-gray-900">Modelo {row.model}</td>
 									<td className="px-4 py-3 text-gray-600">{row.period}</td>
 									<td className="px-4 py-3">
 										<span
-											className={`inline-flex items-center gap-1.5 text-xs font-bold ${
-												done ? "text-emerald-700" : "text-gray-400"
-											}`}>
-											{done ? <CheckCircle2 size={14} /> : <Circle size={14} />}
-											{done ? "Presentado" : "Pendiente"}
+											className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${style.badge}`}>
+											<Icon size={14} />
+											{row.status.label}
+											{row.status.id === "pending" && row.status.daysLeft != null
+												? ` · ${row.status.daysLeft}d`
+												: ""}
+											{row.status.id === "overdue" && row.status.daysLate != null
+												? ` · +${row.status.daysLate}d`
+												: ""}
 										</span>
 									</td>
 									<td className="px-4 py-3 tabular-nums text-gray-700">

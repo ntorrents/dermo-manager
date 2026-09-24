@@ -66,10 +66,21 @@ export const Modelo303View = ({
 			</div>
 
 			{data.casilla110 > 0 && (
-				<div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
-					Casilla 110 = {data.casilla110.toLocaleString("es-ES", { style: "currency", currency: "EUR" })}{" "}
-					traída del resultado negativo del {data.previousPeriod} (marcado como presentado).
-					Se resta antes de la Casilla 71.
+				<div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950 space-y-1">
+					<p>
+						<strong>Casilla 110</strong> = crédito arrastrado del{" "}
+						{data.previousPeriod || "trimestre anterior"} (
+						{data.casilla110.toLocaleString("es-ES", {
+							style: "currency",
+							currency: "EUR",
+						})}
+						).
+					</p>
+					<p>
+						Solo se aplica en la <strong>Casilla 78</strong> hasta el resultado positivo del
+						periodo (Casilla 66). El resto queda en la <strong>Casilla 87</strong> para
+						trimestres siguientes — no se resta de golpe a la 71.
+					</p>
 				</div>
 			)}
 

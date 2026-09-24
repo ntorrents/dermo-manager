@@ -79,26 +79,59 @@ describe("computeModelo130 YTD", () => {
 describe("computeModelo303 isolated", () => {
 	it("T2 no incluye enero", () => {
 		const t2 = computeModelo303(entries, 2026, 2, []);
-		expect(t2.ivaRepercutido).toBe(420);
-		expect(t2.ivaSoportado).toBe(42);
+		expect(t2.casilla27).toBe(420);
+		expect(t2.casilla45).toBe(42);
+		expect(t2.casilla66).toBe(378);
 		expect(t2.casilla110).toBe(0);
-		expect(t2.resultado).toBe(378);
+		expect(t2.casilla78).toBe(0);
+		expect(t2.casilla71).toBe(378);
+		expect(t2.casilla87).toBe(0);
 	});
 
-	it("resta Casilla 110 del trimestre anterior a compensar", () => {
-		const decls = [
+	it("aplica Casilla 78 sin dejar 71 injustificadamente negativa", () => {
+		// T1 a compensar: 66 = 210-21 = 189... wait need negative T1
+		// Force via declarations chain: simulate T1 with only expense IVA
+		const t1HeavyExpense = [
 			{
-				model: "303",
-				year: 2026,
-				period: "T1",
-				status: "completed",
-				result_amount: -100,
+				id: "e1",
+				type: "expense",
+				date: "2026-02-01",
+				tax_base: 5000,
+				tax_amount: 1050,
+				is_deductible: true,
+			},
+			{
+				id: "i2",
+				type: "income",
+				date: "2026-04-10",
+				tax_base: 2000,
+				tax_amount: 420,
+				plan_amigo: false,
+			},
+			{
+				id: "e2",
+				type: "expense",
+				date: "2026-05-01",
+				tax_base: 200,
+				tax_amount: 42,
+				is_deductible: true,
 			},
 		];
-		const t2 = computeModelo303(entries, 2026, 2, decls);
-		expect(t2.casilla110).toBe(100);
-		expect(t2.diferencia).toBe(378);
-		expect(t2.resultado).toBe(278);
-		expect(t2.boxes.some((b) => b.id === "110")).toBe(true);
+		const t1 = computeModelo303(t1HeavyExpense, 2026, 1, []);
+		expect(t1.casilla66).toBe(-1050);
+		expect(t1.casilla71).toBe(-1050);
+		expect(t1.casilla78).toBe(0);
+		expect(t1.casilla87).toBe(0);
+
+		const t2 = computeModelo303(t1HeavyExpense, 2026, 2, []);
+		// 110 = |71 T1| = 1050; 66 T2 = 420-42 = 378; 78 = min(378,1050)=378; 71=0; 87=672
+		expect(t2.casilla110).toBe(1050);
+		expect(t2.casilla66).toBe(378);
+		expect(t2.casilla78).toBe(378);
+		expect(t2.casilla71).toBe(0);
+		expect(t2.casilla87).toBe(672);
+		expect(t2.boxes.map((b) => b.id)).toEqual(
+			expect.arrayContaining(["66", "110", "78", "71", "87"]),
+		);
 	});
 });
