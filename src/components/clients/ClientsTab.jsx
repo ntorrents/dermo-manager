@@ -46,10 +46,12 @@ import { generateInvoice } from "../../utils/invoiceGenerator";
 import { generateConsentPDF } from "../../utils/consentGenerator";
 import { getNextRectifiedInvoiceNumber } from "../../services/invoiceSeries";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { ColumnPicker } from "../ui/ColumnPicker";
 import { SidePanel } from "../ui/SidePanel";
 import { StatusChip } from "../ui/StatusChip";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
+import { useColumnPreferences } from "../../hooks/useColumnPreferences";
 import { PhotoUploadModal } from "../photos/PhotoUploadModal";
 import { PhotoEditModal } from "../photos/PhotoEditModal";
 import { BeforeAfterViewer } from "../photos/BeforeAfterViewer";
@@ -184,6 +186,7 @@ export const ClientsTab = ({
 	const [photoUploadSession, setPhotoUploadSession] = useState(null);
 	const [showPhotoDeleteModal, setShowPhotoDeleteModal] = useState(false);
 	const [photoToDelete, setPhotoToDelete] = useState(null);
+	const [noteToDelete, setNoteToDelete] = useState(null);
 	const [showPhotoEditModal, setShowPhotoEditModal] = useState(false);
 	const [photoToEdit, setPhotoToEdit] = useState(null);
 	const [viewerSession, setViewerSession] = useState(null);
@@ -194,6 +197,20 @@ export const ClientsTab = ({
 	const [showConsentModal, setShowConsentModal] = useState(false);
 	const [consentTreatmentId, setConsentTreatmentId] = useState("");
 	const [consentTemplateId, setConsentTemplateId] = useState("");
+
+	const CLIENT_COLUMNS = useMemo(
+		() => [
+			{ id: "patient", label: "Paciente", required: true },
+			{ id: "estado", label: "Estado" },
+			{ id: "contacto", label: "Contacto" },
+			{ id: "identificacion", label: "Identificación" },
+			{ id: "legal", label: "Legal" },
+			{ id: "acciones", label: "Acciones", required: true },
+		],
+		[]
+	);
+	const { isVisible: isClientColVisible, toggle: toggleClientCol } =
+		useColumnPreferences("c3linic_clients_columns", CLIENT_COLUMNS);
 
 	const { treatments = [] } = useTreatments(user);
 	const { consentTemplates = [] } = useConsentTemplates(user);
@@ -576,19 +593,40 @@ export const ClientsTab = ({
 		<div className="space-y-4 animate-in fade-in pb-20 md:pb-0 min-h-[calc(100vh-120px)] flex flex-col">
 			<ConfirmModal
 				isOpen={showDeleteModal}
-				title="Archivar cliente"
-				message={`¿Archivar a ${clientToDelete?.name}? Dejará de aparecer en la lista; el historial se conserva en la base de datos.`}
+				title="Eliminar paciente"
+				message={`Estás a punto de archivar al paciente ${[clientToDelete?.name, clientToDelete?.surname].filter(Boolean).join(" ") || "seleccionado"}.\n\nDejará de aparecer en listados y citas nuevas. Su historial clínico se conserva en base de datos, pero no podrás recuperarlo fácilmente desde aquí.\n\n¿Confirmas la eliminación?`}
 				onConfirm={confirmDelete}
 				onCancel={() => setShowDeleteModal(false)}
 				isDestructive={true}
+				confirmLabel="Eliminar paciente"
 			/>
 			<ConfirmModal
 				isOpen={showPhotoDeleteModal}
 				title="Eliminar foto"
-				message="¿Eliminar esta foto del historial? Esta acción no se puede deshacer."
+				message="Estás a punto de eliminar esta foto del historial clínico. Se perderá de forma permanente y no podrás recuperarla.\n\n¿Confirmas la eliminación?"
 				onConfirm={confirmPhotoDelete}
 				onCancel={() => setShowPhotoDeleteModal(false)}
 				isDestructive={true}
+				confirmLabel="Eliminar foto"
+			/>
+			<ConfirmModal
+				isOpen={Boolean(noteToDelete)}
+				title="Eliminar nota"
+				message={`Estás a punto de eliminar la nota "${noteToDelete?.titulo || "sin título"}".\n\nSe perderá de forma permanente y no podrás recuperarla.\n\n¿Confirmas la eliminación?`}
+				onConfirm={async () => {
+					if (!noteToDelete) return;
+					try {
+						await deleteSeguimiento(noteToDelete.id);
+						showToast("Nota eliminada");
+					} catch {
+						showToast("Error al eliminar", "error");
+					} finally {
+						setNoteToDelete(null);
+					}
+				}}
+				onCancel={() => setNoteToDelete(null)}
+				isDestructive
+				confirmLabel="Eliminar nota"
 			/>
 
 						{!selectedClient ? (
@@ -630,6 +668,11 @@ export const ClientsTab = ({
 								<option value="recent">Más recientes</option>
 								<option value="oldest">Más antiguos</option>
 							</select>
+							<ColumnPicker
+								columns={CLIENT_COLUMNS}
+								isVisible={isClientColVisible}
+								onToggle={toggleClientCol}
+							/>
 							<button
 								type="button"
 								onClick={() => handleOpenModal()}
@@ -754,34 +797,49 @@ export const ClientsTab = ({
 							<div className="hidden md:block flex-1 overflow-x-auto overflow-y-auto custom-scrollbar bg-white border border-gray-200 rounded-xl shadow-sm">
 								<table className="w-full text-left border-collapse min-w-[640px] md:min-w-[800px]">
 									<thead className="sticky top-0 z-10">
-										<tr className="bg-gray-50 border-b border-gray-200 text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
-											<th className="p-3.5 pl-5 font-semibold">Paciente</th>
-											<th className="p-3.5 font-semibold">Estado</th>
-											<th className="p-3.5 font-semibold">Contacto</th>
-											<th className="p-3.5 font-semibold hidden lg:table-cell">Identificación</th>
-											<th className="p-3.5 text-center font-semibold">Legal</th>
-											<th className="p-3.5 text-right pr-5 font-semibold">Acciones</th>
+										<tr className="bg-slate-50/90 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wider">
+											{isClientColVisible("patient") && (
+												<th className="p-3.5 pl-5">Paciente</th>
+											)}
+											{isClientColVisible("estado") && (
+												<th className="p-3.5">Estado</th>
+											)}
+											{isClientColVisible("contacto") && (
+												<th className="p-3.5">Contacto</th>
+											)}
+											{isClientColVisible("identificacion") && (
+												<th className="p-3.5 hidden lg:table-cell">Identificación</th>
+											)}
+											{isClientColVisible("legal") && (
+												<th className="p-3.5 text-center">Legal</th>
+											)}
+											{isClientColVisible("acciones") && (
+												<th className="p-3.5 text-right pr-5">Acciones</th>
+											)}
 										</tr>
 									</thead>
-									<tbody className="divide-y divide-gray-100 bg-white">
+									<tbody className="divide-y divide-slate-100 bg-white">
 										{filteredClients.map((client) => (
 											<tr
 												key={client.id}
 												onClick={() => selectClient(client)}
-												className="hover:bg-gray-50/70 transition-colors cursor-pointer group">
+												className="hover:bg-slate-50/70 transition-colors cursor-pointer group">
+												{isClientColVisible("patient") && (
 												<td className="p-3.5 pl-5">
 													<div className="flex items-center gap-3">
-														<div className="w-9 h-9 rounded-full bg-rose-50 text-rose-700 flex items-center justify-center text-sm font-bold shrink-0 border border-rose-100">
+														<div className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center text-sm font-medium shrink-0 border border-slate-200">
 															{client.name.charAt(0)}
 														</div>
 														<div className="flex items-center gap-2 min-w-0">
-															<p className="font-semibold text-gray-900 text-sm truncate">{client.name} {client.surname}</p>
+															<p className="font-medium text-slate-900 text-sm truncate">{client.name} {client.surname}</p>
 															{client.is_company && (
-																<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-600 font-bold rounded border border-slate-200 shrink-0">Empresa</span>
+																<span className="px-1.5 py-0.5 text-[10px] bg-slate-50 text-slate-600 font-medium rounded border border-slate-200 shrink-0">Empresa</span>
 															)}
 														</div>
 													</div>
 												</td>
+												)}
+												{isClientColVisible("estado") && (
 												<td className="p-3.5">
 													{client.estado === "inactivo" && (
 														<StatusChip tone="neutral">Inactivo</StatusChip>
@@ -796,44 +854,52 @@ export const ClientsTab = ({
 														<StatusChip tone="success">Activo</StatusChip>
 													)}
 												</td>
+												)}
+												{isClientColVisible("contacto") && (
 												<td className="p-3.5">
 													<div className="flex items-center gap-2">
-														<span className="text-sm text-gray-600">{client.phone || "Sin tlf"}</span>
+														<span className="text-sm font-medium text-slate-900 tabular-nums">{client.phone || "Sin tlf"}</span>
 														{client.phone && (
 															<a
 																href={buildWhatsAppUrl(client.phone, client.name, clinic?.name)}
 																target="_blank"
 																rel="noopener noreferrer"
 																onClick={(e) => e.stopPropagation()}
-																className="p-1 rounded bg-green-50 text-emerald-700 hover:bg-green-100 opacity-0 group-hover:opacity-100 transition-all"
+																className="p-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 opacity-0 group-hover:opacity-100 transition-opacity"
 																title="WhatsApp">
 																<MessageCircle size={14} />
 															</a>
 														)}
 													</div>
 												</td>
+												)}
+												{isClientColVisible("identificacion") && (
 												<td className="p-3.5 hidden lg:table-cell">
-													<span className="text-sm font-medium text-gray-500">{client.nif || "-"}</span>
+													<span className="text-sm font-medium text-slate-900 tabular-nums">{client.nif || "—"}</span>
 												</td>
+												)}
+												{isClientColVisible("legal") && (
 												<td className="p-3.5 text-center">
 													<div className="flex items-center justify-center gap-2">
-														<span className="flex items-center gap-1 text-[11px] font-bold text-slate-500" title="Consentimiento">
+														<span className="flex items-center gap-1 text-[11px] font-medium text-slate-500" title="Consentimiento">
 															{client.has_consent ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} C
 														</span>
-														<span className="flex items-center gap-1 text-[11px] font-bold text-slate-500" title="Derechos de imagen">
+														<span className="flex items-center gap-1 text-[11px] font-medium text-slate-500" title="Derechos de imagen">
 															{client.has_image_rights ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} I
 														</span>
 													</div>
 												</td>
+												)}
+												{isClientColVisible("acciones") && (
 												<td className="p-3 pr-4 text-right">
-													<div className="flex justify-end gap-2">
+													<div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
 														<button
 															type="button"
 															onClick={(e) => {
 																e.stopPropagation();
 																setSelectedClient(client);
 															}}
-															className="p-1.5 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition-colors"
+															className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
 															title="Ver ficha">
 															<Eye size={16} />
 														</button>
@@ -841,13 +907,14 @@ export const ClientsTab = ({
 															<button
 																type="button"
 																onClick={(e) => handleDeleteClick(e, client)}
-																className="p-1.5 text-slate-400 hover:text-rose-700 rounded hover:bg-rose-50 transition-colors"
+																className="p-1.5 text-slate-400 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors"
 																title="Archivar">
 																<Trash2 size={16} />
 															</button>
 														)}
 													</div>
 												</td>
+												)}
 											</tr>
 										))}
 									</tbody>
@@ -1183,19 +1250,11 @@ export const ClientsTab = ({
 																			}} className="p-1.5 text-slate-400 hover:text-rose-700 rounded bg-white shadow-sm">
 																				<Edit2 size={14} />
 																			</button>
-																			{canDeleteOperational && (
-																				<button onClick={async () => {
-																					if (!confirm("¿Eliminar nota?")) return;
-																					try {
-																						await deleteSeguimiento(seg.id);
-																						showToast("Nota eliminada");
-																					} catch {
-																						showToast("Error al eliminar", "error");
-																					}
-																				}} className="p-1.5 text-slate-400 hover:text-rose-700 rounded bg-white shadow-sm">
-																					<Trash2 size={14} />
-																				</button>
-																			)}
+											{canDeleteOperational && (
+												<button onClick={() => setNoteToDelete(seg)} className="p-1.5 text-slate-400 hover:text-rose-700 rounded bg-white shadow-sm">
+													<Trash2 size={14} />
+												</button>
+											)}
 																		</div>
 																	</div>
 																	{seg.tratamientos_interes && (

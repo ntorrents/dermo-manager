@@ -983,11 +983,22 @@ export const FinanceMovementsTab = ({
 			{/* MODALES DE CONFIRMACIÓN */}
 			<ConfirmModal
 				isOpen={showDeleteModal}
-				title="Archivar movimiento"
-				message="El registro dejará de mostrarse en listados y estadísticas visibles, pero se conserva en base de datos."
+				title="Eliminar movimiento"
+				message={`Estás a punto de archivar este movimiento${
+					itemToDelete
+						? ` (${
+								periodEntries.find((e) => e.id === itemToDelete)?.description ||
+								periodEntries.find((e) => e.id === itemToDelete)?.category ||
+								entries.find((e) => e.id === itemToDelete)?.description ||
+								entries.find((e) => e.id === itemToDelete)?.category ||
+								"gasto/ingreso"
+							})`
+						: ""
+				}.\n\nDejará de mostrarse en listados y estadísticas. Los datos se conservan en base de datos, pero no podrás recuperarlo fácilmente desde aquí.\n\n¿Confirmas la eliminación?`}
 				onConfirm={confirmDelete}
 				onCancel={() => setShowDeleteModal(false)}
 				isDestructive={true}
+				confirmLabel="Eliminar movimiento"
 			/>
 
 			{/* HEADER: BALANCE Y SELECTORES */}

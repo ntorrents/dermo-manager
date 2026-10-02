@@ -528,7 +528,7 @@ export const BudgetsSection = ({
 <ConfirmModal
 				isOpen={!!archiveId}
 				title="Archivar presupuesto"
-				message="Este presupuesto dejará de mostrarse en la lista principal, pero se conservará en el sistema de forma segura."
+				message="Estás a punto de archivar este presupuesto.\n\nDejará de mostrarse en la lista principal. Se conserva en el sistema, pero no podrás recuperarlo fácilmente desde aquí.\n\n¿Confirmas el archivado?"
 				onCancel={() => setArchiveId(null)}
 				onConfirm={async () => {
 					try {
@@ -541,6 +541,7 @@ export const BudgetsSection = ({
 					}
 				}}
 				isDestructive
+				confirmLabel="Archivar presupuesto"
 			/>
 		</div>
 	);

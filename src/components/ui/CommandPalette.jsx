@@ -10,8 +10,12 @@ import {
 	LayoutDashboard,
 	Settings,
 	ShoppingBag,
+	TrendingDown,
+	Clock,
 } from "lucide-react";
 import { useTenant } from "../../context/TenantContext";
+
+const RECENT_KEY = "baseclinica.cmdk.recent.v1";
 
 const NAV_ACTIONS = [
 	{ id: "nav-home", label: "Ir a Inicio", path: "/", icon: LayoutDashboard, keywords: "dashboard home" },
@@ -24,9 +28,51 @@ const NAV_ACTIONS = [
 	{ id: "nav-set", label: "Ir a Ajustes", path: "/ajustes", icon: Settings, keywords: "config apariencia" },
 ];
 
+const QUICK_ACTIONS = [
+	{
+		id: "act-cita",
+		group: "Acciones rápidas",
+		label: "Nueva cita rápida",
+		icon: CalendarPlus,
+		hint: "⌘K",
+	},
+	{
+		id: "act-gasto",
+		group: "Acciones rápidas",
+		label: "Nuevo gasto",
+		icon: TrendingDown,
+		hint: "Finanzas",
+	},
+	{
+		id: "act-appearance",
+		group: "Acciones rápidas",
+		label: "Ajustes → Apariencia",
+		icon: Settings,
+	},
+];
+
+const readRecent = () => {
+	try {
+		const raw = localStorage.getItem(RECENT_KEY);
+		const parsed = raw ? JSON.parse(raw) : [];
+		return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
+	} catch {
+		return [];
+	}
+};
+
+const pushRecent = (entry) => {
+	try {
+		const prev = readRecent().filter((r) => r.id !== entry.id);
+		localStorage.setItem(RECENT_KEY, JSON.stringify([entry, ...prev].slice(0, 5)));
+	} catch {
+		/* ignore */
+	}
+};
+
 /**
  * Buscador universal ⌘K / Ctrl+K.
- * onQuickAction: callback opcional para acciones (nueva cita, etc.)
+ * Reciprocidad: con query vacía muestra acciones rápidas + recientes.
  */
 export const CommandPalette = ({
 	open,
@@ -40,6 +86,7 @@ export const CommandPalette = ({
 	const { hasModule } = useTenant();
 	const [query, setQuery] = useState("");
 	const [active, setActive] = useState(0);
+	const [recent, setRecent] = useState([]);
 	const inputRef = useRef(null);
 
 	useEffect(() => {
@@ -60,6 +107,7 @@ export const CommandPalette = ({
 			setActive(0);
 			return;
 		}
+		setRecent(readRecent());
 		const t = requestAnimationFrame(() => inputRef.current?.focus());
 		return () => cancelAnimationFrame(t);
 	}, [open]);
@@ -67,6 +115,47 @@ export const CommandPalette = ({
 	const results = useMemo(() => {
 		const q = query.trim().toLowerCase();
 		const items = [];
+
+		const runQuick = {
+			"act-cita": () => onQuickAction?.("new-appointment"),
+			"act-gasto": () => {
+				onQuickAction?.("new-expense");
+				navigate("/finanzas/movimientos?new=expense");
+			},
+			"act-appearance": () => navigate("/ajustes?section=appearance"),
+		};
+
+		if (!q) {
+			for (const a of QUICK_ACTIONS) {
+				items.push({
+					...a,
+					run: runQuick[a.id] || (() => {}),
+				});
+			}
+			for (const r of recent) {
+				items.push({
+					id: `recent-${r.id}`,
+					group: "Búsquedas recientes",
+					label: r.label,
+					icon: Clock,
+					hint: r.hint || "",
+					run: () => {
+						if (r.path) navigate(r.path);
+						else if (r.action) onQuickAction?.(r.action);
+					},
+				});
+			}
+			for (const a of NAV_ACTIONS.slice(0, 4)) {
+				items.push({
+					id: a.id,
+					group: "Navegación",
+					label: a.label,
+					icon: a.icon,
+					run: () => navigate(a.path),
+				});
+			}
+			return items;
+		}
 
 		items.push({
 			id: "act-cita",
@@ -76,16 +165,15 @@ export const CommandPalette = ({
 			run: () => onQuickAction?.("new-appointment"),
 		});
 		items.push({
-			id: "act-appearance",
+			id: "act-gasto",
 			group: "Acciones",
-			label: "Ajustes → Apariencia",
-			icon: Settings,
-			run: () => navigate("/ajustes?section=appearance"),
+			label: "Nuevo gasto",
+			icon: TrendingDown,
+			run: () => navigate("/finanzas/movimientos?new=expense"),
 		});
 
 		for (const a of NAV_ACTIONS) {
 			if (
-				!q ||
 				a.label.toLowerCase().includes(q) ||
 				a.keywords.includes(q)
 			) {
@@ -108,14 +196,15 @@ export const CommandPalette = ({
 				)
 				.slice(0, 5)
 				.forEach((c) => {
+					const label = [c.name, c.surname].filter(Boolean).join(" ");
 					items.push({
 						id: `client-${c.id}`,
 						group: "Clientes",
-						label: [c.name, c.surname].filter(Boolean).join(" "),
+						label,
 						hint: c.mobile || c.email || "",
 						icon: Users,
 						preview: {
-							title: [c.name, c.surname].filter(Boolean).join(" "),
+							title: label,
 							lines: [
 								c.mobile && `Tel. ${c.mobile}`,
 								c.email,
@@ -123,6 +212,7 @@ export const CommandPalette = ({
 							].filter(Boolean),
 						},
 						run: () => navigate("/clientes"),
+						_recent: { id: `client-${c.id}`, label, path: "/clientes", hint: "Cliente" },
 					});
 				});
 
@@ -137,6 +227,12 @@ export const CommandPalette = ({
 						hint: t.price != null ? `${Number(t.price).toFixed(2)} €` : "",
 						icon: Receipt,
 						run: () => navigate("/tratamientos"),
+						_recent: {
+							id: `tr-${t.id}`,
+							label: t.name,
+							path: "/tratamientos",
+							hint: "Tratamiento",
+						},
 					});
 				});
 
@@ -151,12 +247,18 @@ export const CommandPalette = ({
 						hint: `Stock ${i.stock ?? 0}`,
 						icon: Package,
 						run: () => navigate("/inventario"),
+						_recent: {
+							id: `inv-${i.id}`,
+							label: i.name,
+							path: "/inventario",
+							hint: "Inventario",
+						},
 					});
 				});
 		}
 
 		return items;
-	}, [query, clients, treatments, inventory, navigate, onQuickAction, hasModule]);
+	}, [query, clients, treatments, inventory, navigate, onQuickAction, hasModule, recent]);
 
 	useEffect(() => {
 		setActive(0);
@@ -167,9 +269,33 @@ export const CommandPalette = ({
 	const current = results[active];
 
 	const runItem = (item) => {
+		if (item?._recent) pushRecent(item._recent);
+		else if (item?.group === "Navegación" || item?.group === "Acciones rápidas") {
+			pushRecent({
+				id: item.id,
+				label: item.label,
+				path: item.id.startsWith("nav-")
+					? NAV_ACTIONS.find((n) => n.id === item.id)?.path
+					: undefined,
+				action: item.id === "act-cita" ? "new-appointment" : undefined,
+				hint: item.group,
+			});
+		}
 		onOpenChange?.(false);
 		item?.run?.();
 	};
+
+	const groups = [];
+	for (const item of results) {
+		const last = groups[groups.length - 1];
+		if (!last || last.name !== item.group) {
+			groups.push({ name: item.group, items: [item] });
+		} else {
+			last.items.push(item);
+		}
+	}
+
+	let flatIndex = -1;
 
 	return createPortal(
 		<div className="fixed inset-0 z-[90] flex items-start justify-center pt-[12vh] px-4">
@@ -179,9 +305,9 @@ export const CommandPalette = ({
 				aria-label="Cerrar"
 				onClick={() => onOpenChange?.(false)}
 			/>
-			<div className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-edge bg-surface shadow-2xl animate-in zoom-in-95">
-				<div className="flex items-center gap-3 border-b border-edge px-4 py-3">
-					<Search size={18} className="text-muted shrink-0" />
+			<div className="relative z-10 w-full max-w-xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl animate-in zoom-in-95">
+				<div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
+					<Search size={18} className="text-slate-400 shrink-0" />
 					<input
 						ref={inputRef}
 						value={query}
@@ -200,58 +326,78 @@ export const CommandPalette = ({
 								onOpenChange?.(false);
 							}
 						}}
-						placeholder="Buscar o ejecutar… (clientes, módulos, acciones)"
-						className="flex-1 bg-transparent text-sm font-medium text-fg outline-none placeholder:text-muted"
+						placeholder="Buscar o ejecutar…"
+						className="flex-1 bg-transparent text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400"
 					/>
-					<kbd className="hidden sm:inline text-[10px] font-bold text-muted border border-edge rounded-md px-1.5 py-0.5">
+					<kbd className="hidden sm:inline text-[10px] font-medium text-slate-400 border border-slate-200 rounded-md px-1.5 py-0.5">
 						ESC
 					</kbd>
 				</div>
-				<div className="grid sm:grid-cols-[1fr_0.9fr] max-h-[min(52vh,420px)]">
-					<ul className="overflow-y-auto custom-scrollbar py-2">
+				<div className="grid sm:grid-cols-[1fr_0.85fr] max-h-[min(52vh,420px)]">
+					<div className="overflow-y-auto custom-scrollbar py-2">
 						{results.length === 0 && (
-							<li className="px-4 py-6 text-sm text-muted">Sin resultados</li>
+							<p className="px-4 py-6 text-sm text-slate-400">Sin resultados</p>
 						)}
-						{results.map((item, idx) => {
-							const Icon = item.icon || Search;
-							const isActive = idx === active;
-							return (
-								<li key={item.id}>
-									<button
-										type="button"
-										onMouseEnter={() => setActive(idx)}
-										onClick={() => runItem(item)}
-										className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
-											isActive ? "bg-primary-soft text-fg" : "text-fg hover:bg-surface-2"
-										}`}>
-										<Icon size={16} className="text-muted shrink-0" />
-										<span className="flex-1 min-w-0 truncate font-medium">{item.label}</span>
-										{item.hint ? (
-											<span className="text-[11px] text-muted shrink-0">{item.hint}</span>
-										) : null}
-									</button>
-								</li>
-							);
-						})}
-					</ul>
-					<aside className="hidden sm:block border-l border-edge bg-surface-2/50 p-4">
+						{groups.map((g) => (
+							<div key={g.name} className="mb-1">
+								<p className="px-4 pt-2 pb-1 text-[10px] font-medium uppercase tracking-wider text-slate-400">
+									{g.name}
+								</p>
+								<ul>
+									{g.items.map((item) => {
+										flatIndex += 1;
+										const idx = flatIndex;
+										const Icon = item.icon || Search;
+										const isActive = idx === active;
+										return (
+											<li key={item.id}>
+												<button
+													type="button"
+													onMouseEnter={() => setActive(idx)}
+													onClick={() => runItem(item)}
+													className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
+														isActive
+															? "bg-slate-50 text-slate-900"
+															: "text-slate-700 hover:bg-slate-50"
+													}`}>
+													<Icon size={16} className="text-slate-400 shrink-0" />
+													<span className="flex-1 min-w-0 truncate font-medium">
+														{item.label}
+													</span>
+													{item.hint ? (
+														<span className="text-[11px] text-slate-400 shrink-0">
+															{item.hint}
+														</span>
+													) : null}
+												</button>
+											</li>
+										);
+									})}
+								</ul>
+							</div>
+						))}
+					</div>
+					<aside className="hidden sm:block border-l border-slate-100 bg-slate-50/50 p-4">
 						{current?.preview ? (
 							<div className="space-y-2">
-								<p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+								<p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
 									Vista previa
 								</p>
-								<p className="font-bold text-fg">{current.preview.title}</p>
+								<p className="font-semibold text-slate-900">{current.preview.title}</p>
 								{current.preview.lines.map((line) => (
-									<p key={line} className="text-xs text-muted">
+									<p key={line} className="text-xs text-slate-500">
 										{line}
 									</p>
 								))}
 							</div>
 						) : (
-							<div className="text-xs text-muted leading-relaxed">
-								<p className="font-bold text-fg mb-1">Atajos</p>
-								<p>↑↓ navegar · Enter ejecutar · Esc cerrar</p>
-								<p className="mt-3">{current?.group || "—"}</p>
+							<div className="text-xs text-slate-500 leading-relaxed space-y-2">
+								<p className="font-semibold text-slate-800">Reciprocidad</p>
+								<p>
+									Acciones rápidas y recientes antes de escribir. ↑↓ navegar · Enter
+									ejecutar.
+								</p>
+								<p className="text-slate-400">{current?.group || "—"}</p>
 							</div>
 						)}
 					</aside>

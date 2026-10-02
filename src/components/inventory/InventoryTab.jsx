@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
 	Plus,
 	Search,
@@ -14,10 +14,12 @@ import {
 import { IVA_OPTIONS, formatCurrency, formatDate } from "../../utils/format";
 import { calculateUnitCost } from "../../utils/calculations";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { ColumnPicker } from "../ui/ColumnPicker";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
 import { SidePanel } from "../ui/SidePanel";
 import { StatusChip } from "../ui/StatusChip";
+import { useColumnPreferences } from "../../hooks/useColumnPreferences";
 import {
 	FormSheet,
 	FormSheetPrimary,
@@ -109,6 +111,19 @@ export const InventoryTab = ({
 	const updateBatch = useUpdateBatch(user?.id);
 	const { batches } = useInventoryBatches(user?.id);
 	const { canDeleteOperational } = useTenant();
+
+	const INVENTORY_COLUMNS = useMemo(
+		() => [
+			{ id: "material", label: "Material", required: true },
+			{ id: "stock", label: "Stock" },
+			{ id: "expiry", label: "Próx. caducidad" },
+			{ id: "cost", label: "Coste Unit." },
+			{ id: "acciones", label: "Acciones", required: true },
+		],
+		[]
+	);
+	const { isVisible: isInvColVisible, toggle: toggleInvCol } =
+		useColumnPreferences("c3linic_inventory_columns", INVENTORY_COLUMNS);
 
 	const loading =
 		createMaterial.isPending ||
@@ -532,11 +547,12 @@ export const InventoryTab = ({
 		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
 			<ConfirmModal
 				isOpen={showDeleteModal}
-				title="Eliminar Material"
-				message={`¿Eliminar "${itemToDelete?.name}"?`}
+				title="Eliminar material"
+				message={`Estás a punto de eliminar "${itemToDelete?.name || "este material"}".\n\nDesaparecerá del inventario y de las recetas que lo usen. No podrás recuperarlo.\n\n¿Confirmas la eliminación?`}
 				onConfirm={confirmDelete}
 				onCancel={() => setShowDeleteModal(false)}
 				isDestructive={true}
+				confirmLabel="Eliminar material"
 			/>
 
 			<div className="flex flex-col md:flex-row gap-3 md:gap-4 justify-between items-stretch md:items-center">
@@ -549,12 +565,19 @@ export const InventoryTab = ({
 						onChange={(e) => setSearchTerm(e.target.value)}
 					/>
 				</div>
-				<button
-					type="button"
-					onClick={() => openModal()}
-					className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors w-full md:w-auto shrink-0">
-					<Plus size={20} /> Nuevo material o máquina
-				</button>
+				<div className="flex items-center gap-2 w-full md:w-auto">
+					<ColumnPicker
+						columns={INVENTORY_COLUMNS}
+						isVisible={isInvColVisible}
+						onToggle={toggleInvCol}
+					/>
+					<button
+						type="button"
+						onClick={() => openModal()}
+						className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors flex-1 md:flex-none shrink-0">
+						<Plus size={20} /> Nuevo material o máquina
+					</button>
+				</div>
 			</div>
 
 			{lowStockCount > 0 && (
@@ -674,12 +697,18 @@ export const InventoryTab = ({
 				) : (
 					<table className="w-full text-left border-collapse">
 						<thead>
-							<tr className="bg-gray-50/80 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-								<th className="p-3">Material</th>
-								<th className="p-3 text-center">Stock</th>
-								<th className="p-3 text-center">Próx. caducidad</th>
-								<th className="p-3 text-center">Coste Unit.</th>
-								<th className="p-3 text-right">Acciones</th>
+							<tr className="bg-slate-50/90 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wider">
+								{isInvColVisible("material") && <th className="p-3">Material</th>}
+								{isInvColVisible("stock") && <th className="p-3 text-center">Stock</th>}
+								{isInvColVisible("expiry") && (
+									<th className="p-3 text-center">Próx. caducidad</th>
+								)}
+								{isInvColVisible("cost") && (
+									<th className="p-3 text-center">Coste Unit.</th>
+								)}
+								{isInvColVisible("acciones") && (
+									<th className="p-3 text-right">Acciones</th>
+								)}
 							</tr>
 						</thead>
 						<tbody className="divide-y divide-gray-100">
@@ -687,6 +716,7 @@ export const InventoryTab = ({
 								<tr
 									key={item.id}
 									className="hover:bg-gray-50/30 transition-colors group">
+									{isInvColVisible("material") && (
 									<td className="p-3">
 										<div className="flex items-center gap-4">
 											<div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-rose-50 group-hover:text-rose-700 transition-colors">
@@ -711,6 +741,8 @@ export const InventoryTab = ({
 											</div>
 										</div>
 									</td>
+									)}
+									{isInvColVisible("stock") && (
 									<td className="p-3 text-center">
 										{(item.item_type || "material") === "maquina" ? (
 											<span className="text-gray-300">—</span>
@@ -726,6 +758,8 @@ export const InventoryTab = ({
 											</StatusChip>
 										)}
 									</td>
+									)}
+									{isInvColVisible("expiry") && (
 									<td className="p-3 text-center">
 										{(item.item_type || "material") === "maquina" ? (
 											<span className="text-gray-300">—</span>
@@ -744,47 +778,55 @@ export const InventoryTab = ({
 												) : (
 													<span
 														title={`Lote ${next.lot_number}`}
-														className="text-gray-500 text-sm">
+														className="text-gray-500 text-sm tabular-nums">
 														{formatDate(next.expiry_date)}
 													</span>
 												);
 											})()
 										)}
 									</td>
+									)}
+									{isInvColVisible("cost") && (
 									<td className="p-3 text-center">
-										<span className="font-bold text-gray-600 text-sm">
+										<span className="font-medium text-slate-900 text-sm tabular-nums">
 											{Number(item.unit_cost).toFixed(2)} €
 											{(item.item_type || "material") === "maquina" && (
-												<span className="text-xs font-normal text-gray-400">/sesión</span>
+												<span className="text-xs font-normal text-slate-400">/sesión</span>
 											)}
 										</span>
 									</td>
+									)}
+									{isInvColVisible("acciones") && (
 									<td className="p-3 text-right">
-										<div className="flex justify-end gap-2">
+										<div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
 											{(item.item_type || "material") !== "maquina" && (
 												<button
+													type="button"
 													onClick={() => openRestockModal(item)}
-													className="p-2.5 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-500 hover:text-white transition-all shadow-sm"
+													className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
 													title="Reponer Stock">
-													<Plus size={18} />
+													<Plus size={16} />
 												</button>
 											)}
 											<button
+												type="button"
 												onClick={() => openModal(item)}
-												className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-200 transition-all shadow-sm"
+												className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
 												title="Editar material">
-												<Edit2 size={18} />
+												<Edit2 size={16} />
 											</button>
 											{canDeleteOperational && (
 												<button
+													type="button"
 													onClick={() => handleDeleteClick(item)}
-													className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-rose-700 transition-all shadow-sm"
+													className="p-2 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
 													title="Eliminar material">
-													<Trash2 size={18} />
+													<Trash2 size={16} />
 												</button>
 											)}
 										</div>
 									</td>
+									)}
 								</tr>
 							))}
 						</tbody>

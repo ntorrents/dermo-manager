@@ -23,6 +23,17 @@ import {
 	aggregateByKey,
 } from "../../utils/invoiceAnalytics";
 import { StatusChip } from "../ui/StatusChip";
+import { ColumnPicker } from "../ui/ColumnPicker";
+import { useColumnPreferences } from "../../hooks/useColumnPreferences";
+
+const INVOICE_COLUMNS = [
+	{ id: "fecha", label: "Fecha", required: true },
+	{ id: "numero", label: "Nº", required: true },
+	{ id: "cliente", label: "Cliente" },
+	{ id: "concepto", label: "Concepto" },
+	{ id: "total", label: "Total" },
+	{ id: "acciones", label: "Acciones", required: true },
+];
 
 const StatBar = ({ label, total, count, maxTotal, active, onClick }) => {
 	const pct = maxTotal > 0 ? Math.min(100, (total / maxTotal) * 100) : 0;
@@ -79,6 +90,8 @@ export const InvoicesTab = ({
 	const [companyOnly, setCompanyOnly] = useState(false);
 	const [hideAbonos, setHideAbonos] = useState(false);
 	const [downloadingId, setDownloadingId] = useState(null);
+	const { isVisible: isInvColVisible, toggle: toggleInvCol } =
+		useColumnPreferences("c3linic_invoices_columns", INVOICE_COLUMNS);
 	useEffect(() => {
 		if (!navIntent?.clientId) return;
 		setClientFilter(navIntent.clientId);
@@ -423,26 +436,45 @@ export const InvoicesTab = ({
 
 				<div className="lg:col-span-2">
 					<div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-						<div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+						<div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
 							<h3 className="text-sm font-black text-gray-800">
 								Listado ({filtered.length})
 							</h3>
-							<span className="text-xs text-gray-500 font-medium">
-								{allInvoices.length} facturas en total
-							</span>
+							<div className="flex items-center gap-2">
+								<span className="text-xs text-gray-500 font-medium hidden sm:inline">
+									{allInvoices.length} facturas en total
+								</span>
+								<ColumnPicker
+									columns={INVOICE_COLUMNS}
+									isVisible={isInvColVisible}
+									onToggle={toggleInvCol}
+								/>
+							</div>
 						</div>
 						<div className="overflow-x-auto">
 							<table className="w-full text-sm min-w-[420px]">
 								<thead>
-									<tr className="bg-gray-50/80 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-										<th className="text-left p-3">Fecha</th>
-										<th className="text-left p-3">Nº</th>
-										<th className="text-left p-3">Cliente</th>
-										<th className="text-left p-3 hidden md:table-cell">
-											Concepto
-										</th>
-										<th className="text-right p-3">Total</th>
-										<th className="p-3 w-12" />
+									<tr className="bg-slate-50/90 text-xs font-medium text-slate-500 uppercase tracking-wider">
+										{isInvColVisible("fecha") && (
+											<th className="text-left p-3">Fecha</th>
+										)}
+										{isInvColVisible("numero") && (
+											<th className="text-left p-3">Nº</th>
+										)}
+										{isInvColVisible("cliente") && (
+											<th className="text-left p-3">Cliente</th>
+										)}
+										{isInvColVisible("concepto") && (
+											<th className="text-left p-3 hidden md:table-cell">
+												Concepto
+											</th>
+										)}
+										{isInvColVisible("total") && (
+											<th className="text-right p-3">Total</th>
+										)}
+										{isInvColVisible("acciones") && (
+											<th className="p-3 w-12" />
+										)}
 									</tr>
 								</thead>
 								<tbody>
@@ -458,13 +490,16 @@ export const InvoicesTab = ({
 										filtered.map((row) => (
 											<tr
 												key={row.entry.id}
-												className={`border-t border-gray-50 hover:bg-rose-50/30 ${
-													row.abono ? "bg-amber-50/40" : ""
+												className={`border-t border-slate-50 hover:bg-slate-50/80 group ${
+													row.abono ? "bg-amber-50/30" : ""
 												}`}>
-												<td className="p-3 font-bold text-gray-700 whitespace-nowrap">
+												{isInvColVisible("fecha") && (
+												<td className="p-3 text-sm font-medium text-slate-900 whitespace-nowrap tabular-nums">
 													{row.entry.date}
 												</td>
-												<td className="p-3 font-mono text-xs font-bold text-gray-800">
+												)}
+												{isInvColVisible("numero") && (
+												<td className="p-3 font-mono text-xs font-medium text-slate-800 tabular-nums">
 													<span className="inline-flex items-center gap-1.5 flex-wrap">
 														{row.entry.invoice_number}
 														{row.abono && (
@@ -472,6 +507,8 @@ export const InvoicesTab = ({
 														)}
 													</span>
 												</td>
+												)}
+												{isInvColVisible("cliente") && (
 												<td className="p-3">
 													<div className="font-bold text-gray-800 flex items-center gap-1.5">
 														{row.isCompany ? (
@@ -490,22 +527,28 @@ export const InvoicesTab = ({
 														</span>
 													</div>
 												</td>
+												)}
+												{isInvColVisible("concepto") && (
 												<td className="p-3 hidden md:table-cell text-gray-600 font-medium max-w-[180px] truncate">
 													{row.treatmentName}
 												</td>
+												)}
+												{isInvColVisible("total") && (
 												<td
-													className={`p-3 text-right font-black whitespace-nowrap ${
+													className={`p-3 text-right font-black whitespace-nowrap tabular-nums ${
 														row.abono ? "text-amber-700" : "text-emerald-600"
 													}`}>
 													{formatCurrency(row.amount)}
 												</td>
+												)}
+												{isInvColVisible("acciones") && (
 												<td className="p-3">
 													<button
 														type="button"
 														title="Descargar PDF"
 														disabled={downloadingId === row.entry.id}
 														onClick={() => handleDownload(row)}
-														className="p-2 rounded-lg hover:bg-rose-100 text-rose-700 disabled:opacity-40">
+														className="p-2 rounded-lg hover:bg-rose-100 text-rose-700 disabled:opacity-40 opacity-0 group-hover:opacity-100 transition-opacity">
 														{downloadingId === row.entry.id ? (
 															<Receipt
 																size={18}
@@ -516,6 +559,7 @@ export const InvoicesTab = ({
 														)}
 													</button>
 												</td>
+												)}
 											</tr>
 										))
 									)}

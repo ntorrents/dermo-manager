@@ -26,8 +26,6 @@ import {
 	ChevronDown as ChevronDownIcon,
 	TrendingUp,
 	TrendingDown,
-	Euro,
-	Users,
 	CalendarDays,
 	AlertTriangle,
 	Package,
@@ -473,29 +471,32 @@ export const DashboardTab = ({
 				</div>
 			</div>
 
-			{/* Bento operativo */}
-			<div className="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-4">
-				<section className="lg:col-span-7 ui-card !p-4 flex flex-col gap-3 min-h-[11rem]">
+			{/* Bento operativo asimétrico */}
+			<div className="grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-[auto_auto] gap-3 md:gap-4">
+				<section className="lg:col-span-7 lg:row-span-2 rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 flex flex-col gap-3 min-h-[18rem] shadow-sm">
 					<div className="flex items-center justify-between gap-2">
-						<p className="erp-label flex items-center gap-1.5">
-							<CalendarDays size={14} className="text-primary" /> Agenda de hoy
+						<p className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+							<CalendarDays size={14} className="text-slate-400" /> Agenda de hoy
 						</p>
 						{onNavigateTab && (
 							<button
 								type="button"
 								onClick={() => onNavigateTab("calendar")}
-								className="text-xs font-bold text-primary hover:underline">
-								Ver agenda
+								className="text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors">
+								Ver agenda →
 							</button>
 						)}
 					</div>
 					{appointmentsToday.length === 0 ? (
-						<p className="text-sm text-muted py-4">
-							Sin citas hoy. Usa ⌘K → «Nueva cita rápida» para crear una.
-						</p>
+						<div className="flex-1 flex flex-col items-center justify-center text-center py-6">
+							<p className="text-sm font-medium text-slate-700">Sin citas hoy</p>
+							<p className="text-xs text-slate-400 mt-1">
+								⌘K → «Nueva cita rápida»
+							</p>
+						</div>
 					) : (
-						<ul className="space-y-2">
-							{appointmentsToday.slice(0, 5).map((a) => {
+						<ul className="space-y-1 flex-1">
+							{appointmentsToday.slice(0, 6).map((a) => {
 								const t = a.start_at
 									? new Date(a.start_at).toLocaleTimeString("es-ES", {
 											hour: "2-digit",
@@ -509,19 +510,28 @@ export const DashboardTab = ({
 								return (
 									<li
 										key={a.id}
-										className="flex items-center gap-3 rounded-xl border border-edge bg-surface-2/60 px-3 py-2">
-										<span className="text-xs font-mono font-semibold text-muted w-12 shrink-0 tabular-nums">
+										className="flex items-center gap-3 rounded-xl px-3 py-2.5 hover:bg-white/70 transition-colors">
+										<span className="text-xs font-medium text-slate-500 w-12 shrink-0 tabular-nums">
 											{t}
 										</span>
 										<div className="min-w-0 flex-1">
-											<p className="text-sm font-semibold text-fg truncate">
+											<p className="text-sm font-medium text-slate-900 truncate">
 												{a.title || "Cita"}
 											</p>
 											{clientName && (
-												<p className="text-[11px] text-muted truncate">{clientName}</p>
+												<p className="text-[11px] text-slate-400 truncate">{clientName}</p>
 											)}
 										</div>
-										<span className="text-[10px] font-bold uppercase tracking-wide rounded-md px-2 py-0.5 bg-primary-soft text-[var(--ui-sidebar-active-fg)]">
+										<span className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-600">
+											<span
+												className={`w-1.5 h-1.5 rounded-full ${
+													a.status === "confirmed"
+														? "bg-emerald-500"
+														: a.status === "pending"
+															? "bg-amber-500"
+															: "bg-slate-400"
+												}`}
+											/>
 											{a.status === "confirmed"
 												? "OK"
 												: a.status === "pending"
@@ -535,115 +545,109 @@ export const DashboardTab = ({
 					)}
 				</section>
 
-				<section className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
-					<div className="ui-card !p-4 space-y-1">
-						<p className="erp-label flex items-center gap-1.5">
-							<Euro size={14} className="text-success" /> Ingresos del periodo
-						</p>
-						<p className="text-2xl font-bold text-fg tabular-nums">
-							{currentStats.income.toLocaleString("es-ES", {
-								maximumFractionDigits: 0,
-							})}{" "}
-							€
-						</p>
-						<p
-							className={`text-xs font-semibold flex items-center gap-1 ${
-								incomeGrowth >= 0 ? "text-success" : "text-danger"
-							}`}>
-							{incomeGrowth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-							{reportingPreset === "month"
-								? `${incomeGrowth >= 0 ? "+" : ""}${Math.round(incomeGrowth)}% vs mes anterior`
-								: "Cambia a vista mensual para comparar"}
-						</p>
-						{reportingPreset === "month" && (
-							<div className="mt-2 h-1.5 rounded-full bg-surface-2 overflow-hidden">
-								<div
-									className="h-full rounded-full bg-primary transition-all"
-									style={{
-										width: `${Math.min(100, Math.max(8, 50 + incomeGrowth / 2))}%`,
-									}}
-								/>
-							</div>
-						)}
-					</div>
-
-					<div className="ui-card !p-4 space-y-2 border-amber-200/80">
-						<p className="erp-label flex items-center gap-1.5 text-warning">
-							<AlertTriangle size={14} /> Riesgo operativo
-						</p>
-						{lowStockItems.length > 0 ? (
-							<p className="text-sm text-fg leading-snug">
-								<span className="font-bold text-danger">
-									Riesgo de rotura de stock
-								</span>{" "}
-								en {lowStockItems.length} material
-								{lowStockItems.length === 1 ? "" : "es"}
-								{appointmentsToday.length > 0
-									? ` · hoy tienes ${appointmentsToday.length} cita${appointmentsToday.length === 1 ? "" : "s"}`
-									: ""}
-								.{" "}
-								<span className="text-muted">
-									Ej: {lowStockItems[0]?.name}
-									{lowStockItems[0]?.stock != null
-										? ` (${lowStockItems[0].stock} ud)`
-										: ""}
-								</span>
+				<section className="lg:col-span-5 rounded-2xl border border-slate-200/80 bg-white shadow-sm overflow-hidden">
+					<div className="grid grid-cols-1 sm:grid-cols-3 sm:divide-x divide-slate-100">
+						<div className="px-4 py-4 space-y-1">
+							<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+								Ingresos
 							</p>
-						) : expiredStockItems.length > 0 ? (
-							<p className="text-sm text-fg">
-								<span className="font-bold text-warning">Lotes caducados</span> en{" "}
-								{expiredStockItems.length} ítem
-								{expiredStockItems.length === 1 ? "" : "s"} — revisa inventario.
+							<p className="text-xl font-semibold text-slate-900 tabular-nums tracking-tight">
+								{currentStats.income.toLocaleString("es-ES", {
+									maximumFractionDigits: 0,
+								})}{" "}
+								€
 							</p>
-						) : (
-							<p className="text-sm text-muted flex items-center gap-2">
-								<Package size={14} /> Sin alertas de stock por ahora.
+							<p
+								className={`text-xs font-medium flex items-center gap-1 tabular-nums ${
+									incomeGrowth >= 0 ? "text-emerald-600" : "text-rose-600"
+								}`}>
+								{incomeGrowth >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+								{reportingPreset === "month"
+									? `${incomeGrowth >= 0 ? "+" : ""}${Math.round(incomeGrowth)}%`
+									: "—"}
 							</p>
-						)}
-						{onNavigateTab && (lowStockItems.length > 0 || expiredStockItems.length > 0) && (
-							<button
-								type="button"
-								onClick={() => onNavigateTab("inventory")}
-								className="text-xs font-bold text-primary hover:underline">
-								Ir a inventario
-							</button>
-						)}
+						</div>
+						<div className="px-4 py-4 space-y-1">
+							<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+								Gastos
+							</p>
+							<p className="text-xl font-semibold text-slate-900 tabular-nums tracking-tight">
+								{currentStats.expense.toLocaleString("es-ES", {
+									maximumFractionDigits: 0,
+								})}{" "}
+								€
+							</p>
+							<p className="text-xs text-slate-400">Periodo</p>
+						</div>
+						<div className="px-4 py-4 space-y-1 bg-slate-50/50">
+							<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+								Beneficio
+							</p>
+							<p className="text-xl font-semibold text-slate-900 tabular-nums tracking-tight">
+								{beneficioTotal.toLocaleString("es-ES", {
+									maximumFractionDigits: 0,
+								})}{" "}
+								€
+							</p>
+							<p className="text-xs text-slate-400">Caja</p>
+						</div>
 					</div>
 				</section>
-			</div>
 
-			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-				<div className="ui-card !p-3 flex flex-col gap-0.5">
-					<div className="flex items-center gap-2 erp-label">
-						<TrendingDown size={14} className="text-danger" /> Gastos periodo
-					</div>
-					<p className="text-xl font-bold text-fg tabular-nums">
-						{currentStats.expense.toLocaleString("es-ES", {
-							maximumFractionDigits: 0,
-						})}{" "}
-						€
+				<section className="lg:col-span-5 rounded-2xl border border-slate-200/80 bg-white p-4 space-y-2 shadow-sm">
+					<p className="text-xs font-medium text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+						<AlertTriangle size={13} className="text-amber-500" /> Riesgo operativo
 					</p>
-				</div>
-				<div className="ui-card !p-3 flex flex-col gap-0.5">
-					<div className="flex items-center gap-2 erp-label">
-						<Euro size={14} className="text-primary" /> Beneficio
+					{lowStockItems.length > 0 ? (
+						<p className="text-sm text-slate-800 leading-snug">
+							<span className="font-semibold text-rose-700">Rotura de stock</span>{" "}
+							en {lowStockItems.length} material
+							{lowStockItems.length === 1 ? "" : "es"}
+							{appointmentsToday.length > 0
+								? ` · ${appointmentsToday.length} cita${appointmentsToday.length === 1 ? "" : "s"} hoy`
+								: ""}
+							.{" "}
+							<span className="text-slate-500">
+								Ej: {lowStockItems[0]?.name}
+								{lowStockItems[0]?.stock != null
+									? ` (${lowStockItems[0].stock} ud)`
+									: ""}
+							</span>
+						</p>
+					) : expiredStockItems.length > 0 ? (
+						<p className="text-sm text-slate-800">
+							<span className="font-semibold text-amber-700">Lotes caducados</span> en{" "}
+							{expiredStockItems.length} ítem
+							{expiredStockItems.length === 1 ? "" : "s"}.
+						</p>
+					) : (
+						<p className="text-sm text-slate-500 flex items-center gap-2">
+							<Package size={14} /> Sin alertas de stock.
+						</p>
+					)}
+					{onNavigateTab && (lowStockItems.length > 0 || expiredStockItems.length > 0) && (
+						<button
+							type="button"
+							onClick={() => onNavigateTab("inventory")}
+							className="text-xs font-medium text-slate-600 hover:text-slate-900">
+							Ir a inventario →
+						</button>
+					)}
+					<div className="pt-2 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-500">
+						<span>
+							<span className="font-medium text-slate-800 tabular-nums">
+								{upcomingAppointments.length}
+							</span>{" "}
+							próximas citas
+						</span>
+						<span>
+							<span className="font-medium text-slate-800 tabular-nums">
+								{activeClientsCount}
+							</span>{" "}
+							clientes activos
+						</span>
 					</div>
-					<p className="text-xl font-bold text-fg tabular-nums">
-						{beneficioTotal.toLocaleString("es-ES", { maximumFractionDigits: 0 })} €
-					</p>
-				</div>
-				<div className="ui-card !p-3 flex flex-col gap-0.5">
-					<div className="flex items-center gap-2 erp-label">
-						<CalendarDays size={14} className="text-primary" /> Próximas citas
-					</div>
-					<p className="text-xl font-bold text-fg">{upcomingAppointments.length}</p>
-				</div>
-				<div className="ui-card !p-3 flex flex-col gap-0.5">
-					<div className="flex items-center gap-2 erp-label">
-						<Users size={14} className="text-primary" /> Clientes activos
-					</div>
-					<p className="text-xl font-bold text-fg">{activeClientsCount}</p>
-				</div>
+				</section>
 			</div>
 
 			<div className="w-full h-auto shrink-0">
@@ -664,7 +668,7 @@ export const DashboardTab = ({
 				<SortableContext
 					items={sortableIds}
 					strategy={verticalListSortingStrategy}>
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full ">
+					<div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full auto-rows-fr">
 						{widgets.map((item, index) => (
 							<SortableWidgetItem
 								key={`${item.id}-${index}`}

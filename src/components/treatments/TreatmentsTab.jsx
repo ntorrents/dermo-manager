@@ -2,7 +2,9 @@ import React, { useState, useMemo } from "react";
 import { Plus, Trash2, Edit2, Zap, X, FolderOpen, LayoutGrid, List as ListIcon } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { useTreatmentGroups } from "../../hooks/useTreatmentGroups";
+import { useColumnPreferences } from "../../hooks/useColumnPreferences";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { ColumnPicker } from "../ui/ColumnPicker";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
 import { SidePanel } from "../ui/SidePanel";
@@ -19,6 +21,14 @@ import { taxRateLabel } from "../../utils/incomeTax";
 
 const UNGROUPED_KEY = "__ungrouped__";
 
+const TREATMENT_COLUMNS = [
+	{ id: "name", label: "Tratamiento", required: true },
+	{ id: "notes", label: "Notas" },
+	{ id: "price", label: "Precio PVP" },
+	{ id: "profit", label: "Beneficio Neto" },
+	{ id: "acciones", label: "Acciones", required: true },
+];
+
 export const TreatmentsTab = ({
 	user,
 	treatments = [],
@@ -29,6 +39,8 @@ export const TreatmentsTab = ({
 }) => {
 	const { canDeleteOperational, clinicId } = useTenant();
 	const { groups, create: createGroup, update: updateGroup, delete: deleteGroup, isCreating: isCreatingGroup } = useTreatmentGroups(user);
+	const { isVisible: isTreatColVisible, toggle: toggleTreatCol } =
+		useColumnPreferences("c3linic_treatments_columns", TREATMENT_COLUMNS);
 
 	const [viewMode, setViewMode] = useState("grid");
 	const [isModalOpen, setIsModalOpen] = useState(false);
@@ -86,31 +98,41 @@ export const TreatmentsTab = ({
 		const profit = Number(t.price) - materialCost;
 		const profitMargin = t.price > 0 ? (profit / Number(t.price)) * 100 : 0;
 		return (
-			<tr key={t.id} className="hover:bg-slate-50 transition-colors group">
+			<tr key={t.id} className="hover:bg-slate-50/80 transition-colors group">
+				{isTreatColVisible("name") && (
 				<td className="p-3">
-					<p className="font-bold text-slate-800 text-sm leading-tight">{t.name}</p>
+					<p className="font-medium text-slate-900 text-sm leading-tight">{t.name}</p>
 				</td>
-				<td className="p-3 text-sm font-medium text-slate-600 hidden sm:table-cell">
+				)}
+				{isTreatColVisible("notes") && (
+				<td className="p-3 text-sm font-medium text-slate-500 hidden sm:table-cell">
 					{t.internal_notes ? <span className="truncate max-w-[8rem] inline-block" title={t.internal_notes}>{t.internal_notes}</span> : <span className="text-slate-300">—</span>}
 				</td>
+				)}
+				{isTreatColVisible("price") && (
 				<td className="p-3">
-					<span className="font-black text-rose-700">{Number(t.price).toFixed(2)} €</span>
+					<span className="text-sm font-medium text-slate-900 tabular-nums">{Number(t.price).toFixed(2)} €</span>
 				</td>
+				)}
+				{isTreatColVisible("profit") && (
 				<td className="p-3">
 					<div className="flex flex-col">
-						<span className="text-xs font-bold text-emerald-600">+{profit.toFixed(2)} € ({profitMargin.toFixed(0)}%)</span>
-						<span className="text-[10px] text-slate-400">Coste: {materialCost.toFixed(2)} €</span>
+						<span className="text-sm font-medium text-emerald-700 tabular-nums">+{profit.toFixed(2)} € ({profitMargin.toFixed(0)}%)</span>
+						<span className="text-[11px] text-slate-400 tabular-nums">Coste: {materialCost.toFixed(2)} €</span>
 					</div>
 				</td>
+				)}
+				{isTreatColVisible("acciones") && (
 				<td className="p-3 text-right">
-					<div className="flex justify-end gap-1.5">
-						<button onClick={() => onSelectTreatment(t)} className="p-1.5 bg-rose-50 text-rose-700 hover:bg-rose-100 rounded-lg transition-colors" title="Nueva Sesión"><Zap size={16} /></button>
-						<button onClick={() => openModal(t)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors" title="Editar"><Edit2 size={16} /></button>
+					<div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+						<button type="button" onClick={() => onSelectTreatment(t)} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" title="Nueva Sesión"><Zap size={16} /></button>
+						<button type="button" onClick={() => openModal(t)} className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors" title="Editar"><Edit2 size={16} /></button>
 						{canDeleteOperational && (
-							<button onClick={() => { setTreatmentToDelete(t); setShowDeleteModal(true); }} className="p-1.5 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors" title="Eliminar"><Trash2 size={16} /></button>
+							<button type="button" onClick={() => { setTreatmentToDelete(t); setShowDeleteModal(true); }} className="p-1.5 text-slate-400 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors" title="Eliminar"><Trash2 size={16} /></button>
 						)}
 					</div>
 				</td>
+				)}
 			</tr>
 		);
 	};
@@ -260,16 +282,16 @@ export const TreatmentsTab = ({
 		return (
 			<div
 				key={t.id}
-				className="bg-gray-50/50 hover:bg-rose-50/30 p-3 rounded-xl border border-gray-100 hover:border-rose-100 transition-all flex flex-col group">
+				className="bg-white hover:bg-slate-50/80 p-3 rounded-xl border border-slate-100 transition-all flex flex-col group shadow-sm">
 				<div className="flex justify-between items-start gap-1 mb-1.5">
-					<h3 className="font-bold text-sm text-gray-800 group-hover:text-rose-700 transition-colors leading-tight line-clamp-2">
+					<h3 className="text-sm font-medium text-slate-900 leading-tight line-clamp-2">
 						{t.name}
 					</h3>
-					<div className="flex gap-0.5 shrink-0">
+					<div className="flex gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
 						<button
 							type="button"
 							onClick={() => openModal(t)}
-							className="p-1.5 text-gray-300 hover:text-blue-500 rounded-lg"
+							className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg"
 							title="Editar">
 							<Edit2 size={14} />
 						</button>
@@ -277,7 +299,7 @@ export const TreatmentsTab = ({
 							<button
 								type="button"
 								onClick={() => { setTreatmentToDelete(t); setShowDeleteModal(true); }}
-								className="p-1.5 text-gray-300 hover:text-rose-700 rounded-lg"
+								className="p-1.5 text-slate-400 hover:text-rose-700 rounded-lg"
 								title="Eliminar">
 								<Trash2 size={14} />
 							</button>
@@ -285,8 +307,8 @@ export const TreatmentsTab = ({
 					</div>
 				</div>
 				<div className="flex items-baseline gap-1 mb-2">
-					<span className="text-xl font-black text-primary tracking-tight">{t.price}€</span>
-					<span className="text-[8px] font-bold text-gray-400 uppercase">PVP</span>
+					<span className="text-lg font-semibold text-slate-900 tracking-tight tabular-nums">{t.price}€</span>
+					<span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">PVP</span>
 				</div>
 				<div className="text-[10px] space-y-0.5 mb-2 text-gray-500">
 					{recipeSummary && <div className="truncate">{recipeSummary}</div>}
@@ -314,19 +336,21 @@ export const TreatmentsTab = ({
 		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
 			<ConfirmModal
 				isOpen={showDeleteModal}
-				title="Archivar tratamiento"
-				message={`¿Archivar "${treatmentToDelete?.name}"? Dejará de mostrarse en listas y sesiones nuevas.`}
+				title="Eliminar tratamiento"
+				message={`Estás a punto de archivar "${treatmentToDelete?.name || "este tratamiento"}".\n\nDejará de mostrarse en listados y en nuevas sesiones. El historial de sesiones previas se conserva, pero no podrás recuperarlo fácilmente desde aquí.\n\n¿Confirmas la eliminación?`}
 				onConfirm={confirmDeleteTreatment}
 				onCancel={() => { setShowDeleteModal(false); setTreatmentToDelete(null); }}
 				isDestructive
+				confirmLabel="Eliminar tratamiento"
 			/>
 			<ConfirmModal
 				isOpen={showDeleteGroupModal}
 				title="Eliminar grupo"
-				message={`¿Eliminar el grupo "${groupToDelete?.name}"? Los tratamientos quedarán sin grupo.`}
+				message={`Estás a punto de eliminar el grupo "${groupToDelete?.name || ""}".\n\nLos tratamientos del grupo quedarán sin clasificar. Esta acción no se puede deshacer.\n\n¿Confirmas la eliminación?`}
 				onConfirm={confirmDeleteGroup}
 				onCancel={() => { setShowDeleteGroupModal(false); setGroupToDelete(null); }}
 				isDestructive
+				confirmLabel="Eliminar grupo"
 			/>
 			{/* HEADER */}
 			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -348,6 +372,13 @@ export const TreatmentsTab = ({
 							<ListIcon size={18} />
 						</button>
 					</div>
+					{viewMode === "list" && (
+						<ColumnPicker
+							columns={TREATMENT_COLUMNS}
+							isVisible={isTreatColVisible}
+							onToggle={toggleTreatCol}
+						/>
+					)}
 					<button
 						type="button"
 						onClick={openGroupsModal}
@@ -395,12 +426,18 @@ export const TreatmentsTab = ({
 									<div className="overflow-x-auto">
 										<table className="w-full text-left border-collapse min-w-[560px]">
 											<thead>
-												<tr className="bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
-													<th className="p-3">Tratamiento</th>
-													<th className="p-3 hidden sm:table-cell">Notas</th>
-													<th className="p-3">Precio PVP</th>
-													<th className="p-3">Beneficio Neto</th>
-													<th className="p-3 text-right">Acciones</th>
+												<tr className="bg-slate-50/90 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wider">
+													{isTreatColVisible("name") && <th className="p-3">Tratamiento</th>}
+													{isTreatColVisible("notes") && (
+														<th className="p-3 hidden sm:table-cell">Notas</th>
+													)}
+													{isTreatColVisible("price") && <th className="p-3">Precio PVP</th>}
+													{isTreatColVisible("profit") && (
+														<th className="p-3">Beneficio Neto</th>
+													)}
+													{isTreatColVisible("acciones") && (
+														<th className="p-3 text-right">Acciones</th>
+													)}
 												</tr>
 											</thead>
 											<tbody className="divide-y divide-slate-100">
@@ -427,12 +464,18 @@ export const TreatmentsTab = ({
 								<div className="overflow-x-auto">
 									<table className="w-full text-left border-collapse min-w-[560px]">
 										<thead>
-											<tr className="bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
-												<th className="p-3">Tratamiento</th>
-												<th className="p-3 hidden sm:table-cell">Notas</th>
-												<th className="p-3">Precio PVP</th>
-												<th className="p-3">Beneficio Neto</th>
-												<th className="p-3 text-right">Acciones</th>
+											<tr className="bg-slate-50/90 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wider">
+												{isTreatColVisible("name") && <th className="p-3">Tratamiento</th>}
+												{isTreatColVisible("notes") && (
+													<th className="p-3 hidden sm:table-cell">Notas</th>
+												)}
+												{isTreatColVisible("price") && <th className="p-3">Precio PVP</th>}
+												{isTreatColVisible("profit") && (
+													<th className="p-3">Beneficio Neto</th>
+												)}
+												{isTreatColVisible("acciones") && (
+													<th className="p-3 text-right">Acciones</th>
+												)}
 											</tr>
 										</thead>
 										<tbody className="divide-y divide-slate-100">

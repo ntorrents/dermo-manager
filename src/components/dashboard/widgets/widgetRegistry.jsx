@@ -5,19 +5,21 @@ import { WidgetProximosEventos } from "./WidgetProximosEventos";
 import { WidgetKpiBeneficioTotal } from "./WidgetKpiBeneficioTotal";
 import { WidgetKpiBeneficioFiscal } from "./WidgetKpiBeneficioFiscal";
 import { WidgetKpiIngresosGastos } from "./WidgetKpiIngresosGastos";
+import { WidgetFinanceStrip } from "./WidgetFinanceStrip";
 import { WidgetChartActividad } from "./WidgetChartActividad";
 import { WidgetTopTratamientos } from "./WidgetTopTratamientos";
 import { WidgetTopClientes } from "./WidgetTopClientes";
 
-/** Orden por defecto (objetos con id, colSpan, rowSpan). Máximo MAX_WIDGETS. Alertas de stock van fijas arriba del dashboard, no aquí. */
+/**
+ * Layout bento asimétrico por defecto:
+ * franja financiera ancha + agenda alta + chart.
+ * Los KPI sueltos siguen disponibles para añadir manualmente.
+ */
 export const DEFAULT_WIDGETS = [
-	{ id: "kpi-facturacion", colSpan: 1, rowSpan: 1 },
-	{ id: "kpi-impuestos", colSpan: 1, rowSpan: 1 },
-	{ id: "kpi-proximos-eventos", colSpan: 1, rowSpan: 1 },
-	{ id: "kpi-beneficio-total", colSpan: 1, rowSpan: 1 },
-	{ id: "kpi-beneficio-fiscal", colSpan: 1, rowSpan: 1 },
-	{ id: "kpi-ingresos-gastos", colSpan: 1, rowSpan: 1 },
+	{ id: "kpi-finance-strip", colSpan: 3, rowSpan: 1 },
+	{ id: "kpi-proximos-eventos", colSpan: 1, rowSpan: 2 },
 	{ id: "chart-actividad", colSpan: 2, rowSpan: 1 },
+	{ id: "kpi-impuestos", colSpan: 1, rowSpan: 1 },
 ];
 
 /** Compatibilidad: lista de IDs como antes (solo orden) */
@@ -53,6 +55,13 @@ export function getGridSpanClasses(colSpan, rowSpan) {
  */
 export const WIDGET_CONFIG = [
 	{
+		id: "kpi-finance-strip",
+		title: "Finanzas (franja)",
+		defaultColSpan: 3,
+		defaultRowSpan: 1,
+		component: WidgetFinanceStrip,
+	},
+	{
 		id: "kpi-facturacion",
 		title: "Facturación",
 		defaultColSpan: 1,
@@ -70,7 +79,7 @@ export const WIDGET_CONFIG = [
 		id: "kpi-proximos-eventos",
 		title: "Próximos eventos",
 		defaultColSpan: 1,
-		defaultRowSpan: 1,
+		defaultRowSpan: 2,
 		component: WidgetProximosEventos,
 	},
 	{

@@ -181,10 +181,11 @@ export const BonosTab = ({
 			<ConfirmModal
 				isOpen={showDeleteTemplateModal}
 				title="Eliminar plantilla"
-				message={`¿Eliminar la plantilla "${templateToDelete?.name}"?`}
+				message={`Estás a punto de eliminar la plantilla "${templateToDelete?.name || ""}".\n\nLos bonos ya vendidos no se borran, pero no podrás usar esta plantilla para nuevas ventas.\n\n¿Confirmas la eliminación?`}
 				onConfirm={confirmDeleteTemplate}
 				onCancel={() => setShowDeleteTemplateModal(false)}
 				isDestructive
+				confirmLabel="Eliminar plantilla"
 			/>
 
 			{/* Header */}

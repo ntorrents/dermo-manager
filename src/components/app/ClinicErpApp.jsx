@@ -491,14 +491,15 @@ export const ClinicErpApp = () => {
 			)}
 			<ConfirmModal
 				isOpen={showLogout}
-				title="Cerrar Sesión"
-				message="¿Estás seguro?"
+				title="Cerrar sesión"
+				message="Vas a salir de BaseClínica en este dispositivo. Tendrás que volver a iniciar sesión para acceder a pacientes, agenda y finanzas."
 				onCancel={() => setShowLogout(false)}
 				onConfirm={() => {
 					logout();
 					setShowLogout(false);
 				}}
 				isDestructive
+				confirmLabel="Cerrar sesión"
 			/>
 			<CommandPalette
 				open={commandOpen}
@@ -568,8 +569,7 @@ export const ClinicErpApp = () => {
 				setReportingCustomTo={setReportingCustomTo}
 				onReportingGoToday={goReportingToday}
 			/>
-			{(location.pathname === "/" ||
-				location.pathname === "/dashboard" ||
+			{(location.pathname === "/dashboard" ||
 				location.pathname.startsWith("/fiscalidad")) && (
 				<TaxAlertsBanner declarations={taxDeclarations} />
 			)}

@@ -441,18 +441,18 @@ export const SettingsTab = ({
 			type="button"
 			key={id}
 			onClick={onClick}
-			className="w-full text-left bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:border-rose-200 hover:shadow-md transition-all flex items-center gap-4 group">
-			<div className="shrink-0 w-12 h-12 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center group-hover:bg-rose-100">
-				<Icon size={22} />
+			className="w-full text-left bg-white p-4 rounded-xl border border-slate-100 hover:border-rose-200 hover:shadow-sm transition-all flex items-center gap-3 group">
+			<div className="shrink-0 w-10 h-10 rounded-xl bg-slate-50 text-slate-700 flex items-center justify-center group-hover:bg-rose-50 group-hover:text-rose-700 transition-colors">
+				<Icon size={18} />
 			</div>
 			<div className="flex-1 min-w-0">
 				<div className="flex items-center gap-2 flex-wrap">
-					<h3 className="font-bold text-gray-800">{title}</h3>
+					<h3 className="text-sm font-medium text-slate-900">{title}</h3>
 					{badge}
 				</div>
-				<p className="text-sm text-gray-500 mt-1">{desc}</p>
+				<p className="text-xs text-slate-500 mt-0.5 leading-snug">{desc}</p>
 			</div>
-			<ChevronRight className="shrink-0 text-gray-300 group-hover:text-rose-400" size={20} />
+			<ChevronRight className="shrink-0 text-slate-300 group-hover:text-rose-400" size={18} />
 		</button>
 	);
 
@@ -461,66 +461,135 @@ export const SettingsTab = ({
 			{view === SETTINGS_VIEWS.hub && (
 				<>
 					<div className="flex justify-between items-center">
-						<h2 className="text-2xl font-bold text-gray-800">Configuración</h2>
+						<h2 className="text-2xl font-bold text-gray-800 tracking-tight">Configuración</h2>
 					</div>
-					<p className="text-sm text-gray-500 -mt-2">
-						Elige un apartado. Los datos de clínica son comunes para todo el personal.
+					<p className="text-sm text-slate-500 -mt-2">
+						Organizado por contexto. Los datos de clínica son comunes para todo el personal.
 						{!isAdmin && (
-							<span className="block mt-1 text-xs text-gray-400">
-								La auditoría de cambios solo está disponible para administradores.
+							<span className="block mt-1 text-xs text-slate-400">
+								Auditoría e invitaciones solo para administradores.
 							</span>
 						)}
 					</p>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						{hubCard({
-							id: "appearance",
-							icon: Palette,
-							title: "Apariencia",
-							desc: "Tema de color (claro/oscuro) y densidad de la interfaz.",
-							onClick: () => setView(SETTINGS_VIEWS.appearance),
-						})}
-						{hubCard({
-							id: "clinic",
-							icon: Building2,
-							title: "Datos clínica",
-							desc: "Nombre, facturación y logo compartidos.",
-							onClick: () => setView(SETTINGS_VIEWS.clinic),
-							badge: !isAdmin ? (
-								<span className="text-[10px] uppercase font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">
-									Solo lectura
-								</span>
-							) : null,
-						})}
-						{hubCard({
-							id: "me",
-							icon: User,
-							title: "Mis datos",
-							desc: "Tu nombre, contacto y firma en PDFs.",
-							onClick: () => setView(SETTINGS_VIEWS.me),
-						})}
-						{isAdmin &&
-							hubCard({
-								id: "team",
-								icon: Users,
-								title: "Perfiles del equipo",
-								desc: "Quién tiene acceso, roles e invitaciones.",
-								onClick: () => setView(SETTINGS_VIEWS.team),
-							})}
-						{hubCard({
-							id: "security",
-							icon: Lock,
-							title: "Cuenta y seguridad",
-							desc: "Correo, contraseña, copia de seguridad y sesión.",
-							onClick: () => setView(SETTINGS_VIEWS.security),
-						})}
-						{isAdmin &&
-							hubCard({
-								id: "audit",
-								icon: ScrollText,
-								title: "Auditoría",
-								desc: "Registro de altas, cambios y bajas en datos clave.",
-								onClick: () => setView(SETTINGS_VIEWS.audit),
-							})}
+
+					<div className="space-y-5">
+						{/* Clínica */}
+						<section className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-sm">
+							<div className="mb-3">
+								<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+									Clínica
+								</p>
+								<p className="text-sm text-slate-500 mt-0.5">
+									Identidad, facturación y aspecto de la interfaz.
+								</p>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+								{hubCard({
+									id: "clinic-data",
+									icon: Building2,
+									title: "Datos de empresa",
+									desc: "Nombre, logo y datos visibles en documentos.",
+									onClick: () => setView(SETTINGS_VIEWS.clinic),
+									badge: !isAdmin ? (
+										<span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+											Solo lectura
+										</span>
+									) : null,
+								})}
+								{hubCard({
+									id: "clinic-billing",
+									icon: CreditCard,
+									title: "Facturación",
+									desc: "NIF, dirección fiscal y teléfono de clínica.",
+									onClick: () => setView(SETTINGS_VIEWS.clinic),
+									badge: !isAdmin ? (
+										<span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+											Solo lectura
+										</span>
+									) : null,
+								})}
+								{hubCard({
+									id: "appearance",
+									icon: Palette,
+									title: "Apariencia",
+									desc: "Tema de color y densidad de la interfaz.",
+									onClick: () => setView(SETTINGS_VIEWS.appearance),
+								})}
+							</div>
+						</section>
+
+						{/* Equipo */}
+						<section className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 sm:p-5 shadow-sm">
+							<div className="mb-3">
+								<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+									Equipo
+								</p>
+								<p className="text-sm text-slate-500 mt-0.5">
+									Tu perfil, roles e invitaciones.
+								</p>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+								{hubCard({
+									id: "me",
+									icon: User,
+									title: "Mis datos",
+									desc: "Tu nombre, contacto y firma en PDFs.",
+									onClick: () => setView(SETTINGS_VIEWS.me),
+								})}
+								{isAdmin &&
+									hubCard({
+										id: "team",
+										icon: Users,
+										title: "Perfiles del equipo",
+										desc: "Quién tiene acceso e invitaciones.",
+										onClick: () => setView(SETTINGS_VIEWS.team),
+									})}
+								{isAdmin &&
+									hubCard({
+										id: "permissions",
+										icon: Shield,
+										title: "Permisos",
+										desc: "Roles (admin, staff, recepción) por miembro.",
+										onClick: () => setView(SETTINGS_VIEWS.team),
+									})}
+							</div>
+						</section>
+
+						{/* Sistema */}
+						<section className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-sm">
+							<div className="mb-3">
+								<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+									Sistema y seguridad
+								</p>
+								<p className="text-sm text-slate-500 mt-0.5">
+									Cuenta, auditoría e integraciones de correo.
+								</p>
+							</div>
+							<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+								{hubCard({
+									id: "security",
+									icon: Lock,
+									title: "Cuenta y seguridad",
+									desc: "Correo, contraseña, copia de seguridad y sesión.",
+									onClick: () => setView(SETTINGS_VIEWS.security),
+								})}
+								{isAdmin &&
+									hubCard({
+										id: "audit",
+										icon: ScrollText,
+										title: "Auditoría",
+										desc: "Registro de altas, cambios y bajas.",
+										onClick: () => setView(SETTINGS_VIEWS.audit),
+									})}
+								{hubCard({
+									id: "integrations",
+									icon: Globe,
+									title: "Integraciones",
+									desc: "Remitente de email y dominio propio (Resend).",
+									onClick: () => setView(SETTINGS_VIEWS.clinic),
+								})}
+							</div>
+						</section>
 					</div>
 				</>
 			)}
@@ -1180,8 +1249,9 @@ export const SettingsTab = ({
 				onCancel={() => setConfirmRemove(null)}
 				onConfirm={() => confirmRemove && runRemoveMember(confirmRemove.userId)}
 				title="Quitar del equipo"
-				message={`¿Seguro que quieres quitar a ${confirmRemove?.label ?? ""}? Pasará a la clínica por defecto del sistema y perderá acceso a los datos de esta clínica.`}
+				message={`Estás a punto de quitar a ${confirmRemove?.label ?? "este miembro"} del equipo.\n\nPerderá el acceso a los datos de esta clínica y pasará a la clínica por defecto del sistema.\n\n¿Confirmas la eliminación del acceso?`}
 				isDestructive
+				confirmLabel="Quitar del equipo"
 			/>
 		</div>
 	);

@@ -655,11 +655,18 @@ export const CalendarTab = ({
 
 			<ConfirmModal
 				isOpen={showDeleteConfirm}
-				title="Archivar cita"
-				message="La cita dejará de mostrarse en la agenda. Los datos se conservan en base de datos."
+				title="Eliminar cita"
+				message={`Estás a punto de archivar esta cita${
+					selectedEvent?.resource?.appointment?.title
+						? ` («${selectedEvent.resource.appointment.title}»)`
+						: selectedEvent?.resource?.appointment?.client_name
+							? ` con ${selectedEvent.resource.appointment.client_name}`
+							: ""
+				}.\n\nDejará de mostrarse en la agenda. Los datos se conservan en base de datos, pero no podrás recuperarla fácilmente desde aquí.\n\n¿Confirmas la eliminación?`}
 				onConfirm={handleDeleteAppointment}
 				onCancel={() => setShowDeleteConfirm(false)}
 				isDestructive
+				confirmLabel="Eliminar cita"
 			/>
 
 			<SidePanel

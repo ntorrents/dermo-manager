@@ -6,6 +6,39 @@ import {
 	getWidgetById,
 } from "../components/dashboard/widgets";
 
+function upgradeToAsymmetricBento(list) {
+	const ids = new Set(list.map((w) => w.id));
+	if (ids.has("kpi-finance-strip")) return list;
+	const FINANCE_IDS = new Set([
+		"kpi-facturacion",
+		"kpi-ingresos-gastos",
+		"kpi-beneficio-total",
+	]);
+	if (![...FINANCE_IDS].some((id) => ids.has(id))) return list;
+
+	const next = [];
+	let insertedStrip = false;
+	for (const w of list) {
+		if (FINANCE_IDS.has(w.id)) {
+			if (!insertedStrip) {
+				next.push({ id: "kpi-finance-strip", colSpan: 3, rowSpan: 1 });
+				insertedStrip = true;
+			}
+			continue;
+		}
+		if (w.id === "kpi-proximos-eventos") {
+			next.push({
+				...w,
+				colSpan: Math.max(1, Math.min(3, w.colSpan ?? 1)),
+				rowSpan: Math.max(2, Math.min(3, w.rowSpan ?? 1)),
+			});
+			continue;
+		}
+		next.push(w);
+	}
+	return next.slice(0, MAX_WIDGETS);
+}
+
 /**
  * Normaliza datos guardados: soporta formato antiguo (string[]) y nuevo ({ id, colSpan?, rowSpan? }[]).
  * @returns { { id: string, colSpan: number, rowSpan: number }[] }
@@ -21,7 +54,7 @@ function normalizeWidgets(saved) {
 	if (withoutAlerts.length === 0) {
 		return DEFAULT_WIDGETS.slice(0, MAX_WIDGETS);
 	}
-	return withoutAlerts.slice(0, MAX_WIDGETS).map((item) => {
+	const normalized = withoutAlerts.slice(0, MAX_WIDGETS).map((item) => {
 		if (typeof item === "string") {
 			const config = getWidgetById(item);
 			return {
@@ -37,6 +70,7 @@ function normalizeWidgets(saved) {
 			rowSpan: Math.max(1, Math.min(3, item.rowSpan ?? config?.defaultRowSpan ?? 1)),
 		};
 	});
+	return upgradeToAsymmetricBento(normalized);
 }
 
 /**

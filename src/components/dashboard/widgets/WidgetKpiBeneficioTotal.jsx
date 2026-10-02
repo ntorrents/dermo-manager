@@ -1,13 +1,14 @@
 import React from "react";
-import { TrendingUp } from "lucide-react";
 import { formatCurrency } from "../../../utils/format";
 
 export const WidgetKpiBeneficioTotal = ({ beneficioTotal }) => (
-	<div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col justify-center gap-1 h-full">
-		<div className="flex items-center gap-2 text-slate-500 font-semibold text-sm mb-1">
-			<TrendingUp size={16} className="text-emerald-600" /> Beneficio total (caja)
-		</div>
-		<p className="text-3xl font-black text-slate-800 tracking-tight">{formatCurrency(beneficioTotal)}</p>
-		<p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">Ingresos − Gastos</p>
+	<div className="h-full rounded-2xl border border-slate-200/80 bg-slate-50/50 p-5 shadow-sm flex flex-col justify-center gap-1">
+		<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+			Beneficio caja
+		</p>
+		<p className="text-2xl font-semibold text-slate-900 tabular-nums tracking-tight">
+			{formatCurrency(beneficioTotal)}
+		</p>
+		<p className="text-xs text-slate-400">Ingresos − gastos</p>
 	</div>
 );

@@ -109,6 +109,7 @@ export const ProductsCatalogView = ({
 	const [uploadingImg, setUploadingImg] = useState(false);
 
 	const [deleteId, setDeleteId] = useState(null);
+	const [deleteName, setDeleteName] = useState("");
 	const [restockTarget, setRestockTarget] = useState(null);
 	const [restockForm, setRestockForm] = useState(emptyRestock);
 	const [restockReceipt, setRestockReceipt] = useState(null);
@@ -670,8 +671,8 @@ export const ProductsCatalogView = ({
 						return (
 							<div
 								key={p.id}
-								className="rounded-2xl border border-gray-100 bg-white overflow-hidden flex flex-col">
-								<div className="aspect-[4/3] bg-gray-50 relative">
+								className="group rounded-2xl border border-slate-200/80 bg-white overflow-hidden flex flex-col shadow-sm">
+								<div className="aspect-[4/3] bg-slate-50 relative">
 									{p.image_url ? (
 										<img
 											src={p.image_url}
@@ -679,24 +680,26 @@ export const ProductsCatalogView = ({
 											className="w-full h-full object-cover"
 										/>
 									) : (
-										<div className="w-full h-full flex items-center justify-center text-gray-300">
+										<div className="w-full h-full flex items-center justify-center text-slate-300">
 											<Package size={40} />
 										</div>
 									)}
 									<span className="absolute top-2 right-2">
 										<StatusChip
 											tone={Number(p.stock_qty) > 0 ? "success" : "danger"}>
-											{Number(p.stock_qty)} {p.unit || "ud"}
+											<span className="tabular-nums">
+												{Number(p.stock_qty)} {p.unit || "ud"}
+											</span>
 										</StatusChip>
 									</span>
 								</div>
 								<div className="p-4 flex-1 flex flex-col gap-2">
 									<div>
-										<p className="font-black text-gray-900 leading-tight">
+										<p className="text-sm font-medium text-slate-900 leading-tight">
 											{p.name}
 										</p>
 										{p.sku && (
-											<p className="text-[11px] text-gray-400 font-mono mt-0.5">
+											<p className="text-[11px] text-slate-400 font-mono mt-0.5 tabular-nums">
 												{p.sku}
 											</p>
 										)}
@@ -725,33 +728,36 @@ export const ProductsCatalogView = ({
 											)}
 										</p>
 									</div>
-									<div className="flex gap-2 pt-1 flex-wrap">
+									<div className="flex gap-2 pt-1 flex-wrap opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
 										<button
 											type="button"
 											disabled={Number(p.stock_qty) <= 0}
 											onClick={() => openSell(p)}
-											className="flex-1 min-w-[5.5rem] inline-flex items-center justify-center gap-1.5 rounded-xl bg-rose-700 text-white px-3 py-2 text-xs font-bold disabled:opacity-40">
+											className="flex-1 min-w-[5.5rem] inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 text-white px-3 py-2 text-xs font-medium disabled:opacity-40">
 											<ShoppingCart size={14} /> Vender
 										</button>
 										<button
 											type="button"
 											onClick={() => openRestock(p)}
-											className="inline-flex items-center justify-center gap-1 rounded-xl border border-gray-200 px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50"
+											className="inline-flex items-center justify-center gap-1 rounded-xl border border-slate-200 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
 											title="Reponer stock">
 											<PackagePlus size={14} /> Reponer
 										</button>
 										<button
 											type="button"
 											onClick={() => openEdit(p)}
-											className="rounded-xl border border-gray-200 p-2 text-gray-600 hover:bg-gray-50"
+											className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
 											title="Editar">
 											<Edit2 size={14} />
 										</button>
 										{canDeleteOperational && (
 											<button
 												type="button"
-												onClick={() => setDeleteId(p.id)}
-												className="rounded-xl border border-gray-200 p-2 text-gray-400 hover:text-rose-700 hover:bg-rose-50"
+												onClick={() => {
+													setDeleteId(p.id);
+													setDeleteName(p.name || "");
+												}}
+												className="rounded-xl border border-slate-200 p-2 text-slate-400 hover:text-rose-700 hover:bg-rose-50"
 												title="Eliminar">
 												<Trash2 size={14} />
 											</button>
@@ -1240,7 +1246,10 @@ export const ProductsCatalogView = ({
 
 			<ConfirmModal
 				isOpen={!!deleteId}
-				onCancel={() => setDeleteId(null)}
+				onCancel={() => {
+					setDeleteId(null);
+					setDeleteName("");
+				}}
 				onConfirm={async () => {
 					try {
 						await deleteProduct(deleteId);
@@ -1249,10 +1258,12 @@ export const ProductsCatalogView = ({
 						showToast?.(e.message || "Error", "error");
 					}
 					setDeleteId(null);
+					setDeleteName("");
 				}}
 				title="Eliminar producto"
-				message="Se ocultará del catálogo. El historial de ventas/compras en finanzas se conserva."
+				message={`Estás a punto de eliminar el producto "${deleteName || "seleccionado"}" del catálogo.\n\nDesaparecerá de ventas y listados. El historial de movimientos en finanzas se conserva, pero no podrás recuperar la ficha fácilmente.\n\n¿Confirmas la eliminación?`}
 				isDestructive
+				confirmLabel="Eliminar producto"
 			/>
 
 			<ProviderDatalist
