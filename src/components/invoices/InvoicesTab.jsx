@@ -431,7 +431,7 @@ export const InvoicesTab = ({
 							</span>
 						</div>
 						<div className="overflow-x-auto">
-							<table className="w-full text-sm">
+							<table className="w-full text-sm min-w-[420px]">
 								<thead>
 									<tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase">
 										<th className="text-left p-3">Fecha</th>
@@ -484,7 +484,7 @@ export const InvoicesTab = ({
 																className="text-gray-400 shrink-0"
 															/>
 														)}
-														<span className="truncate max-w-[120px]">
+														<span className="truncate max-w-[8rem] sm:max-w-[12rem]">
 															{row.clientName}
 														</span>
 													</div>

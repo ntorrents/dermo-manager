@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
+import { QUERY_STALE } from "../providers/queryStale";
 
 const fetchTaxDeclarations = async () => {
 	const { data, error } = await supabase
@@ -24,6 +25,7 @@ export const useTaxDeclarations = (userId) => {
 		queryKey: ["tax_declarations", clinicId],
 		queryFn: fetchTaxDeclarations,
 		enabled: !!userId && !!clinicId,
+		staleTime: QUERY_STALE.semiStatic,
 	});
 
 	useEffect(() => {

@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
+import { QUERY_STALE } from "../providers/queryStale";
 
 const fetchConsentTemplates = async () => {
 	const { data, error } = await supabase
@@ -25,6 +26,7 @@ export const useConsentTemplates = (user) => {
 		queryKey: ["consentTemplates", clinicId],
 		queryFn: fetchConsentTemplates,
 		enabled: !!userId && !!clinicId,
+		staleTime: QUERY_STALE.catalog,
 	});
 
 	useEffect(() => {

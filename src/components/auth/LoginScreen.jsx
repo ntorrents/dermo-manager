@@ -51,7 +51,7 @@ export const LoginScreen = () => {
 						<LayoutDashboard className="text-white" size={32} />
 					</div>
 					<h1 className="text-3xl font-black text-gray-800 tracking-tight">
-						DermoManager
+						BaseClínica
 					</h1>
 					<p className="text-gray-400 font-medium text-sm mt-2">
 						Gestión inteligente para tu centro

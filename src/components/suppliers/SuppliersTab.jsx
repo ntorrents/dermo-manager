@@ -505,8 +505,8 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 										Facturas / gastos del proveedor
 									</p>
 								</div>
-								<div className="overflow-auto">
-									<table className="w-full text-sm">
+								<div className="overflow-x-auto">
+									<table className="w-full text-sm min-w-[560px]">
 										<thead className="bg-gray-50 text-gray-500 text-[11px] uppercase">
 											<tr>
 												<th className="text-left p-3">Fecha</th>
@@ -520,16 +520,16 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 										<tbody>
 											{selectedSupplier.rows.map((r) => (
 												<tr key={r.id} className="border-t border-gray-50">
-													<td className="p-3 font-medium text-gray-700">{r.date || "—"}</td>
-													<td className="p-3 text-gray-600">{r.invoice_number || "—"}</td>
-													<td className="p-3 text-gray-700">{r.description || "—"}</td>
-													<td className="p-3 text-right text-gray-700">
+													<td className="p-3 font-medium text-gray-700 whitespace-nowrap">{r.date || "—"}</td>
+													<td className="p-3 text-gray-600 whitespace-nowrap">{r.invoice_number || "—"}</td>
+													<td className="p-3 text-gray-700 max-w-[10rem] truncate">{r.description || "—"}</td>
+													<td className="p-3 text-right text-gray-700 tabular-nums whitespace-nowrap">
 														{formatCurrency(Number(r.tax_base ?? r.base_amount ?? r.amount) || 0)}
 													</td>
-													<td className="p-3 text-right text-gray-700">
+													<td className="p-3 text-right text-gray-700 tabular-nums whitespace-nowrap">
 														{formatCurrency(Number(r.tax_amount) || 0)}
 													</td>
-													<td className="p-3 text-right font-bold text-gray-900">
+													<td className="p-3 text-right font-bold text-gray-900 tabular-nums whitespace-nowrap">
 														{formatCurrency(Number(r.amount) || 0)}
 													</td>
 												</tr>

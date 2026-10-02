@@ -73,7 +73,7 @@ export const generateBudgetPDF = async (client, clinic, profile, presupuesto, li
 
 	doc.setFontSize(18);
 	doc.setTextColor(225, 29, 72);
-	doc.text(clinic?.name || profile?.company_name || profile?.companyName || "DermoApp", 14, y);
+	doc.text(clinic?.name || profile?.company_name || profile?.companyName || "Clínica", 14, y);
 	y += 8;
 
 	doc.setFontSize(9);

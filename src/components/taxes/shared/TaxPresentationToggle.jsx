@@ -224,7 +224,7 @@ export const TaxPresentationToggle = ({
 						<Circle className="text-gray-300 group-hover:text-rose-400" size={36} />
 					)}
 					<div>
-						<p className="text-base font-black text-gray-900">
+						<p className="text-sm sm:text-base font-black text-gray-900">
 							{completed
 								? "Presentado en la AEAT"
 								: "Marcar trimestre como Presentado en la AEAT"}
@@ -256,21 +256,21 @@ export const TaxPresentationToggle = ({
 					</div>
 				</button>
 
-				<div className="flex flex-wrap gap-2">
+				<div className="flex flex-wrap gap-2 w-full sm:w-auto">
 					{!completed && !confirmOpen && (
 						<>
 							<button
 								type="button"
 								disabled={busy}
 								onClick={() => fileInputRef.current?.click()}
-								className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-700 text-white text-sm font-bold hover:bg-rose-800 disabled:opacity-50">
+								className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 rounded-xl bg-rose-700 text-white text-sm font-bold hover:bg-rose-800 disabled:opacity-50">
 								<Upload size={16} /> Subir PDF y marcar
 							</button>
 							<button
 								type="button"
 								disabled={busy}
 								onClick={() => openConfirm(null)}
-								className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+								className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50">
 								Marcar sin PDF
 							</button>
 						</>
@@ -279,7 +279,7 @@ export const TaxPresentationToggle = ({
 						<button
 							type="button"
 							onClick={download}
-							className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-200 text-sm font-bold text-emerald-800 hover:bg-emerald-100">
+							className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 rounded-xl border border-emerald-200 text-sm font-bold text-emerald-800 hover:bg-emerald-100">
 							<FileText size={16} /> Descargar PDF
 						</button>
 					)}
@@ -366,12 +366,12 @@ export const TaxPresentationToggle = ({
 						</p>
 					)}
 
-					<div className="flex flex-wrap gap-2 justify-end">
+					<div className="flex flex-col-reverse sm:flex-row flex-wrap gap-2 justify-end">
 						<button
 							type="button"
 							disabled={busy}
 							onClick={closeConfirm}
-							className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-white disabled:opacity-50">
+							className="w-full sm:w-auto px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-white disabled:opacity-50">
 							Cancelar
 						</button>
 						{!pendingFile && (
@@ -379,7 +379,7 @@ export const TaxPresentationToggle = ({
 								type="button"
 								disabled={busy}
 								onClick={() => fileInputRef.current?.click()}
-								className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-white disabled:opacity-50">
+								className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-white disabled:opacity-50">
 								<Upload size={16} /> Adjuntar PDF
 							</button>
 						)}
@@ -387,7 +387,7 @@ export const TaxPresentationToggle = ({
 							type="button"
 							disabled={busy}
 							onClick={markCompleted}
-							className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-700 text-white text-sm font-bold hover:bg-rose-800 disabled:opacity-50">
+							className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 rounded-xl bg-rose-700 text-white text-sm font-bold hover:bg-rose-800 disabled:opacity-50">
 							{busy ? <Loader2 size={16} className="animate-spin" /> : null}
 							Confirmar y marcar presentado
 						</button>

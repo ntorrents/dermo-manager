@@ -40,7 +40,7 @@ export const TaxHubView = ({ entries = [], declarations = [] }) => {
 	return (
 		<div className="space-y-8">
 			<div>
-				<h2 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+				<h2 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2">
 					<Landmark className="text-rose-700" /> Fiscalidad & AEAT
 				</h2>
 				<p className="text-sm text-gray-500 mt-1">
@@ -79,7 +79,7 @@ export const TaxHubView = ({ entries = [], declarations = [] }) => {
 					<p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
 						M130 T{quarter} {year} (YTD)
 					</p>
-					<p className="text-2xl font-black text-gray-900 mt-1 tabular-nums">
+					<p className="text-xl sm:text-2xl font-black text-gray-900 mt-1 tabular-nums">
 						{formatCurrency(snap130.casilla19)}
 					</p>
 					<p className="text-xs text-gray-500 mt-1">Resultado a ingresar (Casilla 19)</p>
@@ -88,7 +88,7 @@ export const TaxHubView = ({ entries = [], declarations = [] }) => {
 					<p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
 						M303 T{quarter} {year}
 					</p>
-					<p className="text-2xl font-black text-gray-900 mt-1 tabular-nums">
+					<p className="text-xl sm:text-2xl font-black text-gray-900 mt-1 tabular-nums">
 						{formatCurrency(snap303.resultado)}
 					</p>
 					<p className="text-xs text-gray-500 mt-1">Liquidación IVA del trimestre</p>

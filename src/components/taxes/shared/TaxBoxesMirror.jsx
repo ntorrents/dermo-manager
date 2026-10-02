@@ -10,7 +10,7 @@ export const TaxBoxesMirror = ({ boxes = [], highlightId }) => (
 			return (
 				<div
 					key={box.id}
-					className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 ${
+					className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 rounded-xl border px-4 py-3 ${
 						highlight
 							? "border-rose-300 bg-rose-50"
 							: "border-gray-100 bg-white"
@@ -22,7 +22,7 @@ export const TaxBoxesMirror = ({ boxes = [], highlightId }) => (
 						<p className="text-sm font-semibold text-gray-800 truncate">{box.label}</p>
 					</div>
 					<p
-						className={`text-lg font-black tabular-nums shrink-0 ${
+						className={`text-base sm:text-lg font-black tabular-nums shrink-0 ${
 							highlight ? "text-rose-700" : "text-gray-900"
 						}`}>
 						{typeof box.value === "number"
@@ -58,7 +58,7 @@ export const TaxEntriesTable = ({ entries = [], empty = "Sin movimientos" }) => 
 	}
 	return (
 		<div className="overflow-x-auto">
-			<table className="w-full text-left text-sm">
+			<table className="w-full text-left text-sm min-w-[480px]">
 				<thead>
 					<tr className="text-[10px] uppercase tracking-wider text-gray-400">
 						<th className="pb-2 pr-3">Fecha</th>
@@ -71,16 +71,16 @@ export const TaxEntriesTable = ({ entries = [], empty = "Sin movimientos" }) => 
 					{entries.map((e) => (
 						<tr key={e.id} className="border-t border-gray-100">
 							<td className="py-2 pr-3 whitespace-nowrap text-gray-600">{e.date}</td>
-							<td className="py-2 pr-3 text-gray-800">
+							<td className="py-2 pr-3 text-gray-800 max-w-[12rem] sm:max-w-none truncate sm:whitespace-normal">
 								{e.description || e.category || "—"}
 								{e.invoice_number ? (
 									<span className="ml-1 text-xs text-gray-400">#{e.invoice_number}</span>
 								) : null}
 							</td>
-							<td className="py-2 pr-3 tabular-nums">
+							<td className="py-2 pr-3 tabular-nums whitespace-nowrap">
 								{formatCurrency(Number(e.tax_base ?? e.base_amount ?? e.amount) || 0)}
 							</td>
-							<td className="py-2 tabular-nums text-gray-600">
+							<td className="py-2 tabular-nums text-gray-600 whitespace-nowrap text-xs sm:text-sm">
 								{Number(e.tax_amount) ? `IVA ${formatCurrency(e.tax_amount)}` : ""}
 								{Number(e.irpf_amount) ? ` IRPF ${formatCurrency(e.irpf_amount)}` : ""}
 								{!Number(e.tax_amount) && !Number(e.irpf_amount) ? "—" : ""}

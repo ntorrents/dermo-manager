@@ -3,16 +3,17 @@ import { Lock } from "lucide-react";
 import { useTenant } from "../../context/TenantContext";
 
 /**
- * Oculta hijos si el plan de la clínica no incluye la feature (p. ej. presupuestos/bonos).
- * `minTier`: 'clinic' = solo clinic + integral; 'integral' = solo integral.
+ * Oculta hijos si el plan/módulo no incluye la feature (p. ej. presupuestos/bonos).
+ * `minTier`: 'basic' = Gestión o 360; 'integral' = solo Clínica 360.
  */
-export const RequirePlan = ({ minTier = "clinic", children, fallback = null }) => {
+export const RequirePlan = ({ minTier = "basic", children, fallback = null }) => {
 	const { subscriptionTier, loading, allowsPresupuestosBonos } = useTenant();
 
 	if (loading) return null;
 
 	if (minTier === "integral") {
-		if (subscriptionTier !== "integral") {
+		const tier = subscriptionTier === "clinic" ? "integral" : subscriptionTier;
+		if (tier !== "integral") {
 			return fallback ?? <PlanLockedMessage />;
 		}
 		return children;
@@ -31,7 +32,8 @@ function PlanLockedMessage() {
 			<Lock className="mx-auto mb-2 text-amber-600" size={28} />
 			<p className="font-bold">Función no disponible en tu plan</p>
 			<p className="mt-1 text-sm text-amber-800/90">
-				Presupuestos y bonos requieren plan Clínica o Integral. Contacta para ampliar tu suscripción.
+				Esta función no está incluida en tu plan o módulos activos. Contacta para ampliar a Clínica
+				360.
 			</p>
 		</div>
 	);

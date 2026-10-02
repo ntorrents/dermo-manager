@@ -45,6 +45,7 @@ export const uploadSignedConsent = async ({
 				treatment_id: treatmentId || null,
 				treatment_name: treatmentName,
 				storage_path: path,
+				byte_size: file?.size ?? null,
 			},
 		])
 		.select()

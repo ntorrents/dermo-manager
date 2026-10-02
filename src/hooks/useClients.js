@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
+import { QUERY_STALE } from "../providers/queryStale";
 
 /** RLS restringe por clínica; no filtrar por user_id o cada usuario vería solo sus filas. */
 const fetchClients = async () => {
@@ -29,6 +30,7 @@ export const useClients = (user) => {
 		queryKey: ["clients", clinicId],
 		queryFn: fetchClients,
 		enabled: !!userId && !!clinicId,
+		staleTime: QUERY_STALE.operational,
 	});
 
 	useEffect(() => {

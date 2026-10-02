@@ -72,6 +72,7 @@ export const getDeadlineWindowFor = (model, fiscalYear, period) => {
 /**
  * Estado UX de una declaración:
  * - presented: marcada completed
+ * - ignored: omitida a propósito (no avisar)
  * - upcoming: aún no abre la ventana de presentación
  * - pending: dentro de la ventana y no presentada
  * - overdue: ventana cerrada y no presentada
@@ -88,6 +89,14 @@ export const getDeclarationUiStatus = (
 			id: "presented",
 			label: "Presentado",
 			tone: "success",
+		};
+	}
+
+	if (declaration?.status === "ignored") {
+		return {
+			id: "ignored",
+			label: "Ignorado",
+			tone: "muted",
 		};
 	}
 
@@ -134,7 +143,7 @@ export const getDeclarationUiStatus = (
 };
 
 /**
- * Alertas activas a fecha `now` que aún no están completed en declarations.
+ * Alertas activas a fecha `now` que aún no están completed ni ignored.
  */
 export const getActiveTaxAlerts = (declarations = [], now = new Date()) => {
 	const today = startOfDay(now);
@@ -156,7 +165,7 @@ export const getActiveTaxAlerts = (declarations = [], now = new Date()) => {
 						Number(d.year) === fiscalYear &&
 						d.period === period,
 				);
-				if (row?.status === "completed") continue;
+				if (row?.status === "completed" || row?.status === "ignored") continue;
 
 				alerts.push({
 					id: `${model}-${fiscalYear}-${period}`,

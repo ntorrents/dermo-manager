@@ -83,8 +83,8 @@ export const TreatmentsTab = ({
 				<td className="p-3">
 					<p className="font-bold text-slate-800 text-sm leading-tight">{t.name}</p>
 				</td>
-				<td className="p-3 text-sm font-medium text-slate-600">
-					{t.internal_notes ? <span className="truncate max-w-[150px] inline-block" title={t.internal_notes}>{t.internal_notes}</span> : <span className="text-slate-300">—</span>}
+				<td className="p-3 text-sm font-medium text-slate-600 hidden sm:table-cell">
+					{t.internal_notes ? <span className="truncate max-w-[8rem] inline-block" title={t.internal_notes}>{t.internal_notes}</span> : <span className="text-slate-300">—</span>}
 				</td>
 				<td className="p-3">
 					<span className="font-black text-rose-700">{Number(t.price).toFixed(2)} €</span>
@@ -678,11 +678,11 @@ export const TreatmentsTab = ({
 									</div>
 								) : (
 									<div className="overflow-x-auto">
-										<table className="w-full text-left border-collapse">
+										<table className="w-full text-left border-collapse min-w-[560px]">
 											<thead>
 												<tr className="bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
 													<th className="p-3">Tratamiento</th>
-													<th className="p-3">Notas</th>
+													<th className="p-3 hidden sm:table-cell">Notas</th>
 													<th className="p-3">Precio PVP</th>
 													<th className="p-3">Beneficio Neto</th>
 													<th className="p-3 text-right">Acciones</th>
@@ -710,11 +710,11 @@ export const TreatmentsTab = ({
 								</div>
 							) : (
 								<div className="overflow-x-auto">
-									<table className="w-full text-left border-collapse">
+									<table className="w-full text-left border-collapse min-w-[560px]">
 										<thead>
 											<tr className="bg-slate-50 border-b border-slate-100 text-[11px] uppercase tracking-widest text-slate-500 font-bold">
 												<th className="p-3">Tratamiento</th>
-												<th className="p-3">Notas</th>
+												<th className="p-3 hidden sm:table-cell">Notas</th>
 												<th className="p-3">Precio PVP</th>
 												<th className="p-3">Beneficio Neto</th>
 												<th className="p-3 text-right">Acciones</th>

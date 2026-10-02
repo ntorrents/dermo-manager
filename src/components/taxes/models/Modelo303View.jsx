@@ -43,12 +43,12 @@ export const Modelo303View = ({
 		<div className="space-y-6">
 			<div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
 				<div>
-					<h2 className="text-xl font-black text-gray-900">Modelo 303 · IVA</h2>
+					<h2 className="text-lg sm:text-xl font-black text-gray-900">Modelo 303 · IVA</h2>
 					<p className="text-sm text-gray-500 mt-1">
 						Liquidación <strong>aislada</strong> del trimestre seleccionado.
 					</p>
 				</div>
-				<div className="flex flex-wrap gap-3 items-end">
+				<div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end w-full sm:w-auto">
 					<TaxPeriodToolbar
 						year={year}
 						setYear={setYear}
@@ -59,7 +59,7 @@ export const Modelo303View = ({
 						type="button"
 						disabled={exporting}
 						onClick={onExportLibros}
-						className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
+						className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-700 hover:bg-gray-50">
 						<FileSpreadsheet size={16} /> Libros Pre303
 					</button>
 				</div>

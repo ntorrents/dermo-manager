@@ -24,7 +24,7 @@ export const Modelo390View = ({
 		<div className="space-y-6">
 			<div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
 				<div>
-					<h2 className="text-xl font-black text-gray-900">Modelo 390 · Resumen anual IVA</h2>
+					<h2 className="text-lg sm:text-xl font-black text-gray-900">Modelo 390 · Resumen anual IVA</h2>
 					<p className="text-sm text-gray-500 mt-1">Agregación de los cuatro Modelos 303 del ejercicio.</p>
 				</div>
 				<TaxPeriodToolbar year={year} setYear={setYear} showQuarter={false} />
@@ -70,7 +70,7 @@ export const Modelo180View = ({
 		<div className="space-y-6">
 			<div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
 				<div>
-					<h2 className="text-xl font-black text-gray-900">Modelo 180 · Resumen retenciones alquiler</h2>
+					<h2 className="text-lg sm:text-xl font-black text-gray-900">Modelo 180 · Resumen retenciones alquiler</h2>
 					<p className="text-sm text-gray-500 mt-1">Resumen anual del Modelo 115.</p>
 				</div>
 				<TaxPeriodToolbar year={year} setYear={setYear} showQuarter={false} />

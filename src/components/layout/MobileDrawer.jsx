@@ -10,35 +10,133 @@ import {
 	Building2,
 	FileText,
 	BarChart3,
+	ScrollText,
+	FileSignature,
+	PieChart,
+	Wallet,
+	Megaphone,
+	ShoppingBag,
 } from "lucide-react";
 import { useTenant } from "../../context/TenantContext";
 import { NAV_LABELS, PATH_MAP } from "./navigationLabels";
 import { useNavigate } from "react-router-dom";
+import { filterNavItem } from "./navModules";
 
-const DRAWER_ITEMS = [
-	{ id: "dashboard", label: NAV_LABELS.dashboard, icon: BarChart3 },
-	{ id: "calendar", label: NAV_LABELS.calendar, icon: Calendar },
-	{ id: "bonos", label: NAV_LABELS.bonos, icon: Ticket },
-	{ id: "documents", label: NAV_LABELS.documents, icon: FolderOpen },
-	{ id: "finance", label: NAV_LABELS.finance, icon: Euro },
-	{ id: "invoices", label: NAV_LABELS.invoices, icon: FileText },
-	{ id: "suppliers", label: NAV_LABELS.suppliers, icon: Building2 },
-	{ id: "taxes", label: NAV_LABELS.taxes, icon: Landmark },
-	{ id: "settings", label: NAV_LABELS.settings, icon: Settings },
+const ICONS = {
+	dashboard: BarChart3,
+	calendar: Calendar,
+	products: ShoppingBag,
+	products_ventas: ShoppingBag,
+	bonos: Ticket,
+	consents: FileSignature,
+	budgets: ScrollText,
+	finance_movements: Wallet,
+	financial_analysis: PieChart,
+	invoices: FileText,
+	suppliers: Building2,
+	taxes: Landmark,
+	taxes_130: Landmark,
+	taxes_303: Landmark,
+	taxes_115: Landmark,
+	taxes_390: Landmark,
+	taxes_180: Landmark,
+	taxes_renta: Landmark,
+	taxes_declaraciones: Landmark,
+	assets: Landmark,
+	marketing: Megaphone,
+	settings: Settings,
+	documents: FolderOpen,
+	finance: Euro,
+};
+
+const DRAWER_SECTIONS = [
+	{
+		id: "general",
+		title: null,
+		items: [
+			{ id: "dashboard" },
+			{ id: "calendar" },
+		],
+	},
+	{
+		id: "products",
+		title: "Productos",
+		items: [
+			{ id: "products" },
+			{ id: "products_ventas", nested: true },
+		],
+	},
+	{
+		id: "docs",
+		title: "Documentos & Ventas",
+		items: [
+			{ id: "bonos", requireBonos: true },
+			{ id: "consents" },
+			{ id: "budgets" },
+		],
+	},
+	{
+		id: "finance",
+		title: "Finanzas & Caja",
+		items: [
+			{ id: "finance_movements" },
+			{ id: "financial_analysis" },
+			{ id: "invoices" },
+			{ id: "suppliers" },
+		],
+	},
+	{
+		id: "taxes",
+		title: "Fiscalidad & AEAT",
+		items: [
+			{ id: "taxes" },
+			{ id: "taxes_130", nested: true },
+			{ id: "taxes_303", nested: true },
+			{ id: "taxes_115", nested: true },
+			{ id: "taxes_390", nested: true },
+			{ id: "taxes_180", nested: true },
+			{ id: "taxes_renta", nested: true },
+			{ id: "taxes_declaraciones", nested: true },
+			{ id: "assets", nested: true },
+		],
+	},
+	{
+		id: "marketing",
+		title: "Marketing",
+		items: [
+			{ id: "marketing" },
+			{ id: "marketing_campanas", nested: true },
+			{ id: "marketing_seguimiento", nested: true },
+			{ id: "marketing_plantillas", nested: true },
+		],
+	},
+	{
+		id: "settings",
+		title: null,
+		items: [{ id: "settings" }],
+	},
 ];
+
+/** IDs del drawer (para resaltar «Más» en la bottom bar). */
+export const DRAWER_NAV_IDS = DRAWER_SECTIONS.flatMap((s) => s.items.map((i) => i.id));
 
 export const MobileDrawer = ({ isOpen, onClose, activeTabId }) => {
 	const navigate = useNavigate();
-	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
+	const { allowsPresupuestosBonos, loading: tenantLoading, hasModule } = useTenant();
 
-	const drawerItems = useMemo(
+	const sections = useMemo(
 		() =>
-			DRAWER_ITEMS.filter((item) => {
-				if (tenantLoading) return true;
-				if (item.id === "bonos") return allowsPresupuestosBonos;
-				return true;
-			}),
-		[tenantLoading, allowsPresupuestosBonos]
+			DRAWER_SECTIONS.map((section) => ({
+				...section,
+				items: section.items.filter((item) =>
+					filterNavItem(item, {
+						tenantLoading,
+						allowsPresupuestosBonos,
+						hasModuleFn: hasModule,
+					}),
+				),
+			})).filter((section) => section.items.length > 0),
+		[tenantLoading, allowsPresupuestosBonos, hasModule],
 	);
 
 	useEffect(() => {
@@ -75,30 +173,49 @@ export const MobileDrawer = ({ isOpen, onClose, activeTabId }) => {
 				className="fixed right-0 top-0 bottom-0 w-72 max-w-[85vw] bg-white z-[61] shadow-2xl animate-in slide-in-from-right duration-200 flex flex-col"
 				role="dialog"
 				aria-label="Menú de navegación">
-				<div className="p-4 border-b border-gray-100 flex justify-between items-center">
+				<div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
 					<h3 className="font-black text-gray-800 uppercase tracking-tight text-sm">
 						Más opciones
 					</h3>
 					<button
+						type="button"
 						onClick={onClose}
 						aria-label="Cerrar menú lateral"
 						className="p-2 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600">
 						<X size={20} />
 					</button>
 				</div>
-				<nav className="p-4 space-y-1 flex-1">
-					{drawerItems.map((item) => (
-						<button
-							key={item.id}
-							onClick={() => handleSelect(item.id)}
-							className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-left transition-colors ${
-								activeTabId === item.id
-									? "bg-rose-700 text-white"
-									: "text-gray-600 hover:bg-gray-50"
-							}`}>
-							<item.icon size={20} />
-							{item.label}
-						</button>
+				<nav className="p-4 space-y-4 flex-1 overflow-y-auto pb-8">
+					{sections.map((section) => (
+						<div key={section.id} className="space-y-1">
+							{section.title && (
+								<p className="px-3 pt-1 pb-1.5 text-[10px] font-black uppercase tracking-wider text-gray-400">
+									{section.title}
+								</p>
+							)}
+							{section.items.map((item) => {
+								const Icon = ICONS[item.id] || Landmark;
+								const active = activeTabId === item.id;
+								return (
+									<button
+										key={item.id}
+										type="button"
+										onClick={() => handleSelect(item.id)}
+										className={`w-full flex items-center gap-3 rounded-xl font-bold text-left transition-colors ${
+											item.nested
+												? "pl-8 pr-3 py-2.5 text-sm"
+												: "px-4 py-3.5"
+										} ${
+											active
+												? "bg-rose-700 text-white"
+												: "text-gray-600 hover:bg-gray-50"
+										}`}>
+										<Icon size={item.nested ? 16 : 20} className="shrink-0" />
+										<span className="truncate">{NAV_LABELS[item.id] || item.id}</span>
+									</button>
+								);
+							})}
+						</div>
 					))}
 				</nav>
 			</div>

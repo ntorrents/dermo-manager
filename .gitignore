@@ -23,6 +23,7 @@ dist-ssr
 supabase/.env
 supabase/.env.*
 !supabase/.env.example
+supabase/functions/.env
 !supabase/migrations/**/*.sql
 
 .sql

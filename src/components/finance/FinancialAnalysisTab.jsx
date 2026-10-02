@@ -1008,7 +1008,7 @@ export const FinancialAnalysisTab = ({
 							</p>
 						</div>
 						<div className="overflow-x-auto">
-							<div className="min-w-[520px] grid grid-cols-6 gap-3">
+							<div className="min-w-[360px] sm:min-w-[520px] grid grid-cols-3 sm:grid-cols-6 gap-3">
 								{financialAnalysis.monthlySeries.map((m) => {
 									const scaleBase = Math.max(
 										...financialAnalysis.monthlySeries.map((x) => x.expense || 0),

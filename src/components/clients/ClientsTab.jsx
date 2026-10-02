@@ -62,7 +62,7 @@ import { useTenant } from "../../context/TenantContext";
 import { inferIsCompanyFromNif } from "../../utils/incomeTax";
 import { IRPF_OPTIONS } from "../../utils/format";
 
-const buildWhatsAppUrl = (phone, firstName, companyName = "C3linic") => {
+const buildWhatsAppUrl = (phone, firstName, companyName = "la clínica") => {
 	if (!phone || !String(phone).trim()) return null;
 	const digits = String(phone).replace(/\D/g, "");
 	const num = digits.startsWith("34") ? digits : "34" + digits;
@@ -77,7 +77,7 @@ export const ClientsTab = ({
 	showToast,
 	onRefresh,
 }) => {
-	const { clinicId, clinic, canDeleteOperational } = useTenant();
+	const { clinicId, clinic, canDeleteOperational, hasModule } = useTenant();
 	const { clientId: urlClientId } = useParams();
 	const navigate = useNavigate();
 	const [searchTerm, setSearchTerm] = useState("");
@@ -104,6 +104,26 @@ export const ClientsTab = ({
 		}
 	};
 	const [clientDetailTab, setClientDetailTab] = useState("datos");
+	const canClientsHistory = hasModule("clients_history");
+	const canClientsDocs = hasModule("clients_docs");
+	const canPhotoVault = hasModule("photo_vault");
+	const clientDetailTabs = useMemo(() => {
+		const tabs = [{ id: "datos", label: "Datos Cliente", icon: User }];
+		if (canClientsHistory) {
+			tabs.push({ id: "visitas", label: "Historial/Sesiones", icon: BookOpen });
+		}
+		if (canClientsDocs) {
+			tabs.push({ id: "documentacion", label: "Documentación", icon: FolderOpen });
+		}
+		return tabs;
+	}, [canClientsHistory, canClientsDocs]);
+
+	useEffect(() => {
+		if (!clientDetailTabs.some((t) => t.id === clientDetailTab)) {
+			setClientDetailTab(clientDetailTabs[0]?.id || "datos");
+		}
+	}, [clientDetailTabs, clientDetailTab]);
+
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [clientFormStep, setClientFormStep] = useState(1);
 	const [filterEstado, setFilterEstado] = useState("todos");
@@ -813,7 +833,7 @@ export const ClientsTab = ({
 							</span>
 						</div>
 						<div className="flex flex-col sm:flex-row gap-2 sm:items-center w-full sm:w-auto">
-							<div className="relative min-w-[200px]">
+							<div className="relative w-full min-w-0 sm:min-w-[200px]">
 								<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
 								<input
 									placeholder="Buscar cliente..."
@@ -825,7 +845,7 @@ export const ClientsTab = ({
 							<select
 								value={filterEstado}
 								onChange={(e) => setFilterEstado(e.target.value)}
-								className="px-3 py-2 bg-white border border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-gray-700">
+								className="w-full sm:w-auto px-3 py-2 bg-white border border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-gray-700">
 								<option value="todos">Todos los estados</option>
 								<option value="activo">Activo</option>
 								<option value="inactivo">Inactivo</option>
@@ -835,7 +855,7 @@ export const ClientsTab = ({
 							<select
 								value={sortBy}
 								onChange={(e) => setSortBy(e.target.value)}
-								className="px-3 py-2 bg-white border border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-gray-700">
+								className="w-full sm:w-auto px-3 py-2 bg-white border border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-gray-700">
 								<option value="name_asc">A → Z</option>
 								<option value="name_desc">Z → A</option>
 								<option value="recent">Más recientes</option>
@@ -844,61 +864,60 @@ export const ClientsTab = ({
 							<button
 								type="button"
 								onClick={() => handleOpenModal()}
-								className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold bg-rose-700 text-white hover:bg-rose-800 transition-colors shrink-0">
+								className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold bg-rose-700 text-white hover:bg-rose-800 transition-colors shrink-0">
 								<Plus size={16} />
 								<span>Nuevo Cliente</span>
 							</button>
 						</div>
 					</div>
 
-					<div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar bg-white border border-gray-200 rounded-xl shadow-sm">
-						{filteredClients.length === 0 ? (
-							<div className="p-8">
-								<EmptyState
-									icon={Users}
-									title={searchTerm ? "Sin resultados" : "No hay clientes"}
-									description={
-										searchTerm
-											? "Prueba con otro término de búsqueda"
-											: "Añade tu primer cliente para empezar a gestionar citas y facturación."
-									}
-									actionLabel={searchTerm ? undefined : "Añadir cliente"}
-									onAction={searchTerm ? undefined : () => handleOpenModal()}
-								/>
-							</div>
-						) : (
-							<table className="w-full text-left border-collapse min-w-[800px]">
-								<thead className="sticky top-0 z-10">
-									<tr className="bg-gray-50 border-b border-gray-200 text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
-										<th className="p-3.5 pl-5 font-semibold">Paciente</th>
-										<th className="p-3.5 font-semibold">Estado</th>
-										<th className="p-3.5 font-semibold">Contacto</th>
-										<th className="p-3.5 font-semibold">Identificación</th>
-										<th className="p-3.5 text-center font-semibold">Legal</th>
-										<th className="p-3.5 text-right pr-5 font-semibold">Acciones</th>
-										<th className="p-3.5 text-right pr-5 font-semibold">Acciones</th>
-									</tr>
-								</thead>
-								<tbody className="divide-y divide-gray-100 bg-white">
-									{filteredClients.map((client) => (
-										<tr
-											key={client.id}
-											onClick={() => selectClient(client)}
-											className="hover:bg-gray-50/70 transition-colors cursor-pointer group">
-											<td className="p-3.5 pl-5">
-												<div className="flex items-center gap-3">
-													<div className="w-9 h-9 rounded-full bg-rose-50 text-rose-700 flex items-center justify-center text-sm font-bold shrink-0 border border-rose-100">
-														{client.name.charAt(0)}
-													</div>
-													<div className="flex items-center gap-2">
-														<p className="font-semibold text-gray-900 text-sm">{client.name} {client.surname}</p>
-														{client.is_company && (
-															<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-600 font-bold rounded border border-slate-200">Empresa</span>
-														)}
-													</div>
+					{filteredClients.length === 0 ? (
+						<div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm p-8">
+							<EmptyState
+								icon={Users}
+								title={searchTerm ? "Sin resultados" : "No hay clientes"}
+								description={
+									searchTerm
+										? "Prueba con otro término de búsqueda"
+										: "Añade tu primer cliente para empezar a gestionar citas y facturación."
+								}
+								actionLabel={searchTerm ? undefined : "Añadir cliente"}
+								onAction={searchTerm ? undefined : () => handleOpenModal()}
+							/>
+						</div>
+					) : (
+						<>
+							{/* Móvil: cards */}
+							<div className="md:hidden space-y-3 flex-1 overflow-y-auto">
+								{filteredClients.map((client) => (
+									<div
+										key={client.id}
+										role="button"
+										tabIndex={0}
+										onClick={() => selectClient(client)}
+										onKeyDown={(e) => {
+											if (e.key === "Enter" || e.key === " ") {
+												e.preventDefault();
+												selectClient(client);
+											}
+										}}
+										className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3 cursor-pointer active:bg-gray-50">
+										<div className="flex justify-between items-start gap-3">
+											<div className="flex items-center gap-3 min-w-0">
+												<div className="w-10 h-10 rounded-full bg-rose-50 text-rose-700 flex items-center justify-center text-sm font-bold shrink-0 border border-rose-100">
+													{client.name.charAt(0)}
 												</div>
-											</td>
-											<td className="p-3.5">
+												<div className="min-w-0">
+													<p className="font-semibold text-gray-900 text-sm truncate">
+														{client.name} {client.surname}
+													</p>
+													<p className="text-xs text-gray-500 truncate">
+														{client.phone || "Sin teléfono"}
+														{client.nif ? ` · ${client.nif}` : ""}
+													</p>
+												</div>
+											</div>
+											<div className="flex items-center gap-1 shrink-0">
 												{client.estado === "inactivo" && (
 													<span className="px-2 py-1 text-[11px] bg-gray-100 text-gray-600 font-semibold rounded-md">Inactivo</span>
 												)}
@@ -911,63 +930,162 @@ export const ClientsTab = ({
 												{(!client.estado || client.estado === "activo") && (
 													<span className="px-2 py-1 text-[11px] bg-emerald-50 text-emerald-700 font-semibold rounded-md">Activo</span>
 												)}
-											</td>
-											<td className="p-3.5">
-												<div className="flex items-center gap-2">
-													<span className="text-sm text-gray-600">{client.phone || "Sin tlf"}</span>
-													{client.phone && (
-														<a
-															href={buildWhatsAppUrl(client.phone, client.name, clinic?.name)}
-															target="_blank"
-															rel="noopener noreferrer"
-															onClick={(e) => e.stopPropagation()}
-															className="p-1 rounded bg-green-50 text-emerald-700 hover:bg-green-100 opacity-0 group-hover:opacity-100 transition-all"
-															title="WhatsApp">
-															<MessageCircle size={14} />
-														</a>
-													)}
-												</div>
-											</td>
-											<td className="p-3.5">
-												<span className="text-sm font-medium text-gray-500">{client.nif || "-"}</span>
-											</td>
-											<td className="p-3.5 text-center">
-												<div className="flex items-center justify-center gap-2">
-													<span className="flex items-center gap-1 text-[11px] font-bold text-slate-500" title="Consentimiento">
-														{client.has_consent ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} C
-													</span>
-													<span className="flex items-center gap-1 text-[11px] font-bold text-slate-500" title="Derechos de imagen">
-														{client.has_image_rights ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} I
-													</span>
-												</div>
-											</td>
-											<td className="p-3 pr-4 text-right">
-												<div className="flex justify-end gap-2">
+											</div>
+										</div>
+										<div className="flex items-center justify-between">
+											<div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
+												<span className="flex items-center gap-1">
+													{client.has_consent ? <Check size={12} className="text-emerald-500" /> : <X size={12} className="text-slate-300" />} C
+												</span>
+												<span className="flex items-center gap-1">
+													{client.has_image_rights ? <Check size={12} className="text-emerald-500" /> : <X size={12} className="text-slate-300" />} I
+												</span>
+												{client.is_company && (
+													<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-600 font-bold rounded border border-slate-200">Empresa</span>
+												)}
+											</div>
+											<div className="flex gap-1">
+												{client.phone && (
+													<a
+														href={buildWhatsAppUrl(client.phone, client.name, clinic?.name)}
+														target="_blank"
+														rel="noopener noreferrer"
+														onClick={(e) => e.stopPropagation()}
+														className="p-2 rounded-lg bg-green-50 text-emerald-700"
+														title="WhatsApp">
+														<MessageCircle size={16} />
+													</a>
+												)}
+												<button
+													type="button"
+													onClick={(e) => {
+														e.stopPropagation();
+														setSelectedClient(client);
+													}}
+													className="p-2 rounded-lg bg-gray-50 text-gray-500"
+													title="Ver ficha">
+													<Eye size={16} />
+												</button>
+												{canDeleteOperational && (
 													<button
-														onClick={(e) => {
-															e.stopPropagation();
-															setSelectedClient(client);
-														}}
-														className="p-1.5 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition-colors"
-														title="Ver ficha">
-														<Eye size={16} />
+														type="button"
+														onClick={(e) => handleDeleteClick(e, client)}
+														className="p-2 rounded-lg bg-red-50 text-rose-700"
+														title="Archivar">
+														<Trash2 size={16} />
 													</button>
-													{canDeleteOperational && (
-														<button
-															onClick={(e) => handleDeleteClick(e, client)}
-															className="p-1.5 text-slate-400 hover:text-rose-700 rounded hover:bg-rose-50 transition-colors"
-															title="Archivar">
-															<Trash2 size={16} />
-														</button>
-													)}
-												</div>
-											</td>
+												)}
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+
+							{/* Desktop: tabla */}
+							<div className="hidden md:block flex-1 overflow-x-auto overflow-y-auto custom-scrollbar bg-white border border-gray-200 rounded-xl shadow-sm">
+								<table className="w-full text-left border-collapse min-w-[640px] md:min-w-[800px]">
+									<thead className="sticky top-0 z-10">
+										<tr className="bg-gray-50 border-b border-gray-200 text-[11px] uppercase tracking-wide text-gray-500 font-semibold">
+											<th className="p-3.5 pl-5 font-semibold">Paciente</th>
+											<th className="p-3.5 font-semibold">Estado</th>
+											<th className="p-3.5 font-semibold">Contacto</th>
+											<th className="p-3.5 font-semibold hidden lg:table-cell">Identificación</th>
+											<th className="p-3.5 text-center font-semibold">Legal</th>
+											<th className="p-3.5 text-right pr-5 font-semibold">Acciones</th>
 										</tr>
-									))}
-								</tbody>
-							</table>
-						)}
-					</div>
+									</thead>
+									<tbody className="divide-y divide-gray-100 bg-white">
+										{filteredClients.map((client) => (
+											<tr
+												key={client.id}
+												onClick={() => selectClient(client)}
+												className="hover:bg-gray-50/70 transition-colors cursor-pointer group">
+												<td className="p-3.5 pl-5">
+													<div className="flex items-center gap-3">
+														<div className="w-9 h-9 rounded-full bg-rose-50 text-rose-700 flex items-center justify-center text-sm font-bold shrink-0 border border-rose-100">
+															{client.name.charAt(0)}
+														</div>
+														<div className="flex items-center gap-2 min-w-0">
+															<p className="font-semibold text-gray-900 text-sm truncate">{client.name} {client.surname}</p>
+															{client.is_company && (
+																<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-600 font-bold rounded border border-slate-200 shrink-0">Empresa</span>
+															)}
+														</div>
+													</div>
+												</td>
+												<td className="p-3.5">
+													{client.estado === "inactivo" && (
+														<span className="px-2 py-1 text-[11px] bg-gray-100 text-gray-600 font-semibold rounded-md">Inactivo</span>
+													)}
+													{client.estado === "bloqueado" && (
+														<span className="px-2 py-1 text-[11px] bg-red-50 text-red-700 font-semibold rounded-md">Bloqueado</span>
+													)}
+													{client.estado === "borrador" && (
+														<span className="px-2 py-1 text-[11px] bg-amber-50 text-amber-700 font-semibold rounded-md">Borrador</span>
+													)}
+													{(!client.estado || client.estado === "activo") && (
+														<span className="px-2 py-1 text-[11px] bg-emerald-50 text-emerald-700 font-semibold rounded-md">Activo</span>
+													)}
+												</td>
+												<td className="p-3.5">
+													<div className="flex items-center gap-2">
+														<span className="text-sm text-gray-600">{client.phone || "Sin tlf"}</span>
+														{client.phone && (
+															<a
+																href={buildWhatsAppUrl(client.phone, client.name, clinic?.name)}
+																target="_blank"
+																rel="noopener noreferrer"
+																onClick={(e) => e.stopPropagation()}
+																className="p-1 rounded bg-green-50 text-emerald-700 hover:bg-green-100 opacity-0 group-hover:opacity-100 transition-all"
+																title="WhatsApp">
+																<MessageCircle size={14} />
+															</a>
+														)}
+													</div>
+												</td>
+												<td className="p-3.5 hidden lg:table-cell">
+													<span className="text-sm font-medium text-gray-500">{client.nif || "-"}</span>
+												</td>
+												<td className="p-3.5 text-center">
+													<div className="flex items-center justify-center gap-2">
+														<span className="flex items-center gap-1 text-[11px] font-bold text-slate-500" title="Consentimiento">
+															{client.has_consent ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} C
+														</span>
+														<span className="flex items-center gap-1 text-[11px] font-bold text-slate-500" title="Derechos de imagen">
+															{client.has_image_rights ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} I
+														</span>
+													</div>
+												</td>
+												<td className="p-3 pr-4 text-right">
+													<div className="flex justify-end gap-2">
+														<button
+															type="button"
+															onClick={(e) => {
+																e.stopPropagation();
+																setSelectedClient(client);
+															}}
+															className="p-1.5 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-100 transition-colors"
+															title="Ver ficha">
+															<Eye size={16} />
+														</button>
+														{canDeleteOperational && (
+															<button
+																type="button"
+																onClick={(e) => handleDeleteClick(e, client)}
+																className="p-1.5 text-slate-400 hover:text-rose-700 rounded hover:bg-rose-50 transition-colors"
+																title="Archivar">
+																<Trash2 size={16} />
+															</button>
+														)}
+													</div>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+							</div>
+						</>
+					)}
 				</div>
 			) : (
 			<div
@@ -1005,13 +1123,9 @@ export const ClientsTab = ({
 							</div>
 						</div>
 
-						{/* Pestañas perfil 360º - Visitas primero */}
+						{/* Pestañas perfil — gated por módulos SaaS */}
 						<div className="flex border-b border-gray-200 gap-1 overflow-x-auto">
-							{[
-								{ id: "datos", label: "Datos Cliente", icon: User },
-								{ id: "visitas", label: "Historial/Sesiones", icon: BookOpen },
-								{ id: "documentacion", label: "Documentación", icon: FolderOpen },
-							].map(({ id, label, icon: Icon }) => (
+							{clientDetailTabs.map(({ id, label, icon: Icon }) => (
 								<button
 									key={id}
 									type="button"
@@ -1028,7 +1142,7 @@ export const ClientsTab = ({
 						</div>
 
 						<div className="flex-1 overflow-y-auto pt-6 custom-scrollbar">
-							{clientDetailTab === "visitas" && (
+							{clientDetailTab === "visitas" && canClientsHistory && (
 								<div className="space-y-8 pb-10">
 									<div className="flex justify-between items-end mb-6">
 										<div>
@@ -1237,6 +1351,7 @@ export const ClientsTab = ({
 																				<span className="text-[10px] font-bold text-emerald-500 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">Pagado</span>
 																			</div>
 																		</div>
+																		{canPhotoVault && (
 																		<div className="flex items-center gap-2 mt-4 flex-wrap bg-slate-50 p-2 rounded-xl border border-slate-100">
 																			{beforePhoto && <SessionPhotoThumbnail photo={beforePhoto} label="Antes" onView={openPhotoViewer} onEdit={handlePhotoEdit} onDelete={handlePhotoDelete} />}
 																			{afterPhoto && <SessionPhotoThumbnail photo={afterPhoto} label="Después" onView={openPhotoViewer} onEdit={handlePhotoEdit} onDelete={handlePhotoDelete} />}
@@ -1245,6 +1360,7 @@ export const ClientsTab = ({
 																				<Camera size={16} />
 																			</button>
 																		</div>
+																		)}
 																		<div className="flex justify-end gap-2 mt-4 pt-4 border-t border-slate-100">
 																			{!session.plan_amigo && (
 																				<button onClick={async () => {
@@ -1611,7 +1727,7 @@ export const ClientsTab = ({
 								</div>
 							)}
 
-							{clientDetailTab === "documentacion" && (
+							{clientDetailTab === "documentacion" && canClientsDocs && (
 								<div className="space-y-8">
 									<div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
 										

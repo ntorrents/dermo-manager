@@ -9,9 +9,12 @@ import {
 	FolderOpen,
 	Settings,
 	ChevronDown,
+	Megaphone,
+	ShoppingBag,
 } from "lucide-react";
 import { NAV_LABELS, PATH_MAP } from "./navigationLabels";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { filterNavItem } from "./navModules";
 
 const NAV_GROUPS = [
 	{
@@ -28,6 +31,15 @@ const NAV_GROUPS = [
 			{ id: "clients", l: NAV_LABELS.clients },
 			{ id: "calendar", l: NAV_LABELS.calendar },
 			{ id: "treatments", l: NAV_LABELS.treatments },
+		],
+	},
+	{
+		id: "products-group",
+		label: "Productos",
+		icon: ShoppingBag,
+		items: [
+			{ id: "products", l: NAV_LABELS.products },
+			{ id: "products_ventas", l: NAV_LABELS.products_ventas, nested: true },
 		],
 	},
 	{
@@ -76,6 +88,17 @@ const NAV_GROUPS = [
 		],
 	},
 	{
+		id: "marketing-group",
+		label: "Marketing",
+		icon: Megaphone,
+		items: [
+			{ id: "marketing", l: NAV_LABELS.marketing },
+			{ id: "marketing_campanas", l: NAV_LABELS.marketing_campanas, nested: true },
+			{ id: "marketing_seguimiento", l: NAV_LABELS.marketing_seguimiento, nested: true },
+			{ id: "marketing_plantillas", l: NAV_LABELS.marketing_plantillas, nested: true },
+		],
+	},
+	{
 		id: "settings-group",
 		label: "Configuración",
 		icon: Settings,
@@ -103,7 +126,7 @@ export const Sidebar = ({ companyName, collapsed, setCollapsed }) => {
 	const [tempExpanded, setTempExpanded] = useState(false);
 	const location = useLocation();
 	const navigate = useNavigate();
-	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
+	const { allowsPresupuestosBonos, loading: tenantLoading, hasModule } = useTenant();
 
 	const [expandedGroups, setExpandedGroups] = useState({});
 
@@ -145,12 +168,12 @@ export const Sidebar = ({ companyName, collapsed, setCollapsed }) => {
 					{narrow ? (
 						<span
 							className="text-sm font-black text-rose-700"
-							title={companyName || "DermoApp"}>
-							{(companyName || "DM").slice(0, 2).toUpperCase()}
+							title={companyName || "Clínica"}>
+							{(companyName || "CL").slice(0, 2).toUpperCase()}
 						</span>
 					) : (
 						<h1 className="text-lg font-bold text-rose-700 truncate">
-							{companyName || "DermoApp"}
+							{companyName || "Clínica"}
 						</h1>
 					)}
 				</button>
@@ -158,11 +181,13 @@ export const Sidebar = ({ companyName, collapsed, setCollapsed }) => {
 			<nav
 				className={`flex-1 overflow-y-auto custom-scrollbar min-h-0 space-y-2 ${narrow ? "p-2" : "p-3 lg:p-4"}`}>
 				{NAV_GROUPS.map((group) => {
-					const validItems = group.items.filter((item) => {
-						if (tenantLoading) return true;
-						if (item.requireBonos) return allowsPresupuestosBonos;
-						return true;
-					});
+					const validItems = group.items.filter((item) =>
+						filterNavItem(item, {
+							tenantLoading,
+							allowsPresupuestosBonos,
+							hasModuleFn: hasModule,
+						}),
+					);
 
 					if (validItems.length === 0) return null;
 
@@ -227,7 +252,11 @@ export const Sidebar = ({ companyName, collapsed, setCollapsed }) => {
 											<NavLink
 												key={item.id}
 												to={PATH_MAP[item.id]}
-												end={PATH_MAP[item.id] === "/fiscalidad"}
+												end={
+													PATH_MAP[item.id] === "/fiscalidad" ||
+													PATH_MAP[item.id] === "/marketing" ||
+													PATH_MAP[item.id] === "/productos"
+												}
 												onClick={() => {
 													if (tempExpanded) {
 														setCollapsed(true);

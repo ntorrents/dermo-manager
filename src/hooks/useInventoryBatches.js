@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
+import { QUERY_STALE } from "../providers/queryStale";
 
 const fetchBatches = async () => {
 	const { data, error } = await supabase
@@ -20,6 +21,7 @@ export const useInventoryBatches = (userId) => {
 		queryKey: ["inventoryBatches", clinicId],
 		queryFn: fetchBatches,
 		enabled: !!userId && !!clinicId,
+		staleTime: QUERY_STALE.catalog,
 	});
 
 	return { batches, refreshBatches: refetch };

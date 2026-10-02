@@ -48,6 +48,7 @@ export const uploadSessionPhoto = async ({
 				finance_entry_id: financeEntryId,
 				type,
 				storage_path: path,
+				byte_size: compressed?.size ?? file?.size ?? null,
 			},
 		])
 		.select()

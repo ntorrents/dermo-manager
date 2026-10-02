@@ -3,6 +3,8 @@ export const NAV_LABELS = {
 	dashboard: "Dashboard",
 	clients: "Clientes",
 	treatments: "Tratamientos",
+	products: "Productos",
+	products_ventas: "Ventas productos",
 	bonos: "Bonos",
 	consents: "Consentimientos",
 	budgets: "Presupuestos",
@@ -25,6 +27,11 @@ export const NAV_LABELS = {
 	finance_movements: "Movimientos",
 	financial_analysis: "Análisis Financiero",
 	assets: "Bienes de Inversión",
+	superadmin: "Superadmin",
+	marketing: "Marketing",
+	marketing_campanas: "Campañas",
+	marketing_seguimiento: "Seguimiento",
+	marketing_plantillas: "Plantillas",
 };
 
 export const PATH_MAP = {
@@ -32,6 +39,8 @@ export const PATH_MAP = {
 	dashboard: "/dashboard",
 	clients: "/clientes",
 	treatments: "/tratamientos",
+	products: "/productos",
+	products_ventas: "/productos/ventas",
 	bonos: "/bonos",
 	consents: "/consentimientos",
 	inventory: "/inventario",
@@ -51,4 +60,25 @@ export const PATH_MAP = {
 	assets: "/fiscalidad/bienes-inversion",
 	settings: "/configuracion",
 	budgets: "/presupuestos",
+	superadmin: "/superadmin",
+	marketing: "/marketing",
+	marketing_campanas: "/marketing/campanas",
+	marketing_seguimiento: "/marketing/seguimiento",
+	marketing_plantillas: "/marketing/plantillas",
+};
+
+/** Ítem con la ruta más específica (evita que /fiscalidad capture /fiscalidad/trimestral/130). */
+export const resolveNavIdFromPath = (pathname) => {
+	if (!pathname || pathname === "/") return "home";
+	let bestId = null;
+	let bestLen = -1;
+	for (const [id, path] of Object.entries(PATH_MAP)) {
+		if (!path || path === "/") continue;
+		const matches = pathname === path || pathname.startsWith(`${path}/`);
+		if (matches && path.length > bestLen) {
+			bestId = id;
+			bestLen = path.length;
+		}
+	}
+	return bestId || "home";
 };

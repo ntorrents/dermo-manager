@@ -9,7 +9,6 @@ export {
 	getAvailableToAdd,
 	getGridSpanClasses,
 } from "./widgetRegistry.jsx";
-export { WidgetAlerts } from "./WidgetAlerts";
 export { WidgetKpiFacturacion } from "./WidgetKpiFacturacion";
 export { WidgetKpiImpuestos } from "./WidgetKpiImpuestos";
 export { WidgetProximosEventos } from "./WidgetProximosEventos";

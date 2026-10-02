@@ -20,6 +20,8 @@ import {
 	Users,
 	UserPlus,
 	ScrollText,
+	Copy,
+	Globe,
 } from "lucide-react";
 import { supabase } from "../../services/supabase";
 import { updateUserPassword, logout } from "../../services/auth";
@@ -52,7 +54,7 @@ export const SettingsTab = ({
 	navigateAnchor,
 	onNavigateAnchorConsumed,
 }) => {
-	const { clinicId, clinic, isAdmin, refreshTenant } = useTenant();
+	const { clinicId, clinic, isAdmin, refreshTenant, hasModule } = useTenant();
 
 	const initialClinicForm = useMemo(
 		() => ({
@@ -62,6 +64,9 @@ export const SettingsTab = ({
 			billing_city: clinic?.billing_city || "",
 			billing_phone: clinic?.billing_phone || "",
 			logo_url: clinic?.logo_url || "",
+			sender_email_name: clinic?.sender_email_name || "",
+			sender_reply_to: clinic?.sender_reply_to || "",
+			custom_email_domain: clinic?.custom_email_domain || "",
 		}),
 		[clinic]
 	);
@@ -234,7 +239,12 @@ export const SettingsTab = ({
 				billing_city: clinicForm.billing_city?.trim() || null,
 				billing_phone: clinicForm.billing_phone?.trim() || null,
 				logo_url: clinicForm.logo_url?.trim() || null,
+				sender_email_name: clinicForm.sender_email_name?.trim() || null,
+				sender_reply_to: clinicForm.sender_reply_to?.trim() || null,
 			};
+			if (hasModule("custom_email_domain") && clinicForm.custom_email_domain?.trim()) {
+				payload.custom_email_domain = clinicForm.custom_email_domain.trim().toLowerCase();
+			}
 			const { error } = await supabase.from("clinics").update(payload).eq("id", clinicId);
 			if (error) throw error;
 			showToast?.("Clínica actualizada");
@@ -508,7 +518,7 @@ export const SettingsTab = ({
 										className="w-full pl-10 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500 disabled:bg-gray-100"
 										value={clinicForm.name}
 										onChange={(e) => setClinicForm({ ...clinicForm, name: e.target.value })}
-										placeholder="Ej: DermoClinic"
+										placeholder="Ej: Clínica Sol"
 									/>
 								</div>
 							</div>
@@ -597,6 +607,19 @@ export const SettingsTab = ({
 							</div>
 						)}
 					</div>
+
+					<EmailIdentityCard
+						isAdmin={isAdmin}
+						clinic={clinic}
+						clinicId={clinicId}
+						clinicForm={clinicForm}
+						setClinicForm={setClinicForm}
+						hasCustomDomainModule={hasModule("custom_email_domain")}
+						showToast={showToast}
+						refreshTenant={refreshTenant}
+						onSaveSender={handleUpdateClinic}
+						loading={loadingProfile}
+					/>
 				</>
 			)}
 
@@ -1061,3 +1084,214 @@ export const SettingsTab = ({
 		</div>
 	);
 };
+
+const STATUS_LABEL = {
+	not_configured: "No configurado",
+	pending: "Pendiente DNS",
+	verified: "Verificado",
+	failed: "Error",
+};
+
+const EmailIdentityCard = ({
+	isAdmin,
+	clinic,
+	clinicId,
+	clinicForm,
+	setClinicForm,
+	hasCustomDomainModule,
+	showToast,
+	refreshTenant,
+	onSaveSender,
+	loading,
+}) => {
+	const [busy, setBusy] = useState(false);
+	const dnsRecords = Array.isArray(clinic?.email_dns_records) ? clinic.email_dns_records : [];
+	const status = clinic?.email_domain_status || "not_configured";
+
+	const copyText = async (text) => {
+		try {
+			await navigator.clipboard.writeText(text || "");
+			showToast?.("Copiado");
+		} catch {
+			showToast?.("No se pudo copiar", "error");
+		}
+	};
+
+	const invokeDomain = async (action) => {
+		if (!clinicId) return;
+		setBusy(true);
+		try {
+			const { data, error } = await supabase.functions.invoke("manage-email-domain", {
+				body: {
+					action,
+					clinic_id: clinicId,
+					domain: clinicForm.custom_email_domain?.trim().toLowerCase() || undefined,
+				},
+			});
+			if (error) throw error;
+			if (data?.error) throw new Error(data.error);
+			showToast?.(
+				action === "connect" ? "Dominio registrado en Resend" : "Estado actualizado",
+			);
+			await refreshTenant?.();
+		} catch (e) {
+			console.error(e);
+			showToast?.(e.message || "Error con Resend", "error");
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	return (
+		<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-5 space-y-4">
+			<div className="flex items-start gap-3">
+				<Globe className="text-violet-600 shrink-0 mt-0.5" size={22} />
+				<div>
+					<h3 className="font-black text-gray-900">Identidad de Correo y Dominio Propio</h3>
+					<p className="text-sm text-gray-500 mt-0.5">
+						Remitente visible y, si tu plan lo incluye, dominio propio verificado vía Resend.
+					</p>
+				</div>
+			</div>
+
+			{!hasCustomDomainModule && (
+				<div className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+					Tus correos se envían desde BaseClínica (
+					<span className="font-semibold">hola@baseclinica.com</span>
+					). Para enviar desde tu propio dominio (ej.{" "}
+					<span className="font-semibold">info@tuclinica.com</span>), actualiza al Plan Clínica 360.
+				</div>
+			)}
+
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<div>
+					<label className="text-xs font-bold text-gray-500 uppercase">Nombre del remitente</label>
+					<input
+						disabled={!isAdmin}
+						className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500 disabled:bg-gray-100"
+						value={clinicForm.sender_email_name}
+						onChange={(e) =>
+							setClinicForm({ ...clinicForm, sender_email_name: e.target.value })
+						}
+						placeholder="Ej: Clínica Sol · recepción"
+					/>
+				</div>
+				<div>
+					<label className="text-xs font-bold text-gray-500 uppercase">Reply-To</label>
+					<input
+						disabled={!isAdmin}
+						type="email"
+						className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500 disabled:bg-gray-100"
+						value={clinicForm.sender_reply_to}
+						onChange={(e) =>
+							setClinicForm({ ...clinicForm, sender_reply_to: e.target.value })
+						}
+						placeholder="info@tuclinica.com"
+					/>
+				</div>
+			</div>
+
+			{hasCustomDomainModule && (
+				<div className="space-y-3 border-t border-gray-100 pt-4">
+					<div className="flex flex-wrap items-end gap-3">
+						<label className="flex-1 min-w-[200px] block space-y-1">
+							<span className="text-xs font-bold text-gray-500 uppercase">Dominio propio</span>
+							<input
+								disabled={!isAdmin}
+								className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500 disabled:bg-gray-100"
+								value={clinicForm.custom_email_domain}
+								onChange={(e) =>
+									setClinicForm({ ...clinicForm, custom_email_domain: e.target.value })
+								}
+								placeholder="tuclinica.com"
+							/>
+						</label>
+						<span
+							className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black uppercase ${
+								status === "verified"
+									? "bg-emerald-50 text-emerald-700"
+									: status === "failed"
+										? "bg-rose-50 text-rose-700"
+										: status === "pending"
+											? "bg-amber-50 text-amber-800"
+											: "bg-gray-100 text-gray-600"
+							}`}>
+							{STATUS_LABEL[status] || status}
+						</span>
+					</div>
+					{isAdmin && (
+						<div className="flex flex-wrap gap-2">
+							<button
+								type="button"
+								disabled={busy || !clinicForm.custom_email_domain?.trim()}
+								onClick={() => invokeDomain("connect")}
+								className="inline-flex items-center gap-2 rounded-xl bg-violet-700 text-white px-4 py-2.5 text-sm font-bold disabled:opacity-50">
+								{busy ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
+								Conectar Dominio
+							</button>
+							<button
+								type="button"
+								disabled={busy || !clinic?.resend_domain_id}
+								onClick={() => invokeDomain("verify")}
+								className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-800 disabled:opacity-50">
+								Verificar Estado
+							</button>
+						</div>
+					)}
+					{dnsRecords.length > 0 && (
+						<div className="overflow-x-auto rounded-xl border border-gray-100">
+							<table className="w-full text-sm min-w-[560px]">
+								<thead>
+									<tr className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-400 text-left">
+										<th className="px-3 py-2">Tipo</th>
+										<th className="px-3 py-2">Nombre</th>
+										<th className="px-3 py-2">Valor</th>
+										<th className="px-3 py-2">Estado</th>
+										<th className="px-3 py-2" />
+									</tr>
+								</thead>
+								<tbody>
+									{dnsRecords.map((r, i) => (
+										<tr key={i} className="border-t border-gray-50">
+											<td className="px-3 py-2 font-mono text-xs">{r.type || r.record || "—"}</td>
+											<td className="px-3 py-2 font-mono text-xs break-all">{r.name || "—"}</td>
+											<td className="px-3 py-2 font-mono text-xs break-all max-w-[220px]">
+												{r.value || "—"}
+											</td>
+											<td className="px-3 py-2 text-xs">{r.status || "pending"}</td>
+											<td className="px-3 py-2 text-right">
+												<button
+													type="button"
+													onClick={() => copyText(r.value)}
+													className="inline-flex items-center gap-1 text-xs font-bold text-violet-700">
+													<Copy size={12} /> Copiar
+												</button>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+							<p className="text-[11px] text-gray-500 px-3 py-2">
+								Pega estos registros en tu DNS (Cloudflare, Google Domains, etc.) y pulsa Verificar.
+							</p>
+						</div>
+					)}
+				</div>
+			)}
+
+			{isAdmin && (
+				<div className="flex justify-end">
+					<button
+						type="button"
+						onClick={onSaveSender}
+						disabled={loading}
+						className="bg-gray-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-black inline-flex items-center gap-2 disabled:opacity-50">
+						{loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+						Guardar identidad de correo
+					</button>
+				</div>
+			)}
+		</div>
+	);
+};
+

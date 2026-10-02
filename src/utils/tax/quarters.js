@@ -1,12 +1,5 @@
 /** Helpers de fechas fiscales (trimestres AEAT España). */
 
-export const QUARTER_LABELS = {
-	1: "T1",
-	2: "T2",
-	3: "T3",
-	4: "T4",
-};
-
 export const getQuarterDateRange = (year, quarter) => {
 	const startMonth = (quarter - 1) * 3;
 	const startDate = `${year}-${String(startMonth + 1).padStart(2, "0")}-01`;

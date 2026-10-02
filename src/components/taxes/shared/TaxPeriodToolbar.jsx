@@ -12,13 +12,13 @@ export const TaxPeriodToolbar = ({
 	const years = Array.from({ length: yearsCount }, (_, i) => currentYear - i);
 
 	return (
-		<div className="flex flex-wrap gap-3 items-end">
-			<label className="block">
+		<div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end w-full sm:w-auto">
+			<label className="block flex-1 sm:flex-none min-w-0">
 				<span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
 					Ejercicio
 				</span>
 				<select
-					className="mt-1 block w-full min-w-[120px] rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800 outline-none focus:border-rose-300"
+					className="mt-1 block w-full sm:w-auto sm:min-w-[120px] rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800 outline-none focus:border-rose-300"
 					value={year}
 					onChange={(e) => setYear(Number(e.target.value))}>
 					{years.map((y) => (
@@ -29,12 +29,12 @@ export const TaxPeriodToolbar = ({
 				</select>
 			</label>
 			{showQuarter && (
-				<label className="block">
+				<label className="block flex-1 sm:flex-none min-w-0">
 					<span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
 						Trimestre
 					</span>
 					<select
-						className="mt-1 block w-full min-w-[120px] rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800 outline-none focus:border-rose-300"
+						className="mt-1 block w-full sm:w-auto sm:min-w-[120px] rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-bold text-gray-800 outline-none focus:border-rose-300"
 						value={quarter}
 						onChange={(e) => setQuarter(Number(e.target.value))}>
 						<option value={1}>T1 · Ene–Mar</option>

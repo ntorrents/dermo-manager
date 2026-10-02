@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
+import { QUERY_STALE } from "../providers/queryStale";
 
 const fetchTreatmentGroups = async () => {
 	const { data, error } = await supabase
@@ -21,6 +22,7 @@ export const useTreatmentGroups = (user) => {
 		queryKey: ["treatmentGroups", clinicId],
 		queryFn: fetchTreatmentGroups,
 		enabled: !!userId && !!clinicId,
+		staleTime: QUERY_STALE.catalog,
 	});
 
 	const createMutation = useMutation({

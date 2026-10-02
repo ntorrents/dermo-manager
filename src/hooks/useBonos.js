@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { calculateTaxReverse } from "../utils/calculations";
 import { useTenant } from "../context/TenantContext";
+import { QUERY_STALE } from "../providers/queryStale";
 
 const BONUS_TAX_RATE = 21;
 
@@ -35,6 +36,7 @@ export const useBonusTemplates = (user) => {
 		queryKey: ["bonusTemplates", clinicId],
 		queryFn: fetchBonusTemplates,
 		enabled: !!userId && !!clinicId,
+		staleTime: QUERY_STALE.catalog,
 	});
 
 	const createMutation = useMutation({
@@ -99,6 +101,7 @@ export const useClientBonos = (userId, clientId) => {
 		queryKey: ["clientBonuses", clinicId, clientId],
 		queryFn: () => fetchClientBonuses(clientId),
 		enabled: !!userId && !!clinicId && !!clientId,
+		staleTime: QUERY_STALE.operational,
 	});
 };
 

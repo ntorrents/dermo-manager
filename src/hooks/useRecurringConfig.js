@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
+import { QUERY_STALE } from "../providers/queryStale";
 
 const fetchRecurringConfig = async () => {
 	const { data, error } = await supabase.from("recurring_config").select("*");
@@ -22,6 +23,7 @@ export const useRecurringConfig = (user) => {
 		queryKey: ["recurringConfig", clinicId],
 		queryFn: fetchRecurringConfig,
 		enabled: !!userId && !!clinicId,
+		staleTime: QUERY_STALE.semiStatic,
 	});
 
 	useEffect(() => {

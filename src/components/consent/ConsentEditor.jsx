@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Upload } from "lucide-react";
+import { Bold, Italic, List, ListOrdered, Upload } from "lucide-react";
 import mammoth from "mammoth";
 
 const ConsentEditor = ({ value = "", onChange, placeholder, disabled }) => {
@@ -70,13 +70,6 @@ const ConsentEditor = ({ value = "", onChange, placeholder, disabled }) => {
 					className={`p-2 rounded-lg transition-colors ${editor.isActive("italic") ? "bg-rose-100 text-rose-700" : "text-gray-500 hover:bg-gray-100"}`}
 					title="Cursiva">
 					<Italic size={18} />
-				</button>
-				<button
-					type="button"
-					onClick={() => editor.chain().focus().toggleUnderline().run()}
-					className={`p-2 rounded-lg transition-colors ${editor.isActive("underline") ? "bg-rose-100 text-rose-700" : "text-gray-500 hover:bg-gray-100"}`}
-					title="Subrayado">
-					<UnderlineIcon size={18} />
 				</button>
 				<button
 					type="button"

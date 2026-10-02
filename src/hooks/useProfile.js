@@ -31,7 +31,6 @@ export const useProfile = (user) => {
 					setProfile({
 						id: user.id,
 						company_name: "Mi Centro",
-						theme_color: "#f43f5e", // Coincide con --color-primary en index.css
 					});
 				}
 			} catch (err) {

@@ -27,6 +27,7 @@ import {
 	resolveClientIrpfRate,
 	taxRateLabel,
 } from "../../utils/incomeTax";
+import { useTenant } from "../../context/TenantContext";
 
 export const SessionModal = ({
 	isOpen,
@@ -41,6 +42,8 @@ export const SessionModal = ({
 	onBootstrapConsumed,
 }) => {
 	const dialogRef = useRef(null);
+	const { hasModule } = useTenant();
+	const canPlanAmigo = hasModule("finance_plan_amigo");
 	const [selectedClient, setSelectedClient] = useState(null);
 	const [searchTerm, setSearchTerm] = useState("");
 	const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
@@ -171,7 +174,7 @@ export const SessionModal = ({
 			selectedDate,
 			extras,
 			internalNotes,
-			planAmigo,
+			canPlanAmigo && !!planAmigo,
 			consumeBono && activeBono ? activeBono.id : undefined
 		);
 	};
@@ -501,7 +504,8 @@ export const SessionModal = ({
 						/>
 					</div>
 
-					{/* Plan Amigo: sin factura (familia/amigos, no Verifactu) */}
+					{/* Plan Amigo: solo si el módulo SaaS está activo en la clínica */}
+					{canPlanAmigo && (
 					<div className="flex items-start gap-3 p-4 bg-amber-50/70 border border-amber-100 rounded-2xl">
 						<input
 							id="session-plan-amigo"
@@ -519,6 +523,7 @@ export const SessionModal = ({
 							</p>
 						</label>
 					</div>
+					)}
 				</div>
 
 				<div className="p-8 border-t bg-gray-50">

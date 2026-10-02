@@ -49,10 +49,6 @@ export const calculateIncomeFromPvp = (pvp, taxRate = 21, irpfRate = 0) => {
 	};
 };
 
-/** Alias histórico: el importe es el PVP, no la base. */
-export const calculateIncomeFromTotal = calculateIncomeFromPvp;
-export const calculateIncomeFromBase = calculateIncomeFromPvp;
-
 /** Sugerencia: CIF suele ser empresa. */
 export const inferIsCompanyFromNif = (nif) => {
 	const v = validateSpanishTaxId(nif);

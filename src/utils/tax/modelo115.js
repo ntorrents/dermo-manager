@@ -45,16 +45,3 @@ export const computeModelo115 = (entries, year, quarter) => {
 		resultAmount: retenciones,
 	};
 };
-
-/** Modelo 111 (informativo): retenciones profesionales del trimestre. */
-export const computeModelo111Legacy = (entries, year, quarter) => {
-	const quarterEntries = filterByQuarter(entries, year, quarter);
-	const rows = quarterEntries.filter((e) => {
-		if (e.type !== "expense") return false;
-		const amount = Number(e.irpf_amount) || 0;
-		if (amount <= 0) return false;
-		return !isAlquilerWithholding(e);
-	});
-	const total = round2(rows.reduce((acc, e) => acc + (Number(e.irpf_amount) || 0), 0));
-	return { total, rows };
-};

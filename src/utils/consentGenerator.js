@@ -68,7 +68,7 @@ export const replaceConsentVariables = (content, client, treatmentName = "") => 
 	const apellidos = client?.surname ?? "";
 	const telefono = client?.phone ?? "";
 	const email = client?.email ?? "";
-	const dni = client?.nif ?? client?.dni ?? "";
+	const dni = client?.nif ?? "";
 	const nif = client?.nif ?? "";
 	const fechaNac = client?.fecha_nacimiento ?? "";
 	const edad = fechaNac ? String(getAge(fechaNac) ?? "") : "";

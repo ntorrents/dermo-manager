@@ -165,7 +165,7 @@ export const generateInvoice = async (entry, client, clinic, profile, options = 
 	doc.setFont("helvetica", "bold");
 	doc.setTextColor(225, 29, 72);
 	const clinicName =
-		clinic?.name || profile?.company_name || profile?.companyName || "DermoApp";
+		clinic?.name || profile?.company_name || profile?.companyName || "Clínica";
 	doc.text(clinicName, MARGIN, hasLogo ? logoBottomY + 6 : y);
 	y = (hasLogo ? logoBottomY + 6 : y) + 7;
 
@@ -221,10 +221,14 @@ export const generateInvoice = async (entry, client, clinic, profile, options = 
 	yRight += 5;
 	doc.text(`Fecha: ${entry.date}`, rightColX, yRight, { align: "right" });
 
-	// --- 3. CLIENTE ---
+	// --- 3. CLIENTE / CONSUMIDOR FINAL ---
+	const isWalkIn =
+		client?.walkIn === true ||
+		(!entry?.client_id &&
+			(!!entry?.product_id || entry?.category === "Producto" || !client?.id));
 	const boxStartY = Math.max(y + 8, 58);
-	const clientHasExtra = !!(client.address || client.nif);
-	const boxHeight = clientHasExtra ? 30 : 24;
+	const clientHasExtra = !isWalkIn && !!(client?.address || client?.nif);
+	const boxHeight = isWalkIn ? 24 : clientHasExtra ? 30 : 24;
 
 	doc.setFillColor(248, 250, 252);
 	doc.setDrawColor(229, 231, 235);
@@ -233,33 +237,50 @@ export const generateInvoice = async (entry, client, clinic, profile, options = 
 	doc.setFontSize(8);
 	doc.setFont("helvetica", "bold");
 	doc.setTextColor(156, 163, 175);
-	doc.text("FACTURAR A", MARGIN + 4, boxStartY + 7);
+	doc.text(isWalkIn ? "DESTINATARIO" : "FACTURAR A", MARGIN + 4, boxStartY + 7);
 
 	doc.setFontSize(10);
 	doc.setFont("helvetica", "bold");
 	doc.setTextColor(30);
-	const clientName = `${client.name || ""} ${client.surname || ""}`.trim();
-	doc.text(clientName || "—", MARGIN + 4, boxStartY + 14);
-
-	doc.setFont("helvetica", "normal");
-	doc.setFontSize(9);
-	let clientLineY = boxStartY + 20;
-	if (client.nif) {
-		doc.text(`NIF/CIF: ${client.nif}`, MARGIN + 4, clientLineY);
-		clientLineY += 5;
-	}
-	if (client.address?.trim()) {
-		const addrLines = doc.splitTextToSize(client.address.trim(), pageWidth - MARGIN * 2 - 8);
-		addrLines.forEach((line) => {
-			doc.text(line, MARGIN + 4, clientLineY);
-			clientLineY += 4.5;
-		});
-	} else if (client.is_company) {
+	if (isWalkIn) {
+		// Ticket / factura simplificada: sin datos personales (consumo final)
+		doc.text("Consumidor final", MARGIN + 4, boxStartY + 14);
+		doc.setFont("helvetica", "normal");
 		doc.setFontSize(8);
-		doc.setTextColor(180, 100, 0);
-		doc.text("Dirección fiscal: pendiente en ficha de cliente", MARGIN + 4, clientLineY);
+		doc.setTextColor(120);
+		const ref =
+			entry?.invoice_number ||
+			(entry?.id ? String(entry.id).slice(0, 8).toUpperCase() : "");
+		if (ref) {
+			doc.text(`Ref. ${ref}`, MARGIN + 4, boxStartY + 20);
+		}
+	} else {
+		const clientName = `${client?.name || ""} ${client?.surname || ""}`.trim() || "—";
+		doc.text(clientName, MARGIN + 4, boxStartY + 14);
+
+		doc.setFont("helvetica", "normal");
 		doc.setFontSize(9);
-		doc.setTextColor(30);
+		let clientLineY = boxStartY + 20;
+		if (client?.nif) {
+			doc.text(`NIF/CIF: ${client.nif}`, MARGIN + 4, clientLineY);
+			clientLineY += 5;
+		}
+		if (client?.address?.trim()) {
+			const addrLines = doc.splitTextToSize(
+				client.address.trim(),
+				pageWidth - MARGIN * 2 - 8,
+			);
+			addrLines.forEach((line) => {
+				doc.text(line, MARGIN + 4, clientLineY);
+				clientLineY += 4.5;
+			});
+		} else if (client?.is_company) {
+			doc.setFontSize(8);
+			doc.setTextColor(180, 100, 0);
+			doc.text("Dirección fiscal: pendiente en ficha de cliente", MARGIN + 4, clientLineY);
+			doc.setFontSize(9);
+			doc.setTextColor(30);
+		}
 	}
 
 	// --- 4. LÍNEAS ---
@@ -273,14 +294,15 @@ export const generateInvoice = async (entry, client, clinic, profile, options = 
 	const irpfRate = Number(entry.irpf_rate) || 0;
 	const hasIrpf = irpfAmount > 0 && irpfRate > 0;
 
-	const lineBase = showUnitBase ? taxBase : totalAmount;
-	const lineImporte = lineBase;
+	const qty = Number(entry.quantity) > 0 ? Number(entry.quantity) : 1;
+	const unitBase = showUnitBase ? taxBase / qty : totalAmount / qty;
+	const lineImporte = showUnitBase ? taxBase : totalAmount;
 
 	const tableBody = [
 		[
-			entry.description || (isAbono ? "Abono" : "Servicio"),
-			"1",
-			showUnitBase ? formatEuroPdf(lineBase) : formatEuroPdf(totalAmount),
+			entry.description || (isAbono ? "Abono" : entry.product_id ? "Producto" : "Servicio"),
+			String(qty % 1 === 0 ? qty : qty.toFixed(2)).replace(".", ","),
+			showUnitBase ? formatEuroPdf(unitBase) : formatEuroPdf(totalAmount / qty),
 			formatEuroPdf(lineImporte),
 		],
 	];

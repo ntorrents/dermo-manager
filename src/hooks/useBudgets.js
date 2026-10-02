@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
+import { QUERY_STALE } from "../providers/queryStale";
 
 const fetchBudgets = async () => {
 	const { data, error } = await supabase
@@ -25,6 +26,7 @@ export const useBudgets = (userId) => {
 		queryKey: ["presupuestos", clinicId],
 		queryFn: fetchBudgets,
 		enabled: !!userId && !!clinicId,
+		staleTime: QUERY_STALE.semiStatic,
 	});
 
 	const createMutation = useMutation({

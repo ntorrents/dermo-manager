@@ -30,7 +30,7 @@ export const Modelo130View = ({
 		<div className="space-y-6">
 			<div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
 				<div>
-					<h2 className="text-xl font-black text-gray-900">Modelo 130 · IRPF</h2>
+					<h2 className="text-lg sm:text-xl font-black text-gray-900">Modelo 130 · IRPF</h2>
 					<p className="text-sm text-gray-500 mt-1">
 						Cálculo <strong>acumulativo YTD</strong> (1 ene → fin del trimestre). Régimen estimación
 						directa.
@@ -46,8 +46,8 @@ export const Modelo130View = ({
 
 			{data.casilla02 === 0 && (
 				<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-					⚠️ Cero gastos deducibles detectados. ¿Seguro que has contabilizado las cuotas de
-					autónomo de Christine y las compras de material del trimestre?
+					⚠️ Cero gastos deducibles detectados. ¿Has contabilizado las cuotas de autónomo y
+					las compras de material del trimestre?
 				</div>
 			)}
 

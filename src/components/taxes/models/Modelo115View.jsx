@@ -23,7 +23,7 @@ export const Modelo115View = ({
 		<div className="space-y-6">
 			<div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
 				<div>
-					<h2 className="text-xl font-black text-gray-900">Modelo 115 · Retenciones alquiler</h2>
+					<h2 className="text-lg sm:text-xl font-black text-gray-900">Modelo 115 · Retenciones alquiler</h2>
 					<p className="text-sm text-gray-500 mt-1">
 						Trimestre <strong>aislado</strong>. Incluye gastos con retención marcada como 115 o
 						categoría/descripción de alquiler.

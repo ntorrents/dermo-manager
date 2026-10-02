@@ -17,6 +17,7 @@ export const AppHeader = ({
 	inventory,
 	appointments = [],
 	batches = [],
+	taxDeclarations = [],
 	user,
 	profile,
 	clinic,
@@ -86,6 +87,7 @@ export const AppHeader = ({
 						appointments={appointments}
 						inventory={inventory}
 						batches={batches}
+						taxDeclarations={taxDeclarations}
 						setActiveTab={setActiveTab}
 					/>
 					<UserMenu

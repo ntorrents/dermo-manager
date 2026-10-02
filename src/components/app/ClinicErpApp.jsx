@@ -1,130 +1,140 @@
 import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { useAuth } from "./context/AuthContext";
-import { useTenant } from "./context/TenantContext";
-import { logout } from "./services/auth";
-import { useSessionMutation } from "./hooks/useSessionMutation";
-import { useTreatments } from "./hooks/useTreatments";
-import { useInventory } from "./hooks/useInventory";
-import { useFinance } from "./hooks/useFinance";
-import { useRecurringConfig } from "./hooks/useRecurringConfig";
-import { useProfile } from "./hooks/useProfile";
-import { useClients } from "./hooks/useClients";
-import { useAppointments } from "./hooks/useAppointments";
-import { useInventoryBatches } from "./hooks/useInventoryBatches";
-import { useConsumeBono } from "./hooks/useBonos";
-import { Toast } from "./components/ui/Toast";
-import { ConfirmModal } from "./components/ui/ConfirmModal";
-import { SessionModal } from "./components/ui/SessionModal";
-import { LoginScreen } from "./components/auth/LoginScreen";
-import { Sidebar } from "./components/layout/Sidebar";
-import { MobileNav } from "./components/layout/MobileNav";
-import { AppHeader } from "./components/layout/AppHeader";
+import { useAuth } from "../../context/AuthContext";
+import { useTenant } from "../../context/TenantContext";
+import { logout } from "../../services/auth";
+import { useSessionMutation } from "../../hooks/useSessionMutation";
+import { useTreatments } from "../../hooks/useTreatments";
+import { useInventory } from "../../hooks/useInventory";
+import { useFinance } from "../../hooks/useFinance";
+import { useRecurringConfig } from "../../hooks/useRecurringConfig";
+import { useProfile } from "../../hooks/useProfile";
+import { useClients } from "../../hooks/useClients";
+import { useAppointments } from "../../hooks/useAppointments";
+import { useInventoryBatches } from "../../hooks/useInventoryBatches";
+import { useConsumeBono } from "../../hooks/useBonos";
+import { Toast } from "../ui/Toast";
+import { ConfirmModal } from "../ui/ConfirmModal";
+import { SessionModal } from "../ui/SessionModal";
+import { Sidebar } from "../layout/Sidebar";
+import { MobileNav } from "../layout/MobileNav";
+import { AppHeader } from "../layout/AppHeader";
+import { RouteFallback } from "../layout/RouteFallback";
+import { PATH_MAP, resolveNavIdFromPath } from "../layout/navigationLabels";
+import { TaxAlertsBanner } from "../taxes/shared/TaxAlertsBanner";
+import { useTaxDeclarations } from "../../hooks/useTaxDeclarations";
+import { HomeTab } from "../home/HomeTab";
 const DashboardTab = lazy(() =>
-	import("./components/dashboard/DashboardTab").then((m) => ({ default: m.DashboardTab })),
+	import("../dashboard/DashboardTab").then((m) => ({ default: m.DashboardTab })),
 );
 const TreatmentsTab = lazy(() =>
-	import("./components/treatments/TreatmentsTab").then((m) => ({
+	import("../treatments/TreatmentsTab").then((m) => ({
 		default: m.TreatmentsTab,
 	})),
 );
+const ProductsShell = lazy(() =>
+	import("../products/ProductsShell").then((m) => ({ default: m.ProductsShell })),
+);
 const InventoryTab = lazy(() =>
-	import("./components/inventory/InventoryTab").then((m) => ({ default: m.InventoryTab })),
+	import("../inventory/InventoryTab").then((m) => ({ default: m.InventoryTab })),
 );
 const FinanceMovementsTab = lazy(() =>
-	import("./components/finance/FinanceMovementsTab").then((m) => ({ default: m.FinanceMovementsTab })),
+	import("../finance/FinanceMovementsTab").then((m) => ({ default: m.FinanceMovementsTab })),
 );
 
 const FinancialAnalysisTab = lazy(() =>
-	import("./components/finance/FinancialAnalysisTab").then((m) => ({ default: m.FinancialAnalysisTab })),
+	import("../finance/FinancialAnalysisTab").then((m) => ({ default: m.FinancialAnalysisTab })),
 );
-const AssetsTab = lazy(() =>
-	import("./components/taxes/AssetsTab").then((m) => ({ default: m.AssetsTab })),
+const TaxesShell = lazy(() =>
+	import("../taxes/TaxesShell").then((m) => ({ default: m.TaxesShell })),
 );
 const InvoicesTab = lazy(() =>
-	import("./components/invoices/InvoicesTab").then((m) => ({ default: m.InvoicesTab })),
+	import("../invoices/InvoicesTab").then((m) => ({ default: m.InvoicesTab })),
 );
 const SettingsTab = lazy(() =>
-	import("./components/settings/SettingsTab").then((m) => ({ default: m.SettingsTab })),
+	import("../settings/SettingsTab").then((m) => ({ default: m.SettingsTab })),
 );
 const ClientsTab = lazy(() =>
-	import("./components/clients/ClientsTab").then((m) => ({ default: m.ClientsTab })),
+	import("../clients/ClientsTab").then((m) => ({ default: m.ClientsTab })),
 );
 const CalendarTab = lazy(() =>
-	import("./components/calendar/CalendarTab").then((m) => ({ default: m.CalendarTab })),
-);
-const TaxesTab = lazy(() =>
-	import("./components/taxes/TaxesTab").then((m) => ({ default: m.TaxesTab })),
+	import("../calendar/CalendarTab").then((m) => ({ default: m.CalendarTab })),
 );
 const SuppliersTab = lazy(() =>
-	import("./components/suppliers/SuppliersTab").then((m) => ({
+	import("../suppliers/SuppliersTab").then((m) => ({
 		default: m.SuppliersTab,
 	})),
 );
 const BonosTab = lazy(() =>
-	import("./components/bonos/BonosTab").then((m) => ({ default: m.BonosTab })),
+	import("../bonos/BonosTab").then((m) => ({ default: m.BonosTab })),
 );
-import { RequirePlan } from "./components/guards/RequirePlan";
+import { RequirePlan } from "../guards/RequirePlan";
+import { RequireModule } from "../guards/RequireModule";
 const ConsentTemplatesTab = lazy(() =>
-	import("./components/documents/ConsentTemplatesTab").then((m) => ({ default: m.ConsentTemplatesTab })),
+	import("../documents/ConsentTemplatesTab").then((m) => ({ default: m.ConsentTemplatesTab })),
 );
 const BudgetsTab = lazy(() =>
-	import("./components/budgets/BudgetsTab").then((m) => ({ default: m.BudgetsTab })),
+	import("../budgets/BudgetsTab").then((m) => ({ default: m.BudgetsTab })),
 );
-import { getReportingRange } from "./utils/dateUtils";
+const MarketingShell = lazy(() =>
+	import("../marketing/MarketingShell").then((m) => ({ default: m.MarketingShell })),
+);
+import { getReportingRange } from "../../utils/dateUtils";
 import {
 	companyMissingFiscalAddress,
 	COMPANY_FISCAL_ADDRESS_MSG,
-} from "./utils/companyFiscal";
-import { useClinicSeguimientos } from "./hooks/useClinicSeguimientos";
+} from "../../utils/companyFiscal";
+import { useClinicSeguimientos } from "../../hooks/useClinicSeguimientos";
 import {
 	useSeguimientoNotifications,
 	requestSeguimientoNotificationPermission,
-} from "./hooks/useSeguimientoNotifications";
+} from "../../hooks/useSeguimientoNotifications";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
 
 const TAB_META = {
-	dashboard: { title: "Resumen", subtitle: "Indicadores y widgets" },
+	home: { title: "Inicio", subtitle: "Bienvenido" },
+	dashboard: { title: "Dashboard", subtitle: "Indicadores y widgets" },
 	clients: { title: "Clientes", subtitle: "Ficha, historial y documentos" },
 	treatments: { title: "Tratamientos", subtitle: "Servicios y sesiones" },
-	bonos: { title: "Bonos", subtitle: "Plantillas y bonos de clientes" },
-	documents: { title: "Documentos", subtitle: "Presupuestos y plantillas" },
-	inventory: { title: "Stock", subtitle: "Materiales y lotes" },
+	products: { title: "Productos", subtitle: "Catálogo y ventas" },
+	products_ventas: { title: "Ventas de productos", subtitle: "Historial y tickets" },
+	bonos: { title: "Bonos de Sesiones", subtitle: "Plantillas y bonos de clientes" },
+	consents: { title: "Consentimientos", subtitle: "Plantillas de consentimiento informado" },
+	budgets: { title: "Presupuestos", subtitle: "Presupuestos para clientes" },
+	inventory: { title: "Inventario", subtitle: "Materiales, stock y lotes" },
 	calendar: { title: "Agenda", subtitle: "Citas y recordatorios" },
 
+	finance_movements: { title: "Movimientos", subtitle: "Ingresos, gastos y recurrentes" },
 	finance: { title: "Movimientos", subtitle: "Ingresos, gastos y recurrentes" },
 	invoices: { title: "Facturas", subtitle: "Emitidas, filtros y estadísticas" },
 	financial_analysis: { title: "Análisis Financiero", subtitle: "Gráficos y reportes" },
 	suppliers: { title: "Proveedores", subtitle: "KPI de compras y facturas" },
-	taxes: { title: "Resumen Fiscal", subtitle: "Modelos y trimestres" },
+	taxes: { title: "Fiscalidad & AEAT", subtitle: "Modelos, plazos y declaraciones" },
+	taxes_130: { title: "Modelo 130", subtitle: "IRPF · Estimación Directa" },
+	taxes_303: { title: "Modelo 303", subtitle: "IVA trimestral" },
+	taxes_115: { title: "Modelo 115", subtitle: "Retenciones alquiler" },
+	taxes_390: { title: "Modelo 390", subtitle: "Resumen anual IVA" },
+	taxes_180: { title: "Modelo 180", subtitle: "Resumen anual retenciones" },
+	taxes_renta: { title: "Preparación Renta", subtitle: "Acumulado del ejercicio" },
+	taxes_declaraciones: { title: "Declaraciones", subtitle: "Estado de presentación AEAT" },
 	assets: { title: "Bienes de Inversión", subtitle: "Amortizaciones en curso" },
 	settings: { title: "Configuración", subtitle: "Clínica, perfil y seguridad" },
+	marketing: { title: "Marketing", subtitle: "Campañas, seguimiento y plantillas" },
+	marketing_campanas: { title: "Campañas", subtitle: "Envío a destinatarios elegidos" },
+	marketing_seguimiento: { title: "Seguimiento", subtitle: "Correo 1:1 a un paciente" },
+	marketing_plantillas: { title: "Plantillas", subtitle: "Gestión y previsualización" },
 };
 
-
-const PATH_MAP = {
-	dashboard: "/",
-	clients: "/clientes",
-	treatments: "/tratamientos",
-	bonos: "/bonos",
-	documents: "/documentos",
-	inventory: "/inventario",
-	calendar: "/agenda",
-	finance_movements: "/finanzas/movimientos",
-	invoices: "/facturacion",
-	financial_analysis: "/finanzas/analisis",
-	suppliers: "/proveedores",
-	taxes: "/impuestos",
-	assets: "/impuestos/bienes-inversion",
-	settings: "/configuracion",
-	budgets: "/finanzas/presupuestos"
-};
-
-const DermoManager = () => {
+export const ClinicErpApp = () => {
 	const { user, loading: authLoading } = useAuth();
-	const { allowsPresupuestosBonos, loading: tenantLoading, clinic } = useTenant();
+	const {
+		allowsPresupuestosBonos,
+		loading: tenantLoading,
+		clinic,
+		clinicActive,
+	} = useTenant();
 
 	const { inventory, loading: inventoryLoading, refreshInventory } = useInventory(user);
 	const { treatments, loading: treatmentsLoading, refreshTreatments } = useTreatments(user);
@@ -146,6 +156,7 @@ const DermoManager = () => {
 	} = useClients(user);
 	const { appointments, loading: appointmentsLoading, refreshAppointments } =
 		useAppointments(user?.id);
+	const { declarations: taxDeclarations } = useTaxDeclarations(user?.id);
 	const { batches } = useInventoryBatches(user?.id);
 
 	const dataLoading =
@@ -179,24 +190,10 @@ const DermoManager = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
 
-	const activeTab = useMemo(() => {
-		const p = location.pathname;
-		if (p.startsWith("/clientes")) return "clients";
-		if (p.startsWith("/tratamientos")) return "treatments";
-		if (p.startsWith("/bonos")) return "bonos";
-		if (p.startsWith("/documentos")) return "documents";
-		if (p.startsWith("/inventario")) return "inventory";
-		if (p.startsWith("/agenda")) return "calendar";
-		if (p.startsWith("/finanzas/movimientos")) return "finance_movements";
-		if (p.startsWith("/finanzas/presupuestos")) return "budgets";
-		if (p.startsWith("/finanzas/analisis")) return "financial_analysis";
-		if (p.startsWith("/facturacion")) return "invoices";
-		if (p.startsWith("/proveedores")) return "suppliers";
-		if (p.startsWith("/impuestos/bienes-inversion")) return "assets";
-		if (p.startsWith("/impuestos")) return "taxes";
-		if (p.startsWith("/configuracion")) return "settings";
-		return "dashboard";
-	}, [location.pathname]);
+	const activeTab = useMemo(
+		() => resolveNavIdFromPath(location.pathname),
+		[location.pathname],
+	);
 
 	const setActiveTab = useCallback((tabId) => {
 		const targetPath = PATH_MAP[tabId] || "/";
@@ -231,7 +228,7 @@ const DermoManager = () => {
 
 	const mainPadClass = sidebarCollapsed ? "md:pl-[4.5rem]" : "md:pl-60 lg:pl-64";
 
-	const pageMeta = TAB_META[activeTab] || { title: "DermoManager", subtitle: null };
+	const pageMeta = TAB_META[activeTab] || { title: "BaseClínica", subtitle: null };
 
 	const goSettings = useCallback(() => navigate("/configuracion"), [navigate]);
 	const clearSettingsAnchor = useCallback(() => setSettingsAnchor(null), []);
@@ -277,7 +274,7 @@ const DermoManager = () => {
 	const navigateToClientInvoices = useCallback((clientId) => {
 		if (!clientId) return;
 		setInvoicesNavIntent({ clientId, appliedAt: Date.now() });
-		navigate("/facturacion");
+		navigate("/finanzas/facturas");
 	}, []);
 
 	const navigateFinanceFromTaxChecklist = useCallback(({ year, quarter, issue }) => {
@@ -465,14 +462,14 @@ const DermoManager = () => {
 			<div className="min-h-screen flex items-center justify-center bg-slate-50">
 				<div className="flex flex-col items-center gap-4">
 					<Loader2 className="animate-spin text-rose-700" size={40} />
-					<p className="text-rose-600 font-medium">
+					<p className="text-rose-700 font-medium">
 						Sincronizando Datos...
 					</p>
 				</div>
 			</div>
 		);
 
-	if (!user) return <LoginScreen />;
+	if (!user) return null;
 
 	return (
 		<div
@@ -511,10 +508,9 @@ const DermoManager = () => {
 				isSubmitting={sessionMutation.isPending}
 			/>
 			<Sidebar
-				activeTab={activeTab}
-				setActiveTab={setActiveTab}
 				companyName={clinic?.name}
 				collapsed={sidebarCollapsed}
+				setCollapsed={setSidebarCollapsed}
 			/>
 			<AppHeader
 				title={pageMeta.title}
@@ -527,12 +523,38 @@ const DermoManager = () => {
 				inventory={inventory}
 				appointments={appointments}
 				batches={batches ?? []}
+				taxDeclarations={taxDeclarations}
 				user={user}
 				profile={profile}
 				clinic={clinic}
 				onLogout={() => setShowLogout(true)}
 				onOpenSettings={goSettings}
+				reportingRange={reportingRange}
+				reportingPreset={reportingPreset}
+				setReportingPreset={setReportingPreset}
+				reportingAnchorYm={reportingAnchorYm}
+				setReportingAnchorYm={setReportingAnchorYm}
+				reportingCustomFrom={reportingCustomFrom}
+				setReportingCustomFrom={setReportingCustomFrom}
+				reportingCustomTo={reportingCustomTo}
+				setReportingCustomTo={setReportingCustomTo}
+				onReportingGoToday={goReportingToday}
 			/>
+			{(location.pathname === "/" ||
+				location.pathname === "/dashboard" ||
+				location.pathname.startsWith("/fiscalidad")) && (
+				<TaxAlertsBanner declarations={taxDeclarations} />
+			)}
+			{!tenantLoading && clinicActive === false && (
+				<div className="w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-5">
+					<div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+						<p className="font-black">Clínica desactivada</p>
+						<p className="mt-1 text-xs font-medium text-rose-800/90">
+							El acceso a módulos está restringido. Contacta con la plataforma.
+						</p>
+					</div>
+				</div>
+			)}
 			<main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-5 max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-5 min-h-[calc(100dvh-8rem)]">
 				{dataFetchErrors.length > 0 && (
 					<div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -555,209 +577,246 @@ const DermoManager = () => {
 						</button>
 					</div>
 				)}
-				<Suspense
-					fallback={
-						<div className="min-h-[40vh] flex items-center justify-center">
-							<Loader2 className="animate-spin text-rose-700" size={30} />
-						</div>
-					}>
-				{activeTab === "dashboard" && (
-					<DashboardTab
-						user={user}
-						entries={entries}
-						inventory={inventory}
-						batches={batches ?? []}
-						treatments={treatments}
-						appointments={appointments}
-						clients={clients}
-						reportingRange={reportingRange}
-						reportingPreset={reportingPreset}
-						setReportingPreset={setReportingPreset}
-						reportingAnchorYm={reportingAnchorYm}
-						setReportingAnchorYm={setReportingAnchorYm}
-						reportingCustomFrom={reportingCustomFrom}
-						setReportingCustomFrom={setReportingCustomFrom}
-						reportingCustomTo={reportingCustomTo}
-						setReportingCustomTo={setReportingCustomTo}
-						onReportingGoToday={goReportingToday}
-						userName={profile?.name}
-						onNavigateTab={setActiveTab}
-					/>
-				)}
-				{activeTab === "clients" && (
-					<ClientsTab
-						user={user}
-						showToast={showToastMsg}
-						profile={profile}
-						clients={clients}
-						onRefresh={refreshClients}
-						onNavigateToInvoices={navigateToClientInvoices}
-					/>
-				)}
-				{activeTab === "treatments" && (
-					<TreatmentsTab
-						user={user}
-						treatments={treatments}
-						inventory={inventory}
-						showToast={showToastMsg}
-						onSelectTreatment={setSelectedTreatment}
-						onRefresh={refreshData}
-					/>
-				)}
-				{activeTab === "bonos" && (
-					<RequirePlan>
-						<BonosTab
-							user={user}
-							clients={clients}
-							treatments={treatments}
-							showToast={showToastMsg}
-							onRefresh={refreshData}
-						/>
-					</RequirePlan>
-				)}
-				{activeTab === "inventory" && (
-					<InventoryTab
-						user={user}
-						inventory={inventory}
-						entries={entries}
-						showToast={showToastMsg}
-						onRefresh={refreshData}
-					/>
-				)}
-				{activeTab === "invoices" && (
-					<InvoicesTab
-						user={user}
-						entries={entries}
-						clients={clients}
-						profile={profile}
-						clinic={clinic}
-						showToast={showToastMsg}
-						reportingRange={reportingRange}
-						reportingPreset={reportingPreset}
-						setReportingPreset={setReportingPreset}
-						reportingAnchorYm={reportingAnchorYm}
-						setReportingAnchorYm={setReportingAnchorYm}
-						reportingCustomFrom={reportingCustomFrom}
-						setReportingCustomFrom={setReportingCustomFrom}
-						reportingCustomTo={reportingCustomTo}
-						setReportingCustomTo={setReportingCustomTo}
-						onReportingGoToday={goReportingToday}
-						navIntent={invoicesNavIntent}
-						onNavIntentConsumed={clearInvoicesNavIntent}
-					/>
-				)}
-												{activeTab === "finance_movements" && (
-					<FinanceMovementsTab
-						user={user}
-						entries={entries}
-						clients={clients}
-						reportingRange={reportingRange}
-						reportingPreset={reportingPreset}
-						setReportingPreset={setReportingPreset}
-						reportingAnchorYm={reportingAnchorYm}
-						setReportingAnchorYm={setReportingAnchorYm}
-						reportingCustomFrom={reportingCustomFrom}
-						setReportingCustomFrom={setReportingCustomFrom}
-						reportingCustomTo={reportingCustomTo}
-						setReportingCustomTo={setReportingCustomTo}
-						onReportingGoToday={goReportingToday}
-						showToast={showToastMsg}
-						onRefresh={refreshData}
-						navIntent={financeNavIntent}
-						onNavIntentConsumed={clearFinanceNavIntent}
-					/>
-				)}
-				{activeTab === "financial_analysis" && (
-					
-						<FinancialAnalysisTab
-							user={user}
-							entries={entries}
-							clients={clients}
-							showToast={showToastMsg}
-							reportingPreset={reportingPreset}
-							setReportingPreset={setReportingPreset}
-							reportingAnchorYm={reportingAnchorYm}
-							setReportingAnchorYm={setReportingAnchorYm}
-							reportingCustomFrom={reportingCustomFrom}
-							setReportingCustomFrom={setReportingCustomFrom}
-							reportingCustomTo={reportingCustomTo}
-							setReportingCustomTo={setReportingCustomTo}
-							reportingRange={reportingRange}
-							onReportingGoToday={goReportingToday}
-						/>
-					
-				)}
-				{activeTab === "consents" && (
-					<ConsentTemplatesTab
-						user={user}
-						showToast={showToastMsg}
-					/>
-				)}
-				{activeTab === "budgets" && (
-					<RequirePlan>
-						<BudgetsTab
-							user={user}
-							clients={clients}
-							treatments={treatments}
-							profile={profile}
-							showToast={showToastMsg}
-							onStartSessionFromBudget={startSessionFromBudget}
-						/>
-					</RequirePlan>
-				)}
-				{activeTab === "calendar" && (
-					<CalendarTab
-						user={user}
-						entries={entries}
-						appointments={appointments}
-						clients={clients}
-						treatments={treatments}
-						showToast={showToastMsg}
-						onRefresh={refreshAppointments}
-					/>
-				)}
-								{activeTab === "assets" && (
-					
-						<AssetsTab
-							user={user}
-							showToast={showToastMsg}
-						/>
-					
-				)}
-{activeTab === "taxes" && (
-					<TaxesTab
-						entries={entries}
-						clients={clients}
-						user={user}
-						showToast={showToastMsg}
-						onNavigateFinanceIssues={navigateFinanceFromTaxChecklist}
-					/>
-				)}
-				{activeTab === "suppliers" && (
-					<SuppliersTab
-						entries={entries}
-						showToast={showToastMsg}
-						onRefresh={refreshData}
-					/>
-				)}
-				{activeTab === "settings" && (
-					<SettingsTab
-						user={user}
-						profile={profile}
-						showToast={showToastMsg}
-						navigateAnchor={settingsAnchor}
-						onNavigateAnchorConsumed={clearSettingsAnchor}
-					/>
-				)}
+				<Suspense fallback={<RouteFallback />}>
 				
-			</Suspense>
+					<Routes>
+						<Route path="/" element={
+							<HomeTab
+								userName={profile?.name}
+								appointments={appointments}
+								clients={clients}
+							/>
+						} />
+						<Route path="/dashboard" element={
+							<DashboardTab
+								user={user}
+								entries={entries}
+								inventory={inventory}
+								batches={batches ?? []}
+								treatments={treatments}
+								appointments={appointments}
+								clients={clients}
+								reportingRange={reportingRange}
+								reportingPreset={reportingPreset}
+								setReportingPreset={setReportingPreset}
+								reportingAnchorYm={reportingAnchorYm}
+								setReportingAnchorYm={setReportingAnchorYm}
+								reportingCustomFrom={reportingCustomFrom}
+								setReportingCustomFrom={setReportingCustomFrom}
+								reportingCustomTo={reportingCustomTo}
+								setReportingCustomTo={setReportingCustomTo}
+								onReportingGoToday={goReportingToday}
+								userName={profile?.name}
+								onNavigateTab={setActiveTab}
+							/>
+						} />
+						<Route path="/clientes/:clientId" element={
+						<RequireModule module="clients_crm">
+						<ClientsTab
+							user={user}
+							showToast={showToastMsg}
+							profile={profile}
+							clients={clients}
+							onRefresh={refreshClients}
+							onNavigateToInvoices={navigateToClientInvoices}
+						/>
+						</RequireModule>
+					} />
+					<Route path="/clientes" element={
+						<RequireModule module="clients_crm">
+						<ClientsTab
+							user={user}
+							showToast={showToastMsg}
+							profile={profile}
+							clients={clients}
+							onRefresh={refreshClients}
+							onNavigateToInvoices={navigateToClientInvoices}
+						/>
+						</RequireModule>
+					} />
+						<Route path="/tratamientos" element={
+							<TreatmentsTab
+								user={user}
+								treatments={treatments}
+								inventory={inventory}
+								showToast={showToastMsg}
+								onSelectTreatment={setSelectedTreatment}
+								onRefresh={refreshData}
+							/>
+						} />
+						<Route path="/productos/*" element={
+							<ProductsShell
+								user={user}
+								showToast={showToastMsg}
+								clinic={clinic}
+								profile={profile}
+								entries={entries}
+							/>
+						} />
+						<Route path="/bonos" element={
+							<RequireModule module="bonos_manager">
+							<RequirePlan>
+								<BonosTab
+									user={user}
+									clients={clients}
+									treatments={treatments}
+									showToast={showToastMsg}
+									onRefresh={refreshData}
+								/>
+							</RequirePlan>
+							</RequireModule>
+						} />
+						<Route path="/inventario" element={
+							<RequireModule module="inventory_core">
+							<InventoryTab
+								user={user}
+								inventory={inventory}
+								entries={entries}
+								showToast={showToastMsg}
+								onRefresh={refreshData}
+							/>
+							</RequireModule>
+						} />
+						<Route path="/finanzas/facturas" element={
+							<RequireModule module="finance_invoices">
+							<InvoicesTab
+								user={user}
+								entries={entries}
+								clients={clients}
+								profile={profile}
+								clinic={clinic}
+								showToast={showToastMsg}
+								reportingRange={reportingRange}
+								reportingPreset={reportingPreset}
+								setReportingPreset={setReportingPreset}
+								reportingAnchorYm={reportingAnchorYm}
+								setReportingAnchorYm={setReportingAnchorYm}
+								reportingCustomFrom={reportingCustomFrom}
+								setReportingCustomFrom={setReportingCustomFrom}
+								reportingCustomTo={reportingCustomTo}
+								setReportingCustomTo={setReportingCustomTo}
+								onReportingGoToday={goReportingToday}
+								navIntent={invoicesNavIntent}
+								onNavIntentConsumed={clearInvoicesNavIntent}
+							/>
+							</RequireModule>
+						} />
+						<Route path="/finanzas/movimientos" element={
+							<RequireModule module="finance_basic">
+							<FinanceMovementsTab
+								user={user}
+								entries={entries}
+								clients={clients}
+								reportingRange={reportingRange}
+								reportingPreset={reportingPreset}
+								setReportingPreset={setReportingPreset}
+								reportingAnchorYm={reportingAnchorYm}
+								setReportingAnchorYm={setReportingAnchorYm}
+								reportingCustomFrom={reportingCustomFrom}
+								setReportingCustomFrom={setReportingCustomFrom}
+								reportingCustomTo={reportingCustomTo}
+								setReportingCustomTo={setReportingCustomTo}
+								onReportingGoToday={goReportingToday}
+								showToast={showToastMsg}
+								onRefresh={refreshData}
+								navIntent={financeNavIntent}
+								onNavIntentConsumed={clearFinanceNavIntent}
+							/>
+							</RequireModule>
+						} />
+						<Route path="/finanzas/analisis" element={
+							<RequireModule module="finance_analytics">
+							<FinancialAnalysisTab
+								user={user}
+								entries={entries}
+								clients={clients}
+								showToast={showToastMsg}
+								reportingPreset={reportingPreset}
+								setReportingPreset={setReportingPreset}
+								reportingAnchorYm={reportingAnchorYm}
+								setReportingAnchorYm={setReportingAnchorYm}
+								reportingCustomFrom={reportingCustomFrom}
+								setReportingCustomFrom={setReportingCustomFrom}
+								reportingCustomTo={reportingCustomTo}
+								setReportingCustomTo={setReportingCustomTo}
+								reportingRange={reportingRange}
+								onReportingGoToday={goReportingToday}
+							/>
+							</RequireModule>
+						} />
+						<Route path="/consentimientos" element={
+							<RequireModule module="legal_signatures">
+							<ConsentTemplatesTab
+								user={user}
+								showToast={showToastMsg}
+							/>
+							</RequireModule>
+						} />
+						<Route path="/presupuestos" element={
+							<RequireModule module="bonos_manager">
+							<RequirePlan>
+								<BudgetsTab
+									user={user}
+									clients={clients}
+									treatments={treatments}
+									profile={profile}
+									showToast={showToastMsg}
+									onStartSessionFromBudget={startSessionFromBudget}
+								/>
+							</RequirePlan>
+							</RequireModule>
+						} />
+						<Route path="/agenda/*" element={
+							<RequireModule module="agenda_core">
+							<CalendarTab
+								user={user}
+								entries={entries}
+								appointments={appointments}
+								clients={clients}
+								treatments={treatments}
+								showToast={showToastMsg}
+								onRefresh={refreshAppointments}
+							/>
+							</RequireModule>
+						} />
+						<Route path="/fiscalidad/*" element={
+							<RequireModule module="taxes_aeat">
+							<TaxesShell
+								entries={entries}
+								clients={clients}
+								user={user}
+								showToast={showToastMsg}
+								onNavigateFinanceIssues={navigateFinanceFromTaxChecklist}
+							/>
+							</RequireModule>
+						} />
+						<Route path="/proveedores" element={
+							<RequireModule module="suppliers_manager">
+							<SuppliersTab
+								entries={entries}
+								showToast={showToastMsg}
+								onRefresh={refreshData}
+							/>
+							</RequireModule>
+						} />
+						<Route path="/marketing/*" element={
+							<MarketingShell showToast={showToastMsg} />
+						} />
+						<Route path="/configuracion" element={
+							<SettingsTab
+								user={user}
+								profile={profile}
+								showToast={showToastMsg}
+								navigateAnchor={settingsAnchor}
+								onNavigateAnchorConsumed={clearSettingsAnchor}
+							/>
+						} />
+						<Route path="*" element={<Navigate to="/" replace />} />
+					</Routes>
+</Suspense>
 			</main>
-			<MobileNav
-				activeTab={activeTab}
-				setActiveTab={setActiveTab}
-				className="md:hidden"
-			/>
+			<MobileNav className="md:hidden" />
 		</div>
 	);
 };
-export default DermoManager;
+

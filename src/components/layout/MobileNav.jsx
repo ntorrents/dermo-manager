@@ -7,8 +7,9 @@ import {
 	Package,
 	MoreHorizontal,
 } from "lucide-react";
-import { MobileDrawer } from "./MobileDrawer";
-import { NAV_LABELS, PATH_MAP } from "./navigationLabels";
+import { MobileDrawer, DRAWER_NAV_IDS } from "./MobileDrawer";
+import { NAV_LABELS, PATH_MAP, resolveNavIdFromPath } from "./navigationLabels";
+import { filterNavItem } from "./navModules";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const MAIN_NAV_ITEMS = [
@@ -21,27 +22,45 @@ const MAIN_NAV_ITEMS = [
 export const MobileNav = () => {
 	const location = useLocation();
 	const navigate = useNavigate();
-	const activeTabId = Object.keys(PATH_MAP).find(k => k !== "home" && location.pathname.startsWith(PATH_MAP[k]) && PATH_MAP[k] !== "/") || (location.pathname === "/" ? "home" : "");
+	const activeTabId = resolveNavIdFromPath(location.pathname);
 	const [drawerOpen, setDrawerOpen] = useState(false);
-	const { allowsPresupuestosBonos, loading: tenantLoading } = useTenant();
+	const { allowsPresupuestosBonos, loading: tenantLoading, hasModule } = useTenant();
+
+	const mainItems = useMemo(
+		() =>
+			MAIN_NAV_ITEMS.filter((item) =>
+				filterNavItem(item, {
+					tenantLoading,
+					allowsPresupuestosBonos,
+					hasModuleFn: hasModule,
+				}),
+			),
+		[tenantLoading, allowsPresupuestosBonos, hasModule],
+	);
 
 	const drawerTabIds = useMemo(() => {
-		const base = ["dashboard", "calendar", "documents", "finance", "invoices", "suppliers", "taxes", "settings"];
-		if (tenantLoading || allowsPresupuestosBonos) {
-			return [...base, "bonos"];
-		}
-		return base;
-	}, [tenantLoading, allowsPresupuestosBonos]);
+		return DRAWER_NAV_IDS.filter((id) =>
+			filterNavItem(
+				{ id, requireBonos: id === "bonos" },
+				{ tenantLoading, allowsPresupuestosBonos, hasModuleFn: hasModule },
+			),
+		);
+	}, [tenantLoading, allowsPresupuestosBonos, hasModule]);
 
 	const isInDrawer = drawerTabIds.includes(activeTabId);
+
+	const colCount = Math.max(2, mainItems.length + 1);
 
 	return (
 		<>
 			<div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-50 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-				<div className="grid grid-cols-5 h-16 max-w-xl mx-auto">
-					{MAIN_NAV_ITEMS.map((item) => (
+				<div
+					className="h-16 max-w-xl mx-auto grid"
+					style={{ gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))` }}>
+					{mainItems.map((item) => (
 						<button
 							key={item.id}
+							type="button"
 							onClick={() => navigate(PATH_MAP[item.id] || "/")}
 							className={`flex flex-col items-center justify-center gap-1 transition-all ${
 								activeTabId === item.id ? "text-rose-700" : "text-gray-400"
@@ -58,6 +77,7 @@ export const MobileNav = () => {
 						</button>
 					))}
 					<button
+						type="button"
 						onClick={() => setDrawerOpen(true)}
 						className={`flex flex-col items-center justify-center gap-1 transition-all ${
 							isInDrawer ? "text-rose-700" : "text-gray-400"
