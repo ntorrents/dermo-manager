@@ -13,7 +13,7 @@ import {
 } from "../../services/googleCalendar";
 import { mergeCalendarEvents, STATUS_COLORS } from "../../utils/calendarUtils";
 import { formatCurrency } from "../../utils/format";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { SidePanel } from "../ui/SidePanel";
 import { LoadingButton } from "../ui/LoadingButton";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { useTenant } from "../../context/TenantContext";
@@ -447,14 +447,34 @@ export const CalendarTab = ({
 				</div>
 			</div>
 
-			<AdaptiveModal
+			<SidePanel
 				isOpen={showModal}
 				onClose={() => {
 					setShowModal(false);
 					setSelectedEvent(null);
 				}}
 				title={selectedEvent ? "Editar cita o tarea" : "Nueva cita o tarea"}
-				maxWidth="max-w-md">
+				subtitle="La lista de agenda sigue visible a la izquierda"
+				size="md"
+				footer={
+					<div className="flex gap-3">
+						{selectedEvent?.resource?.appointment && (
+							<button
+								type="button"
+								onClick={() => setShowDeleteConfirm(true)}
+								className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-red-200 text-danger hover:bg-red-50 font-bold">
+								<Trash2 size={18} /> Eliminar
+							</button>
+						)}
+						<LoadingButton
+							loading={saving}
+							type="button"
+							onClick={handleSubmit}
+							className="flex-1 btn-primary py-3">
+							{saving ? "Guardando..." : "Guardar"}
+						</LoadingButton>
+					</div>
+				}>
 				<form onSubmit={handleSubmit} className="space-y-5">
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
@@ -617,7 +637,7 @@ export const CalendarTab = ({
 					</div>
 
 					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+						<label className="text-[11px] font-black text-muted uppercase tracking-widest mb-2 block">
 							Notas
 						</label>
 						<textarea
@@ -627,28 +647,11 @@ export const CalendarTab = ({
 							onChange={(e) =>
 								setFormData({ ...formData, notes: e.target.value })
 							}
-							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none resize-none"
+							className="input-field resize-none"
 						/>
 					</div>
-
-					<div className="flex gap-3">
-						{selectedEvent?.resource?.appointment && (
-							<button
-								type="button"
-								onClick={() => setShowDeleteConfirm(true)}
-								className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-red-200 text-rose-700 hover:bg-red-50 font-bold">
-								<Trash2 size={18} /> Eliminar
-							</button>
-						)}
-						<LoadingButton
-							loading={saving}
-							type="submit"
-							className="flex-1 bg-primary text-white font-black py-4 rounded-xl">
-							{saving ? "Guardando..." : "Guardar"}
-						</LoadingButton>
-					</div>
 				</form>
-			</AdaptiveModal>
+			</SidePanel>
 
 			<ConfirmModal
 				isOpen={showDeleteConfirm}
@@ -659,7 +662,7 @@ export const CalendarTab = ({
 				isDestructive
 			/>
 
-			<AdaptiveModal
+			<SidePanel
 				isOpen={showDetailModal}
 				onClose={() => {
 					setShowDetailModal(false);
@@ -674,7 +677,17 @@ export const CalendarTab = ({
 								? "Detalle de tarea"
 								: "Detalle de cita"
 				}
-				maxWidth="max-w-md">
+				size="md"
+				footer={
+					selectedEvent?.resource?.type === "appointment" ? (
+						<button
+							type="button"
+							onClick={openEditFromDetail}
+							className="w-full btn-ghost py-3 inline-flex items-center justify-center gap-2">
+							<Edit2 size={18} /> Editar
+						</button>
+					) : null
+				}>
 				{selectedEvent?.resource?.type === "session" && (
 					<SessionDetail
 						entry={selectedEvent.resource.entry}
@@ -682,11 +695,11 @@ export const CalendarTab = ({
 					/>
 				)}
 				{selectedEvent?.resource?.type === "tax_deadline" && (
-					<div className="space-y-3 text-sm text-gray-700">
-						<p className="font-bold text-gray-900">
+					<div className="space-y-3 text-sm text-fg">
+						<p className="font-bold">
 							{selectedEvent.resource.appointment?.title}
 						</p>
-						<p className="text-gray-500 whitespace-pre-wrap">
+						<p className="text-muted whitespace-pre-wrap">
 							{selectedEvent.resource.appointment?.notes ||
 								"Plazo de presentación de impuestos. No cuenta como cita clínica."}
 						</p>
@@ -697,23 +710,13 @@ export const CalendarTab = ({
 					</div>
 				)}
 				{selectedEvent?.resource?.type === "appointment" && (
-					<>
-						<AppointmentDetail
-							appointment={selectedEvent.resource.appointment}
-							clients={clients}
-							treatments={treatments}
-						/>
-						<div className="pt-4 border-t border-gray-100 mt-4">
-							<button
-								type="button"
-								onClick={openEditFromDetail}
-								className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold transition-colors">
-								<Edit2 size={18} /> Editar
-							</button>
-						</div>
-					</>
+					<AppointmentDetail
+						appointment={selectedEvent.resource.appointment}
+						clients={clients}
+						treatments={treatments}
+					/>
 				)}
-			</AdaptiveModal>
+			</SidePanel>
 		</div>
 	);
 };

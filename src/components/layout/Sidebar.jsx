@@ -155,11 +155,11 @@ export const Sidebar = ({ companyName, collapsed, setCollapsed }) => {
 
 	return (
 		<div
-			className={`hidden md:flex flex-col shrink-0 bg-white border-r border-slate-200 h-screen fixed left-0 top-0 z-50 transition-[width] duration-200 ease-out ${
+			className={`hidden md:flex flex-col shrink-0 bg-surface border-r border-edge h-screen fixed left-0 top-0 z-50 transition-[width] duration-200 ease-out ${
 				narrow ? "w-[4.5rem]" : "w-60 lg:w-64"
 			}`}>
 			<div
-				className={`h-16 flex items-center border-b border-slate-100 shrink-0 ${narrow ? "justify-center px-1" : "px-4"}`}>
+				className={`h-16 flex items-center border-b border-edge shrink-0 ${narrow ? "justify-center px-1" : "px-4"}`}>
 				<button
 					type="button"
 					onClick={() => navigate("/")}
@@ -167,19 +167,19 @@ export const Sidebar = ({ companyName, collapsed, setCollapsed }) => {
 					title="Ir a inicio">
 					{narrow ? (
 						<span
-							className="text-sm font-black text-rose-700"
+							className="text-sm font-black text-primary"
 							title={companyName || "Clínica"}>
 							{(companyName || "CL").slice(0, 2).toUpperCase()}
 						</span>
 					) : (
-						<h1 className="text-lg font-bold text-rose-700 truncate">
+						<h1 className="text-lg font-bold text-primary truncate tracking-tight">
 							{companyName || "Clínica"}
 						</h1>
 					)}
 				</button>
 			</div>
 			<nav
-				className={`flex-1 overflow-y-auto custom-scrollbar min-h-0 space-y-2 ${narrow ? "p-2" : "p-3 lg:p-4"}`}>
+				className={`flex-1 overflow-y-auto custom-scrollbar min-h-0 space-y-1 ${narrow ? "p-2" : "p-3"}`}>
 				{NAV_GROUPS.map((group) => {
 					const validItems = group.items.filter((item) =>
 						filterNavItem(item, {
@@ -197,7 +197,7 @@ export const Sidebar = ({ companyName, collapsed, setCollapsed }) => {
 					const hasMultipleItems = validItems.length > 1;
 
 					return (
-						<div key={group.id} className="space-y-1">
+						<div key={group.id} className="space-y-0.5">
 							<button
 								type="button"
 								onClick={() => {
@@ -224,27 +224,31 @@ export const Sidebar = ({ companyName, collapsed, setCollapsed }) => {
 									narrow ? "px-0 py-3 justify-center" : "px-3 py-2.5"
 								} ${
 									isGroupActive && (!isExpanded || !hasMultipleItems)
-										? "text-rose-700 bg-rose-50 shadow-sm"
-										: "text-slate-600 hover:bg-slate-50"
+										? "text-[var(--ui-sidebar-active-fg)] bg-[var(--ui-sidebar-active-bg)]"
+										: "text-muted hover:bg-surface-2 hover:text-fg"
 								}`}>
 								<div className="flex items-center gap-3">
 									<group.icon
 										size={narrow ? 22 : 18}
 										strokeWidth={1.5}
-										className={isGroupActive ? "text-rose-700" : "text-slate-400"}
+										className={
+											isGroupActive
+												? "text-[var(--ui-sidebar-active-fg)]"
+												: "text-muted"
+										}
 									/>
 									{!narrow && <span className="text-[13px] truncate">{group.label}</span>}
 								</div>
 								{!narrow && hasMultipleItems && (
 									<ChevronDown
 										size={16}
-										className={`text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+										className={`text-muted transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
 									/>
 								)}
 							</button>
 
 							{!narrow && isExpanded && hasMultipleItems && (
-								<div className="pl-3 space-y-0.5 mt-1 border-l border-slate-100 ml-5">
+								<div className="pl-3 space-y-0.5 mt-1 border-l border-edge ml-5">
 									{validItems.map((item) => {
 										const isActive = activeItemId === item.id;
 										const nested = Boolean(item.nested);
@@ -268,11 +272,11 @@ export const Sidebar = ({ companyName, collapsed, setCollapsed }) => {
 												} ${
 													isActive
 														? nested
-															? "bg-rose-50 text-rose-800 font-semibold border border-rose-100"
-															: "bg-rose-700 text-white font-medium shadow-sm"
+															? "bg-[var(--ui-sidebar-active-bg)] text-[var(--ui-sidebar-active-fg)] font-semibold border border-edge"
+															: "bg-primary text-on-primary font-medium shadow-sm"
 														: nested
-															? "text-slate-400 font-medium hover:text-slate-600 hover:bg-slate-50"
-															: "text-slate-500 font-medium hover:text-slate-700 hover:bg-slate-50"
+															? "text-muted font-medium hover:text-fg hover:bg-surface-2"
+															: "text-muted font-medium hover:text-fg hover:bg-surface-2"
 												}`}>
 												{item.l}
 											</NavLink>

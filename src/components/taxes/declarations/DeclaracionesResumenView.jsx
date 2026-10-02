@@ -15,35 +15,24 @@ import { formatCurrency } from "../../../utils/format";
 import { TaxPeriodToolbar } from "../shared/TaxPeriodToolbar";
 import { getDeclarationUiStatus } from "../../../utils/tax/deadlines";
 import { useTenant } from "../../../context/TenantContext";
+import { StatusChip } from "../../ui/StatusChip";
 
 const PERIODS_Q = ["T1", "T2", "T3", "T4"];
 
-const STATUS_STYLES = {
-	presented: {
-		row: "border-t border-gray-50 bg-white",
-		badge: "text-emerald-700 bg-emerald-50 border border-emerald-100",
-		Icon: CheckCircle2,
-	},
-	ignored: {
-		row: "border-t border-gray-50 bg-slate-50/60",
-		badge: "text-slate-500 bg-slate-100 border border-slate-200",
-		Icon: EyeOff,
-	},
-	upcoming: {
-		row: "border-t border-gray-50 bg-white",
-		badge: "text-slate-500 bg-slate-50 border border-slate-100",
-		Icon: Hourglass,
-	},
-	pending: {
-		row: "border-t border-rose-100 bg-rose-50/40",
-		badge: "text-rose-700 bg-rose-100 border border-rose-200",
-		Icon: Clock,
-	},
-	overdue: {
-		row: "border-t border-amber-300 bg-amber-100/80",
-		badge: "text-amber-950 bg-amber-200 border border-amber-400",
-		Icon: AlertTriangle,
-	},
+const STATUS_META = {
+	presented: { tone: "success", Icon: CheckCircle2 },
+	ignored: { tone: "neutral", Icon: EyeOff },
+	upcoming: { tone: "neutral", Icon: Hourglass },
+	pending: { tone: "danger", Icon: Clock },
+	overdue: { tone: "warning", Icon: AlertTriangle },
+};
+
+const STATUS_ROW = {
+	presented: "border-t border-gray-50 bg-white",
+	ignored: "border-t border-gray-50 bg-slate-50/60",
+	upcoming: "border-t border-gray-50 bg-white",
+	pending: "border-t border-rose-100 bg-rose-50/40",
+	overdue: "border-t border-amber-300 bg-amber-100/80",
 };
 
 export const DeclaracionesResumenView = ({
@@ -139,22 +128,12 @@ export const DeclaracionesResumenView = ({
 				<TaxPeriodToolbar year={year} setYear={setYear} showQuarter={false} />
 			</div>
 
-			<div className="flex flex-wrap gap-2 text-[11px] font-semibold">
-				<span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
-					Presentado
-				</span>
-				<span className="px-2.5 py-1 rounded-full bg-slate-50 text-slate-500 border border-slate-100">
-					Próximamente
-				</span>
-				<span className="px-2.5 py-1 rounded-full bg-rose-100 text-rose-700 border border-rose-200">
-					Pendiente (en plazo)
-				</span>
-				<span className="px-2.5 py-1 rounded-full bg-amber-200 text-amber-950 border border-amber-400">
-					Retrasado
-				</span>
-				<span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
-					Ignorado
-				</span>
+			<div className="flex flex-wrap gap-2">
+				<StatusChip tone="success">Presentado</StatusChip>
+				<StatusChip tone="neutral">Próximamente</StatusChip>
+				<StatusChip tone="danger">Pendiente (en plazo)</StatusChip>
+				<StatusChip tone="warning">Retrasado</StatusChip>
+				<StatusChip tone="neutral">Ignorado</StatusChip>
 			</div>
 
 			<div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white">
@@ -171,8 +150,8 @@ export const DeclaracionesResumenView = ({
 					</thead>
 					<tbody>
 						{rows.map((row) => {
-							const style = STATUS_STYLES[row.status.id] || STATUS_STYLES.upcoming;
-							const Icon = style.Icon;
+							const meta = STATUS_META[row.status.id] || STATUS_META.upcoming;
+							const Icon = meta.Icon;
 							const key = `${row.model}-${row.period}`;
 							const busy = busyKey === key;
 							const canIgnore =
@@ -180,7 +159,7 @@ export const DeclaracionesResumenView = ({
 							const isIgnored = row.status.id === "ignored";
 
 							return (
-								<tr key={key} className={style.row}>
+								<tr key={key} className={STATUS_ROW[row.status.id] || STATUS_ROW.upcoming}>
 									<td className="px-4 py-3 font-bold text-gray-900 whitespace-nowrap">
 										Modelo {row.model}
 									</td>
@@ -188,9 +167,10 @@ export const DeclaracionesResumenView = ({
 										{row.period}
 									</td>
 									<td className="px-4 py-3">
-										<span
-											className={`inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full max-w-[9rem] sm:max-w-none truncate sm:overflow-visible ${style.badge}`}>
-											<Icon size={14} className="shrink-0" />
+										<StatusChip
+											tone={meta.tone}
+											className="max-w-[9rem] sm:max-w-none gap-1.5">
+											<Icon size={12} className="shrink-0" />
 											<span className="truncate">
 												{row.status.label}
 												{row.status.id === "pending" && row.status.daysLeft != null
@@ -200,7 +180,7 @@ export const DeclaracionesResumenView = ({
 													? ` · +${row.status.daysLate}d`
 													: ""}
 											</span>
-										</span>
+										</StatusChip>
 									</td>
 									<td className="px-4 py-3 tabular-nums text-gray-700">
 										{row.declaration?.result_amount != null

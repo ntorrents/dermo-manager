@@ -22,6 +22,7 @@ import {
 	clientDisplayName,
 	aggregateByKey,
 } from "../../utils/invoiceAnalytics";
+import { StatusChip } from "../ui/StatusChip";
 
 const StatBar = ({ label, total, count, maxTotal, active, onClick }) => {
 	const pct = maxTotal > 0 ? Math.min(100, (total / maxTotal) * 100) : 0;
@@ -433,7 +434,7 @@ export const InvoicesTab = ({
 						<div className="overflow-x-auto">
 							<table className="w-full text-sm min-w-[420px]">
 								<thead>
-									<tr className="bg-gray-50 text-[10px] font-black text-gray-400 uppercase">
+									<tr className="bg-gray-50/80 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
 										<th className="text-left p-3">Fecha</th>
 										<th className="text-left p-3">Nº</th>
 										<th className="text-left p-3">Cliente</th>
@@ -464,12 +465,12 @@ export const InvoicesTab = ({
 													{row.entry.date}
 												</td>
 												<td className="p-3 font-mono text-xs font-bold text-gray-800">
-													{row.entry.invoice_number}
-													{row.abono && (
-														<span className="ml-1 text-[9px] font-black text-amber-700 uppercase">
-															Abono
-														</span>
-													)}
+													<span className="inline-flex items-center gap-1.5 flex-wrap">
+														{row.entry.invoice_number}
+														{row.abono && (
+															<StatusChip tone="warning">Abono</StatusChip>
+														)}
+													</span>
 												</td>
 												<td className="p-3">
 													<div className="font-bold text-gray-800 flex items-center gap-1.5">

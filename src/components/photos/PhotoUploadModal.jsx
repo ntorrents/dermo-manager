@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Camera, Loader2, Images } from "lucide-react";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { SidePanel } from "../ui/SidePanel";
 import { uploadSessionPhoto } from "../../services/photoStorage";
 import { isAcceptedImageFile, normalizeImageForUpload } from "../../utils/normalizeImageFile";
 
@@ -118,11 +118,11 @@ export const PhotoUploadModal = ({
 	const isExtra = photoType === "extra";
 
 	return (
-		<AdaptiveModal
+		<SidePanel
 			isOpen={isOpen}
 			onClose={handleClose}
 			title="Añadir foto"
-			maxWidth="max-w-md">
+			size="md">
 			<form onSubmit={handleSubmit} className="space-y-6">
 				<div>
 					<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
@@ -242,7 +242,7 @@ export const PhotoUploadModal = ({
 				<button
 					type="submit"
 					disabled={uploading || !selectedFiles.length || !selectedEntry}
-					className="w-full bg-primary hover:bg-primary-hover text-white font-black py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+					className="w-full bg-primary hover:bg-primary-hover text-on-primary font-black py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
 					{uploading ? (
 						<>
 							<Loader2 size={20} className="animate-spin" />
@@ -274,6 +274,6 @@ export const PhotoUploadModal = ({
 					</div>
 				)}
 			</form>
-		</AdaptiveModal>
+		</SidePanel>
 	);
 };

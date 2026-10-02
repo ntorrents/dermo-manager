@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Loader2, Camera } from "lucide-react";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { SidePanel } from "../ui/SidePanel";
 import { LoadingButton } from "../ui/LoadingButton";
 import {
 	updateSessionPhoto,
@@ -85,11 +85,11 @@ export const PhotoEditModal = ({
 	if (!photo) return null;
 
 	return (
-		<AdaptiveModal
+		<SidePanel
 			isOpen={isOpen}
 			onClose={onClose}
 			title="Editar foto"
-			maxWidth="max-w-md">
+			size="md">
 			<form onSubmit={handleSubmit} className="space-y-6">
 				<div>
 					<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
@@ -176,10 +176,10 @@ export const PhotoEditModal = ({
 				<LoadingButton
 					loading={saving}
 					type="submit"
-					className="w-full bg-primary text-white font-black py-4 rounded-xl">
+					className="w-full bg-primary hover:bg-primary-hover text-on-primary font-black py-4 rounded-xl">
 					{saving ? "Guardando..." : "Guardar cambios"}
 				</LoadingButton>
 			</form>
-		</AdaptiveModal>
+		</SidePanel>
 	);
 };

@@ -9,6 +9,7 @@ import { EmailPreview } from "../shared/EmailPreview";
 import { RecipientPicker } from "../shared/RecipientPicker";
 import { parseExtraEmails, processEmailQueue } from "../shared/emailQueue";
 import { EMAIL_TEMPLATE_VARS } from "../../../utils/emailBranding";
+import { StatusChip, statusToneFromLabel } from "../../ui/StatusChip";
 
 const emptyForm = () => ({
 	name: "",
@@ -286,9 +287,9 @@ export const CampaignsView = ({ showToast }) => {
 								<td className="px-4 py-3 font-bold text-gray-900">{c.name}</td>
 								<td className="px-4 py-3 text-gray-600">{c.subject}</td>
 								<td className="px-4 py-3">
-									<span className="text-[11px] font-bold uppercase text-gray-500 bg-gray-50 px-2 py-1 rounded-md">
+									<StatusChip tone={statusToneFromLabel(c.status)}>
 										{c.status}
-									</span>
+									</StatusChip>
 								</td>
 								<td className="px-4 py-3 text-right">
 									{c.status === "draft" && (

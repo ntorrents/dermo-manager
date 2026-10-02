@@ -5,7 +5,14 @@ import { useTreatmentGroups } from "../../hooks/useTreatmentGroups";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { SidePanel } from "../ui/SidePanel";
+import {
+	FormSheet,
+	FormSheetPrimary,
+	FormSheetPreview,
+	FormPreviewStat,
+	FormDetails,
+} from "../ui/FormSheet";
 import { useTenant } from "../../context/TenantContext";
 import { IVA_OPTIONS } from "../../utils/format";
 import { taxRateLabel } from "../../utils/incomeTax";
@@ -295,305 +302,13 @@ export const TreatmentsTab = ({
 				<button
 					type="button"
 					onClick={() => onSelectTreatment(t)}
-					className="w-full mt-auto bg-surface-dark hover:bg-primary text-white font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 text-xs shadow-sm transition-all active:scale-[0.98]">
+					className="w-full mt-auto btn-primary py-2 flex items-center justify-center gap-1.5 text-xs">
 					<Zap size={12} fill="currentColor" /> Sesión
 				</button>
 			</div>
 		);
 	};
 
-
-	if (showGroupsModal) {
-		const title = 'Grupos de tratamientos';
-		return (
-			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
-				<div className="max-w-3xl mx-auto">
-					<div className="flex flex-col gap-2 mb-8">
-						<button
-							onClick={() => { setShowGroupsModal(false) }}
-							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
-						</button>
-						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
-					</div>
-					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
-						<p className="text-sm text-gray-500 mb-4">
-					Agrupa tratamientos (ej. Mesoterapia) para encontrarlos más rápido. Asigna el grupo al crear o editar cada tratamiento.
-				</p>
-				<form onSubmit={handleSaveGroup} className="flex gap-2 mb-6">
-					<input
-						className="flex-1 p-3 bg-gray-50 rounded-xl font-medium outline-none border border-gray-100 focus:border-rose-200"
-						placeholder="Nombre del grupo"
-						value={groupFormName}
-						onChange={(e) => setGroupFormName(e.target.value)}
-					/>
-					<LoadingButton
-						loading={isCreatingGroup}
-						type="submit"
-						className="bg-rose-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap">
-						{editingGroup ? "Guardar" : "Añadir"}
-					</LoadingButton>
-				</form>
-				{editingGroup && (
-					<button
-						type="button"
-						onClick={() => { setEditingGroup(null); setGroupFormName(""); }}
-						className="text-xs text-gray-500 hover:text-gray-700 mb-2">
-						Cancelar edición
-					</button>
-				)}
-				<div className="space-y-2 max-h-60 overflow-y-auto">
-					{groups.length === 0 ? (
-						<p className="text-sm text-gray-400 py-4">No hay grupos. Crea uno arriba.</p>
-					) : (
-						groups.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || (a.name || "").localeCompare(b.name || "")).map((g) => (
-							<div
-								key={g.id}
-								className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
-								<span className="font-bold text-gray-800">{g.name}</span>
-								<div className="flex gap-1">
-									<button
-										type="button"
-										onClick={() => { setEditingGroup(g); setGroupFormName(g.name); }}
-										className="p-1.5 text-gray-400 hover:text-blue-500 rounded-lg"
-										title="Editar grupo">
-										<Edit2 size={14} />
-									</button>
-									{canDeleteOperational && (
-										<button
-											type="button"
-											onClick={() => { setGroupToDelete(g); setShowDeleteGroupModal(true); }}
-											className="p-1.5 text-gray-400 hover:text-rose-700 rounded-lg"
-											title="Eliminar grupo">
-											<Trash2 size={14} />
-										</button>
-									)}
-								</div>
-							</div>
-						))
-					)}
-				</div>
-					</div>
-				</div>
-			</div>
-		);
-	}
-
-	if (isModalOpen) {
-		const title = editingTreatment ? 'Editar Tratamiento' : 'Nuevo Tratamiento';
-		return (
-			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
-				<div className="max-w-3xl mx-auto">
-					<div className="flex flex-col gap-2 mb-8">
-						<button
-							onClick={() => { setIsModalOpen(false) }}
-							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
-						</button>
-						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
-					</div>
-					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
-						<form onSubmit={handleSave} className="space-y-6">
-								<div>
-									<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">Nombre</label>
-									<input
-										required
-										className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
-										placeholder="Nombre del Servicio"
-										value={formData.name}
-										onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-									/>
-								</div>
-								<div>
-									<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">Grupo</label>
-									<select
-										className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border border-transparent focus:border-rose-100"
-										value={formData.group_id}
-										onChange={(e) => setFormData({ ...formData, group_id: e.target.value })}>
-										<option value="">Sin grupo</option>
-										{groups.map((g) => (
-											<option key={g.id} value={g.id}>{g.name}</option>
-										))}
-									</select>
-								</div>
-								<div className="flex flex-col gap-1">
-									<label className="text-[10px] font-black text-rose-700 uppercase ml-2">
-										Precio PVP (€)
-									</label>
-									<input
-										type="number"
-										required
-										className="w-full p-4 bg-rose-50/30 border-2 border-rose-100 rounded-2xl font-black text-rose-700 text-xl"
-										value={formData.price}
-										onChange={(e) =>
-											setFormData({ ...formData, price: e.target.value })
-										}
-									/>
-								</div>
-
-								<div>
-									<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-1">
-										Tipo fiscal (IVA)
-									</label>
-									<select
-										className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none border border-transparent focus:border-rose-100"
-										value={formData.tax_rate}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												tax_rate: Number(e.target.value),
-											})
-										}>
-										<option value={21}>Estético — IVA 21 %</option>
-										<option value={0}>Sanitario — exento IVA (0 %)</option>
-										{IVA_OPTIONS.filter((v) => v !== 21 && v !== 0).map((v) => (
-											<option key={v} value={v}>
-												Otro — IVA {v} %
-											</option>
-										))}
-									</select>
-									<p className="text-[10px] text-gray-500 mt-1 ml-1">
-										{taxRateLabel(formData.tax_rate)}. Se aplica al confirmar sesión y en
-										facturas.
-									</p>
-								</div>
-
-								<div>
-									<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-2 block mb-2">
-										Notas Internas
-									</label>
-									<textarea
-										rows={3}
-										placeholder="Notas solo para ti (no afectan precios ni recetas)"
-										className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl outline-none font-medium text-sm resize-none"
-										value={formData.internal_notes}
-										onChange={(e) =>
-											setFormData({ ...formData, internal_notes: e.target.value })
-										}
-									/>
-								</div>
-
-								<div className="space-y-3">
-									<div className="flex justify-between items-center">
-										<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-											Materiales
-										</label>
-										<button
-											type="button"
-											onClick={() =>
-												setFormData({
-													...formData,
-													recipe: [
-														...formData.recipe,
-														{ materialId: "", quantity: 1 },
-													],
-												})
-											}
-											className="text-primary text-[10px] font-black uppercase">
-											+ Añadir
-										</button>
-									</div>
-									<div className="space-y-2">
-										{formData.recipe.map((item, index) => (
-											<div
-												key={index}
-												className="flex gap-2 items-center bg-gray-50 p-2 rounded-xl border border-gray-100">
-												<select
-													className="flex-1 bg-transparent text-xs font-bold outline-none"
-													value={item.materialId}
-													onChange={(e) =>
-														updateMaterial(index, "materialId", e.target.value)
-													}
-													required>
-													<option value="">Seleccionar...</option>
-													{inventory.map((inv) => (
-														<option key={inv.id} value={inv.id}>
-															{inv.name}
-															{(inv.item_type || "material") === "maquina" ? " (Máquina)" : ""}
-															{(inv.item_type || "material") !== "maquina"
-																? ` [${inv.unit_consumption || inv.unit || "uds"}]`
-																: ""}
-														</option>
-													))}
-												</select>
-												<input
-													type="number"
-													step={
-														(inventory.find((i) => i.id === item.materialId)
-															?.unit_consumption ||
-															inventory.find((i) => i.id === item.materialId)?.unit) === "ml"
-															? "0.1"
-															: "1"
-													}
-													className="w-16 p-2 bg-white rounded-lg text-center font-black text-rose-700 text-sm"
-													value={item.quantity}
-													onChange={(e) =>
-														updateMaterial(index, "quantity", e.target.value)
-													}
-													required
-												/>
-												<button
-													type="button"
-													onClick={() =>
-														setFormData({
-															...formData,
-															recipe: formData.recipe.filter(
-																(_, i) => i !== index
-															),
-														})
-													}
-													className="text-gray-300 hover:text-rose-700">
-													<X size={16} />
-												</button>
-											</div>
-										))}
-									</div>
-								</div>
-
-								<div className="mt-6 bg-surface-dark rounded-[2rem] p-6 text-white shadow-xl">
-									<div className="grid grid-cols-2 gap-4">
-										<div>
-											<p className="text-[10px] font-bold text-gray-400 uppercase">
-												Beneficio
-											</p>
-											<p className="text-xl font-black text-emerald-400">
-												{(
-													Number(formData.price) -
-													calculateCost(formData.recipe)
-												).toFixed(2)}
-												€
-											</p>
-										</div>
-										<div className="text-right">
-											<p className="text-[10px] font-bold text-gray-400 uppercase">
-												ROI Est.
-											</p>
-											<p className="text-xl font-black text-blue-400">
-												{formData.price > 0
-													? (
-															((Number(formData.price) -
-																calculateCost(formData.recipe)) /
-																Number(formData.price)) *
-															100
-													  ).toFixed(0)
-													: 0}
-												%
-											</p>
-										</div>
-									</div>
-									<LoadingButton
-										loading={loading}
-										type="submit"
-										className="w-full bg-primary text-white font-black py-4 rounded-xl mt-6 shadow-lg">
-										Confirmar
-									</LoadingButton>
-								</div>
-							</form>
-					</div>
-				</div>
-			</div>
-		);
-	}
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
@@ -731,10 +446,272 @@ export const TreatmentsTab = ({
 				</div>
 			)}
 
-			{/* Modal: Gestionar grupos */}
-			
 
-			
+			<SidePanel
+				isOpen={showGroupsModal}
+				onClose={() => setShowGroupsModal(false)}
+				title="Grupos de tratamientos"
+				subtitle="Organiza servicios (ej. Mesoterapia)"
+				size="md"
+				footer={
+					<LoadingButton
+						loading={isCreatingGroup}
+						type="button"
+						onClick={handleSaveGroup}
+						className="w-full btn-primary py-3">
+						{editingGroup ? "Guardar grupo" : "Añadir grupo"}
+					</LoadingButton>
+				}>
+				<p className="text-sm text-muted mb-4">
+					Agrupa tratamientos para encontrarlos más rápido. Asigna el grupo al crear o editar cada uno.
+				</p>
+				<label className="block space-y-1 mb-4">
+					<span className="text-xs font-bold text-muted">Nombre del grupo</span>
+					<input
+						className="input-field"
+						placeholder="Ej. Mesoterapia"
+						value={groupFormName}
+						onChange={(e) => setGroupFormName(e.target.value)}
+						onKeyDown={(e) => {
+							if (e.key === "Enter") {
+								e.preventDefault();
+								handleSaveGroup(e);
+							}
+						}}
+					/>
+				</label>
+				{editingGroup && (
+					<button
+						type="button"
+						onClick={() => {
+							setEditingGroup(null);
+							setGroupFormName("");
+						}}
+						className="text-xs text-muted hover:text-fg mb-3">
+						Cancelar edición
+					</button>
+				)}
+				<div className="space-y-2">
+					{groups.length === 0 ? (
+						<p className="text-sm text-muted py-4">No hay grupos. Crea uno arriba.</p>
+					) : (
+						groups
+							.slice()
+							.sort(
+								(a, b) =>
+									(a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+									(a.name || "").localeCompare(b.name || ""),
+							)
+							.map((g) => (
+								<div
+									key={g.id}
+									className="flex items-center justify-between p-3 bg-surface-2 rounded-xl border border-edge">
+									<span className="font-bold text-fg">{g.name}</span>
+									<div className="flex gap-1">
+										<button
+											type="button"
+											onClick={() => {
+												setEditingGroup(g);
+												setGroupFormName(g.name);
+											}}
+											className="p-1.5 text-muted hover:text-primary rounded-lg"
+											title="Editar grupo">
+											<Edit2 size={14} />
+										</button>
+										{canDeleteOperational && (
+											<button
+												type="button"
+												onClick={() => {
+													setGroupToDelete(g);
+													setShowDeleteGroupModal(true);
+												}}
+												className="p-1.5 text-muted hover:text-danger rounded-lg"
+												title="Eliminar grupo">
+												<Trash2 size={14} />
+											</button>
+										)}
+									</div>
+								</div>
+							))
+					)}
+				</div>
+			</SidePanel>
+
+			<SidePanel
+				isOpen={isModalOpen}
+				onClose={() => setIsModalOpen(false)}
+				title={editingTreatment ? "Editar tratamiento" : "Nuevo tratamiento"}
+				subtitle="PVP, fiscalidad y materiales de la receta"
+				size="lg"
+				footer={
+					<LoadingButton
+						loading={loading}
+						type="button"
+						onClick={handleSave}
+						className="w-full btn-primary py-3">
+						{editingTreatment ? "Guardar cambios" : "Crear tratamiento"}
+					</LoadingButton>
+				}>
+				<form onSubmit={handleSave}>
+					<FormSheet>
+						<FormSheetPrimary>
+							<label className="block space-y-1">
+								<span className="text-xs font-bold text-muted">Nombre</span>
+								<input
+									required
+									className="input-field"
+									placeholder="Nombre del servicio"
+									value={formData.name}
+									onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+								/>
+							</label>
+							<label className="block space-y-1">
+								<span className="text-xs font-bold text-muted">Grupo</span>
+								<select
+									className="input-field"
+									value={formData.group_id}
+									onChange={(e) => setFormData({ ...formData, group_id: e.target.value })}>
+									<option value="">Sin grupo</option>
+									{groups.map((g) => (
+										<option key={g.id} value={g.id}>
+											{g.name}
+										</option>
+									))}
+								</select>
+							</label>
+							<div className="grid grid-cols-2 gap-3">
+								<label className="block space-y-1">
+									<span className="text-xs font-bold text-muted">PVP (€)</span>
+									<input
+										type="number"
+										required
+										className="input-field font-bold text-primary"
+										value={formData.price}
+										onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+									/>
+								</label>
+								<label className="block space-y-1">
+									<span className="text-xs font-bold text-muted">IVA</span>
+									<select
+										className="input-field"
+										value={formData.tax_rate}
+										onChange={(e) =>
+											setFormData({ ...formData, tax_rate: Number(e.target.value) })
+										}>
+										<option value={21}>Estético — 21 %</option>
+										<option value={0}>Sanitario — 0 %</option>
+										{IVA_OPTIONS.filter((v) => v !== 21 && v !== 0).map((v) => (
+											<option key={v} value={v}>
+												IVA {v} %
+											</option>
+										))}
+									</select>
+								</label>
+							</div>
+							<div className="space-y-2">
+								<div className="flex justify-between items-center">
+									<span className="erp-label mb-0">Materiales / receta</span>
+									<button
+										type="button"
+										onClick={() =>
+											setFormData({
+												...formData,
+												recipe: [...formData.recipe, { materialId: "", quantity: 1 }],
+											})
+										}
+										className="text-primary text-[11px] font-bold uppercase">
+										+ Añadir
+									</button>
+								</div>
+								{formData.recipe.map((item, index) => (
+									<div
+										key={index}
+										className="flex gap-2 items-center bg-surface-2 p-2 rounded-xl border border-edge">
+										<select
+											className="flex-1 bg-transparent text-xs font-bold outline-none text-fg"
+											value={item.materialId}
+											onChange={(e) => updateMaterial(index, "materialId", e.target.value)}
+											required>
+											<option value="">Seleccionar...</option>
+											{inventory.map((inv) => (
+												<option key={inv.id} value={inv.id}>
+													{inv.name}
+													{(inv.item_type || "material") === "maquina" ? " (Máquina)" : ""}
+												</option>
+											))}
+										</select>
+										<input
+											type="number"
+											className="w-16 p-2 bg-surface rounded-lg text-center font-bold text-primary text-sm border border-edge"
+											value={item.quantity}
+											onChange={(e) => updateMaterial(index, "quantity", e.target.value)}
+											required
+										/>
+										<button
+											type="button"
+											onClick={() =>
+												setFormData({
+													...formData,
+													recipe: formData.recipe.filter((_, i) => i !== index),
+												})
+											}
+											className="text-muted hover:text-danger">
+											<X size={16} />
+										</button>
+									</div>
+								))}
+							</div>
+							<FormDetails title="Más detalles" defaultOpen={!!formData.internal_notes}>
+								<label className="block space-y-1">
+									<span className="text-xs font-bold text-muted">Notas internas</span>
+									<textarea
+										rows={3}
+										placeholder="Solo para ti"
+										className="input-field resize-none"
+										value={formData.internal_notes}
+										onChange={(e) =>
+											setFormData({ ...formData, internal_notes: e.target.value })
+										}
+									/>
+								</label>
+							</FormDetails>
+						</FormSheetPrimary>
+						<FormSheetPreview>
+							<div className="grid grid-cols-2 gap-3">
+								<FormPreviewStat
+									label="Coste receta"
+									value={`${calculateCost(formData.recipe).toFixed(2)} €`}
+								/>
+								<FormPreviewStat
+									label="Beneficio"
+									tone="success"
+									value={`${(Number(formData.price) - calculateCost(formData.recipe)).toFixed(2)} €`}
+								/>
+							</div>
+							<p className="text-sm text-slate-300">
+								ROI est.{" "}
+								<strong className="text-sky-300">
+									{formData.price > 0
+										? (
+												((Number(formData.price) - calculateCost(formData.recipe)) /
+													Number(formData.price)) *
+												100
+											).toFixed(0)
+										: 0}
+									%
+								</strong>
+							</p>
+							<p className="text-[11px] text-slate-400">{taxRateLabel(formData.tax_rate)}</p>
+							{formData.name ? (
+								<p className="text-sm font-semibold text-slate-200 pt-2 border-t border-slate-700">
+									{formData.name}
+								</p>
+							) : null}
+						</FormSheetPreview>
+					</FormSheet>
+				</form>
+			</SidePanel>
 		</div>
 	);
 };
+

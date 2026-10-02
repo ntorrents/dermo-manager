@@ -28,6 +28,7 @@ import {
 	taxRateLabel,
 } from "../../utils/incomeTax";
 import { useTenant } from "../../context/TenantContext";
+import { SidePanel } from "./SidePanel";
 
 export const SessionModal = ({
 	isOpen,
@@ -179,41 +180,38 @@ export const SessionModal = ({
 		);
 	};
 
-	return (
-		<div className="fixed inset-0 z-[100] flex justify-center items-start xl:items-center p-4">
-			<div
-				className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-				onClick={onClose}
-			/>
-			<div
-				ref={dialogRef}
-				tabIndex={-1}
-				role="dialog"
-				aria-modal="true"
-				aria-label="Nueva sesión"
-				className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] mt-8 xl:mt-0 animate-in zoom-in-95 duration-200">
-				<div className="p-8 border-b bg-gray-50 flex justify-between items-start">
-					<div>
-						<h3 className="text-2xl font-black text-gray-800 tracking-tight leading-none">
-							Nueva Sesión
-						</h3>
-						<p className="text-rose-700 font-bold mt-2 text-lg">
-							{treatment.name}
-						</p>
-					</div>
-					<button
-						type="button"
-						onClick={onClose}
-						aria-label="Cerrar modal de nueva sesión"
-						className="p-2 bg-white rounded-full text-gray-400 hover:text-gray-600 shadow-sm border border-gray-100 transition-colors">
-						<X size={20} />
-					</button>
-				</div>
+	if (!isOpen || !treatment) return null;
 
-				<div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
+	return (
+		<SidePanel
+			isOpen={isOpen}
+			onClose={onClose}
+			title="Nueva sesión"
+			subtitle={treatment.name}
+			size="lg"
+			footer={
+				<button
+					type="button"
+					disabled={
+						!selectedClient ||
+						!isValidFinalPrice ||
+						isSubmitting ||
+						companyAddressMissing
+					}
+					onClick={handleConfirm}
+					className="w-full btn-primary py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
+					{isSubmitting ? (
+						<Loader2 size={20} className="animate-spin" />
+					) : (
+						<Calendar size={20} />
+					)}
+					{isSubmitting ? "Guardando..." : "Confirmar sesión"}
+				</button>
+			}>
+			<div ref={dialogRef} className="space-y-8" tabIndex={-1}>
 					{/* 1. SELECCIÓN DE CLIENTE */}
 					<div className="space-y-3">
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+						<label className="text-[11px] font-black text-muted uppercase tracking-widest flex items-center gap-2">
 							<User size={14} /> Seleccionar Cliente
 						</label>
 
@@ -524,27 +522,7 @@ export const SessionModal = ({
 						</label>
 					</div>
 					)}
-				</div>
-
-				<div className="p-8 border-t bg-gray-50">
-					<button
-						disabled={
-							!selectedClient ||
-							!isValidFinalPrice ||
-							isSubmitting ||
-							companyAddressMissing
-						}
-						onClick={handleConfirm}
-						className="w-full bg-surface-dark hover:bg-black text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2">
-						{isSubmitting ? (
-							<Loader2 size={20} className="animate-spin" />
-						) : (
-							<Calendar size={20} className="text-rose-700" />
-						)}
-						{isSubmitting ? "Guardando..." : "Confirmar Sesión"}
-					</button>
-				</div>
 			</div>
-		</div>
+		</SidePanel>
 	);
 };

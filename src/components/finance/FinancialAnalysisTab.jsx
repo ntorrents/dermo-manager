@@ -48,7 +48,6 @@ import {
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
 import { useTenant } from "../../context/TenantContext";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { classifyFinanceIssue, financeIssueLabel } from "../../utils/financeIssues";

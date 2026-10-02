@@ -5,6 +5,8 @@ import { formatCurrency } from "../../utils/format";
 import { useBudgets } from "../../hooks/useBudgets";
 import { LoadingButton } from "../ui/LoadingButton";
 import { ConfirmModal } from "../ui/ConfirmModal";
+import { SidePanel } from "../ui/SidePanel";
+import { StatusChip } from "../ui/StatusChip";
 import { useTenant } from "../../context/TenantContext";
 
 const emptyLine = () => ({
@@ -201,23 +203,114 @@ export const BudgetsSection = ({
 		}
 	};
 
-	if (isCreating) {
-		return (
-			<div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-				<div className="flex items-center gap-4">
-					<button
-						onClick={() => setIsCreating(false)}
-						className="p-2 -ml-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors"
-						aria-label="Volver">
-						<ArrowLeft size={24} />
-					</button>
-					<div>
-						<h2 className="text-2xl font-bold text-gray-900">Nuevo Presupuesto</h2>
-						<p className="text-sm text-gray-500">Configura la información y añade tratamientos</p>
-					</div>
+	return (
+		<div className="space-y-6 animate-in fade-in">
+			<div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
+				<div className="relative w-full sm:w-auto flex-1 max-w-md">
+					<Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+					<input
+						className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-100 rounded-2xl text-sm font-bold shadow-sm focus:border-rose-200 focus:ring-4 focus:ring-rose-50 outline-none transition-all"
+						placeholder="Buscar por cliente o título..."
+						value={searchTerm}
+						onChange={(e) => setSearchTerm(e.target.value)}
+					/>
 				</div>
+				<button
+					type="button"
+					onClick={openNew}
+					className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-black bg-rose-700 text-white shadow-lg hover:shadow-xl hover:bg-rose-800 hover:-translate-y-0.5 transition-all">
+					<Plus size={20} /> Crear Presupuesto
+				</button>
+			</div>
 
-				<form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-8">
+			{loading ? (
+				<div className="grid gap-4">
+					{[1, 2, 3].map((i) => (
+						<div key={i} className="h-28 bg-gray-100 rounded-3xl animate-pulse" />
+					))}
+				</div>
+			) : filtered.length === 0 ? (
+				<div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100 text-gray-400">
+					<div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
+						<FileDown size={24} className="text-gray-300" />
+					</div>
+					<h3 className="text-lg font-black text-gray-600 mb-1">Aún no hay presupuestos</h3>
+					<p className="text-sm font-medium">Crea uno nuevo para empezar a guardarlos y exportarlos a PDF.</p>
+				</div>
+			) : (
+				<div className="grid gap-4">
+					{filtered.map((b) => {
+						const client = clients.find((c) => c.id === b.client_id);
+						const name = client ? `${client.name} ${client.surname || ""}`.trim() : "Cliente no encontrado";
+						const title = b.nombre ? String(b.nombre) : null;
+						const total = sumBudgetLinesTTC(b.presupuesto_lineas || []);
+						const totalOriginal = sumBudgetLinesOriginalTTC(b.presupuesto_lineas || []);
+						const totalDiscount = Math.max(0, totalOriginal - total);
+						const dateStr = b.created_at
+							? new Date(b.created_at).toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' })
+							: "";
+						return (
+							<div
+								key={b.id}
+								className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+								<div className="min-w-0">
+									<div className="flex items-center gap-2 flex-wrap">
+										<p className="font-bold text-gray-800">{title || "Presupuesto sin título"}</p>
+										<StatusChip tone="neutral">{dateStr}</StatusChip>
+									</div>
+									<p className="text-xs text-rose-700 font-semibold mt-0.5">{name}</p>
+								</div>
+
+								<div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto shrink-0">
+									<div className="text-left sm:text-right">
+										<div className="text-lg font-black text-gray-900 leading-none">
+											{formatCurrency(total)}
+										</div>
+										{totalDiscount > 0 && (
+											<StatusChip tone="success" className="mt-1">
+												-{formatCurrency(totalDiscount)}
+											</StatusChip>
+										)}
+									</div>
+									<div className="flex gap-2 shrink-0">
+										{onStartSessionFromBudget && (
+											<button
+												type="button"
+												onClick={() => startSessionFromBudget(b)}
+												className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold transition-colors">
+												<CalendarCheck size={16} /> Aplicar
+											</button>
+										)}
+										<button
+											type="button"
+											onClick={() => downloadPdf(b)}
+											className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold transition-colors">
+											<FileDown size={16} /> PDF
+										</button>
+										<button
+											type="button"
+											onClick={() => setArchiveId(b.id)}
+											disabled={archiving}
+											className="flex items-center justify-center w-9 h-9 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 transition-colors">
+											<Archive size={16} />
+										</button>
+									</div>
+								</div>
+							</div>
+						);
+					})}
+				</div>
+			)}
+
+			
+		<SidePanel
+			isOpen={isCreating}
+			onClose={() => setIsCreating(false)}
+			title="Nuevo presupuesto"
+			subtitle="Cliente, líneas y descuentos"
+			size="lg"
+		>
+			<form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6 space-y-8">
 					<div className="space-y-4">
 						<h3 className="text-sm font-black uppercase tracking-widest text-gray-400">Datos Principales</h3>
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -425,115 +518,14 @@ export const BudgetsSection = ({
 						<LoadingButton
 							type="submit"
 							loading={creating}
-							className="w-full md:w-auto px-10 py-4 bg-surface-dark hover:bg-gray-800 text-white font-black text-lg rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all">
+							className="w-full md:w-auto px-10 py-4 btn-inverse text-lg hover:-translate-y-0.5 transition-all">
 							Guardar Presupuesto
 						</LoadingButton>
 					</div>
 				</form>
-			</div>
-		);
-	}
+		</SidePanel>
 
-	return (
-		<div className="space-y-6 animate-in fade-in">
-			<div className="flex flex-col sm:flex-row justify-between gap-4 items-start sm:items-center">
-				<div className="relative w-full sm:w-auto flex-1 max-w-md">
-					<Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-					<input
-						className="w-full pl-11 pr-4 py-3.5 bg-white border border-gray-100 rounded-2xl text-sm font-bold shadow-sm focus:border-rose-200 focus:ring-4 focus:ring-rose-50 outline-none transition-all"
-						placeholder="Buscar por cliente o título..."
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
-					/>
-				</div>
-				<button
-					type="button"
-					onClick={openNew}
-					className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl text-sm font-black bg-rose-700 text-white shadow-lg hover:shadow-xl hover:bg-rose-800 hover:-translate-y-0.5 transition-all">
-					<Plus size={20} /> Crear Presupuesto
-				</button>
-			</div>
-
-			{loading ? (
-				<div className="grid gap-4">
-					{[1, 2, 3].map((i) => (
-						<div key={i} className="h-28 bg-gray-100 rounded-3xl animate-pulse" />
-					))}
-				</div>
-			) : filtered.length === 0 ? (
-				<div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-gray-100 text-gray-400">
-					<div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
-						<FileDown size={24} className="text-gray-300" />
-					</div>
-					<h3 className="text-lg font-black text-gray-600 mb-1">Aún no hay presupuestos</h3>
-					<p className="text-sm font-medium">Crea uno nuevo para empezar a guardarlos y exportarlos a PDF.</p>
-				</div>
-			) : (
-				<div className="grid gap-4">
-					{filtered.map((b) => {
-						const client = clients.find((c) => c.id === b.client_id);
-						const name = client ? `${client.name} ${client.surname || ""}`.trim() : "Cliente no encontrado";
-						const title = b.nombre ? String(b.nombre) : null;
-						const total = sumBudgetLinesTTC(b.presupuesto_lineas || []);
-						const totalOriginal = sumBudgetLinesOriginalTTC(b.presupuesto_lineas || []);
-						const totalDiscount = Math.max(0, totalOriginal - total);
-						const dateStr = b.created_at
-							? new Date(b.created_at).toLocaleDateString("es-ES", { day: '2-digit', month: 'short', year: 'numeric' })
-							: "";
-						return (
-							<div
-								key={b.id}
-								className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-								<div className="min-w-0">
-									<div className="flex items-center gap-2">
-										<p className="font-bold text-gray-800">{title || "Presupuesto sin título"}</p>
-										<span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-bold uppercase">{dateStr}</span>
-									</div>
-									<p className="text-xs text-rose-700 font-semibold mt-0.5">{name}</p>
-								</div>
-
-								<div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto shrink-0">
-									<div className="text-left sm:text-right">
-										<div className="text-lg font-black text-gray-900 leading-none">
-											{formatCurrency(total)}
-										</div>
-										{totalDiscount > 0 && (
-											<div className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded mt-1 inline-block">
-												-{formatCurrency(totalDiscount)}
-											</div>
-										)}
-									</div>
-									<div className="flex gap-2 shrink-0">
-										{onStartSessionFromBudget && (
-											<button
-												type="button"
-												onClick={() => startSessionFromBudget(b)}
-												className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-900 hover:bg-gray-800 text-white text-sm font-bold transition-colors">
-												<CalendarCheck size={16} /> Aplicar
-											</button>
-										)}
-										<button
-											type="button"
-											onClick={() => downloadPdf(b)}
-											className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold transition-colors">
-											<FileDown size={16} /> PDF
-										</button>
-										<button
-											type="button"
-											onClick={() => setArchiveId(b.id)}
-											disabled={archiving}
-											className="flex items-center justify-center w-9 h-9 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 transition-colors">
-											<Archive size={16} />
-										</button>
-									</div>
-								</div>
-							</div>
-						);
-					})}
-				</div>
-			)}
-
-			<ConfirmModal
+<ConfirmModal
 				isOpen={!!archiveId}
 				title="Archivar presupuesto"
 				message="Este presupuesto dejará de mostrarse en la lista principal, pero se conservará en el sistema de forma segura."

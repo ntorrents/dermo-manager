@@ -14,8 +14,16 @@ import { useProducts } from "../../../hooks/useProducts";
 import { useClients } from "../../../hooks/useClients";
 import { useTenant } from "../../../context/TenantContext";
 import { ConfirmModal } from "../../ui/ConfirmModal";
-import { AdaptiveModal } from "../../ui/AdaptiveModal";
+import { SidePanel } from "../../ui/SidePanel";
 import { EmptyState } from "../../ui/EmptyState";
+import { StatusChip } from "../../ui/StatusChip";
+import {
+	FormSheet,
+	FormSheetPrimary,
+	FormSheetPreview,
+	FormPreviewStat,
+	FormDetails,
+} from "../../ui/FormSheet";
 import { ProviderDatalist } from "../../ui/ProviderDatalist";
 import { IVA_OPTIONS, formatCurrency } from "../../../utils/format";
 import { taxRateLabel } from "../../../utils/incomeTax";
@@ -675,13 +683,11 @@ export const ProductsCatalogView = ({
 											<Package size={40} />
 										</div>
 									)}
-									<span
-										className={`absolute top-2 right-2 text-[10px] font-black uppercase px-2 py-1 rounded-lg ${
-											Number(p.stock_qty) > 0
-												? "bg-emerald-50 text-emerald-700"
-												: "bg-rose-50 text-rose-700"
-										}`}>
-										{Number(p.stock_qty)} {p.unit || "ud"}
+									<span className="absolute top-2 right-2">
+										<StatusChip
+											tone={Number(p.stock_qty) > 0 ? "success" : "danger"}>
+											{Number(p.stock_qty)} {p.unit || "ud"}
+										</StatusChip>
 									</span>
 								</div>
 								<div className="p-4 flex-1 flex flex-col gap-2">
@@ -759,134 +765,110 @@ export const ProductsCatalogView = ({
 			)}
 
 			{/* Crear / editar */}
-			<AdaptiveModal
+			<SidePanel
 				isOpen={isModalOpen}
 				onClose={() => setIsModalOpen(false)}
 				title={editing ? "Editar producto" : "Nuevo producto"}
-				maxWidth="max-w-xl">
-				<div className="space-y-5 p-1 max-h-[75vh] overflow-y-auto">
-					<section className="space-y-2">
-						<p className="text-[11px] font-black uppercase tracking-wider text-gray-400">
-							Imagen
-						</p>
-						<div className="flex items-center gap-4">
-							{imagePreview ? (
-								<img
-									src={imagePreview}
-									alt=""
-									className="w-24 h-24 rounded-2xl object-cover border border-gray-100 shadow-sm"
-								/>
-							) : (
-								<div className="w-24 h-24 rounded-2xl bg-gray-50 border border-dashed border-gray-200 flex items-center justify-center text-gray-300">
-									<ImagePlus size={28} />
-								</div>
-							)}
-							<label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50">
-								<input
-									type="file"
-									accept="image/*"
-									className="hidden"
-									onChange={onPickImage}
-								/>
-								<ImagePlus size={14} /> Subir foto
-							</label>
-						</div>
-					</section>
+				subtitle={
+					editing
+						? "PVP y ficha. El stock se gestiona con Reponer."
+						: "Coste, unidades y margen estimados al crear"
+				}
+				size="lg"
+				footer={
+					<button
+						type="button"
+						disabled={saving || uploadingImg}
+						onClick={save}
+						className="w-full btn-primary inline-flex items-center justify-center gap-2 py-3 disabled:opacity-50">
+						{saving || uploadingImg ? (
+							<Loader2 size={16} className="animate-spin" />
+						) : (
+							<Plus size={16} />
+						)}
+						{editing ? "Guardar cambios" : "Crear producto"}
+					</button>
+				}>
+				<div>
+					<FormSheet>
+						<FormSheetPrimary>
+							<div className="flex items-center gap-4">
+								{imagePreview ? (
+									<img
+										src={imagePreview}
+										alt=""
+										className="w-20 h-20 rounded-2xl object-cover border border-edge shadow-sm"
+									/>
+								) : (
+									<div className="w-20 h-20 rounded-2xl bg-surface-2 border border-dashed border-edge flex items-center justify-center text-muted">
+										<ImagePlus size={24} />
+									</div>
+								)}
+								<label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-edge bg-surface px-3 py-2 text-xs font-bold text-fg hover:bg-surface-2">
+									<input
+										type="file"
+										accept="image/*"
+										className="hidden"
+										onChange={onPickImage}
+									/>
+									<ImagePlus size={14} /> Subir foto
+								</label>
+							</div>
 
-					<section className="space-y-3">
-						<p className="text-[11px] font-black uppercase tracking-wider text-gray-400">
-							Identificación
-						</p>
-						<label className="block space-y-1">
-							<span className="text-xs font-bold text-gray-600">
-								Nombre <span className="text-rose-600">*</span>
-							</span>
-							<input
-								value={form.name}
-								onChange={(e) => setForm({ ...form, name: e.target.value })}
-								placeholder="Ej: Crema hidratante 50 ml"
-								className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
-							/>
-						</label>
-						<label className="block space-y-1">
-							<span className="text-xs font-bold text-gray-600">Descripción</span>
-							<textarea
-								rows={2}
-								value={form.description}
-								onChange={(e) =>
-									setForm({ ...form, description: e.target.value })
-								}
-								className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold resize-none"
-							/>
-						</label>
-						<label className="block space-y-1">
-							<span className="text-xs font-bold text-gray-600">Referencia / SKU</span>
-							<input
-								value={form.sku}
-								onChange={(e) => setForm({ ...form, sku: e.target.value })}
-								className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
-							/>
-						</label>
-					</section>
-
-					<section className="space-y-3">
-						<p className="text-[11px] font-black uppercase tracking-wider text-gray-400">
-							Precio de venta
-						</p>
-						<div className="grid grid-cols-2 gap-3">
 							<label className="block space-y-1">
-								<span className="text-xs font-bold text-gray-600">
-									PVP con IVA (€)
+								<span className="text-xs font-bold text-muted">
+									Nombre <span className="text-danger">*</span>
 								</span>
 								<input
-									value={form.price}
-									onChange={(e) => setForm({ ...form, price: e.target.value })}
-									inputMode="decimal"
-									className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
+									value={form.name}
+									onChange={(e) => setForm({ ...form, name: e.target.value })}
+									placeholder="Ej: Crema hidratante 50 ml"
+									className="input-field"
 								/>
 							</label>
-							<label className="block space-y-1">
-								<span className="text-xs font-bold text-gray-600">IVA venta</span>
-								<select
-									value={form.tax_rate}
-									onChange={(e) =>
-										setForm({ ...form, tax_rate: Number(e.target.value) })
-									}
-									className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold">
-									{IVA_OPTIONS.map((v) => (
-										<option key={v} value={v}>
-											{v}%
-										</option>
-									))}
-								</select>
-							</label>
-						</div>
-					</section>
 
-					{!editing && (
-						<>
-							<section className="space-y-3 rounded-2xl border border-gray-100 bg-white p-4">
-								<p className="text-[11px] font-black uppercase tracking-wider text-gray-400">
-									Cantidad inicial
-								</p>
+							<div className="grid grid-cols-2 gap-3">
+								<label className="block space-y-1">
+									<span className="text-xs font-bold text-muted">PVP con IVA (€)</span>
+									<input
+										value={form.price}
+										onChange={(e) => setForm({ ...form, price: e.target.value })}
+										inputMode="decimal"
+										className="input-field font-bold text-primary"
+									/>
+								</label>
+								<label className="block space-y-1">
+									<span className="text-xs font-bold text-muted">IVA venta</span>
+									<select
+										value={form.tax_rate}
+										onChange={(e) =>
+											setForm({ ...form, tax_rate: Number(e.target.value) })
+										}
+										className="input-field">
+										{IVA_OPTIONS.map((v) => (
+											<option key={v} value={v}>
+												{v}%
+											</option>
+										))}
+									</select>
+								</label>
+							</div>
+
+							{!editing && (
 								<div className="grid grid-cols-2 gap-3">
 									<label className="block space-y-1">
-										<span className="text-xs font-bold text-gray-600">
-											Unidades que entran
-										</span>
+										<span className="text-xs font-bold text-muted">Unidades iniciales</span>
 										<input
 											value={form.stock_qty}
 											onChange={(e) =>
 												setForm({ ...form, stock_qty: e.target.value })
 											}
 											inputMode="decimal"
-											className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
+											className="input-field"
 										/>
 									</label>
 									<label className="block space-y-1">
-										<span className="text-xs font-bold text-gray-600">
-											Formato (ud, caja…)
-										</span>
+										<span className="text-xs font-bold text-muted">Formato</span>
 										<select
 											value={
 												["ud", "caja", "ml", "g", "pack"].includes(form.unit)
@@ -896,7 +878,7 @@ export const ProductsCatalogView = ({
 											onChange={(e) =>
 												setForm({ ...form, unit: e.target.value })
 											}
-											className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold">
+											className="input-field">
 											<option value="ud">Unidad (ud)</option>
 											<option value="caja">Caja</option>
 											<option value="pack">Pack</option>
@@ -905,129 +887,225 @@ export const ProductsCatalogView = ({
 										</select>
 									</label>
 								</div>
-								{unitCostPreview != null && (
-									<p className="text-xs text-gray-600 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2">
-										Coste por unidad:{" "}
-										<strong>{formatCurrency(unitCostPreview)}</strong>
-										{marginPreview != null && (
-											<>
-												{" "}
-												· Margen estimado:{" "}
-												<strong
-													className={
-														marginPreview >= 0
-															? "text-emerald-700"
-															: "text-rose-700"
-													}>
-													{formatCurrency(marginPreview)}
-												</strong>
-											</>
-										)}
-									</p>
+							)}
+
+							{editing && (
+								<p className="text-xs text-muted rounded-xl bg-surface-2 border border-edge px-3 py-2">
+									Stock:{" "}
+									<strong className="text-fg">
+										{Number(editing.stock_qty)} {editing.unit}
+									</strong>{" "}
+									· Coste medio/ud:{" "}
+									<strong className="text-fg">
+										{formatCurrency(editing.unit_cost || 0)}
+									</strong>
+									. Usa <strong className="text-fg">Reponer</strong> para añadir unidades.
+								</p>
+							)}
+
+							<FormDetails
+								title="Más detalles"
+								defaultOpen={!editing && Number(form.totalCost) > 0}>
+								<label className="block space-y-1">
+									<span className="text-xs font-bold text-muted">Descripción</span>
+									<textarea
+										rows={2}
+										value={form.description}
+										onChange={(e) =>
+											setForm({ ...form, description: e.target.value })
+										}
+										className="input-field resize-none"
+									/>
+								</label>
+								<label className="block space-y-1">
+									<span className="text-xs font-bold text-muted">Referencia / SKU</span>
+									<input
+										value={form.sku}
+										onChange={(e) => setForm({ ...form, sku: e.target.value })}
+										className="input-field"
+									/>
+								</label>
+								{!editing && (
+									<>
+										<label className="block space-y-1">
+											<span className="text-xs font-bold text-muted">
+												Coste total de compra (€)
+											</span>
+											<input
+												value={form.totalCost}
+												onChange={(e) =>
+													setForm({ ...form, totalCost: e.target.value })
+												}
+												inputMode="decimal"
+												className="input-field"
+											/>
+										</label>
+										{purchaseFields(form, setForm, receiptFile, setReceiptFile, "prod-new")}
+									</>
 								)}
-							</section>
-							{purchaseFields(form, setForm, receiptFile, setReceiptFile, "prod-new")}
-						</>
-					)}
+							</FormDetails>
+						</FormSheetPrimary>
 
-					{editing && (
-						<p className="text-xs text-gray-500 rounded-xl bg-gray-50 border border-gray-100 px-3 py-2">
-							Stock actual:{" "}
-							<strong>
-								{Number(editing.stock_qty)} {editing.unit}
-							</strong>{" "}
-							· Coste medio/ud:{" "}
-							<strong>{formatCurrency(editing.unit_cost || 0)}</strong>. Para
-							añadir unidades usa <strong>Reponer</strong>.
-						</p>
-					)}
-
-					<button
-						type="button"
-						disabled={saving || uploadingImg}
-						onClick={save}
-						className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rose-700 text-white px-4 py-3.5 text-sm font-bold disabled:opacity-50">
-						{saving || uploadingImg ? (
-							<Loader2 size={16} className="animate-spin" />
-						) : (
-							<Plus size={16} />
-						)}
-						{editing ? "Guardar cambios" : "Crear producto"}
-					</button>
+						<FormSheetPreview>
+							{form.name ? (
+								<p className="text-base font-bold text-white leading-snug">{form.name}</p>
+							) : (
+								<p className="text-sm text-slate-500">Sin nombre aún</p>
+							)}
+							<div className="grid grid-cols-2 gap-3">
+								<FormPreviewStat
+									label="PVP"
+									value={
+										form.price
+											? formatCurrency(Number(String(form.price).replace(",", ".")) || 0)
+											: "—"
+									}
+								/>
+								<FormPreviewStat
+									label="IVA"
+									value={taxRateLabel(form.tax_rate)}
+									tone="accent"
+								/>
+							</div>
+							{!editing && (
+								<div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-700">
+									<FormPreviewStat
+										label="Coste / ud"
+										value={
+											unitCostPreview != null
+												? formatCurrency(unitCostPreview)
+												: "—"
+										}
+									/>
+									<FormPreviewStat
+										label="Margen est."
+										tone={
+											marginPreview == null
+												? "default"
+												: marginPreview >= 0
+													? "success"
+													: "danger"
+										}
+										value={
+											marginPreview != null
+												? formatCurrency(marginPreview)
+												: "—"
+										}
+									/>
+								</div>
+							)}
+							{editing && (
+								<p className="text-xs text-slate-400 pt-2 border-t border-slate-700">
+									Coste medio actual:{" "}
+									{formatCurrency(editing.unit_cost || 0)}/ud
+								</p>
+							)}
+						</FormSheetPreview>
+					</FormSheet>
 				</div>
-			</AdaptiveModal>
+			</SidePanel>
 
 			{/* Reponer */}
-			<AdaptiveModal
+			<SidePanel
 				isOpen={!!restockTarget}
 				onClose={() => setRestockTarget(null)}
-				title={
-					restockTarget ? `Reponer: ${restockTarget.name}` : "Reponer"
-				}
-				maxWidth="max-w-lg">
+				title={restockTarget ? `Reponer: ${restockTarget.name}` : "Reponer"}
+				subtitle="Añade unidades y actualiza el coste medio"
+				size="lg"
+				footer={
+					<button
+						type="button"
+						disabled={restocking || !restockTarget}
+						onClick={confirmRestock}
+						className="w-full btn-primary inline-flex items-center justify-center gap-2 py-3 disabled:opacity-50">
+						{restocking ? (
+							<Loader2 size={16} className="animate-spin" />
+						) : (
+							<PackagePlus size={16} />
+						)}
+						Confirmar reposición
+					</button>
+				}>
 				{restockTarget && (
-					<div className="space-y-4 p-1 max-h-[75vh] overflow-y-auto">
-						<p className="text-xs text-gray-500">
-							Stock actual:{" "}
-							<strong>
-								{Number(restockTarget.stock_qty)} {restockTarget.unit}
-							</strong>{" "}
-							· Coste medio:{" "}
-							<strong>{formatCurrency(restockTarget.unit_cost || 0)}/ud</strong>
-						</p>
-						<label className="block space-y-1">
-							<span className="text-xs font-bold text-gray-600">
-								Unidades a añadir
-							</span>
-							<input
-								value={restockForm.quantity}
-								onChange={(e) =>
-									setRestockForm({ ...restockForm, quantity: e.target.value })
+					<FormSheet>
+						<FormSheetPrimary>
+							<label className="block space-y-1">
+								<span className="text-xs font-bold text-muted">
+									Unidades a añadir
+								</span>
+								<input
+									value={restockForm.quantity}
+									onChange={(e) =>
+										setRestockForm({ ...restockForm, quantity: e.target.value })
+									}
+									inputMode="decimal"
+									className="input-field"
+								/>
+							</label>
+							<FormDetails title="Compra / fiscalidad" defaultOpen>
+								{purchaseFields(
+									restockForm,
+									setRestockForm,
+									restockReceipt,
+									setRestockReceipt,
+									"prod-restock",
+								)}
+							</FormDetails>
+						</FormSheetPrimary>
+						<FormSheetPreview>
+							<p className="text-sm font-semibold text-white">{restockTarget.name}</p>
+							<div className="grid grid-cols-2 gap-3">
+								<FormPreviewStat
+									label="Stock actual"
+									value={`${Number(restockTarget.stock_qty)} ${restockTarget.unit}`}
+								/>
+								<FormPreviewStat
+									label="Coste medio"
+									value={`${formatCurrency(restockTarget.unit_cost || 0)}/ud`}
+								/>
+							</div>
+							<FormPreviewStat
+								label="Coste esta entrada"
+								tone="accent"
+								value={
+									restockUnitCost != null
+										? `${formatCurrency(restockUnitCost)}/ud`
+										: "—"
 								}
-								inputMode="decimal"
-								className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
 							/>
-						</label>
-						{restockUnitCost != null && (
-							<p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2">
-								Coste de esta entrada:{" "}
-								<strong>{formatCurrency(restockUnitCost)}/ud</strong> (el coste
-								medio del producto se recalculará).
-							</p>
-						)}
-						{purchaseFields(
-							restockForm,
-							setRestockForm,
-							restockReceipt,
-							setRestockReceipt,
-							"prod-restock",
-						)}
-						<button
-							type="button"
-							disabled={restocking}
-							onClick={confirmRestock}
-							className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rose-700 text-white px-4 py-3 text-sm font-bold disabled:opacity-50">
-							{restocking ? (
-								<Loader2 size={16} className="animate-spin" />
-							) : (
-								<PackagePlus size={16} />
-							)}
-							Confirmar reposición
-						</button>
-					</div>
+						</FormSheetPreview>
+					</FormSheet>
 				)}
-			</AdaptiveModal>
+			</SidePanel>
 
 			{/* Vender */}
-			<AdaptiveModal
+			<SidePanel
 				isOpen={!!sellTarget}
 				onClose={() => setSellTarget(null)}
-				title={sellTarget ? `Vender: ${sellTarget.name}` : "Vender"}>
+				title={sellTarget ? `Vender: ${sellTarget.name}` : "Vender"}
+				subtitle="Ticket automático salvo Plan Amigo"
+				size="md"
+				footer={
+					<button
+						type="button"
+						disabled={selling || !sellTarget}
+						onClick={confirmSell}
+						className="w-full btn-primary inline-flex items-center justify-center gap-2 py-3 disabled:opacity-50">
+						{selling ? (
+							<Loader2 size={16} className="animate-spin" />
+						) : (
+							<ShoppingCart size={16} />
+						)}
+						{sellForm.planAmigo
+							? "Confirmar venta Plan Amigo"
+							: "Confirmar venta y emitir ticket"}
+					</button>
+				}>
 				{sellTarget && (
-					<div className="space-y-4 p-1">
-						<p className="text-xs text-gray-500">
+					<div className="space-y-4">
+						<p className="text-xs text-muted">
 							Disponible:{" "}
-							<strong>
+							<strong className="text-fg">
 								{Number(sellTarget.stock_qty)} {sellTarget.unit || "ud"}
 							</strong>
 							{" · "}
@@ -1038,39 +1116,37 @@ export const ProductsCatalogView = ({
 						</p>
 						<div className="grid grid-cols-2 gap-3">
 							<label className="block space-y-1">
-								<span className="text-xs font-bold text-gray-600">Cantidad</span>
+								<span className="text-xs font-bold text-muted">Cantidad</span>
 								<input
 									value={sellForm.quantity}
 									onChange={(e) =>
 										setSellForm({ ...sellForm, quantity: e.target.value })
 									}
 									inputMode="decimal"
-									className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
+									className="input-field"
 								/>
 							</label>
 							<label className="block space-y-1">
-								<span className="text-xs font-bold text-gray-600">
-									PVP unitario (€)
-								</span>
+								<span className="text-xs font-bold text-muted">PVP unitario (€)</span>
 								<input
 									value={sellForm.unitPrice}
 									onChange={(e) =>
 										setSellForm({ ...sellForm, unitPrice: e.target.value })
 									}
 									inputMode="decimal"
-									className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
+									className="input-field"
 								/>
 							</label>
 						</div>
 						<label className="block space-y-1">
-							<span className="text-xs font-bold text-gray-600">Fecha</span>
+							<span className="text-xs font-bold text-muted">Fecha</span>
 							<input
 								type="date"
 								value={sellForm.date}
 								onChange={(e) =>
 									setSellForm({ ...sellForm, date: e.target.value })
 								}
-								className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
+								className="input-field"
 							/>
 						</label>
 						<div className="flex gap-2">
@@ -1079,8 +1155,8 @@ export const ProductsCatalogView = ({
 								onClick={() => setSellForm({ ...sellForm, mode: "client" })}
 								className={`flex-1 rounded-xl px-3 py-2.5 text-xs font-bold border ${
 									sellForm.mode === "client"
-										? "border-rose-300 bg-rose-50 text-rose-800"
-										: "border-gray-200 text-gray-500"
+										? "border-primary bg-primary-soft text-fg"
+										: "border-edge text-muted"
 								}`}>
 								Cliente con ficha
 							</button>
@@ -1089,21 +1165,21 @@ export const ProductsCatalogView = ({
 								onClick={() => setSellForm({ ...sellForm, mode: "anonymous" })}
 								className={`flex-1 rounded-xl px-3 py-2.5 text-xs font-bold border ${
 									sellForm.mode === "anonymous"
-										? "border-rose-300 bg-rose-50 text-rose-800"
-										: "border-gray-200 text-gray-500"
+										? "border-primary bg-primary-soft text-fg"
+										: "border-edge text-muted"
 								}`}>
 								Sin ficha
 							</button>
 						</div>
 						{sellForm.mode === "client" ? (
 							<label className="block space-y-1">
-								<span className="text-xs font-bold text-gray-600">Cliente</span>
+								<span className="text-xs font-bold text-muted">Cliente</span>
 								<select
 									value={sellForm.clientId}
 									onChange={(e) =>
 										setSellForm({ ...sellForm, clientId: e.target.value })
 									}
-									className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold">
+									className="input-field">
 									<option value="">— Elegir —</option>
 									{clientsActive.map((c) => (
 										<option key={c.id} value={c.id}>
@@ -1114,7 +1190,7 @@ export const ProductsCatalogView = ({
 							</label>
 						) : (
 							<label className="block space-y-1">
-								<span className="text-xs font-bold text-gray-600">
+								<span className="text-xs font-bold text-muted">
 									Nombre interno (opcional)
 								</span>
 								<input
@@ -1123,18 +1199,18 @@ export const ProductsCatalogView = ({
 										setSellForm({ ...sellForm, buyerName: e.target.value })
 									}
 									placeholder={UNLISTED_LABEL}
-									className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
+									className="input-field"
 								/>
 							</label>
 						)}
 						<label className="block space-y-1">
-							<span className="text-xs font-bold text-gray-600">Notas internas</span>
+							<span className="text-xs font-bold text-muted">Notas internas</span>
 							<input
 								value={sellForm.notes}
 								onChange={(e) =>
 									setSellForm({ ...sellForm, notes: e.target.value })
 								}
-								className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
+								className="input-field"
 							/>
 						</label>
 						{canPlanAmigo && (
@@ -1158,23 +1234,9 @@ export const ProductsCatalogView = ({
 								</span>
 							</label>
 						)}
-						<button
-							type="button"
-							disabled={selling}
-							onClick={confirmSell}
-							className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rose-700 text-white px-4 py-3 text-sm font-bold disabled:opacity-50">
-							{selling ? (
-								<Loader2 size={16} className="animate-spin" />
-							) : (
-								<ShoppingCart size={16} />
-							)}
-							{sellForm.planAmigo
-								? "Confirmar venta Plan Amigo"
-								: "Confirmar venta y emitir ticket"}
-						</button>
 					</div>
 				)}
-			</AdaptiveModal>
+			</SidePanel>
 
 			<ConfirmModal
 				isOpen={!!deleteId}

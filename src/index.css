@@ -1,25 +1,368 @@
 @import "tailwindcss";
 
+/* ─── Tokens semánticos (Tailwind v4) ─── */
 @theme {
-	/* Paleta semántica DermoManager */
-	--color-primary: #be185d; /* rose-700 */
-	--color-primary-hover: #9f1239; /* rose-800 */
-	--color-primary-light: #ffe4e6; /* rose-100 */
-	--color-surface-dark: #1e293b;
-	--color-warning-bg: #f8fafc; /* slate-50 */
-	--color-warning-border: #e2e8f0; /* slate-200 */
-	--color-warning-icon: #475569;
-	--color-warning-text: #334155;
-	--color-warning-text-light: #64748b;
+	--color-primary: var(--ui-primary);
+	--color-primary-hover: var(--ui-primary-hover);
+	--color-primary-soft: var(--ui-primary-soft);
+	--color-on-primary: var(--ui-on-primary);
+	--color-app: var(--ui-bg);
+	--color-surface: var(--ui-surface);
+	--color-surface-2: var(--ui-surface-2);
+	--color-surface-dark: var(--ui-surface-dark);
+	--color-on-surface-dark: var(--ui-on-surface-dark);
+	--color-inverse: var(--ui-inverse);
+	--color-on-inverse: var(--ui-on-inverse);
+	--color-edge: var(--ui-border);
+	--color-fg: var(--ui-fg);
+	--color-muted: var(--ui-muted);
+	--color-danger: var(--ui-danger);
+	--color-success: var(--ui-success);
+	--color-warning: var(--ui-warning);
+
+	--font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+	--font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+	--radius-card: 1rem;
+	--space-page: 1.25rem;
+	--space-card: 1.25rem;
+	--space-stack: 1.25rem;
+}
+
+/* ─── Temas ─── */
+:root,
+html[data-theme="clinic-teal"] {
+	--ui-primary: #0f766e;
+	--ui-primary-hover: #0d9488;
+	--ui-primary-soft: #ccfbf1;
+	--ui-on-primary: #ffffff;
+	--ui-bg: #f8fafc;
+	--ui-surface: #ffffff;
+	--ui-surface-2: #f1f5f9;
+	--ui-border: #e2e8f0;
+	--ui-fg: #0f172a;
+	--ui-muted: #64748b;
+	--ui-danger: #e11d48;
+	--ui-success: #059669;
+	--ui-warning: #d97706;
+	--ui-inverse: #0f172a;
+	--ui-on-inverse: #f8fafc;
+	--ui-surface-dark: #0f172a;
+	--ui-on-surface-dark: #f8fafc;
+	--ui-sidebar-active-bg: #ccfbf1;
+	--ui-sidebar-active-fg: #115e59;
+	--ui-topbar-bg: rgba(255, 255, 255, 0.86);
+}
+
+html[data-theme="clinic-rose"] {
+	--ui-primary: #be185d;
+	--ui-primary-hover: #9f1239;
+	--ui-primary-soft: #ffe4e6;
+	--ui-on-primary: #ffffff;
+	--ui-bg: #f8fafc;
+	--ui-surface: #ffffff;
+	--ui-surface-2: #f8fafc;
+	--ui-border: #e2e8f0;
+	--ui-fg: #0f172a;
+	--ui-muted: #64748b;
+	--ui-danger: #e11d48;
+	--ui-success: #059669;
+	--ui-warning: #d97706;
+	--ui-inverse: #0f172a;
+	--ui-on-inverse: #f8fafc;
+	--ui-surface-dark: #0f172a;
+	--ui-on-surface-dark: #f8fafc;
+	--ui-sidebar-active-bg: #ffe4e6;
+	--ui-sidebar-active-fg: #9f1239;
+	--ui-topbar-bg: rgba(255, 255, 255, 0.86);
+}
+
+html[data-theme="graphite-indigo"] {
+	--ui-primary: #4338ca;
+	--ui-primary-hover: #3730a3;
+	--ui-primary-soft: #e0e7ff;
+	--ui-on-primary: #ffffff;
+	--ui-bg: #f8fafc;
+	--ui-surface: #ffffff;
+	--ui-surface-2: #f1f5f9;
+	--ui-border: #e2e8f0;
+	--ui-fg: #0f172a;
+	--ui-muted: #64748b;
+	--ui-danger: #e11d48;
+	--ui-success: #059669;
+	--ui-warning: #d97706;
+	--ui-inverse: #1e1b4b;
+	--ui-on-inverse: #eef2ff;
+	--ui-surface-dark: #1e1b4b;
+	--ui-on-surface-dark: #eef2ff;
+	--ui-sidebar-active-bg: #e0e7ff;
+	--ui-sidebar-active-fg: #3730a3;
+	--ui-topbar-bg: rgba(255, 255, 255, 0.86);
+}
+
+html[data-theme="sand-olive"] {
+	--ui-primary: #3f6212;
+	--ui-primary-hover: #365314;
+	--ui-primary-soft: #ecfccb;
+	--ui-on-primary: #ffffff;
+	--ui-bg: #f7f5f0;
+	--ui-surface: #fffcfa;
+	--ui-surface-2: #f3efe6;
+	--ui-border: #e7e0d4;
+	--ui-fg: #1c1917;
+	--ui-muted: #57534e;
+	--ui-danger: #be123c;
+	--ui-success: #15803d;
+	--ui-warning: #b45309;
+	--ui-inverse: #1c1917;
+	--ui-on-inverse: #fafaf9;
+	--ui-surface-dark: #1c1917;
+	--ui-on-surface-dark: #fafaf9;
+	--ui-sidebar-active-bg: #ecfccb;
+	--ui-sidebar-active-fg: #365314;
+	--ui-topbar-bg: rgba(255, 252, 250, 0.9);
+}
+
+html[data-theme="midnight"] {
+	--ui-primary: #2dd4bf;
+	--ui-primary-hover: #5eead4;
+	--ui-primary-soft: rgba(45, 212, 191, 0.14);
+	--ui-on-primary: #042f2e;
+	--ui-bg: #0b1220;
+	--ui-surface: #151e2e;
+	--ui-surface-2: #1c2740;
+	--ui-border: #243044;
+	--ui-fg: #e2e8f0;
+	--ui-muted: #94a3b8;
+	--ui-danger: #fb7185;
+	--ui-success: #34d399;
+	--ui-warning: #fbbf24;
+	--ui-inverse: #e2e8f0;
+	--ui-on-inverse: #0b1220;
+	--ui-surface-dark: #0f172a;
+	--ui-on-surface-dark: #e2e8f0;
+	--ui-sidebar-active-bg: rgba(45, 212, 191, 0.16);
+	--ui-sidebar-active-fg: #99f6e4;
+	--ui-topbar-bg: rgba(21, 30, 46, 0.9);
+}
+
+html[data-theme="obsidian"] {
+	--ui-primary: #a5b4fc;
+	--ui-primary-hover: #c7d2fe;
+	--ui-primary-soft: rgba(165, 180, 252, 0.14);
+	--ui-on-primary: #1e1b4b;
+	--ui-bg: #09090b;
+	--ui-surface: #18181b;
+	--ui-surface-2: #27272a;
+	--ui-border: #3f3f46;
+	--ui-fg: #f4f4f5;
+	--ui-muted: #a1a1aa;
+	--ui-danger: #fb7185;
+	--ui-success: #34d399;
+	--ui-warning: #fbbf24;
+	--ui-inverse: #f4f4f5;
+	--ui-on-inverse: #09090b;
+	--ui-surface-dark: #09090b;
+	--ui-on-surface-dark: #f4f4f5;
+	--ui-sidebar-active-bg: rgba(165, 180, 252, 0.16);
+	--ui-sidebar-active-fg: #c7d2fe;
+	--ui-topbar-bg: rgba(24, 24, 27, 0.92);
+}
+
+/* Densidad */
+html[data-density="comfortable"] {
+	--space-page: 1.25rem;
+	--space-card: 1.25rem;
+	--space-stack: 1.25rem;
+	--radius-card: 1rem;
+}
+
+html[data-density="compact"] {
+	--space-page: 0.75rem;
+	--space-card: 0.875rem;
+	--space-stack: 0.75rem;
+	--radius-card: 0.75rem;
 }
 
 body {
-	background-color: #f8fafc; /* slate-50 */
+	background-color: var(--ui-bg);
+	color: var(--ui-fg);
+	font-family: var(--font-sans);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar personalizada */
+/* ─── Puente dark: clases Tailwind hardcodeadas ─── */
+html[data-theme="midnight"] .bg-white,
+html[data-theme="obsidian"] .bg-white,
+html[data-theme="midnight"] .bg-white\/90,
+html[data-theme="obsidian"] .bg-white\/90,
+html[data-theme="midnight"] .bg-white\/80,
+html[data-theme="obsidian"] .bg-white\/80 {
+	background-color: var(--ui-surface) !important;
+}
+
+html[data-theme="midnight"] .bg-slate-50,
+html[data-theme="obsidian"] .bg-slate-50,
+html[data-theme="midnight"] .bg-gray-50,
+html[data-theme="obsidian"] .bg-gray-50,
+html[data-theme="midnight"] .bg-slate-50\/50,
+html[data-theme="obsidian"] .bg-slate-50\/50,
+html[data-theme="midnight"] .bg-gray-50\/50,
+html[data-theme="obsidian"] .bg-gray-50\/50,
+html[data-theme="midnight"] .bg-gray-50\/70,
+html[data-theme="obsidian"] .bg-gray-50\/70 {
+	background-color: var(--ui-surface-2) !important;
+}
+
+html[data-theme="midnight"] .text-gray-900,
+html[data-theme="obsidian"] .text-gray-900,
+html[data-theme="midnight"] .text-gray-800,
+html[data-theme="obsidian"] .text-gray-800,
+html[data-theme="midnight"] .text-slate-900,
+html[data-theme="obsidian"] .text-slate-900,
+html[data-theme="midnight"] .text-slate-800,
+html[data-theme="obsidian"] .text-slate-800,
+html[data-theme="midnight"] .text-slate-700,
+html[data-theme="obsidian"] .text-slate-700,
+html[data-theme="midnight"] .text-gray-700,
+html[data-theme="obsidian"] .text-gray-700 {
+	color: var(--ui-fg) !important;
+}
+
+html[data-theme="midnight"] .text-gray-500,
+html[data-theme="obsidian"] .text-gray-500,
+html[data-theme="midnight"] .text-slate-500,
+html[data-theme="obsidian"] .text-slate-500,
+html[data-theme="midnight"] .text-gray-600,
+html[data-theme="obsidian"] .text-gray-600,
+html[data-theme="midnight"] .text-slate-600,
+html[data-theme="obsidian"] .text-slate-600,
+html[data-theme="midnight"] .text-gray-400,
+html[data-theme="obsidian"] .text-gray-400,
+html[data-theme="midnight"] .text-slate-400,
+html[data-theme="obsidian"] .text-slate-400 {
+	color: var(--ui-muted) !important;
+}
+
+html[data-theme="midnight"] .border-gray-100,
+html[data-theme="obsidian"] .border-gray-100,
+html[data-theme="midnight"] .border-gray-200,
+html[data-theme="obsidian"] .border-gray-200,
+html[data-theme="midnight"] .border-slate-100,
+html[data-theme="obsidian"] .border-slate-100,
+html[data-theme="midnight"] .border-slate-200,
+html[data-theme="obsidian"] .border-slate-200,
+html[data-theme="midnight"] .border-gray-50,
+html[data-theme="obsidian"] .border-gray-50 {
+	border-color: var(--ui-border) !important;
+}
+
+html[data-theme="midnight"] .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="obsidian"] .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="midnight"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="obsidian"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+	border-color: var(--ui-border) !important;
+}
+
+html[data-theme="midnight"] .hover\:bg-gray-50:hover,
+html[data-theme="obsidian"] .hover\:bg-gray-50:hover,
+html[data-theme="midnight"] .hover\:bg-slate-50:hover,
+html[data-theme="obsidian"] .hover\:bg-slate-50:hover,
+html[data-theme="midnight"] .hover\:bg-gray-50\/70:hover,
+html[data-theme="obsidian"] .hover\:bg-gray-50\/70:hover {
+	background-color: var(--ui-surface-2) !important;
+}
+
+/* Botones neutros dark (gray-900) → contraste en temas oscuros */
+html[data-theme="midnight"] .bg-gray-900,
+html[data-theme="obsidian"] .bg-gray-900,
+html[data-theme="midnight"] .bg-slate-800,
+html[data-theme="obsidian"] .bg-slate-800,
+html[data-theme="midnight"] .bg-slate-900,
+html[data-theme="obsidian"] .bg-slate-900,
+html[data-theme="midnight"] .bg-black,
+html[data-theme="obsidian"] .bg-black {
+	background-color: var(--ui-inverse) !important;
+	color: var(--ui-on-inverse) !important;
+}
+
+html[data-theme="midnight"] .hover\:bg-gray-800:hover,
+html[data-theme="obsidian"] .hover\:bg-gray-800:hover,
+html[data-theme="midnight"] .hover\:bg-slate-900:hover,
+html[data-theme="obsidian"] .hover\:bg-slate-900:hover,
+html[data-theme="midnight"] .hover\:bg-black:hover,
+html[data-theme="obsidian"] .hover\:bg-black:hover {
+	background-color: color-mix(in srgb, var(--ui-inverse) 88%, var(--ui-fg)) !important;
+}
+
+/* Acentos rose legacy → primary del tema activo */
+html .text-rose-700,
+html .text-rose-800,
+html .text-rose-600 {
+	color: var(--ui-primary) !important;
+}
+html .bg-rose-700,
+html .bg-rose-600 {
+	background-color: var(--ui-primary) !important;
+	color: var(--ui-on-primary) !important;
+}
+html .bg-rose-50,
+html .bg-rose-50\/30,
+html .bg-rose-50\/40,
+html .bg-rose-50\/50 {
+	background-color: var(--ui-primary-soft) !important;
+}
+html .border-rose-100,
+html .border-rose-200,
+html .border-rose-300 {
+	border-color: color-mix(in srgb, var(--ui-primary) 28%, transparent) !important;
+}
+html .hover\:bg-rose-800:hover,
+html .hover\:bg-rose-700:hover {
+	background-color: var(--ui-primary-hover) !important;
+	color: var(--ui-on-primary) !important;
+}
+html .hover\:bg-rose-50:hover,
+html .hover\:bg-rose-100:hover {
+	background-color: var(--ui-primary-soft) !important;
+}
+html .focus\:border-rose-700:focus,
+html .focus\:border-rose-500:focus,
+html .focus\:border-rose-100:focus {
+	border-color: var(--ui-primary) !important;
+}
+html .focus\:ring-rose-200:focus,
+html .focus\:ring-rose-500:focus,
+html .focus\:ring-rose-600:focus {
+	--tw-ring-color: color-mix(in srgb, var(--ui-primary) 35%, transparent) !important;
+}
+
+/* Primary + text-white → texto contrastado en TODOS los temas (incl. Midnight/Obsidian) */
+html .bg-primary,
+html .bg-primary.text-white,
+html .btn-primary,
+html .bg-rose-700.text-white,
+html .bg-rose-600.text-white {
+	color: var(--ui-on-primary) !important;
+}
+
+html .bg-surface-dark {
+	background-color: var(--ui-surface-dark) !important;
+	color: var(--ui-on-surface-dark) !important;
+}
+html .bg-surface-dark.text-white,
+html .text-on-surface-dark {
+	color: var(--ui-on-surface-dark) !important;
+}
+html .bg-inverse {
+	background-color: var(--ui-inverse) !important;
+	color: var(--ui-on-inverse) !important;
+}
+html .bg-inverse.text-white {
+	color: var(--ui-on-inverse) !important;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
 	width: 4px;
 }
@@ -27,45 +370,94 @@ body {
 	background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-	background-color: #cbd5e1; /* slate-300 */
+	background-color: color-mix(in srgb, var(--ui-muted) 45%, transparent);
 	border-radius: 20px;
 }
 
-/* Componentes Base - Ahora sí funcionarán los @apply con la importación correcta */
 @layer components {
 	.input-field {
-		@apply w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:border-rose-700 focus:ring-2 focus:ring-rose-200 outline-none transition-all placeholder:text-slate-400 bg-slate-50 focus:bg-white;
+		@apply w-full px-3 py-2 rounded-xl border text-sm outline-none transition-all;
+		border-color: var(--ui-border);
+		background-color: var(--ui-surface-2);
+		color: var(--ui-fg);
+	}
+	.input-field:focus {
+		border-color: var(--ui-primary);
+		background-color: var(--ui-surface);
+		box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-primary) 22%, transparent);
+	}
+	.input-field::placeholder {
+		color: var(--ui-muted);
 	}
 
 	.btn-primary {
-		@apply bg-rose-700 text-white font-semibold rounded-xl px-4 py-2 hover:bg-rose-800 transition-colors shadow-sm active:scale-95;
+		@apply font-semibold rounded-xl px-4 py-2 transition-colors shadow-sm active:scale-[0.98];
+		background-color: var(--ui-primary);
+		color: var(--ui-on-primary);
+	}
+	.btn-primary:hover {
+		background-color: var(--ui-primary-hover);
+		color: var(--ui-on-primary);
+	}
+
+	.btn-inverse {
+		@apply font-semibold rounded-xl px-4 py-2 transition-colors shadow-sm active:scale-[0.98];
+		background-color: var(--ui-inverse);
+		color: var(--ui-on-inverse);
+	}
+	.btn-inverse:hover {
+		background-color: color-mix(in srgb, var(--ui-inverse) 88%, var(--ui-fg));
+		color: var(--ui-on-inverse);
+	}
+
+	.btn-ghost {
+		@apply font-semibold rounded-xl px-4 py-2 transition-colors border;
+		border-color: var(--ui-border);
+		background-color: var(--ui-surface);
+		color: var(--ui-fg);
+	}
+	.btn-ghost:hover {
+		background-color: var(--ui-surface-2);
 	}
 
 	.label {
-		@apply block text-xs font-semibold text-gray-600 mb-1 ml-1;
+		@apply block text-xs font-semibold mb-1 ml-1;
+		color: var(--ui-muted);
 	}
 
-	/* Etiquetas de sección (legibilidad — Fase 0) */
 	.erp-label {
-		@apply text-[11px] font-black uppercase tracking-widest text-gray-600;
+		@apply text-[11px] font-bold uppercase tracking-wider;
+		color: var(--ui-muted);
 	}
 
 	.erp-caption {
-		@apply text-xs font-medium text-gray-600;
+		@apply text-xs font-medium;
+		color: var(--ui-muted);
+	}
+
+	.ui-card {
+		background-color: var(--ui-surface);
+		border: 1px solid var(--ui-border);
+		border-radius: var(--radius-card);
+		padding: var(--space-card);
+	}
+
+	.ui-page-stack {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-stack);
 	}
 }
 
-/* Contraste en cabeceras de KPI / sidebar secundario */
 main .text-gray-400.uppercase,
 main .tracking-widest.text-gray-400 {
-	color: #4b5563;
+	color: var(--ui-muted);
 }
 
-/* Animaciones */
 @keyframes fadeIn {
 	from {
 		opacity: 0;
-		transform: translateY(10px);
+		transform: translateY(8px);
 	}
 	to {
 		opacity: 1;
@@ -95,7 +487,7 @@ main .tracking-widest.text-gray-400 {
 @keyframes zoomIn {
 	from {
 		opacity: 0;
-		transform: scale(0.95);
+		transform: scale(0.97);
 	}
 	to {
 		opacity: 1;
@@ -103,10 +495,10 @@ main .tracking-widest.text-gray-400 {
 	}
 }
 .animate-in {
-	animation: fadeIn 0.3s ease-out forwards;
+	animation: fadeIn 0.28s ease-out forwards;
 }
 .animate-in.slide-in-from-right {
-	animation: slideInFromRight 0.25s ease-out forwards;
+	animation: slideInFromRight 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 .animate-in.slide-up {
 	animation: slideUp 0.3s ease-out forwards;
@@ -115,29 +507,17 @@ main .tracking-widest.text-gray-400 {
 	animation: zoomIn 0.2s ease-out forwards;
 }
 
-/* Editor de consentimientos (TipTap / ProseMirror): viñetas y listas numeradas visibles */
 .ProseMirror ul {
 	list-style-type: disc;
-	list-style-position: outside;
-	padding-left: 1.5em;
-	margin: 0.5em 0;
+	padding-left: 1.5rem;
 }
 .ProseMirror ol {
 	list-style-type: decimal;
-	list-style-position: outside;
-	padding-left: 1.5em;
-	margin: 0.5em 0;
+	padding-left: 1.5rem;
 }
 .ProseMirror li {
-	display: list-item;
-	margin-bottom: 0.25em;
+	margin: 0.25rem 0;
 }
-.ProseMirror ul ul {
-	list-style-type: circle;
-}
-/* Línea en blanco visible entre bloques (Enter dos veces) */
-.ProseMirror p:empty,
-.ProseMirror p:has(> br:only-child) {
-	min-height: 1.15em;
-	margin-bottom: 0.5em;
+.ProseMirror p {
+	margin: 0.5rem 0;
 }

@@ -19,10 +19,10 @@ const App = () => {
 
 	if (authLoading || (user && tenantLoading)) {
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-slate-50">
+			<div className="min-h-screen flex items-center justify-center bg-app">
 				<div className="flex flex-col items-center gap-4">
-					<Loader2 className="animate-spin text-rose-700" size={40} />
-					<p className="text-rose-700 font-medium">Cargando…</p>
+					<Loader2 className="animate-spin text-primary" size={40} />
+					<p className="text-primary font-medium">Cargando…</p>
 				</div>
 			</div>
 		);

@@ -16,7 +16,7 @@ import { formatCurrency } from "../../utils/format";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { SidePanel } from "../ui/SidePanel";
 
 export const BonosTab = ({
 	user,
@@ -176,21 +176,112 @@ export const BonosTab = ({
 	};
 
 
-	if (isTemplateModalOpen) {
-		const title = editingTemplate ? 'Editar plantilla' : 'Nueva plantilla';
-		return (
-			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
-				<div className="max-w-3xl mx-auto">
-					<div className="flex flex-col gap-2 mb-8">
-						<button
-							onClick={() => { setIsTemplateModalOpen(false) }}
-							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
-						</button>
-						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
-					</div>
-					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
-						<form onSubmit={handleSaveTemplate} className="space-y-6">
+	return (
+		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
+			<ConfirmModal
+				isOpen={showDeleteTemplateModal}
+				title="Eliminar plantilla"
+				message={`¿Eliminar la plantilla "${templateToDelete?.name}"?`}
+				onConfirm={confirmDeleteTemplate}
+				onCancel={() => setShowDeleteTemplateModal(false)}
+				isDestructive
+			/>
+
+			{/* Header */}
+			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+				<h2 className="text-2xl xl:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+					<Ticket className="text-rose-700" size={28} /> Bonos de sesiones
+				</h2>
+				<div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+					<button
+						type="button"
+						onClick={() => openTemplateModal()}
+						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 transition-colors order-2 sm:order-1">
+						<Plus size={18} /> Nueva plantilla
+					</button>
+					<button
+						type="button"
+						onClick={openSellModal}
+						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors w-full sm:w-auto order-1 sm:order-2">
+						<Plus size={20} /> Vender bono
+					</button>
+				</div>
+			</div>
+
+			{/* Search */}
+			<div className="relative">
+				<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+				<input
+					className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-rose-100"
+					placeholder="Buscar por nombre de bono o tratamiento…"
+				/>
+			</div>
+
+			{/* Plantillas de Bonos */}
+			{templatesLoading ? (
+				<div className="flex items-center justify-center py-12 gap-2 text-gray-400">
+					<Loader2 size={24} className="animate-spin" />
+					<span className="font-medium">Cargando plantillas...</span>
+				</div>
+			) : templates.length === 0 ? (
+				<div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-400 text-sm">
+					<Ticket className="mx-auto mb-3 size-10 opacity-40 text-rose-400" />
+					No hay plantillas. Crea tu primera plantilla para poder vender bonos.
+				</div>
+			) : (
+				<div className="space-y-3">
+					{templates.map((t) => (
+						<div
+							key={t.id}
+							className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div className="min-w-0">
+								<p className="font-bold text-gray-800">{t.name}</p>
+								<p className="text-xs text-gray-500 mt-0.5">
+									{t.treatments?.name ?? "Tratamiento"} · {t.total_sessions} sesiones
+								</p>
+							</div>
+							<div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto shrink-0">
+								<div className="text-lg font-black text-rose-700">
+									{formatCurrency(t.default_price)}
+								</div>
+								<div className="flex gap-2 shrink-0">
+									<button
+										type="button"
+										onClick={() => openTemplateModal(t)}
+										className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold">
+										<Edit2 size={16} /> Editar
+									</button>
+									<button
+										type="button"
+										onClick={() => {
+											setTemplateToDelete(t);
+											setShowDeleteTemplateModal(true);
+										}}
+										className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-bold">
+										<Trash2 size={16} /> Eliminar
+									</button>
+								</div>
+							</div>
+						</div>
+					))}
+				</div>
+			)}
+
+			{/* Modal: Nueva/Editar plantilla */}
+			
+
+			{/* Modal: Vender Bono */}
+			
+
+		<SidePanel
+			isOpen={isTemplateModalOpen}
+			onClose={() => { setIsTemplateModalOpen(false) }}
+			title={editingTemplate ? "Editar plantilla" : "Nueva plantilla"}
+			subtitle="Define sesiones y precio del bono"
+			size="lg"
+		>
+			<div className="space-y-4">
+<form onSubmit={handleSaveTemplate} className="space-y-6">
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
 							Nombre del bono
@@ -260,31 +351,22 @@ export const BonosTab = ({
 					<LoadingButton
 						loading={isCreating || isUpdating}
 						type="submit"
-						className="w-full bg-surface-dark text-white font-black py-4 rounded-xl">
+						className="w-full btn-inverse py-4">
 						{editingTemplate ? "Guardar cambios" : "Crear plantilla"}
 					</LoadingButton>
 				</form>
-					</div>
-				</div>
 			</div>
-		);
-	}
+		</SidePanel>
 
-	if (isSellModalOpen) {
-		const title = 'Vender Bono a Paciente';
-		return (
-			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
-				<div className="max-w-3xl mx-auto">
-					<div className="flex flex-col gap-2 mb-8">
-						<button
-							onClick={() => { setIsSellModalOpen(false) }}
-							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
-						</button>
-						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
-					</div>
-					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
-						<form onSubmit={handleSellBono} className="space-y-6">
+		<SidePanel
+			isOpen={isSellModalOpen}
+			onClose={() => { setIsSellModalOpen(false) }}
+			title={"Vender bono a paciente"}
+			subtitle="Asigna un bono activo al cliente"
+			size="lg"
+		>
+			<div className="space-y-4">
+<form onSubmit={handleSellBono} className="space-y-6">
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-2">
 							<User size={14} /> Paciente
@@ -408,108 +490,8 @@ export const BonosTab = ({
 						Vender bono
 					</LoadingButton>
 				</form>
-					</div>
-				</div>
 			</div>
-		);
-	}
-
-	return (
-		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
-			<ConfirmModal
-				isOpen={showDeleteTemplateModal}
-				title="Eliminar plantilla"
-				message={`¿Eliminar la plantilla "${templateToDelete?.name}"?`}
-				onConfirm={confirmDeleteTemplate}
-				onCancel={() => setShowDeleteTemplateModal(false)}
-				isDestructive
-			/>
-
-			{/* Header */}
-			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-				<h2 className="text-2xl xl:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-					<Ticket className="text-rose-700" size={28} /> Bonos de sesiones
-				</h2>
-				<div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-					<button
-						type="button"
-						onClick={() => openTemplateModal()}
-						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 transition-colors order-2 sm:order-1">
-						<Plus size={18} /> Nueva plantilla
-					</button>
-					<button
-						type="button"
-						onClick={openSellModal}
-						className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors w-full sm:w-auto order-1 sm:order-2">
-						<Plus size={20} /> Vender bono
-					</button>
-				</div>
-			</div>
-
-			{/* Search */}
-			<div className="relative">
-				<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-				<input
-					className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-rose-100"
-					placeholder="Buscar por nombre de bono o tratamiento…"
-				/>
-			</div>
-
-			{/* Plantillas de Bonos */}
-			{templatesLoading ? (
-				<div className="flex items-center justify-center py-12 gap-2 text-gray-400">
-					<Loader2 size={24} className="animate-spin" />
-					<span className="font-medium">Cargando plantillas...</span>
-				</div>
-			) : templates.length === 0 ? (
-				<div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200 text-gray-400 text-sm">
-					<Ticket className="mx-auto mb-3 size-10 opacity-40 text-rose-400" />
-					No hay plantillas. Crea tu primera plantilla para poder vender bonos.
-				</div>
-			) : (
-				<div className="space-y-3">
-					{templates.map((t) => (
-						<div
-							key={t.id}
-							className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-							<div className="min-w-0">
-								<p className="font-bold text-gray-800">{t.name}</p>
-								<p className="text-xs text-gray-500 mt-0.5">
-									{t.treatments?.name ?? "Tratamiento"} · {t.total_sessions} sesiones
-								</p>
-							</div>
-							<div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto shrink-0">
-								<div className="text-lg font-black text-rose-700">
-									{formatCurrency(t.default_price)}
-								</div>
-								<div className="flex gap-2 shrink-0">
-									<button
-										type="button"
-										onClick={() => openTemplateModal(t)}
-										className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold">
-										<Edit2 size={16} /> Editar
-									</button>
-									<button
-										type="button"
-										onClick={() => {
-											setTemplateToDelete(t);
-											setShowDeleteTemplateModal(true);
-										}}
-										className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-bold">
-										<Trash2 size={16} /> Eliminar
-									</button>
-								</div>
-							</div>
-						</div>
-					))}
-				</div>
-			)}
-
-			{/* Modal: Nueva/Editar plantilla */}
-			
-
-			{/* Modal: Vender Bono */}
-			
+		</SidePanel>
 		</div>
 	);
 };

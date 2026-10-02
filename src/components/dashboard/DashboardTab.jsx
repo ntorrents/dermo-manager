@@ -29,6 +29,8 @@ import {
 	Euro,
 	Users,
 	CalendarDays,
+	AlertTriangle,
+	Package,
 } from "lucide-react";
 import { filterByReportingRange } from "../../utils/dateUtils";
 import {
@@ -471,60 +473,176 @@ export const DashboardTab = ({
 				</div>
 			</div>
 
-			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-				<div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm flex flex-col gap-0.5">
-					<div className="flex items-center gap-2 erp-label">
-						<Euro size={14} className="text-emerald-500" /> Ingresos período
-					</div>
-					<p className="text-xl font-bold text-gray-900 tabular-nums">
-						{currentStats.income.toLocaleString("es-ES", {
-							maximumFractionDigits: 0,
-						})}{" "}
-						€
-					</p>
-					<p
-						className={`text-xs font-semibold flex items-center gap-1 ${incomeGrowth >= 0 ? "text-emerald-600" : "text-rose-700"}`}>
-						{incomeGrowth >= 0 ? (
-							<TrendingUp size={14} />
-						) : (
-							<TrendingDown size={14} />
+			{/* Bento operativo */}
+			<div className="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-4">
+				<section className="lg:col-span-7 ui-card !p-4 flex flex-col gap-3 min-h-[11rem]">
+					<div className="flex items-center justify-between gap-2">
+						<p className="erp-label flex items-center gap-1.5">
+							<CalendarDays size={14} className="text-primary" /> Agenda de hoy
+						</p>
+						{onNavigateTab && (
+							<button
+								type="button"
+								onClick={() => onNavigateTab("calendar")}
+								className="text-xs font-bold text-primary hover:underline">
+								Ver agenda
+							</button>
 						)}
-						{reportingPreset === "month"
-							? `${incomeGrowth >= 0 ? "+" : ""}${Math.round(incomeGrowth)}% vs mes ant.`
-							: "Comparativa mensual no aplica"}
-					</p>
-				</div>
-				<div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm flex flex-col gap-0.5">
-					<div className="flex items-center gap-2 erp-label">
-						<TrendingDown size={14} className="text-rose-700" /> Gastos período
 					</div>
-					<p className="text-xl font-bold text-gray-900 tabular-nums">
+					{appointmentsToday.length === 0 ? (
+						<p className="text-sm text-muted py-4">
+							Sin citas hoy. Usa ⌘K → «Nueva cita rápida» para crear una.
+						</p>
+					) : (
+						<ul className="space-y-2">
+							{appointmentsToday.slice(0, 5).map((a) => {
+								const t = a.start_at
+									? new Date(a.start_at).toLocaleTimeString("es-ES", {
+											hour: "2-digit",
+											minute: "2-digit",
+										})
+									: "—";
+								const client = clients.find((c) => c.id === a.client_id);
+								const clientName = client
+									? [client.name, client.surname].filter(Boolean).join(" ")
+									: null;
+								return (
+									<li
+										key={a.id}
+										className="flex items-center gap-3 rounded-xl border border-edge bg-surface-2/60 px-3 py-2">
+										<span className="text-xs font-mono font-semibold text-muted w-12 shrink-0 tabular-nums">
+											{t}
+										</span>
+										<div className="min-w-0 flex-1">
+											<p className="text-sm font-semibold text-fg truncate">
+												{a.title || "Cita"}
+											</p>
+											{clientName && (
+												<p className="text-[11px] text-muted truncate">{clientName}</p>
+											)}
+										</div>
+										<span className="text-[10px] font-bold uppercase tracking-wide rounded-md px-2 py-0.5 bg-primary-soft text-[var(--ui-sidebar-active-fg)]">
+											{a.status === "confirmed"
+												? "OK"
+												: a.status === "pending"
+													? "Pend."
+													: a.status || "—"}
+										</span>
+									</li>
+								);
+							})}
+						</ul>
+					)}
+				</section>
+
+				<section className="lg:col-span-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
+					<div className="ui-card !p-4 space-y-1">
+						<p className="erp-label flex items-center gap-1.5">
+							<Euro size={14} className="text-success" /> Ingresos del periodo
+						</p>
+						<p className="text-2xl font-bold text-fg tabular-nums">
+							{currentStats.income.toLocaleString("es-ES", {
+								maximumFractionDigits: 0,
+							})}{" "}
+							€
+						</p>
+						<p
+							className={`text-xs font-semibold flex items-center gap-1 ${
+								incomeGrowth >= 0 ? "text-success" : "text-danger"
+							}`}>
+							{incomeGrowth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+							{reportingPreset === "month"
+								? `${incomeGrowth >= 0 ? "+" : ""}${Math.round(incomeGrowth)}% vs mes anterior`
+								: "Cambia a vista mensual para comparar"}
+						</p>
+						{reportingPreset === "month" && (
+							<div className="mt-2 h-1.5 rounded-full bg-surface-2 overflow-hidden">
+								<div
+									className="h-full rounded-full bg-primary transition-all"
+									style={{
+										width: `${Math.min(100, Math.max(8, 50 + incomeGrowth / 2))}%`,
+									}}
+								/>
+							</div>
+						)}
+					</div>
+
+					<div className="ui-card !p-4 space-y-2 border-amber-200/80">
+						<p className="erp-label flex items-center gap-1.5 text-warning">
+							<AlertTriangle size={14} /> Riesgo operativo
+						</p>
+						{lowStockItems.length > 0 ? (
+							<p className="text-sm text-fg leading-snug">
+								<span className="font-bold text-danger">
+									Riesgo de rotura de stock
+								</span>{" "}
+								en {lowStockItems.length} material
+								{lowStockItems.length === 1 ? "" : "es"}
+								{appointmentsToday.length > 0
+									? ` · hoy tienes ${appointmentsToday.length} cita${appointmentsToday.length === 1 ? "" : "s"}`
+									: ""}
+								.{" "}
+								<span className="text-muted">
+									Ej: {lowStockItems[0]?.name}
+									{lowStockItems[0]?.stock != null
+										? ` (${lowStockItems[0].stock} ud)`
+										: ""}
+								</span>
+							</p>
+						) : expiredStockItems.length > 0 ? (
+							<p className="text-sm text-fg">
+								<span className="font-bold text-warning">Lotes caducados</span> en{" "}
+								{expiredStockItems.length} ítem
+								{expiredStockItems.length === 1 ? "" : "s"} — revisa inventario.
+							</p>
+						) : (
+							<p className="text-sm text-muted flex items-center gap-2">
+								<Package size={14} /> Sin alertas de stock por ahora.
+							</p>
+						)}
+						{onNavigateTab && (lowStockItems.length > 0 || expiredStockItems.length > 0) && (
+							<button
+								type="button"
+								onClick={() => onNavigateTab("inventory")}
+								className="text-xs font-bold text-primary hover:underline">
+								Ir a inventario
+							</button>
+						)}
+					</div>
+				</section>
+			</div>
+
+			<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+				<div className="ui-card !p-3 flex flex-col gap-0.5">
+					<div className="flex items-center gap-2 erp-label">
+						<TrendingDown size={14} className="text-danger" /> Gastos periodo
+					</div>
+					<p className="text-xl font-bold text-fg tabular-nums">
 						{currentStats.expense.toLocaleString("es-ES", {
 							maximumFractionDigits: 0,
 						})}{" "}
 						€
 					</p>
-					<p className="text-xs text-gray-500">
-						Incluye costes operativos del rango
+				</div>
+				<div className="ui-card !p-3 flex flex-col gap-0.5">
+					<div className="flex items-center gap-2 erp-label">
+						<Euro size={14} className="text-primary" /> Beneficio
+					</div>
+					<p className="text-xl font-bold text-fg tabular-nums">
+						{beneficioTotal.toLocaleString("es-ES", { maximumFractionDigits: 0 })} €
 					</p>
 				</div>
-				<div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm flex flex-col gap-0.5">
+				<div className="ui-card !p-3 flex flex-col gap-0.5">
 					<div className="flex items-center gap-2 erp-label">
-						<CalendarDays size={14} className="text-blue-500" /> Próximas citas
+						<CalendarDays size={14} className="text-primary" /> Próximas citas
 					</div>
-					<p className="text-xl font-bold text-gray-900">
-						{upcomingAppointments.length}
-					</p>
-					<p className="text-xs text-gray-500">En la agenda desde hoy</p>
+					<p className="text-xl font-bold text-fg">{upcomingAppointments.length}</p>
 				</div>
-				<div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm flex flex-col gap-0.5">
+				<div className="ui-card !p-3 flex flex-col gap-0.5">
 					<div className="flex items-center gap-2 erp-label">
-						<Users size={14} className="text-violet-500" /> Clientes activos
+						<Users size={14} className="text-primary" /> Clientes activos
 					</div>
-					<p className="text-xl font-bold text-gray-900">
-						{activeClientsCount}
-					</p>
-					<p className="text-xs text-gray-500">No archivados</p>
+					<p className="text-xl font-bold text-fg">{activeClientsCount}</p>
 				</div>
 			</div>
 

@@ -16,7 +16,15 @@ import { calculateUnitCost } from "../../utils/calculations";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { SidePanel } from "../ui/SidePanel";
+import { StatusChip } from "../ui/StatusChip";
+import {
+	FormSheet,
+	FormSheetPrimary,
+	FormSheetPreview,
+	FormPreviewStat,
+	FormDetails,
+} from "../ui/FormSheet";
 import {
 	validateSpanishTaxId,
 	validateFile,
@@ -520,21 +528,297 @@ export const InventoryTab = ({
 	};
 
 
-	if (isModalOpen) {
-		const title = editingItem ? (formData.item_type === 'maquina' ? 'Editar Máquina' : 'Editar Material') : (formData.item_type === 'maquina' ? 'Nueva Máquina' : 'Nuevo Material');
-		return (
-			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
-				<div className="max-w-3xl mx-auto">
-					<div className="flex flex-col gap-2 mb-8">
-						<button
-							onClick={() => { setIsModalOpen(false) }}
-							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
-						</button>
-						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
+	return (
+		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
+			<ConfirmModal
+				isOpen={showDeleteModal}
+				title="Eliminar Material"
+				message={`¿Eliminar "${itemToDelete?.name}"?`}
+				onConfirm={confirmDelete}
+				onCancel={() => setShowDeleteModal(false)}
+				isDestructive={true}
+			/>
+
+			<div className="flex flex-col md:flex-row gap-3 md:gap-4 justify-between items-stretch md:items-center">
+				<div className="relative flex-1 w-full md:max-w-md min-w-0">
+					<Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+					<input
+						placeholder="Buscar material o máquina…"
+						className="w-full pl-12 pr-3 py-3 bg-white border border-gray-200 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-rose-100 font-bold text-gray-800"
+						value={searchTerm}
+						onChange={(e) => setSearchTerm(e.target.value)}
+					/>
+				</div>
+				<button
+					type="button"
+					onClick={() => openModal()}
+					className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors w-full md:w-auto shrink-0">
+					<Plus size={20} /> Nuevo material o máquina
+				</button>
+			</div>
+
+			{lowStockCount > 0 && (
+				<div className="bg-warning-bg border border-warning-border p-4 rounded-2xl flex items-start gap-4 shadow-sm">
+					<AlertTriangle className="text-warning-icon" size={20} />
+					<div>
+						<h4 className="font-bold text-warning-text">
+							Stock Bajo ({lowStockCount})
+						</h4>
+						<p className="text-xs text-warning-text-light">
+							Revisa los productos marcados.
+						</p>
 					</div>
-					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
-						<form onSubmit={handleSave} className="space-y-6">
+				</div>
+			)}
+
+			<div className="md:hidden">
+				{filteredInventory.length === 0 ? (
+					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
+						<EmptyState
+							icon={Package}
+							title="No hay materiales"
+							description="Añade tu primer producto al inventario para empezar a controlar el stock."
+							actionLabel="Añadir primer material"
+							onAction={() => openModal()}
+						/>
+					</div>
+				) : (
+					<div className="space-y-3">
+						{filteredInventory.map((item) => (
+							<div
+								key={item.id}
+								className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3">
+								<div className="flex justify-between items-start">
+									<div className="flex items-center gap-3">
+										<div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
+											<Package size={20} />
+										</div>
+										<div>
+											<h4 className="font-bold text-gray-800">{item.name}</h4>
+											<p className="text-xs text-gray-400 font-medium">
+												{item.unit_cost.toFixed(2)} € /{" "}
+												{(item.item_type || "material") === "maquina"
+													? "sesión"
+													: item.unit_consumption || item.unit || "uds"}
+											</p>
+											{(item.item_type || "material") === "maquina" ? (
+												<p className="text-[10px] text-amber-600 font-medium">Máquina (coste por uso)</p>
+											) : (item.unit_purchase || item.unit_consumption) && (
+												<p className="text-[10px] text-gray-400">
+													Compra: {item.unit_purchase || item.unit || "uds"}
+												</p>
+											)}
+										</div>
+									</div>
+									<div className="flex gap-1">
+										<button
+											onClick={() => openModal(item)}
+											className="p-2 bg-gray-50 text-gray-400 rounded-lg"
+											title={item.item_type === "maquina" ? "Editar máquina" : "Editar material"}>
+											<Edit2 size={16} />
+										</button>
+										{canDeleteOperational && (
+											<button
+												onClick={() => handleDeleteClick(item)}
+												className="p-2 bg-red-50 text-rose-700 rounded-lg"
+												title="Eliminar">
+												<Trash2 size={16} />
+											</button>
+										)}
+									</div>
+								</div>
+
+								<div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl">
+									<div className="flex flex-col">
+										<span className="text-[10px] uppercase font-bold text-gray-400">
+											{(item.item_type || "material") === "maquina" ? "Coste por uso" : "Stock Actual"}
+										</span>
+										<span
+											className={`font-black text-sm ${
+												(item.item_type || "material") === "maquina"
+													? "text-gray-800"
+													: item.stock <= item.min_stock
+														? "text-rose-700"
+														: "text-gray-800"
+											}`}>
+											{(item.item_type || "material") === "maquina"
+												? `${Number(item.unit_cost).toFixed(2)} €/sesión`
+												: `${item.stock} ${item.unit}`}
+										</span>
+									</div>
+									{(item.item_type || "material") !== "maquina" && (
+										<button
+											onClick={() => openRestockModal(item)}
+											className="bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-200 transition-colors">
+											<Plus size={14} /> Reponer
+										</button>
+									)}
+								</div>
+							</div>
+						))}
+					</div>
+				)}
+			</div>
+
+			<div className="hidden md:block bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
+				{filteredInventory.length === 0 ? (
+					<div className="p-3">
+						<EmptyState
+							icon={Package}
+							title="No hay materiales"
+							description="Añade tu primer producto al inventario para empezar a controlar el stock."
+							actionLabel="Añadir primer material"
+							onAction={() => openModal()}
+						/>
+					</div>
+				) : (
+					<table className="w-full text-left border-collapse">
+						<thead>
+							<tr className="bg-gray-50/80 border-b border-gray-100 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+								<th className="p-3">Material</th>
+								<th className="p-3 text-center">Stock</th>
+								<th className="p-3 text-center">Próx. caducidad</th>
+								<th className="p-3 text-center">Coste Unit.</th>
+								<th className="p-3 text-right">Acciones</th>
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-gray-100">
+							{filteredInventory.map((item) => (
+								<tr
+									key={item.id}
+									className="hover:bg-gray-50/30 transition-colors group">
+									<td className="p-3">
+										<div className="flex items-center gap-4">
+											<div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-rose-50 group-hover:text-rose-700 transition-colors">
+												<Package size={24} />
+											</div>
+											<div>
+												<p className="font-bold text-gray-900 text-sm leading-tight">
+													{item.name}
+													{(item.item_type || "material") === "maquina" && (
+														<StatusChip tone="warning" className="ml-2 align-middle">
+															Máquina
+														</StatusChip>
+													)}
+												</p>
+												<p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+													{(item.item_type || "material") === "maquina"
+														? "Coste por uso"
+														: item.unit_purchase || item.unit_consumption
+															? `Compra: ${item.unit_purchase || item.unit || "uds"} · Consumo: ${item.unit_consumption || item.unit || "uds"}`
+															: item.unit || "uds"}
+												</p>
+											</div>
+										</div>
+									</td>
+									<td className="p-3 text-center">
+										{(item.item_type || "material") === "maquina" ? (
+											<span className="text-gray-300">—</span>
+										) : (
+											<StatusChip
+												tone={
+													Number(item.stock) <= Number(item.min_stock)
+														? "danger"
+														: "success"
+												}
+												className="text-xs px-3 py-1">
+												{item.stock}
+											</StatusChip>
+										)}
+									</td>
+									<td className="p-3 text-center">
+										{(item.item_type || "material") === "maquina" ? (
+											<span className="text-gray-300">—</span>
+										) : (
+											(() => {
+												const next = getEarliestExpiry(item.id);
+												if (!next)
+													return <span className="text-gray-300">—</span>;
+												const isExpiringSoon =
+													new Date(next.expiry_date) - new Date() <
+													90 * 24 * 60 * 60 * 1000;
+												return isExpiringSoon ? (
+													<StatusChip tone="warning" title={`Lote ${next.lot_number}`}>
+														{formatDate(next.expiry_date)}
+													</StatusChip>
+												) : (
+													<span
+														title={`Lote ${next.lot_number}`}
+														className="text-gray-500 text-sm">
+														{formatDate(next.expiry_date)}
+													</span>
+												);
+											})()
+										)}
+									</td>
+									<td className="p-3 text-center">
+										<span className="font-bold text-gray-600 text-sm">
+											{Number(item.unit_cost).toFixed(2)} €
+											{(item.item_type || "material") === "maquina" && (
+												<span className="text-xs font-normal text-gray-400">/sesión</span>
+											)}
+										</span>
+									</td>
+									<td className="p-3 text-right">
+										<div className="flex justify-end gap-2">
+											{(item.item_type || "material") !== "maquina" && (
+												<button
+													onClick={() => openRestockModal(item)}
+													className="p-2.5 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-500 hover:text-white transition-all shadow-sm"
+													title="Reponer Stock">
+													<Plus size={18} />
+												</button>
+											)}
+											<button
+												onClick={() => openModal(item)}
+												className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-200 transition-all shadow-sm"
+												title="Editar material">
+												<Edit2 size={18} />
+											</button>
+											{canDeleteOperational && (
+												<button
+													onClick={() => handleDeleteClick(item)}
+													className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-rose-700 transition-all shadow-sm"
+													title="Eliminar material">
+													<Trash2 size={18} />
+												</button>
+											)}
+										</div>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				)}
+			</div>
+
+			
+
+			
+
+	
+		<SidePanel
+			isOpen={isModalOpen}
+			onClose={() => setIsModalOpen(false)}
+			title={editingItem ? "Editar stock" : "Nuevo ítem de inventario"}
+			subtitle="Material o máquina · coste y fiscalidad"
+			size="lg"
+			footer={
+				<LoadingButton
+					loading={loading}
+					type="submit"
+					form="inventory-item-form"
+					className="w-full btn-primary py-3">
+					{loading
+						? "Guardando..."
+						: formData.item_type === "maquina"
+							? "Guardar máquina"
+							: "Guardar material"}
+				</LoadingButton>
+			}>
+			<form id="inventory-item-form" onSubmit={handleSave}>
+				<FormSheet>
+					<FormSheetPrimary>
 					{!editingItem && (
 						<div>
 							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
@@ -648,18 +932,6 @@ export const InventoryTab = ({
 									setFormData({ ...formData, totalCost: e.target.value })
 								}
 							/>
-							{formData.stock &&
-								formData.totalCost &&
-								Number(formData.stock) > 0 && (
-									<p className="text-xs text-gray-500 mt-2 ml-1">
-										Coste unitario calculado:{" "}
-										{calculateUnitCost(
-											formData.totalCost,
-											formData.stock,
-										).toFixed(2)}{" "}
-										€
-									</p>
-								)}
 						</div>
 						{!editingItem && formData.is_deductible && (
 							<div>
@@ -698,6 +970,18 @@ export const InventoryTab = ({
 							/>
 						</div>
 					</div>
+						</>
+					)}
+
+					{(editingItem && editBatches.length > 0) ||
+					(!editingItem &&
+						formData.item_type !== "maquina" &&
+						Number(formData.stock) > 0) ? (
+						<FormDetails
+							title="Más detalles"
+							defaultOpen={
+								!editingItem && Number(formData.stock) > 0
+							}>
 					{editingItem && editBatches.length > 0 && (
 						<div className="space-y-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
 							<p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
@@ -720,7 +1004,7 @@ export const InventoryTab = ({
 							))}
 						</div>
 					)}
-					{!editingItem && Number(formData.stock) > 0 && (
+					{!editingItem && Number(formData.stock) > 0 && formData.item_type !== "maquina" && (
 						<div className="space-y-4 p-4 bg-amber-50 rounded-2xl border border-amber-100">
 							<p className="text-xs font-bold text-amber-800 uppercase">
 								Trazabilidad y compra
@@ -875,84 +1159,81 @@ export const InventoryTab = ({
 							)}
 						</div>
 					)}
-						</>
-					)}
-					<div className="pt-4">
-						<LoadingButton
-							loading={loading}
-							type="submit"
-							className="w-full bg-surface-dark text-white font-black py-4 rounded-xl shadow-lg">
-							{loading ? "Guardando..." : formData.item_type === "maquina" ? "Guardar Máquina" : "Guardar Material"}
-						</LoadingButton>
-					</div>
-				</form>
-					</div>
-				</div>
-			</div>
-		);
-	}
+						</FormDetails>
+					) : null}
+					</FormSheetPrimary>
+					<FormSheetPreview>
+						{formData.name ? (
+							<p className="text-base font-bold text-white leading-snug">{formData.name}</p>
+						) : (
+							<p className="text-sm text-slate-500">Sin nombre aún</p>
+						)}
+						{formData.item_type === "maquina" ? (
+							<FormPreviewStat
+								label="Coste / sesión"
+								value={
+									formData.costPerUse
+										? `${Number(formData.costPerUse).toFixed(2)} €`
+										: "—"
+								}
+							/>
+						) : (
+							<div className="grid grid-cols-2 gap-3">
+								<FormPreviewStat
+									label="Stock"
+									value={
+										formData.stock
+											? `${formData.stock} ${formData.unit || "uds"}`
+											: "—"
+									}
+								/>
+								<FormPreviewStat
+									label="Coste / ud"
+									tone="accent"
+									value={
+										formData.stock &&
+										formData.totalCost &&
+										Number(formData.stock) > 0
+											? `${calculateUnitCost(formData.totalCost, formData.stock).toFixed(2)} €`
+											: "—"
+									}
+								/>
+							</div>
+						)}
+						{formData.item_type !== "maquina" &&
+							formData.min_stock !== "" &&
+							Number(formData.stock) <= Number(formData.min_stock) &&
+							Number(formData.stock) >= 0 && (
+								<p className="text-xs text-amber-300 pt-2 border-t border-slate-700">
+									Stock en o bajo el mínimo de aviso ({formData.min_stock}).
+								</p>
+							)}
+					</FormSheetPreview>
+				</FormSheet>
+			</form>
+		</SidePanel>
 
-	if (isRestockModalOpen) {
-		const title = 'Añadir Lote';
-		return (
-			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
-				<div className="max-w-3xl mx-auto">
-					<div className="flex flex-col gap-2 mb-8">
-						<button
-							onClick={() => { setIsRestockModalOpen(false) }}
-							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
-						</button>
-						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
-					</div>
-					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
-						<form onSubmit={handleRestock} className="space-y-6">
+		<SidePanel
+			isOpen={isRestockModalOpen}
+			onClose={() => setIsRestockModalOpen(false)}
+			title={restockItem ? `Reponer: ${restockItem.name}` : "Reponer stock"}
+			subtitle="Lote, coste y factura si aplica"
+			size="lg"
+			footer={
+				<LoadingButton
+					loading={loading}
+					type="submit"
+					form="inventory-restock-form"
+					className="w-full btn-primary py-3">
+					{loading ? "Guardando..." : "Confirmar reposición"}
+				</LoadingButton>
+			}>
+			<form id="inventory-restock-form" onSubmit={handleRestock}>
+				<FormSheet>
+					<FormSheetPrimary>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Fecha de compra <span className="text-rose-700">*</span>
-						</label>
-						<input
-							type="date"
-							required
-							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
-							value={restockData.purchaseDate || ""}
-							onChange={(e) =>
-								setRestockData({ ...restockData, purchaseDate: e.target.value })
-							}
-						/>
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Nº de Lote <span className="text-rose-700">*</span>
-						</label>
-						<input
-							type="text"
-							required
-							placeholder="Ej: L2024-001"
-							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
-							value={restockData.lotNumber}
-							onChange={(e) =>
-								setRestockData({ ...restockData, lotNumber: e.target.value })
-							}
-						/>
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Fecha de Caducidad <span className="text-rose-700">*</span>
-						</label>
-						<input
-							type="date"
-							required
-							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
-							value={restockData.expiryDate}
-							onChange={(e) =>
-								setRestockData({ ...restockData, expiryDate: e.target.value })
-							}
-						/>
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Cantidad Comprada ({restockItem?.unit || "uds"})
+							Cantidad comprada ({restockItem?.unit || "uds"})
 						</label>
 						<input
 							type="number"
@@ -1009,6 +1290,51 @@ export const InventoryTab = ({
 							</div>
 						)}
 					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+							Nº de Lote <span className="text-rose-700">*</span>
+						</label>
+						<input
+							type="text"
+							required
+							placeholder="Ej: L2024-001"
+							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
+							value={restockData.lotNumber}
+							onChange={(e) =>
+								setRestockData({ ...restockData, lotNumber: e.target.value })
+							}
+						/>
+					</div>
+					<div className="grid grid-cols-2 gap-4">
+						<div>
+							<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+								Fecha de compra <span className="text-rose-700">*</span>
+							</label>
+							<input
+								type="date"
+								required
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
+								value={restockData.purchaseDate || ""}
+								onChange={(e) =>
+									setRestockData({ ...restockData, purchaseDate: e.target.value })
+								}
+							/>
+						</div>
+						<div>
+							<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+								Caducidad <span className="text-rose-700">*</span>
+							</label>
+							<input
+								type="date"
+								required
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
+								value={restockData.expiryDate}
+								onChange={(e) =>
+									setRestockData({ ...restockData, expiryDate: e.target.value })
+								}
+							/>
+						</div>
+					</div>
 					<label className="flex items-start gap-3 cursor-pointer p-3 bg-gray-50 rounded-xl border border-gray-200">
 						<input
 							type="checkbox"
@@ -1028,6 +1354,7 @@ export const InventoryTab = ({
 							</span>
 						</span>
 					</label>
+					<FormDetails title="Proveedor y adjunto" defaultOpen={!!restockData.is_deductible}>
 					{restockData.is_deductible ? (
 					<>
 					<div>
@@ -1223,285 +1550,48 @@ export const InventoryTab = ({
 						)}
 					</div>
 					)}
-					<LoadingButton
-						loading={loading}
-						type="submit"
-						className="w-full bg-blue-600 text-white font-black py-4 rounded-xl shadow-lg">
-						{loading ? "Guardando..." : "Confirmar Compra"}
-					</LoadingButton>
-				</form>
-					</div>
-				</div>
-			</div>
-		);
-	}
+					</FormDetails>
+					</FormSheetPrimary>
+					<FormSheetPreview>
+						{restockItem ? (
+							<p className="text-sm font-semibold text-white">{restockItem.name}</p>
+						) : null}
+						<div className="grid grid-cols-2 gap-3">
+							<FormPreviewStat
+								label="Cantidad"
+								value={
+									restockData.quantity
+										? `${restockData.quantity} ${restockItem?.unit || "uds"}`
+										: "—"
+								}
+							/>
+							<FormPreviewStat
+								label="Coste / ud"
+								tone="accent"
+								value={
+									restockData.quantity &&
+									restockData.totalCost &&
+									Number(restockData.quantity) > 0
+										? `${calculateUnitCost(restockData.totalCost, restockData.quantity).toFixed(2)} €`
+										: "—"
+								}
+							/>
+						</div>
+						{restockData.is_deductible ? (
+							<p className="text-[11px] text-emerald-300 pt-2 border-t border-slate-700">
+								Deducible · IVA en 303
+							</p>
+						) : (
+							<p className="text-[11px] text-slate-500 pt-2 border-t border-slate-700">
+								Sin factura deducible
+							</p>
+						)}
+					</FormSheetPreview>
+				</FormSheet>
+			</form>
+		</SidePanel>
 
-	return (
-		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
-			<ConfirmModal
-				isOpen={showDeleteModal}
-				title="Eliminar Material"
-				message={`¿Eliminar "${itemToDelete?.name}"?`}
-				onConfirm={confirmDelete}
-				onCancel={() => setShowDeleteModal(false)}
-				isDestructive={true}
-			/>
-
-			<div className="flex flex-col md:flex-row gap-3 md:gap-4 justify-between items-stretch md:items-center">
-				<div className="relative flex-1 w-full md:max-w-md min-w-0">
-					<Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-					<input
-						placeholder="Buscar material o máquina…"
-						className="w-full pl-12 pr-3 py-3 bg-white border border-gray-200 rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-rose-100 font-bold text-gray-800"
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
-					/>
-				</div>
-				<button
-					type="button"
-					onClick={() => openModal()}
-					className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-semibold bg-rose-700 text-white shadow-sm hover:bg-rose-800 transition-colors w-full md:w-auto shrink-0">
-					<Plus size={20} /> Nuevo material o máquina
-				</button>
-			</div>
-
-			{lowStockCount > 0 && (
-				<div className="bg-warning-bg border border-warning-border p-4 rounded-2xl flex items-start gap-4 shadow-sm">
-					<AlertTriangle className="text-warning-icon" size={20} />
-					<div>
-						<h4 className="font-bold text-warning-text">
-							Stock Bajo ({lowStockCount})
-						</h4>
-						<p className="text-xs text-warning-text-light">
-							Revisa los productos marcados.
-						</p>
-					</div>
-				</div>
-			)}
-
-			<div className="md:hidden">
-				{filteredInventory.length === 0 ? (
-					<div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3">
-						<EmptyState
-							icon={Package}
-							title="No hay materiales"
-							description="Añade tu primer producto al inventario para empezar a controlar el stock."
-							actionLabel="Añadir primer material"
-							onAction={() => openModal()}
-						/>
-					</div>
-				) : (
-					<div className="space-y-3">
-						{filteredInventory.map((item) => (
-							<div
-								key={item.id}
-								className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3">
-								<div className="flex justify-between items-start">
-									<div className="flex items-center gap-3">
-										<div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400">
-											<Package size={20} />
-										</div>
-										<div>
-											<h4 className="font-bold text-gray-800">{item.name}</h4>
-											<p className="text-xs text-gray-400 font-medium">
-												{item.unit_cost.toFixed(2)} € /{" "}
-												{(item.item_type || "material") === "maquina"
-													? "sesión"
-													: item.unit_consumption || item.unit || "uds"}
-											</p>
-											{(item.item_type || "material") === "maquina" ? (
-												<p className="text-[10px] text-amber-600 font-medium">Máquina (coste por uso)</p>
-											) : (item.unit_purchase || item.unit_consumption) && (
-												<p className="text-[10px] text-gray-400">
-													Compra: {item.unit_purchase || item.unit || "uds"}
-												</p>
-											)}
-										</div>
-									</div>
-									<div className="flex gap-1">
-										<button
-											onClick={() => openModal(item)}
-											className="p-2 bg-gray-50 text-gray-400 rounded-lg"
-											title={item.item_type === "maquina" ? "Editar máquina" : "Editar material"}>
-											<Edit2 size={16} />
-										</button>
-										{canDeleteOperational && (
-											<button
-												onClick={() => handleDeleteClick(item)}
-												className="p-2 bg-red-50 text-rose-700 rounded-lg"
-												title="Eliminar">
-												<Trash2 size={16} />
-											</button>
-										)}
-									</div>
-								</div>
-
-								<div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl">
-									<div className="flex flex-col">
-										<span className="text-[10px] uppercase font-bold text-gray-400">
-											{(item.item_type || "material") === "maquina" ? "Coste por uso" : "Stock Actual"}
-										</span>
-										<span
-											className={`font-black text-sm ${
-												(item.item_type || "material") === "maquina"
-													? "text-gray-800"
-													: item.stock <= item.min_stock
-														? "text-rose-700"
-														: "text-gray-800"
-											}`}>
-											{(item.item_type || "material") === "maquina"
-												? `${Number(item.unit_cost).toFixed(2)} €/sesión`
-												: `${item.stock} ${item.unit}`}
-										</span>
-									</div>
-									{(item.item_type || "material") !== "maquina" && (
-										<button
-											onClick={() => openRestockModal(item)}
-											className="bg-blue-100 text-blue-600 px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-blue-200 transition-colors">
-											<Plus size={14} /> Reponer
-										</button>
-									)}
-								</div>
-							</div>
-						))}
-					</div>
-				)}
-			</div>
-
-			<div className="hidden md:block bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
-				{filteredInventory.length === 0 ? (
-					<div className="p-3">
-						<EmptyState
-							icon={Package}
-							title="No hay materiales"
-							description="Añade tu primer producto al inventario para empezar a controlar el stock."
-							actionLabel="Añadir primer material"
-							onAction={() => openModal()}
-						/>
-					</div>
-				) : (
-					<table className="w-full text-left border-collapse">
-						<thead>
-							<tr className="bg-gray-50/50 border-b text-[11px] font-black text-gray-400 uppercase tracking-[0.1em]">
-								<th className="p-3">Material</th>
-								<th className="p-3 text-center">Stock</th>
-								<th className="p-3 text-center">Próx. caducidad</th>
-								<th className="p-3 text-center">Coste Unit.</th>
-								<th className="p-3 text-right">Acciones</th>
-							</tr>
-						</thead>
-						<tbody className="divide-y divide-gray-100">
-							{filteredInventory.map((item) => (
-								<tr
-									key={item.id}
-									className="hover:bg-gray-50/30 transition-colors group">
-									<td className="p-3">
-										<div className="flex items-center gap-4">
-											<div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-rose-50 group-hover:text-rose-700 transition-colors">
-												<Package size={24} />
-											</div>
-											<div>
-												<p className="font-bold text-gray-900 text-sm leading-tight">
-													{item.name}
-													{(item.item_type || "material") === "maquina" && (
-														<span className="ml-2 text-[10px] font-medium text-amber-600 uppercase">Máquina</span>
-													)}
-												</p>
-												<p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
-													{(item.item_type || "material") === "maquina"
-														? "Coste por uso"
-														: item.unit_purchase || item.unit_consumption
-															? `Compra: ${item.unit_purchase || item.unit || "uds"} · Consumo: ${item.unit_consumption || item.unit || "uds"}`
-															: item.unit || "uds"}
-												</p>
-											</div>
-										</div>
-									</td>
-									<td className="p-3 text-center">
-										{(item.item_type || "material") === "maquina" ? (
-											<span className="text-gray-300">—</span>
-										) : (
-											<span
-												className={`px-4 py-1.5 rounded-full text-sm font-black shadow-sm ${
-													Number(item.stock) <= Number(item.min_stock)
-														? "bg-rose-50 text-rose-700 border border-rose-100"
-														: "bg-emerald-50 text-emerald-600 border border-emerald-100"
-												}`}>
-												{item.stock}
-											</span>
-										)}
-									</td>
-									<td className="p-3 text-center">
-										{(item.item_type || "material") === "maquina" ? (
-											<span className="text-gray-300">—</span>
-										) : (
-											(() => {
-												const next = getEarliestExpiry(item.id);
-												if (!next)
-													return <span className="text-gray-300">—</span>;
-												const isExpiringSoon =
-													new Date(next.expiry_date) - new Date() <
-													90 * 24 * 60 * 60 * 1000;
-												return (
-													<span
-														title={`Lote ${next.lot_number}`}
-														className={
-															isExpiringSoon
-																? "text-amber-600 font-bold text-sm"
-																: "text-gray-500 text-sm"
-														}>
-														{formatDate(next.expiry_date)}
-													</span>
-												);
-											})()
-										)}
-									</td>
-									<td className="p-3 text-center">
-										<span className="font-bold text-gray-600 text-sm">
-											{Number(item.unit_cost).toFixed(2)} €
-											{(item.item_type || "material") === "maquina" && (
-												<span className="text-xs font-normal text-gray-400">/sesión</span>
-											)}
-										</span>
-									</td>
-									<td className="p-3 text-right">
-										<div className="flex justify-end gap-2">
-											{(item.item_type || "material") !== "maquina" && (
-												<button
-													onClick={() => openRestockModal(item)}
-													className="p-2.5 bg-blue-50 text-blue-500 rounded-xl hover:bg-blue-500 hover:text-white transition-all shadow-sm"
-													title="Reponer Stock">
-													<Plus size={18} />
-												</button>
-											)}
-											<button
-												onClick={() => openModal(item)}
-												className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-200 transition-all shadow-sm"
-												title="Editar material">
-												<Edit2 size={18} />
-											</button>
-											{canDeleteOperational && (
-												<button
-													onClick={() => handleDeleteClick(item)}
-													className="p-2.5 bg-gray-50 text-gray-400 rounded-xl hover:bg-red-50 hover:text-rose-700 transition-all shadow-sm"
-													title="Eliminar material">
-													<Trash2 size={18} />
-												</button>
-											)}
-										</div>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				)}
-			</div>
-
-			
-
-			
-
-			<ProviderDatalist
+		<ProviderDatalist
 				id="inventory-providers-list"
 				directory={supplierDirectory}
 			/>

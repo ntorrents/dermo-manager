@@ -48,7 +48,13 @@ import {
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { SidePanel } from "../ui/SidePanel";
+import {
+	FormSheet,
+	FormSheetPrimary,
+	FormSheetPreview,
+	FormPreviewStat,
+} from "../ui/FormSheet";
 import { useTenant } from "../../context/TenantContext";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { classifyFinanceIssue, financeIssueLabel } from "../../utils/financeIssues";
@@ -972,21 +978,642 @@ export const FinanceMovementsTab = ({
 	};
 
 
-	if (isModalOpen) {
-		const title = editingEntry ? 'Editar Movimiento' : (formData.recurring_id ? 'Registrar pago recurrente' : (formData.type === 'income' ? 'Registrar Ingreso' : 'Registrar Gasto'));
-		return (
-			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
-				<div className="max-w-3xl mx-auto">
-					<div className="flex flex-col gap-2 mb-8">
-						<button
-							onClick={() => { setIsModalOpen(false) }}
-							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
-						</button>
-						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
+	return (
+		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
+			{/* MODALES DE CONFIRMACIÓN */}
+			<ConfirmModal
+				isOpen={showDeleteModal}
+				title="Archivar movimiento"
+				message="El registro dejará de mostrarse en listados y estadísticas visibles, pero se conserva en base de datos."
+				onConfirm={confirmDelete}
+				onCancel={() => setShowDeleteModal(false)}
+				isDestructive={true}
+			/>
+
+			{/* HEADER: BALANCE Y SELECTORES */}
+			<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
+				<div className="shrink-0">
+					<p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">
+						Balance · {reportingRange?.label ?? "—"}
+					</p>
+					<h2
+						className={`text-4xl font-black tracking-tighter ${
+							netProfit >= 0 ? "text-gray-800" : "text-rose-700"
+						}`}>
+						{formatCurrency(netProfit)}
+					</h2>
+				</div>
+				<div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+					<div className="min-w-0 w-full flex-1">
+						
 					</div>
-					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
-						<form onSubmit={handleSaveEntry} className="space-y-5">
+					{isAdvanced && (
+					<div className="flex shrink-0 items-center gap-1.5">
+						<button
+							type="button"
+							onClick={() =>
+								exportToCSV(periodEntries, `Finanzas_${rangeStart}_${rangeEnd}.csv`)
+							}
+							className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-emerald-800 transition-colors hover:bg-emerald-100"
+							title="Exportar CSV">
+							<FileSpreadsheet size={18} />
+							<span className="hidden font-bold sm:inline text-xs">CSV</span>
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								const ventas = periodEntries.filter((e) => e.type === "income");
+								const compras = periodEntries.filter(
+									(e) => e.type === "expense" && e.is_deductible,
+								);
+								exportTrimestreToExcel(
+									ventas,
+									compras,
+									clients,
+									`Finanzas_${rangeStart}_${rangeEnd}.xlsx`,
+								);
+							}}
+							className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-2.5 py-2 text-emerald-700 transition-colors hover:bg-emerald-50"
+							title="Exportar Excel (ventas y compras deducibles del periodo)">
+							<FileSpreadsheet size={18} />
+							<span className="hidden font-bold sm:inline text-xs">Excel</span>
+						</button>
+					</div>
+					)}
+				</div>
+			</div>
+			{/* BOTONES DE ACCIÓN RÁPIDA (Siempre arriba) */}
+			<div className="grid grid-cols-2 gap-3 md:gap-6">
+				<button
+					onClick={() => openEntryModal("income")}
+					className="py-4 md:py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
+					<Plus size={22} />{" "}
+					<span className="uppercase tracking-widest text-sm">Ingreso</span>
+				</button>
+				<button
+					onClick={() => openEntryModal("expense")}
+					className="py-4 md:py-5 bg-rose-700 hover:bg-rose-800 text-white rounded-2xl font-black shadow-lg shadow-rose-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
+					<Plus size={22} />{" "}
+					<span className="uppercase tracking-widest text-sm">Gasto</span>
+				</button>
+			</div>
+
+			<div className="inline-flex bg-gray-100 p-1 rounded-xl w-full md:w-auto">
+				<button
+					type="button"
+					onClick={() => setFinanceView("movements")}
+					className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
+						financeView === "movements"
+							? "bg-white text-gray-800 shadow-sm"
+							: "text-gray-500 hover:text-gray-700"
+					}`}>
+					Movimientos
+				</button></div>
+
+			{/* --- GESTIÓN COMPLETA: móvil + fijos --- */}
+			{financeView === "movements" && isAdvanced && (
+			<div className="md:hidden space-y-4">
+				<div className="flex bg-gray-100 p-1 rounded-xl">
+					{["all", "income", "expense"].map((type) => (
+						<button
+							key={type}
+							onClick={() => setTypeFilter(type)}
+							className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+								typeFilter === type
+									? "bg-white text-gray-800 shadow-sm"
+									: "text-gray-400"
+							}`}>
+							{type === "all"
+								? "Todo"
+								: type === "income"
+									? "Ingresos"
+									: "Gastos"}
+						</button>
+					))}
+				</div>
+				<div className="relative">
+					<Search className="absolute left-3 top-3 text-gray-400" size={18} />
+					<input
+						placeholder="Buscar en la lista..."
+						className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl outline-none"
+						value={searchTerm}
+						onChange={(e) => setSearchTerm(e.target.value)}
+					/>
+				</div>
+				<div>
+					<select
+						value={issueFilter}
+						onChange={(e) => setIssueFilter(e.target.value)}
+						className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none text-sm font-bold">
+						<option value="all">Sin filtro fiscal</option>
+						<option value="any">Solo con incidencias fiscales</option>
+						<option value="missing_invoice">Sin nº factura</option>
+						<option value="missing_nif">Sin NIF proveedor</option>
+						<option value="invalid_nif">NIF inválido</option>
+						<option value="missing_attachment">Sin justificante</option>
+					</select>
+				</div>
+				<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
+					{filteredEntries.length > 0 ? (
+						filteredEntries.map((entry) => (
+							<div
+								key={`adv-${entry.id}`}
+								className="p-4 border-b last:border-0 hover:bg-gray-50 transition-colors flex justify-between items-center group">
+								<div>
+									<p className="font-bold text-gray-800 text-sm">
+										{entry.description}
+									</p>
+									<p className="text-[10px] text-gray-400 font-bold uppercase">
+										{entry.date} • {entry.category}
+										{entry.is_deductible && " • Factura deducible"}
+										{entry.plan_amigo && " • Plan Amigo (sin factura)"}
+									</p>
+									{classifyFinanceIssue(entry) && (
+										<p className="text-[10px] text-amber-700 font-bold mt-1">
+											⚠ {financeIssueLabel(classifyFinanceIssue(entry))}
+										</p>
+									)}
+								</div>
+								<div className="flex items-center gap-2">
+									<span
+										className={`font-black text-sm ${
+											entry.type === "income"
+												? "text-emerald-500"
+												: "text-rose-700"
+										}`}>
+										{entry.type === "income" ? "+" : "-"}
+										{formatCurrency(entry.amount)}
+									</span>
+									<button
+										onClick={() => openEntryModal(null, entry)}
+										className="text-gray-300 p-1"
+										title="Editar">
+										<Edit2 size={14} />
+									</button>
+								</div>
+							</div>
+						))
+					) : (
+						<div className="p-10 text-center text-gray-300 font-bold uppercase text-xs">
+							Sin movimientos
+						</div>
+					)}
+				</div>
+				<div className="space-y-4 pt-4">
+					<div className="flex justify-between items-center px-4">
+						<h3 className="text-xs font-black text-gray-700 uppercase tracking-widest">
+							Gastos Fijos
+						</h3>
+						<button
+							onClick={() => setIsConfigOpen(true)}
+							className="text-[10px] font-black text-gray-400 hover:text-rose-700 uppercase italic flex items-center gap-1">
+							<Settings size={12} /> Configurar
+						</button>
+					</div>
+					<div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-3">
+						{recurringExpenses.map((exp, idx) => {
+							const status = getFixedStatus(exp);
+							const canPay = !!exp.id;
+							return (
+								<div
+									key={exp.id ?? `mobile-${idx}`}
+									className={`flex justify-between items-center p-4 rounded-2xl border transition-all ${
+										status.paid
+											? "bg-emerald-50 border-emerald-100"
+											: "bg-white border-gray-100"
+									}`}>
+									<div>
+										<p className="font-bold text-gray-800 text-xs">
+											{exp.category}
+										</p>
+										<p className="text-[10px] text-gray-400 font-bold">
+											{formatCurrency(exp.amount)}
+										</p>
+									</div>
+									{status.paid ? (
+										<CheckCircle2 size={20} className="text-emerald-500" />
+									) : canPay ? (
+										<button
+											onClick={() => handlePayClick(exp)}
+											className="bg-primary hover:bg-primary-hover text-on-primary px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-colors">
+											Pagar
+										</button>
+									) : (
+										<span className="text-[10px] text-gray-400 italic">Guardar primero</span>
+									)}
+								</div>
+							);
+						})}
+					</div>
+				</div>
+			</div>
+			)}
+
+			{/* --- GESTIÓN COMPLETA: escritorio (3 columnas) --- */}
+			{financeView === "movements" && isAdvanced && (
+			<div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
+				{/* COLUMNA 1: INGRESOS */}
+				<div className="space-y-4">
+					<div className="flex justify-between items-center px-4">
+						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest flex items-center gap-2">
+							<TrendingUp size={16} className="text-emerald-500" /> Ingresos
+						</h3>
+						<span className="text-emerald-600 font-black">
+							{formatCurrency(totalIncome)}
+						</span>
+					</div>
+					<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden min-h-[300px]">
+						{periodEntries.filter((e) => e.type === "income").length > 0 ? (
+							periodEntries
+								.filter((e) => e.type === "income")
+								.map((entry) => (
+									<div
+										key={entry.id}
+										className="p-4 hover:bg-gray-50 flex justify-between items-center border-b last:border-0 group transition-colors">
+										<div>
+											<p className="font-bold text-gray-800 text-sm">
+												{entry.description}
+											</p>
+											<p className="text-[10px] text-gray-400 font-bold uppercase">
+												{entry.date}
+												{entry.plan_amigo && " • Plan Amigo"}
+											</p>
+										</div>
+										<div className="flex items-center gap-2">
+											<span className="font-black text-emerald-500 mr-1">
+												+{formatCurrency(entry.amount)}
+											</span>
+											<button
+												onClick={() => openEntryModal("income", entry)}
+												className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+												title="Editar">
+												<Edit2 size={14} />
+											</button>
+											{isAdmin && (
+												<button
+													onClick={() => handleDeleteClick(entry.id)}
+													className="text-gray-300 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity"
+													title="Eliminar">
+													<Trash2 size={14} />
+												</button>
+											)}
+										</div>
+									</div>
+								))
+						) : (
+							<div className="p-6">
+								<EmptyState
+									icon={TrendingUp}
+									title="Sin ingresos"
+									description="Registra tu primer ingreso en este periodo."
+									actionLabel="Registrar ingreso"
+									onAction={() => openEntryModal("income")}
+								/>
+							</div>
+						)}
+					</div>
+				</div>
+
+				{/* COLUMNA 2: GASTOS */}
+				<div className="space-y-4">
+					<div className="flex justify-between items-center px-4">
+						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest flex items-center gap-2">
+							<TrendingDown size={16} className="text-rose-700" /> Gastos
+						</h3>
+						<span className="text-rose-700 font-black">
+							{formatCurrency(totalExpense)}
+						</span>
+					</div>
+					<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden min-h-[300px]">
+						{periodEntries.filter((e) => e.type === "expense").length > 0 ? (
+							periodEntries
+								.filter((e) => e.type === "expense")
+								.map((entry) => (
+									<div
+										key={entry.id}
+										className="p-4 hover:bg-gray-50 flex justify-between items-center border-b last:border-0 group transition-colors">
+										<div>
+											<p className="font-bold text-gray-800 text-sm">
+												{entry.description}
+											</p>
+											<p className="text-[10px] text-gray-400 font-bold uppercase">
+												{entry.date} •{" "}
+												<span className="text-rose-400">{entry.category}</span>
+												{entry.is_deductible && " • Factura deducible"}
+												{entry.is_deductible &&
+													entry.supplier_nif &&
+													entry.invoice_number &&
+													(() => {
+														const sameInvoice = periodEntries.filter(
+															(e) =>
+																e.type === "expense" &&
+																e.is_deductible &&
+																e.supplier_nif === entry.supplier_nif &&
+																e.invoice_number === entry.invoice_number &&
+																e.id !== entry.id,
+														).length;
+														return sameInvoice > 0
+															? ` • ${sameInvoice + 1} materiales`
+															: "";
+													})()}
+											</p>
+										</div>
+										<div className="flex items-center gap-2">
+											{entry.file_url && (
+												<a
+													href="#"
+													onClick={async (e) => {
+														e.preventDefault();
+														try {
+															const url = await getReceiptSignedUrl(
+																entry.file_url,
+															);
+															if (url) {
+																window.open(url, "_blank");
+															} else {
+																// Fallback a URL pública
+																const publicUrl = getReceiptUrl(entry.file_url);
+																if (publicUrl) {
+																	window.open(publicUrl, "_blank");
+																} else {
+																	showToast(
+																		"Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.",
+																		"error",
+																	);
+																}
+															}
+														} catch (err) {
+															console.error("Error descargando archivo:", err);
+															if (
+																err?.message?.includes("Bucket not found") ||
+																err?.error === "Bucket not found"
+															) {
+																showToast(
+																	"Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.",
+																	"error",
+																);
+															} else {
+																showToast(
+																	"Error al descargar el archivo",
+																	"error",
+																);
+															}
+														}
+													}}
+													className="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
+													title="Ver/Descargar justificante">
+													<Download size={16} />
+												</a>
+											)}
+											<span className="font-black text-rose-700 mr-1">
+												-{formatCurrency(entry.amount)}
+											</span>
+											<button
+												onClick={() => openEntryModal("expense", entry)}
+												className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
+												title="Editar">
+												<Edit2 size={14} />
+											</button>
+											{isAdmin && (
+												<button
+													onClick={() => handleDeleteClick(entry.id)}
+													className="text-gray-300 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity"
+													title="Eliminar">
+													<Trash2 size={14} />
+												</button>
+											)}
+										</div>
+									</div>
+								))
+						) : (
+							<div className="p-6">
+								<EmptyState
+									icon={TrendingDown}
+									title="Sin gastos"
+									description="Registra tu primer gasto en este periodo."
+									actionLabel="Registrar gasto"
+									onAction={() => openEntryModal("expense")}
+								/>
+							</div>
+						)}
+					</div>
+				</div>
+
+				{/* COLUMNA 3: CONTROL DE FIJOS */}
+				<div className="space-y-4">
+					<div className="flex justify-between items-center px-4">
+						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest">
+							Control de Fijos
+						</h3>
+						<button
+							onClick={() => setIsConfigOpen(true)}
+							className="text-[10px] font-black text-gray-400 hover:text-rose-700 flex items-center gap-1 uppercase tracking-widest italic transition-colors">
+							<Settings size={14} /> Configurar
+						</button>
+					</div>
+					<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 space-y-3">
+						{recurringExpenses.map((exp, idx) => {
+							const status = getFixedStatus(exp);
+							const canPay = !!exp.id;
+							return (
+								<div
+									key={exp.id ?? `desktop-${idx}`}
+									className={`flex justify-between items-center p-4 rounded-2xl border transition-all ${
+										status.paid
+											? "bg-emerald-50/30 border-emerald-100 shadow-none"
+											: "bg-white border-gray-100 shadow-sm hover:border-rose-100"
+									}`}>
+									<div>
+										<p className="font-black text-gray-800 text-sm leading-tight">
+											{exp.category}
+										</p>
+										<p className="text-xs text-gray-400 font-bold">
+											{formatCurrency(exp.amount)}
+										</p>
+									</div>
+									{status.paid ? (
+										<CheckCircle2 size={22} className="text-emerald-500" />
+									) : canPay ? (
+										<button
+											onClick={() => handlePayClick(exp)}
+											className="bg-primary hover:bg-primary-hover text-on-primary px-5 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md transition-all active:scale-95">
+											Pagar
+										</button>
+									) : (
+										<span className="text-xs text-gray-400 italic">Guardar primero</span>
+									)}
+								</div>
+							);
+						})}
+					</div>
+				</div>
+			</div>
+			)}
+
+			{isAdvanced && financeView === "analysis" && (
+				<div className="space-y-5">
+					<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+						<div className="bg-white p-4 rounded-2xl border border-gray-100">
+							<p className="text-[10px] font-black uppercase text-gray-400">Gasto periodo</p>
+							<p className="text-2xl font-black text-rose-700">
+								{formatCurrency(financialAnalysis.totalSpent)}
+							</p>
+						</div>
+						<div className="bg-white p-4 rounded-2xl border border-gray-100">
+							<p className="text-[10px] font-black uppercase text-gray-400">Ingreso periodo</p>
+							<p className="text-2xl font-black text-emerald-600">
+								{formatCurrency(financialAnalysis.totalIncomes)}
+							</p>
+						</div>
+						<div className="bg-white p-4 rounded-2xl border border-gray-100">
+							<p className="text-[10px] font-black uppercase text-gray-400">Resultado periodo</p>
+							<p
+								className={`text-2xl font-black ${
+									financialAnalysis.net >= 0 ? "text-emerald-600" : "text-rose-700"
+								}`}>
+								{formatCurrency(financialAnalysis.net)}
+							</p>
+						</div>
+						<div className="bg-white p-4 rounded-2xl border border-gray-100">
+							<p className="text-[10px] font-black uppercase text-gray-400">
+								Coste medio mensual (6m)
+							</p>
+							<p className="text-2xl font-black text-gray-800">
+								{formatCurrency(financialAnalysis.avgMonthlyExpense)}
+							</p>
+						</div>
+						<div className="bg-white p-4 rounded-2xl border border-gray-100">
+							<p className="text-[10px] font-black uppercase text-gray-400">
+								Coste fijo mensual estimado
+							</p>
+							<p className="text-2xl font-black text-blue-700">
+								{formatCurrency(financialAnalysis.fixedMonthlyEstimated)}
+							</p>
+						</div>
+					</div>
+
+					<div className="bg-white p-5 rounded-2xl border border-gray-100">
+						<div className="flex items-center justify-between mb-3">
+							<p className="text-xs font-black uppercase tracking-wider text-gray-500">
+								Evolución mensual (últimos 6 meses)
+							</p>
+							<p className="text-xs text-gray-500">
+								Variable estimado/mes:{" "}
+								<span className="font-bold text-gray-700">
+									{formatCurrency(financialAnalysis.variableMonthlyEstimated)}
+								</span>
+							</p>
+						</div>
+						<div className="overflow-x-auto">
+							<div className="min-w-[360px] sm:min-w-[520px] grid grid-cols-3 sm:grid-cols-6 gap-3">
+								{financialAnalysis.monthlySeries.map((m) => {
+									const scaleBase = Math.max(
+										...financialAnalysis.monthlySeries.map((x) => x.expense || 0),
+										1,
+									);
+									const h = Math.max(8, Math.round((m.expense / scaleBase) * 120));
+									return (
+										<div key={m.month} className="flex flex-col items-center gap-2">
+											<div className="h-32 w-full flex items-end">
+												<div
+													className="w-full rounded-t-lg bg-rose-400/80"
+													style={{ height: `${h}px` }}
+													title={`${m.month}: ${formatCurrency(m.expense)}`}
+												/>
+											</div>
+											<p className="text-[10px] font-bold text-gray-500">
+												{m.month.slice(5)}
+											</p>
+											<p className="text-[10px] font-bold text-gray-700">
+												{formatCurrency(m.expense)}
+											</p>
+										</div>
+									);
+								})}
+							</div>
+						</div>
+					</div>
+
+					<div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+						<div className="bg-white p-5 rounded-2xl border border-gray-100">
+							<p className="text-xs font-black uppercase tracking-wider text-gray-500 mb-3">
+								¿En qué se va el dinero? (categorías)
+							</p>
+							<div className="space-y-2">
+								{financialAnalysis.byCategory.map((c) => (
+									<div key={c.category} className="space-y-1">
+										<div className="flex justify-between text-xs">
+											<span className="font-bold text-gray-700">{c.category}</span>
+											<span className="font-bold text-gray-600">
+												{formatCurrency(c.amount)} · {c.pct.toFixed(1)}%
+											</span>
+										</div>
+										<div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+											<div
+												className="h-full bg-rose-400 rounded-full"
+												style={{ width: `${Math.min(c.pct, 100)}%` }}
+											/>
+										</div>
+									</div>
+								))}
+								{financialAnalysis.byCategory.length === 0 && (
+									<p className="text-sm text-gray-400">Sin gastos en el periodo.</p>
+								)}
+							</div>
+						</div>
+
+						<div className="bg-white p-5 rounded-2xl border border-gray-100">
+							<p className="text-xs font-black uppercase tracking-wider text-gray-500 mb-3">
+								Top proveedores (gasto)
+							</p>
+							<div className="space-y-2">
+								{financialAnalysis.topSuppliers.map((s, i) => (
+									<div
+										key={`${s.name}-${i}`}
+										className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
+										<div>
+											<p className="font-bold text-sm text-gray-800">{s.name}</p>
+											<p className="text-[10px] text-gray-500">
+												{s.invoices} factura{s.invoices === 1 ? "" : "s"}
+											</p>
+										</div>
+										<p className="font-black text-rose-700">{formatCurrency(s.amount)}</p>
+									</div>
+								))}
+								{financialAnalysis.topSuppliers.length === 0 && (
+									<p className="text-sm text-gray-400">Sin datos de proveedores en el periodo.</p>
+								)}
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
+
+			
+
+			
+
+	
+		<SidePanel
+			isOpen={isModalOpen}
+			onClose={() => { setIsModalOpen(false); setEditingEntry(null); }}
+			title={editingEntry ? "Editar movimiento" : "Nuevo movimiento"}
+			subtitle="Ingreso, gasto o pago con impacto fiscal"
+			size="lg"
+			footer={
+				<LoadingButton
+					loading={savingEntry}
+					type="submit"
+					form="finance-entry-form"
+					className={`w-full py-3 rounded-xl font-black text-on-primary shadow-lg ${
+						formData.type === "income" ? "bg-emerald-500" : "bg-rose-700"
+					}`}>
+					{savingEntry ? "Guardando..." : "Guardar"}
+				</LoadingButton>
+			}>
+			<form id="finance-entry-form" onSubmit={handleSaveEntry}>
+				<FormSheet>
+					<FormSheetPrimary>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 							Descripción
@@ -1167,7 +1794,7 @@ export const FinanceMovementsTab = ({
 					{((formData.type === "expense" && formData.is_deductible) ||
 						formData.type === "income") &&
 						formData.amount && (
-							<div className="text-xs font-bold text-gray-500 bg-gray-50 p-3 rounded-xl">
+							<div className="text-xs font-bold text-gray-500 bg-gray-50 p-3 rounded-xl md:hidden">
 								Base: {formatCurrency(taxCalc.base_amount)}
 								{Number(formData.tax_rate) > 0 && (
 									<> | IVA: +{formatCurrency(taxCalc.tax_amount)}</>
@@ -1175,13 +1802,6 @@ export const FinanceMovementsTab = ({
 								{Number(taxCalc.irpf_amount) > 0 && (
 									<> | Ret. IRPF: −{formatCurrency(taxCalc.irpf_amount)}</>
 								)}
-								<span className="block mt-1 text-gray-700">
-									{formData.type === "income"
-										? Number(taxCalc.irpf_amount) > 0
-											? `Total a cobrar (empresa): ${formatCurrency(taxCalc.total_amount)} · PVP particular: ${formatCurrency(formData.amount)}`
-											: `Total a cobrar: ${formatCurrency(formData.amount)}`
-										: `Total pagado: ${formatCurrency(formData.amount)}`}
-								</span>
 							</div>
 						)}
 					{formData.type === "expense" && formData.is_deductible && (
@@ -1567,36 +2187,71 @@ export const FinanceMovementsTab = ({
 							}
 						/>
 					</div>
-					<LoadingButton
-						loading={savingEntry}
-						type="submit"
-						className={`w-full py-4 rounded-xl font-black text-white shadow-lg ${
-							formData.type === "income" ? "bg-emerald-500" : "bg-rose-700"
-						}`}>
-						{savingEntry ? "Guardando..." : "Guardar"}
-					</LoadingButton>
-				</form>
-					</div>
-				</div>
-			</div>
-		);
-	}
+					</FormSheetPrimary>
+					<FormSheetPreview
+						title={
+							formData.type === "income" ? "Impacto ingreso" : "Impacto gasto"
+						}>
+						{formData.description ? (
+							<p className="text-sm font-semibold text-slate-200 line-clamp-2">
+								{formData.description}
+							</p>
+						) : (
+							<p className="text-sm text-slate-500">Sin descripción</p>
+						)}
+						<div className="grid grid-cols-2 gap-3">
+							<FormPreviewStat
+								label="Base"
+								value={
+									formData.amount
+										? formatCurrency(taxCalc.base_amount)
+										: "—"
+								}
+							/>
+							<FormPreviewStat
+								label={formData.type === "income" ? "IVA rep." : "IVA sop."}
+								tone="accent"
+								value={
+									formData.amount && Number(formData.tax_rate) > 0
+										? formatCurrency(taxCalc.tax_amount)
+										: "—"
+								}
+							/>
+						</div>
+						{Number(taxCalc.irpf_amount) > 0 && (
+							<FormPreviewStat
+								label="Ret. IRPF"
+								tone="warning"
+								value={`−${formatCurrency(taxCalc.irpf_amount)}`}
+							/>
+						)}
+						<p className="text-sm text-slate-300 pt-2 border-t border-slate-700">
+							{formData.type === "income"
+								? Number(taxCalc.irpf_amount) > 0
+									? `Cobrar: ${formatCurrency(taxCalc.total_amount)}`
+									: `Cobrar: ${formData.amount ? formatCurrency(formData.amount) : "—"}`
+								: `Pagar: ${formData.amount ? formatCurrency(formData.amount) : "—"}`}
+						</p>
+						{formData.type === "expense" && formData.is_deductible && (
+							<p className="text-[11px] text-emerald-300">Deducible · afecta modelo 303</p>
+						)}
+						{formData.type === "expense" && !formData.is_deductible && (
+							<p className="text-[11px] text-slate-500">Sin impacto IVA (no deducible)</p>
+						)}
+					</FormSheetPreview>
+				</FormSheet>
+			</form>
+		</SidePanel>
 
-	if (isConfigOpen) {
-		const title = 'Gastos Fijos';
-		return (
-			<div className="animate-in fade-in pb-24 md:pb-0 bg-slate-50 min-h-[calc(100vh-80px)] -mx-2 md:-mx-6 -mt-6 p-4 md:p-8 rounded-3xl">
-				<div className="max-w-3xl mx-auto">
-					<div className="flex flex-col gap-2 mb-8">
-						<button
-							onClick={() => { setIsConfigOpen(false) }}
-							className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition-colors w-fit font-bold text-sm">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg> Volver
-						</button>
-						<h2 className="text-3xl font-black text-slate-800 tracking-tight">{title}</h2>
-					</div>
-					<div className="bg-white p-6 md:p-10 rounded-3xl border border-slate-200 shadow-sm">
-						<form onSubmit={handleSaveConfig} className="space-y-6">
+		<SidePanel
+			isOpen={isConfigOpen}
+			onClose={() => setIsConfigOpen(false)}
+			title="Gastos fijos / recurrentes"
+			subtitle="Configura plantillas de pagos periódicos"
+			size="lg"
+		>
+			<div className="space-y-4">
+<form onSubmit={handleSaveConfig} className="space-y-6">
 					<div className="max-h-[400px] overflow-y-auto space-y-6 pr-2 custom-scrollbar">
 						{recurringExpenses.map((exp, idx) => (
 							<div
@@ -1719,632 +2374,14 @@ export const FinanceMovementsTab = ({
 					</div>
 					<button
 						type="submit"
-						className="w-full bg-surface-dark text-white font-black py-5 rounded-[1.5rem] shadow-xl text-lg mt-4">
+						className="w-full btn-inverse py-5 text-lg mt-4 rounded-[1.5rem]">
 						Guardar
 					</button>
 				</form>
-					</div>
-				</div>
 			</div>
-		);
-	}
+		</SidePanel>
 
-	return (
-		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
-			{/* MODALES DE CONFIRMACIÓN */}
-			<ConfirmModal
-				isOpen={showDeleteModal}
-				title="Archivar movimiento"
-				message="El registro dejará de mostrarse en listados y estadísticas visibles, pero se conserva en base de datos."
-				onConfirm={confirmDelete}
-				onCancel={() => setShowDeleteModal(false)}
-				isDestructive={true}
-			/>
-
-			{/* HEADER: BALANCE Y SELECTORES */}
-			<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100">
-				<div className="shrink-0">
-					<p className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">
-						Balance · {reportingRange?.label ?? "—"}
-					</p>
-					<h2
-						className={`text-4xl font-black tracking-tighter ${
-							netProfit >= 0 ? "text-gray-800" : "text-rose-700"
-						}`}>
-						{formatCurrency(netProfit)}
-					</h2>
-				</div>
-				<div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-					<div className="min-w-0 w-full flex-1">
-						
-					</div>
-					{isAdvanced && (
-					<div className="flex shrink-0 items-center gap-1.5">
-						<button
-							type="button"
-							onClick={() =>
-								exportToCSV(periodEntries, `Finanzas_${rangeStart}_${rangeEnd}.csv`)
-							}
-							className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-emerald-800 transition-colors hover:bg-emerald-100"
-							title="Exportar CSV">
-							<FileSpreadsheet size={18} />
-							<span className="hidden font-bold sm:inline text-xs">CSV</span>
-						</button>
-						<button
-							type="button"
-							onClick={() => {
-								const ventas = periodEntries.filter((e) => e.type === "income");
-								const compras = periodEntries.filter(
-									(e) => e.type === "expense" && e.is_deductible,
-								);
-								exportTrimestreToExcel(
-									ventas,
-									compras,
-									clients,
-									`Finanzas_${rangeStart}_${rangeEnd}.xlsx`,
-								);
-							}}
-							className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-200 bg-white px-2.5 py-2 text-emerald-700 transition-colors hover:bg-emerald-50"
-							title="Exportar Excel (ventas y compras deducibles del periodo)">
-							<FileSpreadsheet size={18} />
-							<span className="hidden font-bold sm:inline text-xs">Excel</span>
-						</button>
-					</div>
-					)}
-				</div>
-			</div>
-			{/* BOTONES DE ACCIÓN RÁPIDA (Siempre arriba) */}
-			<div className="grid grid-cols-2 gap-3 md:gap-6">
-				<button
-					onClick={() => openEntryModal("income")}
-					className="py-4 md:py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
-					<Plus size={22} />{" "}
-					<span className="uppercase tracking-widest text-sm">Ingreso</span>
-				</button>
-				<button
-					onClick={() => openEntryModal("expense")}
-					className="py-4 md:py-5 bg-rose-700 hover:bg-rose-800 text-white rounded-2xl font-black shadow-lg shadow-rose-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
-					<Plus size={22} />{" "}
-					<span className="uppercase tracking-widest text-sm">Gasto</span>
-				</button>
-			</div>
-
-			<div className="inline-flex bg-gray-100 p-1 rounded-xl w-full md:w-auto">
-				<button
-					type="button"
-					onClick={() => setFinanceView("movements")}
-					className={`flex-1 md:flex-none px-4 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-colors ${
-						financeView === "movements"
-							? "bg-white text-gray-800 shadow-sm"
-							: "text-gray-500 hover:text-gray-700"
-					}`}>
-					Movimientos
-				</button></div>
-
-			{/* --- GESTIÓN COMPLETA: móvil + fijos --- */}
-			{financeView === "movements" && isAdvanced && (
-			<div className="md:hidden space-y-4">
-				<div className="flex bg-gray-100 p-1 rounded-xl">
-					{["all", "income", "expense"].map((type) => (
-						<button
-							key={type}
-							onClick={() => setTypeFilter(type)}
-							className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
-								typeFilter === type
-									? "bg-white text-gray-800 shadow-sm"
-									: "text-gray-400"
-							}`}>
-							{type === "all"
-								? "Todo"
-								: type === "income"
-									? "Ingresos"
-									: "Gastos"}
-						</button>
-					))}
-				</div>
-				<div className="relative">
-					<Search className="absolute left-3 top-3 text-gray-400" size={18} />
-					<input
-						placeholder="Buscar en la lista..."
-						className="w-full pl-10 p-3 bg-white border border-gray-200 rounded-xl outline-none"
-						value={searchTerm}
-						onChange={(e) => setSearchTerm(e.target.value)}
-					/>
-				</div>
-				<div>
-					<select
-						value={issueFilter}
-						onChange={(e) => setIssueFilter(e.target.value)}
-						className="w-full p-3 bg-white border border-gray-200 rounded-xl outline-none text-sm font-bold">
-						<option value="all">Sin filtro fiscal</option>
-						<option value="any">Solo con incidencias fiscales</option>
-						<option value="missing_invoice">Sin nº factura</option>
-						<option value="missing_nif">Sin NIF proveedor</option>
-						<option value="invalid_nif">NIF inválido</option>
-						<option value="missing_attachment">Sin justificante</option>
-					</select>
-				</div>
-				<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden">
-					{filteredEntries.length > 0 ? (
-						filteredEntries.map((entry) => (
-							<div
-								key={`adv-${entry.id}`}
-								className="p-4 border-b last:border-0 hover:bg-gray-50 transition-colors flex justify-between items-center group">
-								<div>
-									<p className="font-bold text-gray-800 text-sm">
-										{entry.description}
-									</p>
-									<p className="text-[10px] text-gray-400 font-bold uppercase">
-										{entry.date} • {entry.category}
-										{entry.is_deductible && " • Factura deducible"}
-										{entry.plan_amigo && " • Plan Amigo (sin factura)"}
-									</p>
-									{classifyFinanceIssue(entry) && (
-										<p className="text-[10px] text-amber-700 font-bold mt-1">
-											⚠ {financeIssueLabel(classifyFinanceIssue(entry))}
-										</p>
-									)}
-								</div>
-								<div className="flex items-center gap-2">
-									<span
-										className={`font-black text-sm ${
-											entry.type === "income"
-												? "text-emerald-500"
-												: "text-rose-700"
-										}`}>
-										{entry.type === "income" ? "+" : "-"}
-										{formatCurrency(entry.amount)}
-									</span>
-									<button
-										onClick={() => openEntryModal(null, entry)}
-										className="text-gray-300 p-1"
-										title="Editar">
-										<Edit2 size={14} />
-									</button>
-								</div>
-							</div>
-						))
-					) : (
-						<div className="p-10 text-center text-gray-300 font-bold uppercase text-xs">
-							Sin movimientos
-						</div>
-					)}
-				</div>
-				<div className="space-y-4 pt-4">
-					<div className="flex justify-between items-center px-4">
-						<h3 className="text-xs font-black text-gray-700 uppercase tracking-widest">
-							Gastos Fijos
-						</h3>
-						<button
-							onClick={() => setIsConfigOpen(true)}
-							className="text-[10px] font-black text-gray-400 hover:text-rose-700 uppercase italic flex items-center gap-1">
-							<Settings size={12} /> Configurar
-						</button>
-					</div>
-					<div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 space-y-3">
-						{recurringExpenses.map((exp, idx) => {
-							const status = getFixedStatus(exp);
-							const canPay = !!exp.id;
-							return (
-								<div
-									key={exp.id ?? `mobile-${idx}`}
-									className={`flex justify-between items-center p-4 rounded-2xl border transition-all ${
-										status.paid
-											? "bg-emerald-50 border-emerald-100"
-											: "bg-white border-gray-100"
-									}`}>
-									<div>
-										<p className="font-bold text-gray-800 text-xs">
-											{exp.category}
-										</p>
-										<p className="text-[10px] text-gray-400 font-bold">
-											{formatCurrency(exp.amount)}
-										</p>
-									</div>
-									{status.paid ? (
-										<CheckCircle2 size={20} className="text-emerald-500" />
-									) : canPay ? (
-										<button
-											onClick={() => handlePayClick(exp)}
-											className="bg-primary hover:bg-primary-hover text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-colors">
-											Pagar
-										</button>
-									) : (
-										<span className="text-[10px] text-gray-400 italic">Guardar primero</span>
-									)}
-								</div>
-							);
-						})}
-					</div>
-				</div>
-			</div>
-			)}
-
-			{/* --- GESTIÓN COMPLETA: escritorio (3 columnas) --- */}
-			{financeView === "movements" && isAdvanced && (
-			<div className="hidden md:grid grid-cols-2 lg:grid-cols-3 gap-6">
-				{/* COLUMNA 1: INGRESOS */}
-				<div className="space-y-4">
-					<div className="flex justify-between items-center px-4">
-						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest flex items-center gap-2">
-							<TrendingUp size={16} className="text-emerald-500" /> Ingresos
-						</h3>
-						<span className="text-emerald-600 font-black">
-							{formatCurrency(totalIncome)}
-						</span>
-					</div>
-					<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden min-h-[300px]">
-						{periodEntries.filter((e) => e.type === "income").length > 0 ? (
-							periodEntries
-								.filter((e) => e.type === "income")
-								.map((entry) => (
-									<div
-										key={entry.id}
-										className="p-4 hover:bg-gray-50 flex justify-between items-center border-b last:border-0 group transition-colors">
-										<div>
-											<p className="font-bold text-gray-800 text-sm">
-												{entry.description}
-											</p>
-											<p className="text-[10px] text-gray-400 font-bold uppercase">
-												{entry.date}
-												{entry.plan_amigo && " • Plan Amigo"}
-											</p>
-										</div>
-										<div className="flex items-center gap-2">
-											<span className="font-black text-emerald-500 mr-1">
-												+{formatCurrency(entry.amount)}
-											</span>
-											<button
-												onClick={() => openEntryModal("income", entry)}
-												className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
-												title="Editar">
-												<Edit2 size={14} />
-											</button>
-											{isAdmin && (
-												<button
-													onClick={() => handleDeleteClick(entry.id)}
-													className="text-gray-300 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity"
-													title="Eliminar">
-													<Trash2 size={14} />
-												</button>
-											)}
-										</div>
-									</div>
-								))
-						) : (
-							<div className="p-6">
-								<EmptyState
-									icon={TrendingUp}
-									title="Sin ingresos"
-									description="Registra tu primer ingreso en este periodo."
-									actionLabel="Registrar ingreso"
-									onAction={() => openEntryModal("income")}
-								/>
-							</div>
-						)}
-					</div>
-				</div>
-
-				{/* COLUMNA 2: GASTOS */}
-				<div className="space-y-4">
-					<div className="flex justify-between items-center px-4">
-						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest flex items-center gap-2">
-							<TrendingDown size={16} className="text-rose-700" /> Gastos
-						</h3>
-						<span className="text-rose-700 font-black">
-							{formatCurrency(totalExpense)}
-						</span>
-					</div>
-					<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden min-h-[300px]">
-						{periodEntries.filter((e) => e.type === "expense").length > 0 ? (
-							periodEntries
-								.filter((e) => e.type === "expense")
-								.map((entry) => (
-									<div
-										key={entry.id}
-										className="p-4 hover:bg-gray-50 flex justify-between items-center border-b last:border-0 group transition-colors">
-										<div>
-											<p className="font-bold text-gray-800 text-sm">
-												{entry.description}
-											</p>
-											<p className="text-[10px] text-gray-400 font-bold uppercase">
-												{entry.date} •{" "}
-												<span className="text-rose-400">{entry.category}</span>
-												{entry.is_deductible && " • Factura deducible"}
-												{entry.is_deductible &&
-													entry.supplier_nif &&
-													entry.invoice_number &&
-													(() => {
-														const sameInvoice = periodEntries.filter(
-															(e) =>
-																e.type === "expense" &&
-																e.is_deductible &&
-																e.supplier_nif === entry.supplier_nif &&
-																e.invoice_number === entry.invoice_number &&
-																e.id !== entry.id,
-														).length;
-														return sameInvoice > 0
-															? ` • ${sameInvoice + 1} materiales`
-															: "";
-													})()}
-											</p>
-										</div>
-										<div className="flex items-center gap-2">
-											{entry.file_url && (
-												<a
-													href="#"
-													onClick={async (e) => {
-														e.preventDefault();
-														try {
-															const url = await getReceiptSignedUrl(
-																entry.file_url,
-															);
-															if (url) {
-																window.open(url, "_blank");
-															} else {
-																// Fallback a URL pública
-																const publicUrl = getReceiptUrl(entry.file_url);
-																if (publicUrl) {
-																	window.open(publicUrl, "_blank");
-																} else {
-																	showToast(
-																		"Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.",
-																		"error",
-																	);
-																}
-															}
-														} catch (err) {
-															console.error("Error descargando archivo:", err);
-															if (
-																err?.message?.includes("Bucket not found") ||
-																err?.error === "Bucket not found"
-															) {
-																showToast(
-																	"Error: El bucket 'recibos' no existe. Créalo en Supabase Storage.",
-																	"error",
-																);
-															} else {
-																showToast(
-																	"Error al descargar el archivo",
-																	"error",
-																);
-															}
-														}
-													}}
-													className="text-blue-600 hover:text-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"
-													title="Ver/Descargar justificante">
-													<Download size={16} />
-												</a>
-											)}
-											<span className="font-black text-rose-700 mr-1">
-												-{formatCurrency(entry.amount)}
-											</span>
-											<button
-												onClick={() => openEntryModal("expense", entry)}
-												className="text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"
-												title="Editar">
-												<Edit2 size={14} />
-											</button>
-											{isAdmin && (
-												<button
-													onClick={() => handleDeleteClick(entry.id)}
-													className="text-gray-300 hover:text-rose-700 opacity-0 group-hover:opacity-100 transition-opacity"
-													title="Eliminar">
-													<Trash2 size={14} />
-												</button>
-											)}
-										</div>
-									</div>
-								))
-						) : (
-							<div className="p-6">
-								<EmptyState
-									icon={TrendingDown}
-									title="Sin gastos"
-									description="Registra tu primer gasto en este periodo."
-									actionLabel="Registrar gasto"
-									onAction={() => openEntryModal("expense")}
-								/>
-							</div>
-						)}
-					</div>
-				</div>
-
-				{/* COLUMNA 3: CONTROL DE FIJOS */}
-				<div className="space-y-4">
-					<div className="flex justify-between items-center px-4">
-						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest">
-							Control de Fijos
-						</h3>
-						<button
-							onClick={() => setIsConfigOpen(true)}
-							className="text-[10px] font-black text-gray-400 hover:text-rose-700 flex items-center gap-1 uppercase tracking-widest italic transition-colors">
-							<Settings size={14} /> Configurar
-						</button>
-					</div>
-					<div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 p-6 space-y-3">
-						{recurringExpenses.map((exp, idx) => {
-							const status = getFixedStatus(exp);
-							const canPay = !!exp.id;
-							return (
-								<div
-									key={exp.id ?? `desktop-${idx}`}
-									className={`flex justify-between items-center p-4 rounded-2xl border transition-all ${
-										status.paid
-											? "bg-emerald-50/30 border-emerald-100 shadow-none"
-											: "bg-white border-gray-100 shadow-sm hover:border-rose-100"
-									}`}>
-									<div>
-										<p className="font-black text-gray-800 text-sm leading-tight">
-											{exp.category}
-										</p>
-										<p className="text-xs text-gray-400 font-bold">
-											{formatCurrency(exp.amount)}
-										</p>
-									</div>
-									{status.paid ? (
-										<CheckCircle2 size={22} className="text-emerald-500" />
-									) : canPay ? (
-										<button
-											onClick={() => handlePayClick(exp)}
-											className="bg-primary hover:bg-primary-hover text-white px-5 py-2 rounded-xl font-black text-[11px] uppercase tracking-widest shadow-md transition-all active:scale-95">
-											Pagar
-										</button>
-									) : (
-										<span className="text-xs text-gray-400 italic">Guardar primero</span>
-									)}
-								</div>
-							);
-						})}
-					</div>
-				</div>
-			</div>
-			)}
-
-			{isAdvanced && financeView === "analysis" && (
-				<div className="space-y-5">
-					<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-						<div className="bg-white p-4 rounded-2xl border border-gray-100">
-							<p className="text-[10px] font-black uppercase text-gray-400">Gasto periodo</p>
-							<p className="text-2xl font-black text-rose-700">
-								{formatCurrency(financialAnalysis.totalSpent)}
-							</p>
-						</div>
-						<div className="bg-white p-4 rounded-2xl border border-gray-100">
-							<p className="text-[10px] font-black uppercase text-gray-400">Ingreso periodo</p>
-							<p className="text-2xl font-black text-emerald-600">
-								{formatCurrency(financialAnalysis.totalIncomes)}
-							</p>
-						</div>
-						<div className="bg-white p-4 rounded-2xl border border-gray-100">
-							<p className="text-[10px] font-black uppercase text-gray-400">Resultado periodo</p>
-							<p
-								className={`text-2xl font-black ${
-									financialAnalysis.net >= 0 ? "text-emerald-600" : "text-rose-700"
-								}`}>
-								{formatCurrency(financialAnalysis.net)}
-							</p>
-						</div>
-						<div className="bg-white p-4 rounded-2xl border border-gray-100">
-							<p className="text-[10px] font-black uppercase text-gray-400">
-								Coste medio mensual (6m)
-							</p>
-							<p className="text-2xl font-black text-gray-800">
-								{formatCurrency(financialAnalysis.avgMonthlyExpense)}
-							</p>
-						</div>
-						<div className="bg-white p-4 rounded-2xl border border-gray-100">
-							<p className="text-[10px] font-black uppercase text-gray-400">
-								Coste fijo mensual estimado
-							</p>
-							<p className="text-2xl font-black text-blue-700">
-								{formatCurrency(financialAnalysis.fixedMonthlyEstimated)}
-							</p>
-						</div>
-					</div>
-
-					<div className="bg-white p-5 rounded-2xl border border-gray-100">
-						<div className="flex items-center justify-between mb-3">
-							<p className="text-xs font-black uppercase tracking-wider text-gray-500">
-								Evolución mensual (últimos 6 meses)
-							</p>
-							<p className="text-xs text-gray-500">
-								Variable estimado/mes:{" "}
-								<span className="font-bold text-gray-700">
-									{formatCurrency(financialAnalysis.variableMonthlyEstimated)}
-								</span>
-							</p>
-						</div>
-						<div className="overflow-x-auto">
-							<div className="min-w-[360px] sm:min-w-[520px] grid grid-cols-3 sm:grid-cols-6 gap-3">
-								{financialAnalysis.monthlySeries.map((m) => {
-									const scaleBase = Math.max(
-										...financialAnalysis.monthlySeries.map((x) => x.expense || 0),
-										1,
-									);
-									const h = Math.max(8, Math.round((m.expense / scaleBase) * 120));
-									return (
-										<div key={m.month} className="flex flex-col items-center gap-2">
-											<div className="h-32 w-full flex items-end">
-												<div
-													className="w-full rounded-t-lg bg-rose-400/80"
-													style={{ height: `${h}px` }}
-													title={`${m.month}: ${formatCurrency(m.expense)}`}
-												/>
-											</div>
-											<p className="text-[10px] font-bold text-gray-500">
-												{m.month.slice(5)}
-											</p>
-											<p className="text-[10px] font-bold text-gray-700">
-												{formatCurrency(m.expense)}
-											</p>
-										</div>
-									);
-								})}
-							</div>
-						</div>
-					</div>
-
-					<div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-						<div className="bg-white p-5 rounded-2xl border border-gray-100">
-							<p className="text-xs font-black uppercase tracking-wider text-gray-500 mb-3">
-								¿En qué se va el dinero? (categorías)
-							</p>
-							<div className="space-y-2">
-								{financialAnalysis.byCategory.map((c) => (
-									<div key={c.category} className="space-y-1">
-										<div className="flex justify-between text-xs">
-											<span className="font-bold text-gray-700">{c.category}</span>
-											<span className="font-bold text-gray-600">
-												{formatCurrency(c.amount)} · {c.pct.toFixed(1)}%
-											</span>
-										</div>
-										<div className="h-2 rounded-full bg-gray-100 overflow-hidden">
-											<div
-												className="h-full bg-rose-400 rounded-full"
-												style={{ width: `${Math.min(c.pct, 100)}%` }}
-											/>
-										</div>
-									</div>
-								))}
-								{financialAnalysis.byCategory.length === 0 && (
-									<p className="text-sm text-gray-400">Sin gastos en el periodo.</p>
-								)}
-							</div>
-						</div>
-
-						<div className="bg-white p-5 rounded-2xl border border-gray-100">
-							<p className="text-xs font-black uppercase tracking-wider text-gray-500 mb-3">
-								Top proveedores (gasto)
-							</p>
-							<div className="space-y-2">
-								{financialAnalysis.topSuppliers.map((s, i) => (
-									<div
-										key={`${s.name}-${i}`}
-										className="flex items-center justify-between p-2.5 bg-gray-50 rounded-xl">
-										<div>
-											<p className="font-bold text-sm text-gray-800">{s.name}</p>
-											<p className="text-[10px] text-gray-500">
-												{s.invoices} factura{s.invoices === 1 ? "" : "s"}
-											</p>
-										</div>
-										<p className="font-black text-rose-700">{formatCurrency(s.amount)}</p>
-									</div>
-								))}
-								{financialAnalysis.topSuppliers.length === 0 && (
-									<p className="text-sm text-gray-400">Sin datos de proveedores en el periodo.</p>
-								)}
-							</div>
-						</div>
-					</div>
-				</div>
-			)}
-
-			
-
-			
-
-			<ProviderDatalist
+		<ProviderDatalist
 				id="finance-providers-list"
 				directory={supplierDirectory}
 			/>

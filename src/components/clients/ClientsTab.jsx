@@ -46,7 +46,8 @@ import { generateInvoice } from "../../utils/invoiceGenerator";
 import { generateConsentPDF } from "../../utils/consentGenerator";
 import { getNextRectifiedInvoiceNumber } from "../../services/invoiceSeries";
 import { ConfirmModal } from "../ui/ConfirmModal";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { SidePanel } from "../ui/SidePanel";
+import { StatusChip } from "../ui/StatusChip";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
 import { PhotoUploadModal } from "../photos/PhotoUploadModal";
@@ -569,239 +570,7 @@ export const ClientsTab = ({
 	};
 
 
-	if (isModalOpen) {
-		const title = selectedClient ? 'Editar Cliente' : 'Nuevo Cliente';
-		return (
-			<div className="animate-in fade-in pb-24 md:pb-0">
-				{/* Sticky toolbar */}
-				<div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 -mt-5 flex items-center justify-between gap-4">
-					<div className="flex items-center gap-4 min-w-0">
-						<button
-							type="button"
-							onClick={() => { setIsModalOpen(false) }}
-							className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-2xl text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors shrink-0 shadow-sm"
-							title="Volver">
-							<ArrowLeft size={20} />
-						</button>
-						<h2 className="text-xl font-semibold text-gray-900 truncate">{title}</h2>
-					</div>
-					<LoadingButton
-						loading={savingClient}
-						type="submit"
-						form="client-form"
-						className="px-5 py-2 bg-rose-700 text-white font-semibold rounded-lg text-sm hover:bg-rose-800 transition-colors shrink-0">
-						{savingClient ? "Guardando..." : "Guardar"}
-					</LoadingButton>
-				</div>
 
-				<form id="client-form" onSubmit={handleSaveClient} className="mt-6">
-					{/* Sección: Datos Generales */}
-					<section className="pb-6 mb-6 border-b border-gray-200">
-						<h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Datos Generales</h3>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Nombre <span className="text-rose-600">*</span></label>
-								<input
-									required
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
-									placeholder="Nombre"
-									value={formData.name}
-									onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-								/>
-							</div>
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Apellidos</label>
-								<input
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
-									placeholder="Apellidos"
-									value={formData.surname}
-									onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
-								/>
-							</div>
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Teléfono</label>
-								<input
-									type="tel"
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
-									placeholder="Teléfono"
-									value={formData.phone}
-									onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-								/>
-							</div>
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Email</label>
-								<input
-									type="email"
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
-									placeholder="Email"
-									value={formData.email}
-									onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-								/>
-							</div>
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Fecha de nacimiento</label>
-								<input
-									type="date"
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
-									value={formData.fecha_nacimiento || ""}
-									onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
-								/>
-							</div>
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Origen</label>
-								<select
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
-									value={formData.origin}
-									onChange={(e) => setFormData({ ...formData, origin: e.target.value })}>
-									<option value="">— Seleccionar —</option>
-									<option value="instagram">Instagram</option>
-									<option value="google">Google</option>
-									<option value="recommendation">Recomendación</option>
-									<option value="other">Otro</option>
-								</select>
-							</div>
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Estado</label>
-								<select
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
-									value={formData.estado || "activo"}
-									onChange={(e) => setFormData({ ...formData, estado: e.target.value })}>
-									<option value="activo">Activo</option>
-									<option value="inactivo">Inactivo</option>
-									<option value="bloqueado">Bloqueado</option>
-									<option value="borrador">Borrador / Lead</option>
-								</select>
-							</div>
-						</div>
-					</section>
-
-					{/* Sección: Facturación */}
-					<section className="pb-6 mb-6 border-b border-gray-200">
-						<h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Facturación</h3>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">NIF/CIF</label>
-								<input
-									type="text"
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
-									placeholder="NIF/CIF"
-									value={formData.nif}
-									onChange={(e) => {
-										const nif = e.target.value;
-										const isCompany = inferIsCompanyFromNif(nif);
-										setFormData((prev) => ({
-											...prev,
-											nif,
-											is_company: isCompany ? true : prev.is_company,
-										}));
-									}}
-								/>
-							</div>
-							<div className="flex items-end pb-1">
-								<label className="flex items-center gap-2.5 cursor-pointer select-none">
-									<input
-										type="checkbox"
-										checked={!!formData.is_company}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												is_company: e.target.checked,
-												irpf_withholding_rate: e.target.checked ? (formData.irpf_withholding_rate || 7) : 7,
-											})
-										}
-										className="w-4 h-4 rounded border-gray-300 text-rose-700 focus:ring-rose-200"
-									/>
-									<span className="text-sm font-medium text-gray-700">Es empresa (retención IRPF)</span>
-								</label>
-							</div>
-							{formData.is_company && (
-								<div>
-									<label className="text-xs font-medium text-gray-500 block mb-1.5">Retención IRPF (%)</label>
-									<select
-										className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
-										value={formData.irpf_withholding_rate ?? 7}
-										onChange={(e) => setFormData({ ...formData, irpf_withholding_rate: Number(e.target.value) })}>
-										{IRPF_OPTIONS.filter((v) => v > 0).map((v) => (
-											<option key={v} value={v}>{v} % {v === 7 ? "(habitual 1.er año)" : ""}</option>
-										))}
-									</select>
-								</div>
-							)}
-						</div>
-						{formData.is_company && (
-							<div className="mt-4 max-w-lg">
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Dirección fiscal</label>
-								<textarea
-									rows={2}
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 resize-y min-h-[3rem] transition-colors"
-									placeholder="Calle, número, CP, ciudad"
-									value={formData.address}
-									onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-								/>
-							</div>
-						)}
-					</section>
-
-					{/* Sección: Clínica e Historial */}
-					<section className="pb-6">
-						<h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Clínica e Historial</h3>
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Notas públicas</label>
-								<textarea
-									rows="3"
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 resize-none transition-colors"
-									placeholder="Notas visibles en perfil..."
-									value={formData.notes}
-									onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-								/>
-							</div>
-							<div>
-								<label className="text-xs font-medium text-amber-600 block mb-1.5">Notas privadas (Historia clínica)</label>
-								<textarea
-									rows="3"
-									className="w-full px-3 py-2.5 bg-amber-50/30 border border-amber-200 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100 placeholder:text-gray-400 resize-none transition-colors"
-									placeholder="Solo visibles en el perfil..."
-									value={formData.notas_privadas || ""}
-									onChange={(e) => setFormData({ ...formData, notas_privadas: e.target.value })}
-								/>
-							</div>
-							<div>
-								<label className="text-xs font-medium text-rose-600 block mb-1.5">Alergias</label>
-								<textarea
-									rows="3"
-									className={`w-full px-3 py-2.5 rounded-lg outline-none font-medium resize-none border text-sm transition-colors placeholder:text-gray-400 ${formData.allergies ? "bg-red-50/50 border-red-300 focus:border-red-400 focus:ring-1 focus:ring-red-100 text-red-900" : "bg-white border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 text-gray-900"}`}
-									placeholder="Indicar alergias..."
-									value={formData.allergies}
-									onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
-								/>
-							</div>
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Antecedentes médicos</label>
-								<textarea
-									rows="3"
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 resize-none transition-colors"
-									placeholder="Antecedentes..."
-									value={formData.medical_history}
-									onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
-								/>
-							</div>
-						</div>
-						<div className="mt-4 max-w-lg">
-							<label className="text-xs font-medium text-gray-500 block mb-1.5">Link carpeta Drive</label>
-							<input
-								type="url"
-								placeholder="https://drive.google.com/..."
-								className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
-								value={formData.drive_url}
-								onChange={(e) => setFormData({ ...formData, drive_url: e.target.value })}
-							/>
-						</div>
-					</section>
-				</form>
-			</div>
-		);
-	}
 
 	return (
 		<div className="space-y-4 animate-in fade-in pb-20 md:pb-0 min-h-[calc(100vh-120px)] flex flex-col">
@@ -919,16 +688,16 @@ export const ClientsTab = ({
 											</div>
 											<div className="flex items-center gap-1 shrink-0">
 												{client.estado === "inactivo" && (
-													<span className="px-2 py-1 text-[11px] bg-gray-100 text-gray-600 font-semibold rounded-md">Inactivo</span>
+													<StatusChip tone="neutral">Inactivo</StatusChip>
 												)}
 												{client.estado === "bloqueado" && (
-													<span className="px-2 py-1 text-[11px] bg-red-50 text-red-700 font-semibold rounded-md">Bloqueado</span>
+													<StatusChip tone="danger">Bloqueado</StatusChip>
 												)}
 												{client.estado === "borrador" && (
-													<span className="px-2 py-1 text-[11px] bg-amber-50 text-amber-700 font-semibold rounded-md">Borrador</span>
+													<StatusChip tone="warning">Borrador</StatusChip>
 												)}
 												{(!client.estado || client.estado === "activo") && (
-													<span className="px-2 py-1 text-[11px] bg-emerald-50 text-emerald-700 font-semibold rounded-md">Activo</span>
+													<StatusChip tone="success">Activo</StatusChip>
 												)}
 											</div>
 										</div>
@@ -1015,16 +784,16 @@ export const ClientsTab = ({
 												</td>
 												<td className="p-3.5">
 													{client.estado === "inactivo" && (
-														<span className="px-2 py-1 text-[11px] bg-gray-100 text-gray-600 font-semibold rounded-md">Inactivo</span>
+														<StatusChip tone="neutral">Inactivo</StatusChip>
 													)}
 													{client.estado === "bloqueado" && (
-														<span className="px-2 py-1 text-[11px] bg-red-50 text-red-700 font-semibold rounded-md">Bloqueado</span>
+														<StatusChip tone="danger">Bloqueado</StatusChip>
 													)}
 													{client.estado === "borrador" && (
-														<span className="px-2 py-1 text-[11px] bg-amber-50 text-amber-700 font-semibold rounded-md">Borrador</span>
+														<StatusChip tone="warning">Borrador</StatusChip>
 													)}
 													{(!client.estado || client.estado === "activo") && (
-														<span className="px-2 py-1 text-[11px] bg-emerald-50 text-emerald-700 font-semibold rounded-md">Activo</span>
+														<StatusChip tone="success">Activo</StatusChip>
 													)}
 												</td>
 												<td className="p-3.5">
@@ -1769,11 +1538,9 @@ export const ClientsTab = ({
 																		)}
 																	</div>
 																	<div className="text-right">
-																		<span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-																			isExhausted ? "bg-gray-100 text-slate-500" : "bg-rose-50 text-rose-700"
-																		}`}>
+																		<StatusChip tone={isExhausted ? "neutral" : "success"}>
 																			{isExhausted ? "Agotado" : "Activo"}
-																		</span>
+																		</StatusChip>
 																	</div>
 																</div>
 																<p className="text-xs text-slate-600 font-medium mt-3">
@@ -1972,22 +1739,246 @@ export const ClientsTab = ({
 				onSuccess={handlePhotoEditSuccess}
 			/>
 
+
+			<SidePanel
+				isOpen={isModalOpen}
+				onClose={() => setIsModalOpen(false)}
+				title={selectedClient ? "Editar cliente" : "Nuevo cliente"}
+				subtitle="Datos de ficha · la lista queda detrás"
+				size="lg"
+				footer={
+					<LoadingButton
+						loading={savingClient}
+						type="submit"
+						form="client-form"
+						className="w-full btn-primary py-3">
+						{savingClient ? "Guardando..." : "Guardar"}
+					</LoadingButton>
+				}
+			>
+				<form id="client-form" onSubmit={handleSaveClient} className="mt-6">
+					{/* Sección: Datos Generales */}
+					<section className="pb-6 mb-6 border-b border-gray-200">
+						<h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Datos Generales</h3>
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Nombre <span className="text-rose-600">*</span></label>
+								<input
+									required
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
+									placeholder="Nombre"
+									value={formData.name}
+									onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+								/>
+							</div>
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Apellidos</label>
+								<input
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
+									placeholder="Apellidos"
+									value={formData.surname}
+									onChange={(e) => setFormData({ ...formData, surname: e.target.value })}
+								/>
+							</div>
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Teléfono</label>
+								<input
+									type="tel"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
+									placeholder="Teléfono"
+									value={formData.phone}
+									onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+								/>
+							</div>
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Email</label>
+								<input
+									type="email"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
+									placeholder="Email"
+									value={formData.email}
+									onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+								/>
+							</div>
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Fecha de nacimiento</label>
+								<input
+									type="date"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
+									value={formData.fecha_nacimiento || ""}
+									onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+								/>
+							</div>
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Origen</label>
+								<select
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
+									value={formData.origin}
+									onChange={(e) => setFormData({ ...formData, origin: e.target.value })}>
+									<option value="">— Seleccionar —</option>
+									<option value="instagram">Instagram</option>
+									<option value="google">Google</option>
+									<option value="recommendation">Recomendación</option>
+									<option value="other">Otro</option>
+								</select>
+							</div>
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Estado</label>
+								<select
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
+									value={formData.estado || "activo"}
+									onChange={(e) => setFormData({ ...formData, estado: e.target.value })}>
+									<option value="activo">Activo</option>
+									<option value="inactivo">Inactivo</option>
+									<option value="bloqueado">Bloqueado</option>
+									<option value="borrador">Borrador / Lead</option>
+								</select>
+							</div>
+						</div>
+					</section>
+
+					{/* Sección: Facturación */}
+					<section className="pb-6 mb-6 border-b border-gray-200">
+						<h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Facturación</h3>
+						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">NIF/CIF</label>
+								<input
+									type="text"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
+									placeholder="NIF/CIF"
+									value={formData.nif}
+									onChange={(e) => {
+										const nif = e.target.value;
+										const isCompany = inferIsCompanyFromNif(nif);
+										setFormData((prev) => ({
+											...prev,
+											nif,
+											is_company: isCompany ? true : prev.is_company,
+										}));
+									}}
+								/>
+							</div>
+							<div className="flex items-end pb-1">
+								<label className="flex items-center gap-2.5 cursor-pointer select-none">
+									<input
+										type="checkbox"
+										checked={!!formData.is_company}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												is_company: e.target.checked,
+												irpf_withholding_rate: e.target.checked ? (formData.irpf_withholding_rate || 7) : 7,
+											})
+										}
+										className="w-4 h-4 rounded border-gray-300 text-rose-700 focus:ring-rose-200"
+									/>
+									<span className="text-sm font-medium text-gray-700">Es empresa (retención IRPF)</span>
+								</label>
+							</div>
+							{formData.is_company && (
+								<div>
+									<label className="text-xs font-medium text-gray-500 block mb-1.5">Retención IRPF (%)</label>
+									<select
+										className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
+										value={formData.irpf_withholding_rate ?? 7}
+										onChange={(e) => setFormData({ ...formData, irpf_withholding_rate: Number(e.target.value) })}>
+										{IRPF_OPTIONS.filter((v) => v > 0).map((v) => (
+											<option key={v} value={v}>{v} % {v === 7 ? "(habitual 1.er año)" : ""}</option>
+										))}
+									</select>
+								</div>
+							)}
+						</div>
+						{formData.is_company && (
+							<div className="mt-4 max-w-lg">
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Dirección fiscal</label>
+								<textarea
+									rows={2}
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 resize-y min-h-[3rem] transition-colors"
+									placeholder="Calle, número, CP, ciudad"
+									value={formData.address}
+									onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+								/>
+							</div>
+						)}
+					</section>
+
+					{/* Sección: Clínica e Historial */}
+					<section className="pb-6">
+						<h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Clínica e Historial</h3>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Notas públicas</label>
+								<textarea
+									rows="3"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 resize-none transition-colors"
+									placeholder="Notas visibles en perfil..."
+									value={formData.notes}
+									onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+								/>
+							</div>
+							<div>
+								<label className="text-xs font-medium text-amber-600 block mb-1.5">Notas privadas (Historia clínica)</label>
+								<textarea
+									rows="3"
+									className="w-full px-3 py-2.5 bg-amber-50/30 border border-amber-200 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-100 placeholder:text-gray-400 resize-none transition-colors"
+									placeholder="Solo visibles en el perfil..."
+									value={formData.notas_privadas || ""}
+									onChange={(e) => setFormData({ ...formData, notas_privadas: e.target.value })}
+								/>
+							</div>
+							<div>
+								<label className="text-xs font-medium text-rose-600 block mb-1.5">Alergias</label>
+								<textarea
+									rows="3"
+									className={`w-full px-3 py-2.5 rounded-lg outline-none font-medium resize-none border text-sm transition-colors placeholder:text-gray-400 ${formData.allergies ? "bg-red-50/50 border-red-300 focus:border-red-400 focus:ring-1 focus:ring-red-100 text-red-900" : "bg-white border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 text-gray-900"}`}
+									placeholder="Indicar alergias..."
+									value={formData.allergies}
+									onChange={(e) => setFormData({ ...formData, allergies: e.target.value })}
+								/>
+							</div>
+							<div>
+								<label className="text-xs font-medium text-gray-500 block mb-1.5">Antecedentes médicos</label>
+								<textarea
+									rows="3"
+									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 resize-none transition-colors"
+									placeholder="Antecedentes..."
+									value={formData.medical_history}
+									onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
+								/>
+							</div>
+						</div>
+						<div className="mt-4 max-w-lg">
+							<label className="text-xs font-medium text-gray-500 block mb-1.5">Link carpeta Drive</label>
+							<input
+								type="url"
+								placeholder="https://drive.google.com/..."
+								className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 placeholder:text-gray-400 transition-colors"
+								value={formData.drive_url}
+								onChange={(e) => setFormData({ ...formData, drive_url: e.target.value })}
+							/>
+						</div>
+					</section>
+				</form>
+			</SidePanel>
+
 			{viewerSession && (
-				<AdaptiveModal
+				<SidePanel
 					isOpen={!!viewerSession}
 					onClose={() => setViewerSession(null)}
 					title={`${viewerSession.session?.description?.split("(")[0] || "Sesión"} — ${viewerSession.session?.date}`}
-					maxWidth="max-w-2xl">
+					size="lg">
 					<BeforeAfterViewer
 						beforePhoto={viewerSession.before}
 						afterPhoto={viewerSession.after}
 						extraPhotos={viewerSession.extras || []}
 						sessionLabel={null}
 					/>
-				</AdaptiveModal>
+				</SidePanel>
 			)}
 
-			<AdaptiveModal
+			<SidePanel
 				isOpen={showConsentModal}
 				onClose={() => {
 					setShowConsentModal(false);
@@ -1995,7 +1986,7 @@ export const ClientsTab = ({
 					setConsentTemplateId("");
 				}}
 				title="Generar consentimiento informado"
-				maxWidth="max-w-lg">
+				size="md">
 				{selectedClient && (
 					<div className="space-y-4">
 						{consentTemplates.length === 0 ? (
@@ -2071,9 +2062,9 @@ export const ClientsTab = ({
 						)}
 					</div>
 				)}
-			</AdaptiveModal>
+			</SidePanel>
 
-			<AdaptiveModal
+			<SidePanel
 				isOpen={showRefundModal}
 				onClose={() => {
 					setShowRefundModal(false);
@@ -2081,7 +2072,7 @@ export const ClientsTab = ({
 					setRefundAmount("");
 				}}
 				title="Rectificar / Devolución"
-				maxWidth="max-w-sm">
+				size="sm">
 				{sessionToRefund && (
 					<div className="space-y-4">
 						<p className="text-sm text-slate-600">
@@ -2121,7 +2112,7 @@ export const ClientsTab = ({
 						</LoadingButton>
 					</div>
 				)}
-			</AdaptiveModal>
+			</SidePanel>
 		</div>
 	);
 };

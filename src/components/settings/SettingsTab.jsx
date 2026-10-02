@@ -22,18 +22,28 @@ import {
 	ScrollText,
 	Copy,
 	Globe,
+	Palette,
+	Sun,
+	Moon,
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../services/supabase";
 import { updateUserPassword, logout } from "../../services/auth";
 import { exportUserBackup, downloadBackup } from "../../services/backupExport";
 import { uploadProfileAsset } from "../../services/profileAssetStorage";
 import { useTenant } from "../../context/TenantContext";
+import { useAppearance } from "../../context/AppearanceContext";
+import {
+	APPEARANCE_THEMES,
+	DENSITY_OPTIONS,
+} from "../../constants/appearanceThemes";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { useAuditLog } from "../../hooks/useAuditLog";
 import { auditActionLabel, auditEntityLabel, auditChangesLines } from "../../utils/auditLabels";
 
 const SETTINGS_VIEWS = {
 	hub: "hub",
+	appearance: "appearance",
 	clinic: "clinic",
 	me: "me",
 	team: "team",
@@ -55,6 +65,8 @@ export const SettingsTab = ({
 	onNavigateAnchorConsumed,
 }) => {
 	const { clinicId, clinic, isAdmin, refreshTenant, hasModule } = useTenant();
+	const { themeId, density, setThemeId, setDensity } = useAppearance();
+	const [searchParams, setSearchParams] = useSearchParams();
 
 	const initialClinicForm = useMemo(
 		() => ({
@@ -221,6 +233,14 @@ export const SettingsTab = ({
 			onNavigateAnchorConsumed?.();
 		}
 	}, [navigateAnchor, isAdmin, onNavigateAnchorConsumed]);
+
+	useEffect(() => {
+		const section = searchParams.get("section");
+		if (section === "appearance") {
+			setView(SETTINGS_VIEWS.appearance);
+			setSearchParams({}, { replace: true });
+		}
+	}, [searchParams, setSearchParams]);
 
 	const goHub = () => setView(SETTINGS_VIEWS.hub);
 
@@ -453,6 +473,13 @@ export const SettingsTab = ({
 					</p>
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						{hubCard({
+							id: "appearance",
+							icon: Palette,
+							title: "Apariencia",
+							desc: "Tema de color (claro/oscuro) y densidad de la interfaz.",
+							onClick: () => setView(SETTINGS_VIEWS.appearance),
+						})}
+						{hubCard({
 							id: "clinic",
 							icon: Building2,
 							title: "Datos clínica",
@@ -494,6 +521,81 @@ export const SettingsTab = ({
 								desc: "Registro de altas, cambios y bajas en datos clave.",
 								onClick: () => setView(SETTINGS_VIEWS.audit),
 							})}
+					</div>
+				</>
+			)}
+
+			{view === SETTINGS_VIEWS.appearance && (
+				<>
+					{subHeader("Apariencia")}
+					<div className="ui-card space-y-8">
+						<section className="space-y-3">
+							<div>
+								<h3 className="font-bold text-fg flex items-center gap-2">
+									<Palette size={18} className="text-primary" /> Tema
+								</h3>
+								<p className="text-sm text-muted mt-1">
+									Se guarda en este navegador. Incluye temas claros y oscuros.
+								</p>
+							</div>
+							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+								{APPEARANCE_THEMES.map((t) => {
+									const selected = themeId === t.id;
+									return (
+										<button
+											key={t.id}
+											type="button"
+											onClick={() => setThemeId(t.id)}
+											className={`text-left rounded-2xl border p-3 transition-all ${
+												selected
+													? "border-primary ring-2 ring-primary/30"
+													: "border-edge hover:border-primary/40"
+											}`}>
+											<div
+												className="h-14 rounded-xl border border-edge mb-3 flex overflow-hidden"
+												aria-hidden>
+												<div className="w-1/3" style={{ background: t.preview.bg }} />
+												<div className="w-1/3" style={{ background: t.preview.surface }} />
+												<div className="w-1/3" style={{ background: t.preview.primary }} />
+											</div>
+											<p className="font-bold text-fg text-sm flex items-center gap-1.5">
+												{t.mode === "dark" ? <Moon size={14} /> : <Sun size={14} />}
+												{t.label}
+											</p>
+											<p className="text-xs text-muted mt-0.5">{t.desc}</p>
+										</button>
+									);
+								})}
+							</div>
+						</section>
+
+						<section className="space-y-3 border-t border-edge pt-6">
+							<div>
+								<h3 className="font-bold text-fg">Densidad</h3>
+								<p className="text-sm text-muted mt-1">
+									Por defecto: cómoda (más aire). Compacta junta un poco el contenido.
+								</p>
+							</div>
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+								{DENSITY_OPTIONS.map((d) => {
+									const selected = density === d.id;
+									return (
+										<button
+											key={d.id}
+											type="button"
+											onClick={() => setDensity(d.id)}
+											className={`text-left rounded-2xl border px-4 py-3 transition-all ${
+												selected
+													? "border-primary bg-primary-soft"
+													: "border-edge hover:bg-surface-2"
+											}`}>
+											<p className="font-bold text-fg text-sm">{d.label}</p>
+											<p className="text-xs text-muted mt-0.5">{d.desc}</p>
+										</button>
+									);
+								})}
+							</div>
+						</section>
 					</div>
 				</>
 			)}

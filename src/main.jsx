@@ -5,6 +5,7 @@ import "./index.css";
 import App from "./App.jsx";
 import { AuthProvider } from "./context/AuthContext";
 import { TenantProvider } from "./context/TenantContext";
+import { AppearanceProvider } from "./context/AppearanceContext";
 import { QueryProvider } from "./providers/QueryProvider";
 
 import { BrowserRouter } from "react-router-dom";
@@ -13,11 +14,13 @@ createRoot(document.getElementById("root")).render(
 	<StrictMode>
 		<BrowserRouter>
 			<QueryProvider>
-				<AuthProvider>
-					<TenantProvider>
-						<App />
-					</TenantProvider>
-				</AuthProvider>
+				<AppearanceProvider>
+					<AuthProvider>
+						<TenantProvider>
+							<App />
+						</TenantProvider>
+					</AuthProvider>
+				</AppearanceProvider>
 			</QueryProvider>
 		</BrowserRouter>
 	</StrictMode>,

@@ -17,6 +17,8 @@ import { useConsumeBono } from "../../hooks/useBonos";
 import { Toast } from "../ui/Toast";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { SessionModal } from "../ui/SessionModal";
+import { CommandPalette } from "../ui/CommandPalette";
+import { QuickAppointmentPanel } from "../calendar/QuickAppointmentPanel";
 import { Sidebar } from "../layout/Sidebar";
 import { MobileNav } from "../layout/MobileNav";
 import { AppHeader } from "../layout/AppHeader";
@@ -25,6 +27,7 @@ import { PATH_MAP, resolveNavIdFromPath } from "../layout/navigationLabels";
 import { TaxAlertsBanner } from "../taxes/shared/TaxAlertsBanner";
 import { useTaxDeclarations } from "../../hooks/useTaxDeclarations";
 import { HomeTab } from "../home/HomeTab";
+import { useAppearance } from "../../context/AppearanceContext";
 const DashboardTab = lazy(() =>
 	import("../dashboard/DashboardTab").then((m) => ({ default: m.DashboardTab })),
 );
@@ -120,7 +123,7 @@ const TAB_META = {
 	taxes_renta: { title: "Preparación Renta", subtitle: "Acumulado del ejercicio" },
 	taxes_declaraciones: { title: "Declaraciones", subtitle: "Estado de presentación AEAT" },
 	assets: { title: "Bienes de Inversión", subtitle: "Amortizaciones en curso" },
-	settings: { title: "Configuración", subtitle: "Clínica, perfil y seguridad" },
+	settings: { title: "Configuración", subtitle: "Apariencia, clínica, perfil y seguridad" },
 	marketing: { title: "Marketing", subtitle: "Campañas, seguimiento y plantillas" },
 	marketing_campanas: { title: "Campañas", subtitle: "Envío a destinatarios elegidos" },
 	marketing_seguimiento: { title: "Seguimiento", subtitle: "Correo 1:1 a un paciente" },
@@ -135,6 +138,7 @@ export const ClinicErpApp = () => {
 		clinic,
 		clinicActive,
 	} = useTenant();
+	const { density } = useAppearance();
 
 	const { inventory, loading: inventoryLoading, refreshInventory } = useInventory(user);
 	const { treatments, loading: treatmentsLoading, refreshTreatments } = useTreatments(user);
@@ -298,6 +302,8 @@ export const ClinicErpApp = () => {
 
 	const [toast, setToast] = useState(null);
 	const [showLogout, setShowLogout] = useState(false);
+	const [commandOpen, setCommandOpen] = useState(false);
+	const [quickApptOpen, setQuickApptOpen] = useState(false);
 	const [selectedTreatment, setSelectedTreatment] = useState(null);
 
 	const { data: clinicSeguimientos = [] } = useClinicSeguimientos(user?.id);
@@ -459,10 +465,10 @@ export const ClinicErpApp = () => {
 
 	if (authLoading || (user && dataLoading && dataFetchErrors.length === 0) || (user && tenantLoading))
 		return (
-			<div className="min-h-screen flex items-center justify-center bg-slate-50">
+			<div className="min-h-screen flex items-center justify-center bg-app">
 				<div className="flex flex-col items-center gap-4">
-					<Loader2 className="animate-spin text-rose-700" size={40} />
-					<p className="text-rose-700 font-medium">
+					<Loader2 className="animate-spin text-primary" size={40} />
+					<p className="text-primary font-medium">
 						Sincronizando Datos...
 					</p>
 				</div>
@@ -473,7 +479,9 @@ export const ClinicErpApp = () => {
 
 	return (
 		<div
-			className={`min-h-[100dvh] bg-slate-50 pb-24 md:pb-0 font-sans text-gray-800 overflow-x-hidden pl-0 ${mainPadClass} antialiased text-sm leading-tight`}>
+			className={`min-h-[100dvh] bg-app pb-24 md:pb-0 font-sans text-fg overflow-x-hidden pl-0 ${mainPadClass} antialiased ${
+				density === "compact" ? "text-[13px] leading-snug" : "text-sm leading-relaxed"
+			}`}>
 			{toast && (
 				<Toast
 					message={toast.message}
@@ -491,6 +499,25 @@ export const ClinicErpApp = () => {
 					setShowLogout(false);
 				}}
 				isDestructive
+			/>
+			<CommandPalette
+				open={commandOpen}
+				onOpenChange={setCommandOpen}
+				clients={clients}
+				treatments={treatments}
+				inventory={inventory}
+				onQuickAction={(action) => {
+					if (action === "new-appointment") setQuickApptOpen(true);
+				}}
+			/>
+			<QuickAppointmentPanel
+				isOpen={quickApptOpen}
+				onClose={() => setQuickApptOpen(false)}
+				user={user}
+				clients={clients}
+				treatments={treatments}
+				showToast={showToastMsg}
+				onSaved={refreshAppointments}
 			/>
 			<SessionModal
 				isOpen={!!selectedTreatment}
@@ -529,6 +556,7 @@ export const ClinicErpApp = () => {
 				clinic={clinic}
 				onLogout={() => setShowLogout(true)}
 				onOpenSettings={goSettings}
+				onOpenCommandPalette={() => setCommandOpen(true)}
 				reportingRange={reportingRange}
 				reportingPreset={reportingPreset}
 				setReportingPreset={setReportingPreset}
@@ -555,7 +583,9 @@ export const ClinicErpApp = () => {
 					</div>
 				</div>
 			)}
-			<main className="w-full min-w-0 px-4 sm:px-6 lg:px-8 py-5 max-w-7xl 2xl:max-w-[1600px] mx-auto space-y-5 min-h-[calc(100dvh-8rem)]">
+			<main
+				className="w-full min-w-0 px-4 sm:px-6 lg:px-8 max-w-7xl 2xl:max-w-[1600px] mx-auto ui-page-stack min-h-[calc(100dvh-8rem)]"
+				style={{ paddingTop: "var(--space-page)", paddingBottom: "var(--space-page)" }}>
 				{dataFetchErrors.length > 0 && (
 					<div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
 						<div>

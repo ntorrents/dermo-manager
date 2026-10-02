@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "../../utils/format";
 import { supabase } from "../../services/supabase";
-import { AdaptiveModal } from "../ui/AdaptiveModal";
+import { SidePanel } from "../ui/SidePanel";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
 import {
@@ -507,14 +507,14 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 								</div>
 								<div className="overflow-x-auto">
 									<table className="w-full text-sm min-w-[560px]">
-										<thead className="bg-gray-50 text-gray-500 text-[11px] uppercase">
+										<thead className="bg-gray-50/80 text-gray-400 text-[10px] uppercase tracking-wider">
 											<tr>
-												<th className="text-left p-3">Fecha</th>
-												<th className="text-left p-3">Factura</th>
-												<th className="text-left p-3">Concepto</th>
-												<th className="text-right p-3">Base</th>
-												<th className="text-right p-3">IVA</th>
-												<th className="text-right p-3">Total</th>
+												<th className="text-left p-3 font-bold">Fecha</th>
+												<th className="text-left p-3 font-bold">Factura</th>
+												<th className="text-left p-3 font-bold">Concepto</th>
+												<th className="text-right p-3 font-bold">Base</th>
+												<th className="text-right p-3 font-bold">IVA</th>
+												<th className="text-right p-3 font-bold">Total</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -551,61 +551,72 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 				</div>
 			</div>
 		</div>
-		<AdaptiveModal
+		<SidePanel
 			isOpen={!!editingSupplier}
 			onClose={() => setEditingSupplier(null)}
 			title="Editar proveedor"
-			maxWidth="max-w-md">
+			size="md"
+			footer={
+				<LoadingButton
+					loading={saving}
+					onClick={saveSupplier}
+					className="w-full btn-primary py-3">
+					Guardar cambios
+				</LoadingButton>
+			}>
 			<div className="space-y-4">
 				<div>
-					<label className="text-[11px] font-black text-gray-400 uppercase block mb-1">
+					<label className="text-[11px] font-black text-muted uppercase block mb-1">
 						Nombre proveedor
 					</label>
 					<input
 						value={editName}
 						onChange={(e) => setEditName(e.target.value)}
 						placeholder="Ej: Distribuciones Estéticas SL"
-						className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-medium"
+						className="input-field"
 					/>
 				</div>
 				<div>
-					<label className="text-[11px] font-black text-gray-400 uppercase block mb-1">
+					<label className="text-[11px] font-black text-muted uppercase block mb-1">
 						NIF/CIF
 					</label>
 					<input
 						value={editNif}
 						onChange={(e) => setEditNif(e.target.value)}
 						placeholder="Ej: B12345678"
-						className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-medium"
+						className="input-field"
 					/>
 				</div>
-				<LoadingButton
-					loading={saving}
-					onClick={saveSupplier}
-					className="w-full bg-surface-dark text-white font-black py-3 rounded-xl">
-					Guardar cambios
-				</LoadingButton>
 			</div>
-		</AdaptiveModal>
-		<AdaptiveModal
+		</SidePanel>
+		<SidePanel
 			isOpen={mergeGuideOpen}
 			onClose={() => setMergeGuideOpen(false)}
 			title="Merge guiado por NIF"
-			maxWidth="max-w-lg">
+			size="md"
+			footer={
+				<LoadingButton
+					loading={normalizing}
+					onClick={applyMergeGuide}
+					disabled={duplicateNifs.length === 0}
+					className="w-full btn-primary py-3">
+					Aplicar merge
+				</LoadingButton>
+			}>
 			<div className="space-y-4">
-				<p className="text-sm text-gray-600">
+				<p className="text-sm text-muted">
 					Elige el nombre canónico para cada NIF con varias denominaciones. Se
 					actualizarán los gastos y se guardará la regla para futuros registros.
 				</p>
 				{duplicateNifs.length === 0 ? (
-					<p className="text-sm text-gray-500">No hay NIF duplicados.</p>
+					<p className="text-sm text-muted">No hay NIF duplicados.</p>
 				) : (
 					<div className="space-y-3 max-h-[50vh] overflow-y-auto">
 						{duplicateNifs.map(({ nif, names }) => (
 							<div
 								key={nif}
-								className="p-3 rounded-xl border border-gray-100 bg-gray-50">
-								<p className="text-xs font-black text-gray-500 uppercase mb-2">
+								className="p-3 rounded-xl border border-edge bg-surface-2">
+								<p className="text-xs font-black text-muted uppercase mb-2">
 									NIF {nif}
 								</p>
 								<select
@@ -616,7 +627,7 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 											[nif]: e.target.value,
 										}))
 									}
-									className="w-full p-3 bg-white border border-gray-200 rounded-xl font-bold text-sm">
+									className="input-field">
 									{names.map((name) => (
 										<option key={name} value={name}>
 											{name}
@@ -627,15 +638,8 @@ export const SuppliersTab = ({ entries = [], showToast = () => {}, onRefresh }) 
 						))}
 					</div>
 				)}
-				<LoadingButton
-					loading={normalizing}
-					onClick={applyMergeGuide}
-					disabled={duplicateNifs.length === 0}
-					className="w-full bg-rose-700 text-white font-black py-3 rounded-xl">
-					Aplicar merge
-				</LoadingButton>
 			</div>
-		</AdaptiveModal>
+		</SidePanel>
 		</>
 	);
 };
