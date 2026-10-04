@@ -55,6 +55,11 @@ import {
 	FormSheetPreview,
 	FormPreviewStat,
 } from "../ui/FormSheet";
+import {
+	FormWizardProgress,
+	FormWizardNav,
+	useFormWizard,
+} from "../ui/FormWizard";
 import { useTenant } from "../../context/TenantContext";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { classifyFinanceIssue, financeIssueLabel } from "../../utils/financeIssues";
@@ -176,6 +181,22 @@ export const FinanceMovementsTab = ({
 	const [dateWarning, setDateWarning] = useState(null);
 	const [invoiceSuggestions, setInvoiceSuggestions] = useState([]);
 	const [showSuggestions, setShowSuggestions] = useState(false);
+
+	const financeDeductible =
+		formData.type === "expense" && !!formData.is_deductible;
+	const useFinanceWizard = isModalOpen && financeDeductible;
+
+	const financeWizard = useFormWizard(
+		[
+			{ id: "movimiento", label: "Movimiento" },
+			{ id: "fiscal", label: "Fiscal", when: financeDeductible },
+			{ id: "adjunto", label: "Adjunto", when: financeDeductible },
+		],
+		{
+			open: isModalOpen,
+			resetKey: `${editingEntry?.id || "new"}-${formData.type}`,
+		},
+	);
 
 	const supplierDirectory = useMemo(
 		() => buildSupplierDirectory(entries),
@@ -680,8 +701,44 @@ export const FinanceMovementsTab = ({
 		}
 	};
 
+	const validateFinanceStep = () => {
+		if (!useFinanceWizard) return true;
+		if (financeWizard.stepId === "movimiento") {
+			if (!formData.description?.trim()) {
+				showToast("Indica una descripción", "error");
+				return false;
+			}
+			if (!(Number(formData.amount) > 0)) {
+				showToast("Indica el importe", "error");
+				return false;
+			}
+			return true;
+		}
+		if (financeWizard.stepId === "fiscal") {
+			if (!formData.provider_name?.trim()) {
+				showToast("Indica el proveedor", "error");
+				return false;
+			}
+			const nifCheck = validateSpanishTaxId(formData.supplier_nif);
+			if (!nifCheck.valid) {
+				showToast(nifCheck.error || "NIF no válido", "error");
+				return false;
+			}
+			if (!formData.invoice_number?.trim()) {
+				showToast("El número de factura es obligatorio", "error");
+				return false;
+			}
+			return true;
+		}
+		return true;
+	};
+
 	const handleSaveEntry = async (e) => {
 		e.preventDefault();
+		if (useFinanceWizard && !financeWizard.isLast) {
+			if (validateFinanceStep()) financeWizard.next();
+			return;
+		}
 
 		// Validaciones antes de guardar
 		if (formData.is_deductible) {
@@ -1057,13 +1114,13 @@ export const FinanceMovementsTab = ({
 			<div className="grid grid-cols-2 gap-3 md:gap-6">
 				<button
 					onClick={() => openEntryModal("income")}
-					className="py-4 md:py-5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl font-black shadow-lg shadow-emerald-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
+					className="py-4 md:py-5 bg-income hover:bg-income-hover text-white rounded-2xl font-semibold shadow-sm flex justify-center items-center gap-2 active:scale-[0.98] transition-all">
 					<Plus size={22} />{" "}
 					<span className="uppercase tracking-widest text-sm">Ingreso</span>
 				</button>
 				<button
 					onClick={() => openEntryModal("expense")}
-					className="py-4 md:py-5 bg-rose-700 hover:bg-rose-800 text-white rounded-2xl font-black shadow-lg shadow-rose-100 flex justify-center items-center gap-2 active:scale-95 transition-all">
+					className="py-4 md:py-5 bg-expense hover:bg-expense-hover text-white rounded-2xl font-semibold shadow-sm flex justify-center items-center gap-2 active:scale-[0.98] transition-all">
 					<Plus size={22} />{" "}
 					<span className="uppercase tracking-widest text-sm">Gasto</span>
 				</button>
@@ -1149,8 +1206,8 @@ export const FinanceMovementsTab = ({
 									<span
 										className={`font-black text-sm ${
 											entry.type === "income"
-												? "text-emerald-500"
-												: "text-rose-700"
+												? "text-income"
+												: "text-expense"
 										}`}>
 										{entry.type === "income" ? "+" : "-"}
 										{formatCurrency(entry.amount)}
@@ -1227,7 +1284,7 @@ export const FinanceMovementsTab = ({
 				<div className="space-y-4">
 					<div className="flex justify-between items-center px-4">
 						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest flex items-center gap-2">
-							<TrendingUp size={16} className="text-emerald-500" /> Ingresos
+							<TrendingUp size={16} className="text-income" /> Ingresos
 						</h3>
 						<span className="text-emerald-600 font-black">
 							{formatCurrency(totalIncome)}
@@ -1289,7 +1346,7 @@ export const FinanceMovementsTab = ({
 				<div className="space-y-4">
 					<div className="flex justify-between items-center px-4">
 						<h3 className="font-black text-gray-700 uppercase text-xs tracking-widest flex items-center gap-2">
-							<TrendingDown size={16} className="text-rose-700" /> Gastos
+							<TrendingDown size={16} className="text-expense" /> Gastos
 						</h3>
 						<span className="text-rose-700 font-black">
 							{formatCurrency(totalExpense)}
@@ -1609,22 +1666,51 @@ export const FinanceMovementsTab = ({
 			isOpen={isModalOpen}
 			onClose={() => { setIsModalOpen(false); setEditingEntry(null); }}
 			title={editingEntry ? "Editar movimiento" : "Nuevo movimiento"}
-			subtitle="Ingreso, gasto o pago con impacto fiscal"
+			subtitle={
+				useFinanceWizard && financeWizard.steps[financeWizard.stepIndex]
+					? `Paso ${financeWizard.stepIndex + 1} de ${financeWizard.steps.length}: ${financeWizard.steps[financeWizard.stepIndex].label}`
+					: "Ingreso, gasto o pago con impacto fiscal"
+			}
 			size="lg"
 			footer={
-				<LoadingButton
-					loading={savingEntry}
-					type="submit"
-					form="finance-entry-form"
-					className={`w-full py-3 rounded-xl font-black text-on-primary shadow-lg ${
-						formData.type === "income" ? "bg-emerald-500" : "bg-rose-700"
-					}`}>
-					{savingEntry ? "Guardando..." : "Guardar"}
-				</LoadingButton>
+				useFinanceWizard ? (
+					<FormWizardNav
+						isFirst={financeWizard.isFirst}
+						isLast={financeWizard.isLast}
+						onBack={financeWizard.back}
+						onNext={() => {
+							if (validateFinanceStep()) financeWizard.next();
+						}}
+						formId="finance-entry-form"
+						loading={savingEntry}
+						submitLabel="Guardar"
+						submitClassName={
+							formData.type === "income" ? "bg-income" : "bg-expense"
+						}
+					/>
+				) : (
+					<LoadingButton
+						loading={savingEntry}
+						type="submit"
+						form="finance-entry-form"
+						className={`w-full py-3 rounded-xl font-black text-on-primary shadow-lg ${
+							formData.type === "income" ? "bg-income" : "bg-expense"
+						}`}>
+						{savingEntry ? "Guardando..." : "Guardar"}
+					</LoadingButton>
+				)
 			}>
 			<form id="finance-entry-form" onSubmit={handleSaveEntry}>
+				{useFinanceWizard && (
+					<FormWizardProgress
+						steps={financeWizard.steps}
+						current={financeWizard.stepIndex}
+					/>
+				)}
 				<FormSheet>
 					<FormSheetPrimary>
+					{(!useFinanceWizard || financeWizard.stepId === "movimiento") && (
+					<>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 							Descripción
@@ -1669,55 +1755,6 @@ export const FinanceMovementsTab = ({
 								className="font-bold text-gray-800 cursor-pointer flex-1">
 								¿Es Factura Deducible?
 							</label>
-						</div>
-					)}
-					{formData.type === "expense" && formData.is_deductible && (
-						<div className="space-y-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
-							<label className="flex items-center gap-3 cursor-pointer">
-								<input
-									type="checkbox"
-									checked={!!formData.is_investment}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											is_investment: e.target.checked,
-											amortization_rate: e.target.checked
-												? formData.amortization_rate || 26
-												: 26,
-										})
-									}
-									className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-								/>
-								<span className="font-bold text-gray-800">
-									¿Es Bien de Inversión (Amortizable)?
-								</span>
-							</label>
-							{formData.is_investment && (
-								<div>
-									<label className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-1 block ml-1">
-										% Amortización anual
-									</label>
-									<input
-										type="number"
-										min="0.01"
-										step="0.01"
-										className="w-full p-3 bg-white rounded-xl font-bold border border-blue-200 outline-none"
-										value={formData.amortization_rate ?? 26}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												amortization_rate: Number(e.target.value) || 26,
-											})
-										}
-									/>
-									{Number(taxCalc.base_amount) <= INVESTMENT_MIN_BASE && (
-										<p className="mt-2 text-xs text-blue-700 font-bold">
-											Si la base no supera {INVESTMENT_MIN_BASE}€, este gasto se
-											imputa de golpe (no amortiza).
-										</p>
-									)}
-								</div>
-							)}
 						</div>
 					)}
 					<div className="flex gap-4">
@@ -1815,52 +1852,6 @@ export const FinanceMovementsTab = ({
 								)}
 							</div>
 						)}
-					{formData.type === "expense" && formData.is_deductible && (
-						<div className="flex gap-4 -mt-2">
-							<div className="flex-1">
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-									IRPF retenido (%)
-								</label>
-								<select
-									className="w-full p-4 bg-gray-50 rounded-xl font-bold"
-									value={formData.irpf_rate}
-									onChange={(e) => {
-										const rate = Number(e.target.value);
-										setFormData({
-											...formData,
-											irpf_rate: rate,
-											withholding_kind:
-												rate > 0 ? formData.withholding_kind || "111" : null,
-										});
-									}}>
-									{IRPF_OPTIONS.map((v) => (
-										<option key={v} value={v}>
-											{v}%
-										</option>
-									))}
-								</select>
-							</div>
-							{Number(formData.irpf_rate) > 0 && (
-								<div className="flex-1">
-									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-										Modelo retención
-									</label>
-									<select
-										className="w-full p-4 bg-gray-50 rounded-xl font-bold"
-										value={formData.withholding_kind || "111"}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												withholding_kind: e.target.value,
-											})
-										}>
-										<option value="111">111 · Profesionales</option>
-										<option value="115">115 · Alquiler</option>
-									</select>
-								</div>
-							)}
-						</div>
-					)}
 					{formData.type === "expense" &&
 						formData.recurring_id &&
 						recurringBaseAmount != null && (
@@ -1913,8 +1904,168 @@ export const FinanceMovementsTab = ({
 								</div>
 							</div>
 						)}
-					{formData.type === "expense" && formData.is_deductible && (
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Fecha
+						</label>
+						<input
+							type="date"
+							className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm"
+							value={formData.date}
+							onChange={(e) =>
+								setFormData({ ...formData, date: e.target.value })
+							}
+						/>
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Categoría
+						</label>
+						{formData.recurring_id ? (
+							<input
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold border-2 border-transparent focus:bg-white focus:border-gray-200 outline-none"
+								value={formData.category}
+								onChange={(e) =>
+									setFormData({ ...formData, category: e.target.value })
+								}
+								placeholder="Ej: Cuota autónomos"
+							/>
+						) : (
+							<select
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold"
+								value={formData.category}
+								onChange={(e) =>
+									setFormData({ ...formData, category: e.target.value })
+								}>
+								{formData.type === "income" ? (
+									<>
+										<option>Servicio</option>
+										<option>Producto</option>
+										<option>Otros</option>
+									</>
+								) : (
+									<>
+										<option>Material</option>
+										<option>Alquiler</option>
+										<option>Marketing</option>
+										<option>Suministros</option>
+										<option>Otros</option>
+									</>
+								)}
+							</select>
+						)}
+					</div>
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+							Notas
+						</label>
+						<textarea
+							rows="2"
+							className="w-full p-4 bg-gray-50 rounded-2xl font-bold resize-none"
+							value={formData.notes}
+							onChange={(e) =>
+								setFormData({ ...formData, notes: e.target.value })
+							}
+						/>
+					</div>
+					</>
+					)}
+
+					{(!useFinanceWizard || financeWizard.stepId === "fiscal") &&
+						formData.type === "expense" &&
+						formData.is_deductible && (
 						<>
+							<div className="space-y-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+								<label className="flex items-center gap-3 cursor-pointer">
+									<input
+										type="checkbox"
+										checked={!!formData.is_investment}
+										onChange={(e) =>
+											setFormData({
+												...formData,
+												is_investment: e.target.checked,
+												amortization_rate: e.target.checked
+													? formData.amortization_rate || 26
+													: 26,
+											})
+										}
+										className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+									/>
+									<span className="font-bold text-gray-800">
+										¿Es Bien de Inversión (Amortizable)?
+									</span>
+								</label>
+								{formData.is_investment && (
+									<div>
+										<label className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-1 block ml-1">
+											% Amortización anual
+										</label>
+										<input
+											type="number"
+											min="0.01"
+											step="0.01"
+											className="w-full p-3 bg-white rounded-xl font-bold border border-blue-200 outline-none"
+											value={formData.amortization_rate ?? 26}
+											onChange={(e) =>
+												setFormData({
+													...formData,
+													amortization_rate: Number(e.target.value) || 26,
+												})
+											}
+										/>
+										{Number(taxCalc.base_amount) <= INVESTMENT_MIN_BASE && (
+											<p className="mt-2 text-xs text-blue-700 font-bold">
+												Si la base no supera {INVESTMENT_MIN_BASE}€, este gasto se
+												imputa de golpe (no amortiza).
+											</p>
+										)}
+									</div>
+								)}
+							</div>
+							<div className="flex gap-4">
+								<div className="flex-1">
+									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+										IRPF retenido (%)
+									</label>
+									<select
+										className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+										value={formData.irpf_rate}
+										onChange={(e) => {
+											const rate = Number(e.target.value);
+											setFormData({
+												...formData,
+												irpf_rate: rate,
+												withholding_kind:
+													rate > 0 ? formData.withholding_kind || "111" : null,
+											});
+										}}>
+										{IRPF_OPTIONS.map((v) => (
+											<option key={v} value={v}>
+												{v}%
+											</option>
+										))}
+									</select>
+								</div>
+								{Number(formData.irpf_rate) > 0 && (
+									<div className="flex-1">
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
+											Modelo retención
+										</label>
+										<select
+											className="w-full p-4 bg-gray-50 rounded-xl font-bold"
+											value={formData.withholding_kind || "111"}
+											onChange={(e) =>
+												setFormData({
+													...formData,
+													withholding_kind: e.target.value,
+												})
+											}>
+											<option value="111">111 · Profesionales</option>
+											<option value="115">115 · Alquiler</option>
+										</select>
+									</div>
+								)}
+							</div>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 									Proveedor (nombre)
@@ -2034,6 +2185,13 @@ export const FinanceMovementsTab = ({
 									)}
 								</div>
 							)}
+						</>
+					)}
+
+					{(!useFinanceWizard || financeWizard.stepId === "adjunto") &&
+						formData.type === "expense" &&
+						formData.is_deductible && (
+						<>
 							<div>
 								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
 									Justificante (foto o PDF){" "}
@@ -2132,72 +2290,6 @@ export const FinanceMovementsTab = ({
 							</div>
 						</>
 					)}
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-							Fecha
-						</label>
-						<input
-							required
-							type="date"
-							className="w-full p-4 bg-gray-50 rounded-xl font-bold text-sm"
-							value={formData.date}
-							onChange={(e) =>
-								setFormData({ ...formData, date: e.target.value })
-							}
-						/>
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-							Categoría
-						</label>
-						{formData.recurring_id ? (
-							<input
-								required
-								className="w-full p-4 bg-gray-50 rounded-2xl font-bold border-2 border-transparent focus:bg-white focus:border-gray-200 outline-none"
-								value={formData.category}
-								onChange={(e) =>
-									setFormData({ ...formData, category: e.target.value })
-								}
-								placeholder="Ej: Cuota autónomos"
-							/>
-						) : (
-							<select
-								className="w-full p-4 bg-gray-50 rounded-2xl font-bold"
-								value={formData.category}
-								onChange={(e) =>
-									setFormData({ ...formData, category: e.target.value })
-								}>
-								{formData.type === "income" ? (
-									<>
-										<option>Servicio</option>
-										<option>Producto</option>
-										<option>Otros</option>
-									</>
-								) : (
-									<>
-										<option>Material</option>
-										<option>Alquiler</option>
-										<option>Marketing</option>
-										<option>Suministros</option>
-										<option>Otros</option>
-									</>
-								)}
-							</select>
-						)}
-					</div>
-					<div>
-						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1 block ml-1">
-							Notas
-						</label>
-						<textarea
-							rows="2"
-							className="w-full p-4 bg-gray-50 rounded-2xl font-bold resize-none"
-							value={formData.notes}
-							onChange={(e) =>
-								setFormData({ ...formData, notes: e.target.value })
-							}
-						/>
-					</div>
 					</FormSheetPrimary>
 					<FormSheetPreview
 						title={

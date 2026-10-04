@@ -13,6 +13,7 @@ import {
 	Moon,
 	Sunrise,
 } from "lucide-react";
+import { toLocalYmd } from "../../utils/dateUtils";
 
 const QUICK_LINKS = [
 	{
@@ -52,7 +53,7 @@ const QUICK_LINKS = [
 		id: "treatments",
 		label: "Tratamientos",
 		description: "Servicios y sesiones",
-		path: "/tratamientos",
+		path: "/catalogo/tratamientos",
 		icon: Sparkles,
 		color: "text-amber-600",
 		bg: "bg-amber-50",
@@ -112,20 +113,16 @@ export const HomeTab = ({ userName, appointments = [], clients = [] }) => {
 	const GreetingIcon = getGreetingIcon();
 	const todayFormatted = formatTodayDate();
 
-	const todayYmd = new Date().toISOString().slice(0, 10);
-
-	const todayAppointments = useMemo(
-		() =>
-			(appointments || [])
-				.filter((a) => {
-					if (a.type === "tax_deadline" || a.type === "task") return false;
-					if (a.status === "cancelled") return false;
-					const day = a.start_at ? String(a.start_at).slice(0, 10) : "";
-					return day === todayYmd;
-				})
-				.sort((a, b) => new Date(a.start_at) - new Date(b.start_at)),
-		[appointments, todayYmd],
-	);
+	const todayAppointments = useMemo(() => {
+		const todayYmd = toLocalYmd(new Date());
+		return (appointments || [])
+			.filter((a) => {
+				if (a.type === "tax_deadline" || a.type === "task") return false;
+				if (a.status === "cancelled") return false;
+				return a.start_at && toLocalYmd(a.start_at) === todayYmd;
+			})
+			.sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+	}, [appointments]);
 
 	const activeClientsCount = useMemo(
 		() => (clients || []).filter((c) => c.activo !== false).length,

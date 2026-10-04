@@ -3,7 +3,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { supabase } from "../services/supabase";
 import { useTenant } from "../context/TenantContext";
 import { QUERY_STALE } from "../providers/queryStale";
-import { calculateTaxFromTotal } from "../utils/format";
+import { resolvePurchaseAmounts } from "../utils/purchaseTax";
 import {
 	GENERIC_PURCHASE_PROVIDER,
 	isDeductiblePurchase,
@@ -60,19 +60,18 @@ const insertPurchaseExpense = async ({
 	supplierNif,
 	invoiceNumber,
 	purchaseTaxRate,
+	priceMode = "included",
 	receiptFile,
 	isRestock,
 }) => {
 	if (!(Number(totalCost) > 0)) return null;
 
-	const taxRate = isDeductible
-		? purchaseTaxRate != null
-			? Number(purchaseTaxRate)
-			: 21
-		: 0;
-	const { baseAmount, taxAmount } = isDeductible
-		? calculateTaxFromTotal(totalCost, taxRate)
-		: { baseAmount: Number(totalCost), taxAmount: 0 };
+	const { baseAmount, taxAmount, totalAmount, taxRate } = resolvePurchaseAmounts({
+		amountInput: totalCost,
+		taxRate: purchaseTaxRate != null ? Number(purchaseTaxRate) : 21,
+		priceMode,
+		isDeductible,
+	});
 
 	const { data: entry, error } = await supabase
 		.from("finance_entries")
@@ -84,8 +83,8 @@ const insertPurchaseExpense = async ({
 				type: "expense",
 				category: "Producto",
 				description: `${isRestock ? "Reposición producto" : "Compra producto"}: ${productName} (${qty} ${unit})`,
-				amount: Number(totalCost),
-				total_amount: Number(totalCost),
+				amount: totalAmount,
+				total_amount: totalAmount,
 				tax_rate: taxRate,
 				tax_base: baseAmount,
 				tax_amount: taxAmount,
@@ -229,7 +228,6 @@ export const useProducts = (user) => {
 				throw new Error("Indica la fecha de entrada / compra");
 			}
 
-			const unitCost = stockNum > 0 ? totalCost / stockNum : 0;
 			const meta =
 				stockNum > 0 && totalCost > 0
 					? resolvePurchaseMeta(purchase)
@@ -239,6 +237,13 @@ export const useProducts = (user) => {
 							supplierNif: null,
 							invoiceNumber: null,
 						};
+			const { totalAmount } = resolvePurchaseAmounts({
+				amountInput: totalCost,
+				taxRate: purchase.purchase_tax_rate,
+				priceMode: purchase.priceMode || "included",
+				isDeductible: meta.isDeductible,
+			});
+			const unitCost = stockNum > 0 ? totalAmount / stockNum : 0;
 
 			const { data: saved, error } = await supabase
 				.from("products")
@@ -278,6 +283,7 @@ export const useProducts = (user) => {
 					supplierNif: meta.supplierNif,
 					invoiceNumber: meta.invoiceNumber,
 					purchaseTaxRate: purchase.purchase_tax_rate,
+					priceMode: purchase.priceMode || "included",
 					receiptFile: meta.isDeductible ? receiptFile : null,
 					isRestock: false,
 				});
@@ -309,12 +315,18 @@ export const useProducts = (user) => {
 							invoiceNumber: null,
 						};
 
+			const { totalAmount } = resolvePurchaseAmounts({
+				amountInput: totalCost,
+				taxRate: purchase.purchase_tax_rate,
+				priceMode: purchase.priceMode || "included",
+				isDeductible: meta.isDeductible,
+			});
 			const currentStock = Number(product.stock_qty) || 0;
 			const currentUnitCost = Number(product.unit_cost) || 0;
 			const newStock = currentStock + qty;
 			const newUnitCost =
 				newStock > 0
-					? (currentStock * currentUnitCost + totalCost) / newStock
+					? (currentStock * currentUnitCost + totalAmount) / newStock
 					: 0;
 
 			const { error } = await supabase
@@ -342,6 +354,7 @@ export const useProducts = (user) => {
 					supplierNif: meta.supplierNif,
 					invoiceNumber: meta.invoiceNumber,
 					purchaseTaxRate: purchase.purchase_tax_rate,
+					priceMode: purchase.priceMode || "included",
 					receiptFile: meta.isDeductible ? receiptFile : null,
 					isRestock: true,
 				});
@@ -363,6 +376,7 @@ export const useProducts = (user) => {
 			issueInvoice = true,
 			internalNotes = null,
 			planAmigo = false,
+			documentKind = null,
 		}) => {
 			const { data, error } = await supabase.rpc("sell_catalog_product", {
 				p_product_id: productId,
@@ -374,9 +388,167 @@ export const useProducts = (user) => {
 				p_issue_invoice: planAmigo ? false : !!issueInvoice,
 				p_internal_notes: internalNotes || null,
 				p_plan_amigo: !!planAmigo,
+				p_document_kind: planAmigo ? null : documentKind || null,
 			});
 			if (error) throw error;
 			return data;
+		},
+		onSuccess: invalidate,
+	});
+
+	/** TPV: varias líneas, un correlativo Ticket/Factura, stock + caja. */
+	const sellCartMutation = useMutation({
+		mutationFn: async ({
+			lines,
+			date,
+			clientId = null,
+			buyerName = null,
+			documentKind = "ticket",
+			internalNotes = null,
+		}) => {
+			if (!lines?.length) throw new Error("El carrito está vacío");
+			const { data, error } = await supabase.rpc("sell_catalog_cart", {
+				p_lines: lines,
+				p_date: date,
+				p_client_id: clientId || null,
+				p_buyer_name: buyerName || null,
+				p_document_kind: documentKind === "factura" ? "factura" : "ticket",
+				p_internal_notes: internalNotes || null,
+			});
+			if (error) throw error;
+			return data;
+		},
+		onSuccess: () => {
+			invalidate();
+			queryClient.invalidateQueries({ queryKey: ["product_sales", clinicId] });
+			queryClient.invalidateQueries({ queryKey: ["finance_entries", clinicId] });
+		},
+	});
+
+	const invoiceBatchMutation = useMutation({
+		mutationFn: async ({ header, lines }) => {
+			if (!clinicId) throw new Error("Clínica no disponible");
+			const purchaseDate = header.purchaseDate?.trim();
+			if (!purchaseDate) throw new Error("La fecha de compra es obligatoria");
+			if (!lines?.length) throw new Error("Añade al menos una línea");
+
+			const meta = resolvePurchaseMeta(header);
+			const taxRate = meta.isDeductible
+				? header.tax_rate != null
+					? Number(header.tax_rate)
+					: 21
+				: 0;
+			const priceMode = header.priceMode || "included";
+
+			for (const line of lines) {
+				const name = String(line.name || "").trim();
+				const qty = Number(line.quantity);
+				const lineCost = Number(line.totalCost);
+				if (!name) throw new Error("Cada línea necesita nombre");
+				if (!(qty > 0)) throw new Error(`Cantidad inválida en «${name}»`);
+				if (!(lineCost >= 0)) throw new Error(`Coste inválido en «${name}»`);
+
+				const { totalAmount } = resolvePurchaseAmounts({
+					amountInput: lineCost,
+					taxRate,
+					priceMode,
+					isDeductible: meta.isDeductible,
+				});
+
+				const productId = line.productId || line.itemId || null;
+				const unit = line.unit || "ud";
+
+				if (productId) {
+					const { data: existing, error: exErr } = await supabase
+						.from("products")
+						.select("id, stock_qty, unit_cost, unit, name, price, tax_rate")
+						.eq("id", productId)
+						.single();
+					if (exErr) throw exErr;
+					const currentStock = Number(existing.stock_qty) || 0;
+					const currentUnitCost = Number(existing.unit_cost) || 0;
+					const newStock = currentStock + qty;
+					const newUnitCost =
+						newStock > 0
+							? (currentStock * currentUnitCost + totalAmount) / newStock
+							: 0;
+					const { error: updErr } = await supabase
+						.from("products")
+						.update({
+							stock_qty: newStock,
+							unit_cost: Number(newUnitCost.toFixed(4)),
+							updated_at: new Date().toISOString(),
+						})
+						.eq("id", productId);
+					if (updErr) throw updErr;
+
+					if (totalAmount > 0) {
+						await insertPurchaseExpense({
+							userId,
+							clinicId,
+							productId,
+							productName: existing.name,
+							qty,
+							unit: existing.unit || unit,
+							totalCost: lineCost,
+							purchaseDate,
+							isDeductible: meta.isDeductible,
+							providerName: meta.providerName,
+							supplierNif: meta.supplierNif,
+							invoiceNumber: meta.invoiceNumber,
+							purchaseTaxRate: taxRate,
+							priceMode,
+							receiptFile: null,
+							isRestock: true,
+						});
+					}
+				} else {
+					const pvp = Number(line.price);
+					if (!(pvp >= 0) || Number.isNaN(pvp)) {
+						throw new Error(`Indica el PVP de venta para «${name}»`);
+					}
+					const unitCost = qty > 0 ? totalAmount / qty : 0;
+					const { data: saved, error: insErr } = await supabase
+						.from("products")
+						.insert([
+							{
+								clinic_id: clinicId,
+								user_id: userId,
+								name,
+								price: pvp,
+								tax_rate: 21,
+								stock_qty: qty,
+								unit,
+								unit_cost: Number(unitCost.toFixed(4)),
+								activo: true,
+							},
+						])
+						.select()
+						.single();
+					if (insErr) throw insErr;
+
+					if (totalAmount > 0) {
+						await insertPurchaseExpense({
+							userId,
+							clinicId,
+							productId: saved.id,
+							productName: saved.name,
+							qty,
+							unit: saved.unit,
+							totalCost: lineCost,
+							purchaseDate,
+							isDeductible: meta.isDeductible,
+							providerName: meta.providerName,
+							supplierNif: meta.supplierNif,
+							invoiceNumber: meta.invoiceNumber,
+							purchaseTaxRate: taxRate,
+							priceMode,
+							receiptFile: null,
+							isRestock: false,
+						});
+					}
+				}
+			}
 		},
 		onSuccess: invalidate,
 	});
@@ -394,5 +566,9 @@ export const useProducts = (user) => {
 		deleting: softDeleteMutation.isPending,
 		sellProduct: sellMutation.mutateAsync,
 		selling: sellMutation.isPending,
+		sellCart: sellCartMutation.mutateAsync,
+		sellingCart: sellCartMutation.isPending,
+		invoiceBatchPurchase: invoiceBatchMutation.mutateAsync,
+		invoiceBatchPending: invoiceBatchMutation.isPending,
 	};
 };

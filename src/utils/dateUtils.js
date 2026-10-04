@@ -34,6 +34,30 @@ const toYmd = (d) => {
 	return `${y}-${m}-${day}`;
 };
 
+/** YYYY-MM-DD en zona horaria local (no UTC). */
+export const toLocalYmd = (value = new Date()) => {
+	if (!value) return "";
+	const d = value instanceof Date ? value : new Date(value);
+	if (Number.isNaN(d.getTime())) return "";
+	return toYmd(d);
+};
+
+/** Suma días a un YYYY-MM-DD (calendario local). */
+export const addDaysToYmd = (ymd, days = 0) => {
+	if (!ymd || typeof ymd !== "string") return "";
+	const [y, m, d] = ymd.split("-").map(Number);
+	if (!y || !m || !d) return "";
+	const dt = new Date(y, m - 1, d);
+	dt.setDate(dt.getDate() + Number(days || 0));
+	return toLocalYmd(dt);
+};
+
+export const isSameLocalDay = (a, b = new Date()) => {
+	const left = toLocalYmd(a);
+	const right = toLocalYmd(b);
+	return Boolean(left && right && left === right);
+};
+
 const monthNamesShort = [
 	"ene",
 	"feb",

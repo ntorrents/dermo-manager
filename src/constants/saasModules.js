@@ -22,6 +22,7 @@ export const ALL_MODULES = [
 	"marketing_campaigns",
 	"client_followup",
 	"custom_email_domain",
+	"web_leads",
 ];
 
 /** Add-ons de pago / especiales: no entran al aplicar preset Gestión/360. */
@@ -30,6 +31,7 @@ export const EXTRA_MODULES = [
 	"finance_plan_amigo",
 	"inventory_traceability",
 	"custom_email_domain",
+	"web_leads",
 ];
 
 export const CORE_MODULES = ALL_MODULES.filter((m) => !EXTRA_MODULES.includes(m));
@@ -149,13 +151,19 @@ export const MODULE_META = {
 		group: "Marketing",
 	},
 	client_followup: {
-		label: "Seguimiento 1:1",
-		hint: "Correo individual a un paciente",
+		label: "Automatizaciones / seguimiento",
+		hint: "Acceso a automatizaciones de mensajes (pre/post sesión)",
 		group: "Marketing",
 	},
 	custom_email_domain: {
 		label: "Dominio de correo propio",
 		hint: "Remitente @tuclinica vía Resend",
+		group: "Extras",
+		extra: true,
+	},
+	web_leads: {
+		label: "Captación web (Leads)",
+		hint: "Webhook para formularios de la web → ERP",
 		group: "Extras",
 		extra: true,
 	},
@@ -271,13 +279,18 @@ export const effectiveClinicFeeEur = (clinic) => {
 export const NAV_ITEM_MODULE = {
 	calendar: "agenda_core",
 	clients: "clients_crm",
+	catalog: "clients_crm",
+	documents: "bonos_manager",
 	bonos: "bonos_manager",
 	budgets: "bonos_manager",
 	consents: "legal_signatures",
 	products: "products_catalog",
 	products_ventas: "products_catalog",
 	inventory: "inventory_core",
+	inventory_trazabilidad: "inventory_core",
+	inventory_compras: "suppliers_manager",
 	suppliers: "suppliers_manager",
+	finance: "finance_basic",
 	finance_movements: "finance_basic",
 	invoices: "finance_invoices",
 	financial_analysis: "finance_analytics",
@@ -292,6 +305,7 @@ export const NAV_ITEM_MODULE = {
 	assets: "taxes_aeat",
 	marketing: "marketing_campaigns",
 	marketing_campanas: "marketing_campaigns",
+	marketing_automatizaciones: "marketing_campaigns",
 	marketing_seguimiento: "client_followup",
 	marketing_plantillas: "marketing_campaigns",
 };

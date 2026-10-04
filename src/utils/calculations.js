@@ -89,6 +89,26 @@ export const getTopTreatments = (entries, treatments, limit = 5) => {
 		.slice(0, limit);
 };
 
+/** Top ingresos por concepto (tratamientos / productos / bonos) ordenado por importe */
+export const getTopRevenueItems = (entries, limit = 5) => {
+	const ranking = {};
+	(entries || [])
+		.filter((e) => e.type === "income" && e.activo !== false)
+		.forEach((e) => {
+			const rawName =
+				(e.description || "").split("(")[0].trim() ||
+				e.category ||
+				"Ingreso";
+			if (!ranking[rawName]) ranking[rawName] = { count: 0, amount: 0 };
+			ranking[rawName].count += 1;
+			ranking[rawName].amount += Number(e.amount || 0);
+		});
+	return Object.entries(ranking)
+		.map(([name, data]) => ({ name, ...data }))
+		.sort((a, b) => b.amount - a.amount)
+		.slice(0, limit);
+};
+
 /** Items con stock bajo (stock <= min_stock). Excluye máquinas (sin stock). */
 export const getLowStockItems = (inventory = [], defaultMin = 5) =>
 	(inventory || []).filter(

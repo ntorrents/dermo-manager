@@ -415,3 +415,7 @@ verify_jwt = false
 
 [functions.process-email-queue]
 verify_jwt = false
+
+# Leads webhook: auth por x-webhook-secret + x-clinic-id (no JWT de usuario).
+[functions.webhook-leads]
+verify_jwt = false

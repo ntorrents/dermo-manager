@@ -207,12 +207,27 @@ export const generateInvoice = async (entry, client, clinic, profile, options = 
 	const invoiceNum =
 		entry.invoice_number ||
 		`F-${entry.date.replace(/-/g, "")}-${(entry.id || "").slice(0, 4).toUpperCase()}`;
+	const isTicketDoc =
+		entry?.document_kind === "ticket" ||
+		String(entry?.invoice_number || "").startsWith("T");
+	const docTitle = isAbono
+		? "ABONO"
+		: isTicketDoc
+			? "TICKET"
+			: "FACTURA";
 
 	doc.setFontSize(16);
 	doc.setFont("helvetica", "bold");
 	doc.setTextColor(30);
-	doc.text(isAbono ? "ABONO" : "FACTURA", rightColX, yRight, { align: "right" });
+	doc.text(docTitle, rightColX, yRight, { align: "right" });
 	yRight += 9;
+	if (isTicketDoc && !isAbono) {
+		doc.setFontSize(8);
+		doc.setFont("helvetica", "normal");
+		doc.setTextColor(120);
+		doc.text("Factura simplificada", rightColX, yRight, { align: "right" });
+		yRight += 5;
+	}
 
 	doc.setFontSize(10);
 	doc.setFont("helvetica", "normal");
@@ -242,9 +257,12 @@ export const generateInvoice = async (entry, client, clinic, profile, options = 
 	doc.setFontSize(10);
 	doc.setFont("helvetica", "bold");
 	doc.setTextColor(30);
+	const clientName = isWalkIn
+		? "Consumidor final"
+		: `${client?.name || ""} ${client?.surname || ""}`.trim() || "cliente";
 	if (isWalkIn) {
 		// Ticket / factura simplificada: sin datos personales (consumo final)
-		doc.text("Consumidor final", MARGIN + 4, boxStartY + 14);
+		doc.text(clientName, MARGIN + 4, boxStartY + 14);
 		doc.setFont("helvetica", "normal");
 		doc.setFontSize(8);
 		doc.setTextColor(120);
@@ -255,7 +273,6 @@ export const generateInvoice = async (entry, client, clinic, profile, options = 
 			doc.text(`Ref. ${ref}`, MARGIN + 4, boxStartY + 20);
 		}
 	} else {
-		const clientName = `${client?.name || ""} ${client?.surname || ""}`.trim() || "—";
 		doc.text(clientName, MARGIN + 4, boxStartY + 14);
 
 		doc.setFont("helvetica", "normal");
@@ -373,10 +390,11 @@ export const generateInvoice = async (entry, client, clinic, profile, options = 
 
 	drawVerifactuQrPlaceholder(doc);
 
-	const safeName = (clientName || "cliente").replace(/[^a-z0-9]/gi, "_");
+	const safeName = String(clientName || "cliente").replace(/[^a-z0-9]+/gi, "_");
+	const filePrefix = isAbono ? "Abono" : isTicketDoc ? "Ticket" : "Factura";
 	doc.save(
 		isAbono
 			? `Abono_${entry.invoice_number || "R"}_${safeName}.pdf`
-			: `Factura_${invoiceNum}_${safeName}.pdf`,
+			: `${filePrefix}_${invoiceNum}_${safeName}.pdf`,
 	);
 };

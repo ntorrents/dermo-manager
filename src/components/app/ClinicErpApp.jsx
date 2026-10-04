@@ -24,7 +24,11 @@ import { MobileNav } from "../layout/MobileNav";
 import { AppHeader } from "../layout/AppHeader";
 import { RouteFallback } from "../layout/RouteFallback";
 import { PATH_MAP, resolveNavIdFromPath } from "../layout/navigationLabels";
-import { TaxAlertsBanner } from "../taxes/shared/TaxAlertsBanner";
+import { buildBreadcrumbs } from "../layout/breadcrumbs";
+import { FinanceShell } from "../finance/FinanceShell";
+import { InventoryShell } from "../inventory/InventoryShell";
+import { CatalogShell } from "../catalog/CatalogShell";
+import { DocumentsShell } from "../documents/DocumentsShell";
 import { useTaxDeclarations } from "../../hooks/useTaxDeclarations";
 import { HomeTab } from "../home/HomeTab";
 import { useAppearance } from "../../context/AppearanceContext";
@@ -39,8 +43,23 @@ const TreatmentsTab = lazy(() =>
 const ProductsShell = lazy(() =>
 	import("../products/ProductsShell").then((m) => ({ default: m.ProductsShell })),
 );
+const ProductsCatalogView = lazy(() =>
+	import("../products/catalog/ProductsCatalogView").then((m) => ({
+		default: m.ProductsCatalogView,
+	})),
+);
+const ProductsSalesView = lazy(() =>
+	import("../products/sales/ProductsSalesView").then((m) => ({
+		default: m.ProductsSalesView,
+	})),
+);
 const InventoryTab = lazy(() =>
 	import("../inventory/InventoryTab").then((m) => ({ default: m.InventoryTab })),
+);
+const TraceabilityTab = lazy(() =>
+	import("../inventory/TraceabilityTab").then((m) => ({
+		default: m.TraceabilityTab,
+	})),
 );
 const FinanceMovementsTab = lazy(() =>
 	import("../finance/FinanceMovementsTab").then((m) => ({ default: m.FinanceMovementsTab })),
@@ -95,40 +114,6 @@ import {
 } from "../../hooks/useSeguimientoNotifications";
 
 const SIDEBAR_COLLAPSED_KEY = "sidebar-collapsed";
-
-const TAB_META = {
-	home: { title: "Inicio", subtitle: "Bienvenido" },
-	dashboard: { title: "Dashboard", subtitle: "Indicadores y widgets" },
-	clients: { title: "Clientes", subtitle: "Ficha, historial y documentos" },
-	treatments: { title: "Tratamientos", subtitle: "Servicios y sesiones" },
-	products: { title: "Productos", subtitle: "Catálogo y ventas" },
-	products_ventas: { title: "Ventas de productos", subtitle: "Historial y tickets" },
-	bonos: { title: "Bonos de Sesiones", subtitle: "Plantillas y bonos de clientes" },
-	consents: { title: "Consentimientos", subtitle: "Plantillas de consentimiento informado" },
-	budgets: { title: "Presupuestos", subtitle: "Presupuestos para clientes" },
-	inventory: { title: "Inventario", subtitle: "Materiales, stock y lotes" },
-	calendar: { title: "Agenda", subtitle: "Citas y recordatorios" },
-
-	finance_movements: { title: "Movimientos", subtitle: "Ingresos, gastos y recurrentes" },
-	finance: { title: "Movimientos", subtitle: "Ingresos, gastos y recurrentes" },
-	invoices: { title: "Facturas", subtitle: "Emitidas, filtros y estadísticas" },
-	financial_analysis: { title: "Análisis Financiero", subtitle: "Gráficos y reportes" },
-	suppliers: { title: "Proveedores", subtitle: "KPI de compras y facturas" },
-	taxes: { title: "Fiscalidad & AEAT", subtitle: "Modelos, plazos y declaraciones" },
-	taxes_130: { title: "Modelo 130", subtitle: "IRPF · Estimación Directa" },
-	taxes_303: { title: "Modelo 303", subtitle: "IVA trimestral" },
-	taxes_115: { title: "Modelo 115", subtitle: "Retenciones alquiler" },
-	taxes_390: { title: "Modelo 390", subtitle: "Resumen anual IVA" },
-	taxes_180: { title: "Modelo 180", subtitle: "Resumen anual retenciones" },
-	taxes_renta: { title: "Preparación Renta", subtitle: "Acumulado del ejercicio" },
-	taxes_declaraciones: { title: "Declaraciones", subtitle: "Estado de presentación AEAT" },
-	assets: { title: "Bienes de Inversión", subtitle: "Amortizaciones en curso" },
-	settings: { title: "Configuración", subtitle: "Apariencia, clínica, perfil y seguridad" },
-	marketing: { title: "Marketing", subtitle: "Campañas, seguimiento y plantillas" },
-	marketing_campanas: { title: "Campañas", subtitle: "Envío a destinatarios elegidos" },
-	marketing_seguimiento: { title: "Seguimiento", subtitle: "Correo 1:1 a un paciente" },
-	marketing_plantillas: { title: "Plantillas", subtitle: "Gestión y previsualización" },
-};
 
 export const ClinicErpApp = () => {
 	const { user, loading: authLoading } = useAuth();
@@ -232,7 +217,10 @@ export const ClinicErpApp = () => {
 
 	const mainPadClass = sidebarCollapsed ? "md:pl-[4.5rem]" : "md:pl-60 lg:pl-64";
 
-	const pageMeta = TAB_META[activeTab] || { title: "BaseClínica", subtitle: null };
+	const breadcrumbs = useMemo(
+		() => buildBreadcrumbs(location.pathname, { clients }),
+		[location.pathname, clients],
+	);
 
 	const goSettings = useCallback(() => navigate("/configuracion"), [navigate]);
 	const clearSettingsAnchor = useCallback(() => setSettingsAnchor(null), []);
@@ -304,7 +292,10 @@ export const ClinicErpApp = () => {
 	const [showLogout, setShowLogout] = useState(false);
 	const [commandOpen, setCommandOpen] = useState(false);
 	const [quickApptOpen, setQuickApptOpen] = useState(false);
+	const [quickApptClientId, setQuickApptClientId] = useState("");
 	const [selectedTreatment, setSelectedTreatment] = useState(null);
+	const [pendingSession, setPendingSession] = useState(null);
+	const [stockForceConfirm, setStockForceConfirm] = useState(null);
 
 	const { data: clinicSeguimientos = [] } = useClinicSeguimientos(user?.id);
 	useSeguimientoNotifications(clinicSeguimientos, { enabled: !!user });
@@ -362,7 +353,7 @@ export const ClinicErpApp = () => {
 						? Number(price)
 						: treatment.price,
 			});
-			navigate("/tratamientos");
+			navigate("/catalogo/tratamientos");
 		},
 		[],
 	);
@@ -375,69 +366,31 @@ export const ClinicErpApp = () => {
 			const g = params.get("google_calendar");
 			if (!g) return;
 			if (g === "connected") {
-				navigate("/agenda");
-				showToastMsg("Google Calendar conectado. Usa «Sincronizar» en la agenda.");
+				showToastMsg("Google Calendar conectado. Usa «Sincronizar» en Integraciones.");
+				navigate("/configuracion?section=integrations", { replace: true });
 			} else if (g === "error") {
 				const msg = params.get("message") || "error";
-				navigate("/agenda");
 				showToastMsg(`Google Calendar: ${decodeURIComponent(msg)}`, "error");
+				navigate("/configuracion?section=integrations", { replace: true });
 			}
-			window.history.replaceState({}, "", window.location.pathname);
 		} catch {
 			/* ignore */
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cargar sesión tras redirect OAuth
 	}, [user]);
 
-	const handleSession = async (
-		treatment,
-		clientData,
-		finalPrice,
-		date,
-		extras = [],
-		internal_notes = "",
-		planAmigo = false,
-		consumeBonoId = null
-	) => {
-		// 1. Unificamos receta base + extras en una sola lista de consumo
-		const baseRecipe = treatment.recipe || [];
-
-		// Convertimos la lista en un array plano de objetos { materialId, quantity }
-		const totalConsumption = [...baseRecipe, ...extras];
-
-		// VALIDACIÓN: Verificar stock solo para materiales (las máquinas no consumen stock)
-		// Agrupamos por materialId por si el mismo material está en receta y en extras
-		const combinedQuantities = totalConsumption.reduce((acc, item) => {
-			const qty = Number(item.quantity) || 0;
-			if (!item.materialId) return acc;
-			acc[item.materialId] = (acc[item.materialId] || 0) + qty;
-			return acc;
-		}, {});
-
-		const missing = Object.entries(combinedQuantities).find(
-			([matId, qtyNeeded]) => {
-				const item = inventory.find((i) => i.id === matId);
-				if (!item) return true;
-				// Máquinas (diatermia, etc.) no tienen stock; solo precio por sesión → no bloquear
-				if ((item.item_type || "material") === "maquina") return false;
-				return Number(item.stock) < qtyNeeded;
-			}
-		);
-
-		if (missing) {
-			const item = inventory.find((i) => i.id === missing[0]);
-			showToastMsg(
-				`Falta stock: ${item ? item.name : "Material desconocido"}`,
-				"error"
-			);
-			return;
-		}
-
-		if (!planAmigo && companyMissingFiscalAddress(clientData)) {
-			showToastMsg(COMPANY_FISCAL_ADDRESS_MSG, "error");
-			return;
-		}
-
+	const runSession = async (payload) => {
+		const {
+			treatment,
+			clientData,
+			finalPrice,
+			date,
+			extras = [],
+			internal_notes = "",
+			planAmigo = false,
+			consumeBonoId = null,
+			scheduleReviewReminder = false,
+		} = payload;
 		try {
 			await sessionMutation.mutateAsync({
 				treatment,
@@ -447,20 +400,101 @@ export const ClinicErpApp = () => {
 				extras,
 				internal_notes,
 				planAmigo,
+				allowShortfall: true,
+				scheduleReviewReminder,
 			});
 			if (consumeBonoId) {
 				await consumeBonoMutation.mutateAsync(consumeBonoId);
-				showToastMsg("Sesión guardada y sesión de bono consumida");
+				showToastMsg(
+					scheduleReviewReminder
+						? "Sesión y bono guardados · recordatorio +15 días"
+						: "Sesión guardada y sesión de bono consumida",
+				);
 			} else {
-				showToastMsg(planAmigo ? `Sesión guardada (Plan Amigo, sin factura)` : `Sesión guardada (Fecha: ${date})`);
+				showToastMsg(
+					scheduleReviewReminder
+						? planAmigo
+							? "Sesión (Plan Amigo) + recordatorio de revisión en 15 días"
+							: `Sesión guardada · recordatorio de revisión en 15 días`
+						: planAmigo
+							? `Sesión guardada (Plan Amigo, sin factura)`
+							: `Sesión guardada (Fecha: ${date})`,
+				);
 			}
 			setSelectedTreatment(null);
 			setSessionBootstrap(null);
+			setPendingSession(null);
+			setStockForceConfirm(null);
 			await refreshData();
 		} catch (e) {
 			console.error("Error en handleSession:", e);
-			showToastMsg("Error al procesar la sesión", "error");
+			showToastMsg(e?.message || "Error al procesar la sesión", "error");
 		}
+	};
+
+	const handleSession = async (
+		treatment,
+		clientData,
+		finalPrice,
+		date,
+		extras = [],
+		internal_notes = "",
+		planAmigo = false,
+		consumeBonoId = null,
+		scheduleReviewReminder = false,
+	) => {
+		const baseRecipe = treatment.recipe || [];
+		const totalConsumption = [...baseRecipe, ...extras];
+		const combinedQuantities = totalConsumption.reduce((acc, item) => {
+			const qty = Number(item.quantity) || 0;
+			if (!item.materialId) return acc;
+			acc[item.materialId] = (acc[item.materialId] || 0) + qty;
+			return acc;
+		}, {});
+
+		const shortages = Object.entries(combinedQuantities)
+			.map(([matId, qtyNeeded]) => {
+				const item = inventory.find((i) => i.id === matId);
+				if (!item) return { name: "Material desconocido", stock: 0, need: qtyNeeded };
+				if ((item.item_type || "material") === "maquina") return null;
+				if (Number(item.stock) < qtyNeeded) {
+					return {
+						name: item.name,
+						stock: Number(item.stock),
+						need: qtyNeeded,
+					};
+				}
+				return null;
+			})
+			.filter(Boolean);
+
+		if (!planAmigo && companyMissingFiscalAddress(clientData)) {
+			showToastMsg(COMPANY_FISCAL_ADDRESS_MSG, "error");
+			return;
+		}
+
+		const payload = {
+			treatment,
+			clientData,
+			finalPrice,
+			date,
+			extras,
+			internal_notes,
+			planAmigo,
+			consumeBonoId,
+			scheduleReviewReminder: !!scheduleReviewReminder,
+		};
+
+		if (shortages.length > 0) {
+			const lines = shortages
+				.map((s) => `· ${s.name}: hay ${s.stock}, se necesitan ${s.need}`)
+				.join("\n");
+			setPendingSession(payload);
+			setStockForceConfirm(lines);
+			return;
+		}
+
+		await runSession(payload);
 	};
 
 	if (authLoading || (user && dataLoading && dataFetchErrors.length === 0) || (user && tenantLoading))
@@ -501,6 +535,20 @@ export const ClinicErpApp = () => {
 				isDestructive
 				confirmLabel="Cerrar sesión"
 			/>
+			<ConfirmModal
+				isOpen={Boolean(stockForceConfirm)}
+				title="Stock insuficiente"
+				message={`Hay materiales con stock insuficiente:\n\n${stockForceConfirm || ""}\n\nPuedes forzar la sesión: el stock quedará en negativo y se registrará el consumo en trazabilidad.\n\n¿Continuar de todos modos?`}
+				onCancel={() => {
+					setStockForceConfirm(null);
+					setPendingSession(null);
+				}}
+				onConfirm={async () => {
+					if (pendingSession) await runSession(pendingSession);
+				}}
+				isDestructive
+				confirmLabel="Forzar sesión"
+			/>
 			<CommandPalette
 				open={commandOpen}
 				onOpenChange={setCommandOpen}
@@ -508,17 +556,24 @@ export const ClinicErpApp = () => {
 				treatments={treatments}
 				inventory={inventory}
 				onQuickAction={(action) => {
-					if (action === "new-appointment") setQuickApptOpen(true);
+					if (action === "new-appointment") {
+						setQuickApptClientId("");
+						setQuickApptOpen(true);
+					}
 				}}
 			/>
 			<QuickAppointmentPanel
 				isOpen={quickApptOpen}
-				onClose={() => setQuickApptOpen(false)}
+				onClose={() => {
+					setQuickApptOpen(false);
+					setQuickApptClientId("");
+				}}
 				user={user}
 				clients={clients}
 				treatments={treatments}
 				showToast={showToastMsg}
 				onSaved={refreshAppointments}
+				initialClientId={quickApptClientId}
 			/>
 			<SessionModal
 				isOpen={!!selectedTreatment}
@@ -539,40 +594,22 @@ export const ClinicErpApp = () => {
 				companyName={clinic?.name}
 				collapsed={sidebarCollapsed}
 				setCollapsed={setSidebarCollapsed}
-			/>
-			<AppHeader
-				title={pageMeta.title}
-				subtitle={pageMeta.subtitle}
-				setActiveTab={setActiveTab}
-				sidebarCollapsed={sidebarCollapsed}
-				onToggleSidebar={toggleSidebarCollapsed}
-				clients={clients}
-				treatments={treatments}
-				inventory={inventory}
-				appointments={appointments}
-				batches={batches ?? []}
-				taxDeclarations={taxDeclarations}
 				user={user}
 				profile={profile}
 				clinic={clinic}
 				onLogout={() => setShowLogout(true)}
 				onOpenSettings={goSettings}
-				onOpenCommandPalette={() => setCommandOpen(true)}
-				reportingRange={reportingRange}
-				reportingPreset={reportingPreset}
-				setReportingPreset={setReportingPreset}
-				reportingAnchorYm={reportingAnchorYm}
-				setReportingAnchorYm={setReportingAnchorYm}
-				reportingCustomFrom={reportingCustomFrom}
-				setReportingCustomFrom={setReportingCustomFrom}
-				reportingCustomTo={reportingCustomTo}
-				setReportingCustomTo={setReportingCustomTo}
-				onReportingGoToday={goReportingToday}
 			/>
-			{(location.pathname === "/dashboard" ||
-				location.pathname.startsWith("/fiscalidad")) && (
-				<TaxAlertsBanner declarations={taxDeclarations} />
-			)}
+			<AppHeader
+				breadcrumbs={breadcrumbs}
+				setActiveTab={setActiveTab}
+				sidebarCollapsed={sidebarCollapsed}
+				onToggleSidebar={toggleSidebarCollapsed}
+				inventory={inventory}
+				appointments={appointments}
+				batches={batches ?? []}
+				taxDeclarations={taxDeclarations}
+			/>
 			{!tenantLoading && clinicActive === false && (
 				<div className="w-full max-w-7xl 2xl:max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pt-5">
 					<div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
@@ -647,8 +684,14 @@ export const ClinicErpApp = () => {
 							showToast={showToastMsg}
 							profile={profile}
 							clients={clients}
+							entries={entries}
+							appointments={appointments}
 							onRefresh={refreshClients}
 							onNavigateToInvoices={navigateToClientInvoices}
+							onNewAppointment={(clientId) => {
+								setQuickApptClientId(clientId || "");
+								setQuickApptOpen(true);
+							}}
 						/>
 						</RequireModule>
 					} />
@@ -659,143 +702,308 @@ export const ClinicErpApp = () => {
 							showToast={showToastMsg}
 							profile={profile}
 							clients={clients}
+							entries={entries}
+							appointments={appointments}
 							onRefresh={refreshClients}
 							onNavigateToInvoices={navigateToClientInvoices}
+							onNewAppointment={(clientId) => {
+								setQuickApptClientId(clientId || "");
+								setQuickApptOpen(true);
+							}}
 						/>
 						</RequireModule>
 					} />
-						<Route path="/tratamientos" element={
-							<TreatmentsTab
-								user={user}
-								treatments={treatments}
-								inventory={inventory}
-								showToast={showToastMsg}
-								onSelectTreatment={setSelectedTreatment}
-								onRefresh={refreshData}
+						{/* Catálogo: Tratamientos | Productos | Bonos */}
+						<Route path="/catalogo" element={<CatalogShell />}>
+							<Route
+								index
+								element={<Navigate to="/catalogo/tratamientos" replace />}
 							/>
-						} />
-						<Route path="/productos/*" element={
-							<ProductsShell
-								user={user}
-								showToast={showToastMsg}
-								clinic={clinic}
-								profile={profile}
-								entries={entries}
+							<Route
+								path="tratamientos"
+								element={
+									<TreatmentsTab
+										user={user}
+										treatments={treatments}
+										inventory={inventory}
+										showToast={showToastMsg}
+										onSelectTreatment={setSelectedTreatment}
+										onRefresh={refreshData}
+									/>
+								}
 							/>
-						} />
-						<Route path="/bonos" element={
-							<RequireModule module="bonos_manager">
-							<RequirePlan>
-								<BonosTab
-									user={user}
-									clients={clients}
-									treatments={treatments}
-									showToast={showToastMsg}
-									onRefresh={refreshData}
+							<Route
+								path="productos"
+								element={
+									<RequireModule module="products_catalog">
+										<ProductsShell />
+									</RequireModule>
+								}>
+								<Route
+									index
+									element={
+										<ProductsCatalogView
+											user={user}
+											showToast={showToastMsg}
+											clinic={clinic}
+											profile={profile}
+											entries={entries}
+										/>
+									}
 								/>
-							</RequirePlan>
-							</RequireModule>
-						} />
-						<Route path="/inventario" element={
-							<RequireModule module="inventory_core">
-							<InventoryTab
-								user={user}
-								inventory={inventory}
-								entries={entries}
-								showToast={showToastMsg}
-								onRefresh={refreshData}
-							/>
-							</RequireModule>
-						} />
-						<Route path="/finanzas/facturas" element={
-							<RequireModule module="finance_invoices">
-							<InvoicesTab
-								user={user}
-								entries={entries}
-								clients={clients}
-								profile={profile}
-								clinic={clinic}
-								showToast={showToastMsg}
-								reportingRange={reportingRange}
-								reportingPreset={reportingPreset}
-								setReportingPreset={setReportingPreset}
-								reportingAnchorYm={reportingAnchorYm}
-								setReportingAnchorYm={setReportingAnchorYm}
-								reportingCustomFrom={reportingCustomFrom}
-								setReportingCustomFrom={setReportingCustomFrom}
-								reportingCustomTo={reportingCustomTo}
-								setReportingCustomTo={setReportingCustomTo}
-								onReportingGoToday={goReportingToday}
-								navIntent={invoicesNavIntent}
-								onNavIntentConsumed={clearInvoicesNavIntent}
-							/>
-							</RequireModule>
-						} />
-						<Route path="/finanzas/movimientos" element={
-							<RequireModule module="finance_basic">
-							<FinanceMovementsTab
-								user={user}
-								entries={entries}
-								clients={clients}
-								reportingRange={reportingRange}
-								reportingPreset={reportingPreset}
-								setReportingPreset={setReportingPreset}
-								reportingAnchorYm={reportingAnchorYm}
-								setReportingAnchorYm={setReportingAnchorYm}
-								reportingCustomFrom={reportingCustomFrom}
-								setReportingCustomFrom={setReportingCustomFrom}
-								reportingCustomTo={reportingCustomTo}
-								setReportingCustomTo={setReportingCustomTo}
-								onReportingGoToday={goReportingToday}
-								showToast={showToastMsg}
-								onRefresh={refreshData}
-								navIntent={financeNavIntent}
-								onNavIntentConsumed={clearFinanceNavIntent}
-							/>
-							</RequireModule>
-						} />
-						<Route path="/finanzas/analisis" element={
-							<RequireModule module="finance_analytics">
-							<FinancialAnalysisTab
-								user={user}
-								entries={entries}
-								clients={clients}
-								showToast={showToastMsg}
-								reportingPreset={reportingPreset}
-								setReportingPreset={setReportingPreset}
-								reportingAnchorYm={reportingAnchorYm}
-								setReportingAnchorYm={setReportingAnchorYm}
-								reportingCustomFrom={reportingCustomFrom}
-								setReportingCustomFrom={setReportingCustomFrom}
-								reportingCustomTo={reportingCustomTo}
-								setReportingCustomTo={setReportingCustomTo}
-								reportingRange={reportingRange}
-								onReportingGoToday={goReportingToday}
-							/>
-							</RequireModule>
-						} />
-						<Route path="/consentimientos" element={
-							<RequireModule module="legal_signatures">
-							<ConsentTemplatesTab
-								user={user}
-								showToast={showToastMsg}
-							/>
-							</RequireModule>
-						} />
-						<Route path="/presupuestos" element={
-							<RequireModule module="bonos_manager">
-							<RequirePlan>
-								<BudgetsTab
-									user={user}
-									clients={clients}
-									treatments={treatments}
-									profile={profile}
-									showToast={showToastMsg}
-									onStartSessionFromBudget={startSessionFromBudget}
+								<Route
+									path="ventas"
+									element={
+										<ProductsSalesView
+											user={user}
+											showToast={showToastMsg}
+											clinic={clinic}
+											profile={profile}
+										/>
+									}
 								/>
-							</RequirePlan>
-							</RequireModule>
-						} />
+							</Route>
+							<Route
+								path="bonos"
+								element={
+									<RequireModule module="bonos_manager">
+										<RequirePlan>
+											<BonosTab
+												user={user}
+												clients={clients}
+												treatments={treatments}
+												showToast={showToastMsg}
+												onRefresh={refreshData}
+											/>
+										</RequirePlan>
+									</RequireModule>
+								}
+							/>
+						</Route>
+						{/* Redirects legacy catálogo */}
+						<Route
+							path="/tratamientos"
+							element={<Navigate to="/catalogo/tratamientos" replace />}
+						/>
+						<Route
+							path="/productos/*"
+							element={<Navigate to="/catalogo/productos" replace />}
+						/>
+						<Route
+							path="/bonos"
+							element={<Navigate to="/catalogo/bonos" replace />}
+						/>
+
+						{/* Inventario: Stock | Compras */}
+						<Route element={<InventoryShell />}>
+							<Route
+								path="/inventario"
+								element={
+									<RequireModule module="inventory_core">
+										<InventoryTab
+											user={user}
+											inventory={inventory}
+											entries={entries}
+											showToast={showToastMsg}
+											onRefresh={refreshData}
+										/>
+									</RequireModule>
+								}
+							/>
+							<Route
+								path="/inventario/compras"
+								element={
+									<RequireModule module="suppliers_manager">
+										<SuppliersTab
+											entries={entries}
+											showToast={showToastMsg}
+											onRefresh={refreshData}
+										/>
+									</RequireModule>
+								}
+							/>
+							<Route
+								path="/inventario/trazabilidad"
+								element={
+									<RequireModule module="inventory_core">
+										<TraceabilityTab
+											user={user}
+											reportingRange={reportingRange}
+											reportingPreset={reportingPreset}
+											reportingAnchorYm={reportingAnchorYm}
+											reportingCustomFrom={reportingCustomFrom}
+											reportingCustomTo={reportingCustomTo}
+										/>
+									</RequireModule>
+								}
+							/>
+						</Route>
+						<Route
+							path="/proveedores"
+							element={<Navigate to="/inventario/compras" replace />}
+						/>
+
+						{/* Finanzas: Movimientos | Facturas | Fiscalidad */}
+						<Route
+							path="/finanzas"
+							element={
+								<FinanceShell
+									reportingRange={reportingRange}
+									reportingPreset={reportingPreset}
+									setReportingPreset={setReportingPreset}
+									reportingAnchorYm={reportingAnchorYm}
+									setReportingAnchorYm={setReportingAnchorYm}
+									reportingCustomFrom={reportingCustomFrom}
+									setReportingCustomFrom={setReportingCustomFrom}
+									reportingCustomTo={reportingCustomTo}
+									setReportingCustomTo={setReportingCustomTo}
+									onReportingGoToday={goReportingToday}
+								/>
+							}>
+							<Route
+								index
+								element={<Navigate to="/finanzas/movimientos" replace />}
+							/>
+							<Route
+								path="movimientos"
+								element={
+									<RequireModule module="finance_basic">
+										<FinanceMovementsTab
+											user={user}
+											entries={entries}
+											clients={clients}
+											reportingRange={reportingRange}
+											reportingPreset={reportingPreset}
+											setReportingPreset={setReportingPreset}
+											reportingAnchorYm={reportingAnchorYm}
+											setReportingAnchorYm={setReportingAnchorYm}
+											reportingCustomFrom={reportingCustomFrom}
+											setReportingCustomFrom={setReportingCustomFrom}
+											reportingCustomTo={reportingCustomTo}
+											setReportingCustomTo={setReportingCustomTo}
+											onReportingGoToday={goReportingToday}
+											showToast={showToastMsg}
+											onRefresh={refreshData}
+											navIntent={financeNavIntent}
+											onNavIntentConsumed={clearFinanceNavIntent}
+										/>
+									</RequireModule>
+								}
+							/>
+							<Route
+								path="facturas"
+								element={
+									<RequireModule module="finance_invoices">
+										<InvoicesTab
+											user={user}
+											entries={entries}
+											clients={clients}
+											profile={profile}
+											clinic={clinic}
+											showToast={showToastMsg}
+											reportingRange={reportingRange}
+											reportingPreset={reportingPreset}
+											setReportingPreset={setReportingPreset}
+											reportingAnchorYm={reportingAnchorYm}
+											setReportingAnchorYm={setReportingAnchorYm}
+											reportingCustomFrom={reportingCustomFrom}
+											setReportingCustomFrom={setReportingCustomFrom}
+											reportingCustomTo={reportingCustomTo}
+											setReportingCustomTo={setReportingCustomTo}
+											onReportingGoToday={goReportingToday}
+											navIntent={invoicesNavIntent}
+											onNavIntentConsumed={clearInvoicesNavIntent}
+										/>
+									</RequireModule>
+								}
+							/>
+							<Route
+								path="analisis"
+								element={
+									<RequireModule module="finance_analytics">
+										<FinancialAnalysisTab
+											user={user}
+											entries={entries}
+											clients={clients}
+											showToast={showToastMsg}
+											reportingPreset={reportingPreset}
+											setReportingPreset={setReportingPreset}
+											reportingAnchorYm={reportingAnchorYm}
+											setReportingAnchorYm={setReportingAnchorYm}
+											reportingCustomFrom={reportingCustomFrom}
+											setReportingCustomFrom={setReportingCustomFrom}
+											reportingCustomTo={reportingCustomTo}
+											setReportingCustomTo={setReportingCustomTo}
+											reportingRange={reportingRange}
+											onReportingGoToday={goReportingToday}
+										/>
+									</RequireModule>
+								}
+							/>
+							<Route
+								path="fiscalidad/*"
+								element={
+									<RequireModule module="taxes_aeat">
+										<TaxesShell
+											entries={entries}
+											clients={clients}
+											user={user}
+											showToast={showToastMsg}
+											onNavigateFinanceIssues={navigateFinanceFromTaxChecklist}
+										/>
+									</RequireModule>
+								}
+							/>
+						</Route>
+						<Route
+							path="/fiscalidad/*"
+							element={<Navigate to="/finanzas/fiscalidad" replace />}
+						/>
+
+						{/* Documentos: Presupuestos | Consentimientos */}
+						<Route path="/documentos" element={<DocumentsShell />}>
+							<Route
+								index
+								element={<Navigate to="/documentos/presupuestos" replace />}
+							/>
+							<Route
+								path="presupuestos"
+								element={
+									<RequireModule module="bonos_manager">
+										<RequirePlan>
+											<BudgetsTab
+												user={user}
+												clients={clients}
+												treatments={treatments}
+												profile={profile}
+												showToast={showToastMsg}
+												onStartSessionFromBudget={startSessionFromBudget}
+											/>
+										</RequirePlan>
+									</RequireModule>
+								}
+							/>
+							<Route
+								path="consentimientos"
+								element={
+									<RequireModule module="legal_signatures">
+										<ConsentTemplatesTab
+											user={user}
+											showToast={showToastMsg}
+										/>
+									</RequireModule>
+								}
+							/>
+						</Route>
+						<Route
+							path="/presupuestos"
+							element={<Navigate to="/documentos/presupuestos" replace />}
+						/>
+						<Route
+							path="/consentimientos"
+							element={<Navigate to="/documentos/consentimientos" replace />}
+						/>
+
 						<Route path="/agenda/*" element={
 							<RequireModule module="agenda_core">
 							<CalendarTab
@@ -806,26 +1014,6 @@ export const ClinicErpApp = () => {
 								treatments={treatments}
 								showToast={showToastMsg}
 								onRefresh={refreshAppointments}
-							/>
-							</RequireModule>
-						} />
-						<Route path="/fiscalidad/*" element={
-							<RequireModule module="taxes_aeat">
-							<TaxesShell
-								entries={entries}
-								clients={clients}
-								user={user}
-								showToast={showToastMsg}
-								onNavigateFinanceIssues={navigateFinanceFromTaxChecklist}
-							/>
-							</RequireModule>
-						} />
-						<Route path="/proveedores" element={
-							<RequireModule module="suppliers_manager">
-							<SuppliersTab
-								entries={entries}
-								showToast={showToastMsg}
-								onRefresh={refreshData}
 							/>
 							</RequireModule>
 						} />

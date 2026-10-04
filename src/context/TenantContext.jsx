@@ -57,7 +57,7 @@ export const TenantProvider = ({ children }) => {
 			supabase
 				.from("clinics")
 				.select(
-					"name, subscription_tier, billing_nif, billing_address, billing_city, billing_phone, logo_url, active, active_modules, custom_fee_eur, custom_email_domain, resend_domain_id, email_domain_status, email_dns_records, sender_email_name, sender_reply_to",
+					"name, subscription_tier, billing_nif, billing_address, billing_city, billing_phone, logo_url, active, active_modules, custom_fee_eur, custom_email_domain, resend_domain_id, email_domain_status, email_dns_records, sender_email_name, sender_reply_to, leads_webhook_secret, outbound_webhook_url, outbound_webhook_secret",
 				)
 				.eq("id", targetClinicId)
 				.maybeSingle(),

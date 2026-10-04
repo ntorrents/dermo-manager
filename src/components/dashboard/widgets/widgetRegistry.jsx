@@ -8,18 +8,18 @@ import { WidgetKpiIngresosGastos } from "./WidgetKpiIngresosGastos";
 import { WidgetFinanceStrip } from "./WidgetFinanceStrip";
 import { WidgetChartActividad } from "./WidgetChartActividad";
 import { WidgetTopTratamientos } from "./WidgetTopTratamientos";
+import { WidgetOcupacionSemanal } from "./WidgetOcupacionSemanal";
+import { WidgetPacientesReactivar } from "./WidgetPacientesReactivar";
 import { WidgetTopClientes } from "./WidgetTopClientes";
 
 /**
- * Layout bento asimétrico por defecto:
- * franja financiera ancha + agenda alta + chart.
- * Los KPI sueltos siguen disponibles para añadir manualmente.
+ * Layout analítico por defecto (la UI del dashboard ya no usa DnD;
+ * se mantiene el registro por compatibilidad de preferencias guardadas).
  */
 export const DEFAULT_WIDGETS = [
-	{ id: "kpi-finance-strip", colSpan: 3, rowSpan: 1 },
-	{ id: "kpi-proximos-eventos", colSpan: 1, rowSpan: 2 },
-	{ id: "chart-actividad", colSpan: 2, rowSpan: 1 },
-	{ id: "kpi-impuestos", colSpan: 1, rowSpan: 1 },
+	{ id: "chart-top-tratamientos", colSpan: 1, rowSpan: 1 },
+	{ id: "ocupacion-semanal", colSpan: 1, rowSpan: 1 },
+	{ id: "pacientes-reactivar", colSpan: 1, rowSpan: 1 },
 ];
 
 /** Compatibilidad: lista de IDs como antes (solo orden) */
@@ -112,10 +112,24 @@ export const WIDGET_CONFIG = [
 	},
 	{
 		id: "chart-top-tratamientos",
-		title: "Top tratamientos",
+		title: "Ranking de rendimiento",
 		defaultColSpan: 1,
 		defaultRowSpan: 1,
 		component: WidgetTopTratamientos,
+	},
+	{
+		id: "ocupacion-semanal",
+		title: "Ocupación semanal",
+		defaultColSpan: 1,
+		defaultRowSpan: 1,
+		component: WidgetOcupacionSemanal,
+	},
+	{
+		id: "pacientes-reactivar",
+		title: "Pacientes a reactivar",
+		defaultColSpan: 1,
+		defaultRowSpan: 1,
+		component: WidgetPacientesReactivar,
 	},
 	{
 		id: "top-clientes",

@@ -66,8 +66,9 @@ export const DeclaracionesResumenView = ({
 	}, [declarations, year]);
 
 	const pathFor = (model, period) => {
-		if (period === "ANUAL") return `/fiscalidad/anual/${model}`;
-		return `/fiscalidad/trimestral/${model}`;
+		const base = "/finanzas/fiscalidad";
+		if (period === "ANUAL") return `${base}/anual/${model}`;
+		return `${base}/trimestral/${model}`;
 	};
 
 	const download = async (storagePath) => {

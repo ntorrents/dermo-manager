@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-	Search, Eye,
+	Search,
 	Plus,
 	Users,
 	Trash2,
@@ -29,13 +29,22 @@ import {
 	ChevronDown,
 	ChevronUp,
 	Pen,
-	Filter,
-	ArrowUpDown,
+	Phone,
+	MoreHorizontal,
+	IdCard,
+	Cake,
+	MapPin,
+	AlertTriangle,
+	StickyNote,
 } from "lucide-react";
+import { PageTabs } from "../ui/PageTabs";
 import { supabase } from "../../services/supabase";
 import { useClientHistory } from "../../hooks/useClientHistory";
 import { useSessionPhotos } from "../../hooks/useSessionPhotos";
-import { useClientBonos } from "../../hooks/useBonos";
+import { useClientBonos, useClinicActiveBonuses } from "../../hooks/useBonos";
+import { useArchivedClients, useLeads } from "../../hooks/useClients";
+import { LeadsPanel, NewLeadForm } from "./LeadsPanel";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTreatments } from "../../hooks/useTreatments";
 import { useConsentTemplates } from "../../hooks/useConsentTemplates";
 import { useSignedConsents } from "../../hooks/useSignedConsents";
@@ -46,12 +55,10 @@ import { generateInvoice } from "../../utils/invoiceGenerator";
 import { generateConsentPDF } from "../../utils/consentGenerator";
 import { getNextRectifiedInvoiceNumber } from "../../services/invoiceSeries";
 import { ConfirmModal } from "../ui/ConfirmModal";
-import { ColumnPicker } from "../ui/ColumnPicker";
 import { SidePanel } from "../ui/SidePanel";
 import { StatusChip } from "../ui/StatusChip";
 import { LoadingButton } from "../ui/LoadingButton";
 import { EmptyState } from "../ui/EmptyState";
-import { useColumnPreferences } from "../../hooks/useColumnPreferences";
 import { PhotoUploadModal } from "../photos/PhotoUploadModal";
 import { PhotoEditModal } from "../photos/PhotoEditModal";
 import { BeforeAfterViewer } from "../photos/BeforeAfterViewer";
@@ -73,30 +80,84 @@ const buildWhatsAppUrl = (phone, firstName, companyName = "la clínica") => {
 	return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 };
 
+const ORIGIN_TAG_LABELS = {
+	Instagram: "Instagram",
+	instagram: "Instagram",
+	Google: "Google",
+	google: "Google",
+	"Google / Búsqueda": "Google",
+	Recomendacion: "Recomendado",
+	recommendation: "Recomendado",
+	Fisico: "Pase clínica",
+	Doctoralia: "Doctoralia",
+	Otro: "Otro",
+	other: "Otro",
+};
+
+function clientTags(client) {
+	const tags = [];
+	if (client?.is_company) tags.push("Empresa");
+	if (client?.origin) {
+		const label = ORIGIN_TAG_LABELS[client.origin] || client.origin;
+		if (label && !tags.includes(label)) tags.push(label);
+	}
+	return tags.slice(0, 2);
+}
+
+function treatmentLabelFromEntry(entry) {
+	if (!entry?.description) return "Sesión";
+	return entry.description.split("(")[0]?.trim() || "Sesión";
+}
+
+const APPT_STATUS_LABEL = {
+	pending: "Pendiente",
+	confirmed: "Confirmada",
+	done: "Realizada",
+	cancelled: "Cancelada",
+	scheduled: "Programada",
+};
+
 export const ClientsTab = ({
 	user,
 	clients = [],
+	entries = [],
+	appointments = [],
 	profile,
 	showToast,
 	onRefresh,
+	onNewAppointment,
 }) => {
 	const { clinicId, clinic, canDeleteOperational, hasModule } = useTenant();
+	const queryClient = useQueryClient();
 	const { clientId: urlClientId } = useParams();
 	const navigate = useNavigate();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedClient, setSelectedClient] = useState(null);
+	const [listTab, setListTab] = useState("directorio");
+	const [showNewLead, setShowNewLead] = useState(false);
+	const [convertingLeadId, setConvertingLeadId] = useState(null);
+	const [savingLead, setSavingLead] = useState(false);
+	const { data: archivedClients = [] } = useArchivedClients(user, {
+		enabled: listTab === "archivados" || Boolean(urlClientId),
+	});
+	const {
+		data: leads = [],
+		isLoading: leadsLoading,
+	} = useLeads(user, { enabled: listTab === "leads" });
+	const { data: clinicActiveBonuses = [] } = useClinicActiveBonuses(user);
 
 	// Sync selectedClient from URL param
 	useEffect(() => {
-		if (urlClientId && clients.length > 0) {
-			const found = clients.find((c) => c.id === urlClientId);
+		const pool = [...(clients || []), ...(archivedClients || [])];
+		if (urlClientId && pool.length > 0) {
+			const found = pool.find((c) => c.id === urlClientId);
 			if (found) {
 				setSelectedClient(found);
 			}
 		} else if (!urlClientId) {
 			setSelectedClient(null);
 		}
-	}, [urlClientId, clients]);
+	}, [urlClientId, clients, archivedClients]);
 
 	// Helper to select/deselect clients via URL navigation
 	const selectClient = (client) => {
@@ -111,15 +172,18 @@ export const ClientsTab = ({
 	const canClientsDocs = hasModule("clients_docs");
 	const canPhotoVault = hasModule("photo_vault");
 	const clientDetailTabs = useMemo(() => {
-		const tabs = [{ id: "datos", label: "Datos Cliente", icon: User }];
+		const tabs = [{ id: "datos", label: "Detalles" }];
 		if (canClientsHistory) {
-			tabs.push({ id: "visitas", label: "Historial/Sesiones", icon: BookOpen });
+			tabs.push({ id: "visitas", label: "Historial Médico" });
 		}
+		tabs.push({ id: "citas", label: "Citas" });
 		if (canClientsDocs) {
-			tabs.push({ id: "documentacion", label: "Documentación", icon: FolderOpen });
+			tabs.push({ id: "documentacion", label: "Documentos" });
 		}
 		return tabs;
 	}, [canClientsHistory, canClientsDocs]);
+
+	const [clientMoreOpen, setClientMoreOpen] = useState(false);
 
 	useEffect(() => {
 		if (!clientDetailTabs.some((t) => t.id === clientDetailTab)) {
@@ -129,8 +193,26 @@ export const ClientsTab = ({
 
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [clientFormStep, setClientFormStep] = useState(1);
-	const [filterEstado, setFilterEstado] = useState("todos");
 	const [sortBy, setSortBy] = useState("name_asc");
+	const [rowMenuId, setRowMenuId] = useState(null);
+
+	useEffect(() => {
+		if (!rowMenuId) return;
+		const close = () => setRowMenuId(null);
+		const onKey = (e) => {
+			if (e.key === "Escape") close();
+		};
+		const t = window.setTimeout(() => {
+			window.addEventListener("click", close);
+		}, 0);
+		window.addEventListener("keydown", onKey);
+		return () => {
+			window.clearTimeout(t);
+			window.removeEventListener("click", close);
+			window.removeEventListener("keydown", onKey);
+		};
+	}, [rowMenuId]);
+
 	const [formData, setFormData] = useState({
 		name: "",
 		surname: "",
@@ -138,7 +220,6 @@ export const ClientsTab = ({
 		email: "",
 		nif: "",
 		origin: "",
-		estado: "activo",
 		notes: "",
 		allergies: "",
 		medical_history: "",
@@ -159,7 +240,6 @@ export const ClientsTab = ({
 				phone: selectedClient.phone || "",
 				nif: selectedClient.nif || "",
 				origin: selectedClient.origin || "",
-				estado: selectedClient.estado || "activo",
 				allergies: selectedClient.allergies || "",
 				medical_history: selectedClient.medical_history || "",
 				has_consent: selectedClient.has_consent || false,
@@ -197,20 +277,6 @@ export const ClientsTab = ({
 	const [showConsentModal, setShowConsentModal] = useState(false);
 	const [consentTreatmentId, setConsentTreatmentId] = useState("");
 	const [consentTemplateId, setConsentTemplateId] = useState("");
-
-	const CLIENT_COLUMNS = useMemo(
-		() => [
-			{ id: "patient", label: "Paciente", required: true },
-			{ id: "estado", label: "Estado" },
-			{ id: "contacto", label: "Contacto" },
-			{ id: "identificacion", label: "Identificación" },
-			{ id: "legal", label: "Legal" },
-			{ id: "acciones", label: "Acciones", required: true },
-		],
-		[]
-	);
-	const { isVisible: isClientColVisible, toggle: toggleClientCol } =
-		useColumnPreferences("c3linic_clients_columns", CLIENT_COLUMNS);
 
 	const { treatments = [] } = useTreatments(user);
 	const { consentTemplates = [] } = useConsentTemplates(user);
@@ -298,17 +364,49 @@ export const ClientsTab = ({
 	const [signedConsentFile, setSignedConsentFile] = useState(null);
 	const [uploadingSignedConsent, setUploadingSignedConsent] = useState(false);
 
-	const filteredClients = clients
+	const bonusesByClient = useMemo(() => {
+		const map = {};
+		for (const b of clinicActiveBonuses || []) {
+			if (!b.client_id) continue;
+			if (!map[b.client_id]) map[b.client_id] = [];
+			map[b.client_id].push(b);
+		}
+		return map;
+	}, [clinicActiveBonuses]);
+
+	const lastVisitByClient = useMemo(() => {
+		const map = {};
+		for (const e of entries || []) {
+			if (e.type !== "income" || !e.client_id || e.activo === false) continue;
+			const prev = map[e.client_id];
+			const day = e.date || "";
+			if (!prev || day > prev.date) {
+				map[e.client_id] = {
+					date: day,
+					label: treatmentLabelFromEntry(e),
+				};
+			}
+		}
+		return map;
+	}, [entries]);
+
+	const directorySource = useMemo(() => {
+		if (listTab === "archivados") return archivedClients || [];
+		if (listTab === "bonos") {
+			return (clients || []).filter((c) => (bonusesByClient[c.id] || []).length > 0);
+		}
+		return clients || [];
+	}, [listTab, clients, archivedClients, bonusesByClient]);
+
+	const filteredClients = directorySource
 		.filter((c) => {
-			const matchesSearch =
-				c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				c.surname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				c.phone?.includes(searchTerm);
-			const matchesEstado =
-				filterEstado === "todos" ||
-				(filterEstado === "activo" && (!c.estado || c.estado === "activo")) ||
-				c.estado === filterEstado;
-			return matchesSearch && matchesEstado;
+			const q = searchTerm.toLowerCase().trim();
+			if (!q) return true;
+			return (
+				c.name?.toLowerCase().includes(q) ||
+				c.surname?.toLowerCase().includes(q) ||
+				c.phone?.includes(searchTerm)
+			);
 		})
 		.sort((a, b) => {
 			switch (sortBy) {
@@ -369,7 +467,6 @@ export const ClientsTab = ({
 				email: "",
 				nif: "",
 				origin: "",
-				estado: "activo",
 				notes: "",
 				allergies: "",
 				medical_history: "",
@@ -400,7 +497,6 @@ export const ClientsTab = ({
 				user_id: user.id,
 				nif: formData.nif?.trim() || null,
 				origin: formData.origin || null,
-				estado: formData.estado || "activo",
 				allergies: formData.allergies?.trim() || null,
 				medical_history: formData.medical_history?.trim() || null,
 				has_consent: formData.has_consent,
@@ -414,7 +510,24 @@ export const ClientsTab = ({
 					? Number(formData.irpf_withholding_rate) || 7
 					: null,
 			};
-			if (selectedClient) {
+			if (convertingLeadId) {
+				const leadId = convertingLeadId;
+				const { data: converted, error } = await supabase
+					.from("clients")
+					.update({ ...payload, is_lead: false })
+					.eq("id", leadId)
+					.select("*")
+					.single();
+				if (error) throw error;
+				showToast("Lead convertido a paciente");
+				setConvertingLeadId(null);
+				setIsModalOpen(false);
+				await queryClient.invalidateQueries({ queryKey: ["clientsLeads", clinicId] });
+				await queryClient.invalidateQueries({ queryKey: ["clients", clinicId] });
+				if (onRefresh) await onRefresh();
+				setListTab("directorio");
+				selectClient({ ...(converted || { id: leadId, ...payload }), is_lead: false });
+			} else if (selectedClient) {
 				const { error } = await supabase
 					.from("clients")
 					.update(payload)
@@ -422,6 +535,8 @@ export const ClientsTab = ({
 				if (error) throw error;
 				showToast("Cliente actualizado");
 				setSelectedClient({ ...selectedClient, ...payload });
+				setIsModalOpen(false);
+				if (onRefresh) await onRefresh();
 			} else {
 				if (!clinicId) {
 					showToast("No hay clínica activa", "error");
@@ -432,9 +547,9 @@ export const ClientsTab = ({
 					.insert([{ ...payload, activo: true, clinic_id: clinicId }]);
 				if (error) throw error;
 				showToast("Cliente creado");
+				setIsModalOpen(false);
+				if (onRefresh) await onRefresh();
 			}
-			setIsModalOpen(false);
-			if (onRefresh) await onRefresh();
 		} catch {
 			showToast("Error al guardar cliente", "error");
 		} finally {
@@ -456,14 +571,96 @@ export const ClientsTab = ({
 				.update({ activo: false })
 				.eq("id", clientToDelete.id);
 			if (error) throw error;
-			showToast("Cliente archivado");
+			showToast("Paciente archivado");
 			if (selectedClient?.id === clientToDelete.id) selectClient(null);
 			if (onRefresh) await onRefresh();
 		} catch {
-			showToast("Error al eliminar", "error");
+			showToast("Error al archivar", "error");
 		} finally {
 			setShowDeleteModal(false);
 			setClientToDelete(null);
+			setRowMenuId(null);
+		}
+	};
+
+	const restoreClient = async (client) => {
+		if (!client?.id) return;
+		try {
+			const { error } = await supabase
+				.from("clients")
+				.update({ activo: true })
+				.eq("id", client.id);
+			if (error) throw error;
+			showToast("Paciente restaurado");
+			setRowMenuId(null);
+			if (onRefresh) await onRefresh();
+			setListTab("directorio");
+		} catch {
+			showToast("Error al restaurar", "error");
+		}
+	};
+
+	/** Abre el FormSheet pre-rellenado; al guardar se marca is_lead=false. */
+	const startConvertLead = (lead) => {
+		if (!lead?.id) return;
+		setConvertingLeadId(lead.id);
+		setClientFormStep(1);
+		const interestNote = [lead.lead_interest, lead.lead_message]
+			.filter(Boolean)
+			.join(" — ");
+		setFormData({
+			name: lead.name || "",
+			surname: lead.surname || "",
+			phone: lead.phone || "",
+			email: lead.email || "",
+			nif: lead.nif || "",
+			origin: lead.origin || lead.lead_source || "webhook",
+			notes: lead.notes || interestNote || "",
+			allergies: lead.allergies || "",
+			medical_history: lead.medical_history || "",
+			has_consent: lead.has_consent ?? false,
+			has_image_rights: lead.has_image_rights ?? false,
+			drive_url: lead.drive_url || "",
+			fecha_nacimiento: lead.fecha_nacimiento || "",
+			notas_privadas: lead.notas_privadas || "",
+			address: lead.address || "",
+			is_company: lead.is_company ?? false,
+			irpf_withholding_rate:
+				lead.irpf_withholding_rate != null
+					? Number(lead.irpf_withholding_rate)
+					: 7,
+		});
+		setIsModalOpen(true);
+	};
+
+	const createLead = async (payload) => {
+		if (!clinicId || !user?.id) return;
+		setSavingLead(true);
+		try {
+			const { error } = await supabase.from("clients").insert([
+				{
+					user_id: user.id,
+					clinic_id: clinicId,
+					name: payload.name,
+					phone: payload.phone,
+					activo: true,
+					is_lead: true,
+					lead_interest: payload.lead_interest,
+					lead_message: payload.lead_message,
+					lead_source: "manual",
+					lead_entered_at: new Date().toISOString(),
+					origin: "manual",
+					notes: payload.lead_message || null,
+				},
+			]);
+			if (error) throw error;
+			showToast("Lead registrado");
+			setShowNewLead(false);
+			await queryClient.invalidateQueries({ queryKey: ["clientsLeads", clinicId] });
+		} catch (e) {
+			showToast(e?.message || "Error al crear lead", "error");
+		} finally {
+			setSavingLead(false);
 		}
 	};
 
@@ -593,12 +790,12 @@ export const ClientsTab = ({
 		<div className="space-y-4 animate-in fade-in pb-20 md:pb-0 min-h-[calc(100vh-120px)] flex flex-col">
 			<ConfirmModal
 				isOpen={showDeleteModal}
-				title="Eliminar paciente"
-				message={`Estás a punto de archivar al paciente ${[clientToDelete?.name, clientToDelete?.surname].filter(Boolean).join(" ") || "seleccionado"}.\n\nDejará de aparecer en listados y citas nuevas. Su historial clínico se conserva en base de datos, pero no podrás recuperarlo fácilmente desde aquí.\n\n¿Confirmas la eliminación?`}
+				title="Archivar paciente"
+				message={`Vas a archivar a ${[clientToDelete?.name, clientToDelete?.surname].filter(Boolean).join(" ") || "este paciente"}.\n\nDejará de aparecer en el directorio y en citas nuevas. El historial se conserva y puedes restaurarlo desde la pestaña Archivados.\n\n¿Confirmas?`}
 				onConfirm={confirmDelete}
 				onCancel={() => setShowDeleteModal(false)}
 				isDestructive={true}
-				confirmLabel="Eliminar paciente"
+				confirmLabel="Archivar paciente"
 			/>
 			<ConfirmModal
 				isOpen={showPhotoDeleteModal}
@@ -629,298 +826,297 @@ export const ClientsTab = ({
 				confirmLabel="Eliminar nota"
 			/>
 
-						{!selectedClient ? (
-				<div className="flex-1 min-w-0 overflow-hidden flex flex-col">
-					<div className="pb-4 mb-1 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-						<div className="flex items-center gap-2">
-							<Users className="text-gray-400" size={18} />
-							<h2 className="text-lg font-semibold text-gray-900 tracking-tight">Clientes</h2>
-							<span className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs font-semibold ml-1">
-								{clients.length}
-							</span>
+			{!selectedClient ? (
+				<div className="flex-1 min-w-0 overflow-hidden flex flex-col gap-4">
+					<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+						<div>
+							<h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-fg">
+								Pacientes
+							</h1>
+							<p className="text-sm text-muted mt-1">
+								{listTab === "leads"
+									? `Leads / potenciales · ${leads.length} en esta vista`
+									: `Directorio clínico · ${filteredClients.length} en esta vista`}
+							</p>
 						</div>
 						<div className="flex flex-col sm:flex-row gap-2 sm:items-center w-full sm:w-auto">
-							<div className="relative w-full min-w-0 sm:min-w-[200px]">
-								<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+							<div className="relative w-full min-w-0 sm:min-w-[220px]">
+								<Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={16} />
 								<input
-									placeholder="Buscar cliente..."
-									className="w-full pl-9 pr-3 py-2 bg-white border border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-gray-700"
+									placeholder={
+										listTab === "leads"
+											? "Buscar lead, teléfono o interés…"
+											: "Buscar por nombre o teléfono..."
+									}
+									className="w-full pl-9 pr-3 py-2 bg-surface border border-edge focus:border-primary focus:ring-1 focus:ring-primary/30 rounded-xl outline-none text-sm font-medium text-fg placeholder:text-muted"
 									value={searchTerm}
 									onChange={(e) => setSearchTerm(e.target.value)}
 								/>
 							</div>
-							<select
-								value={filterEstado}
-								onChange={(e) => setFilterEstado(e.target.value)}
-								className="w-full sm:w-auto px-3 py-2 bg-white border border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-gray-700">
-								<option value="todos">Todos los estados</option>
-								<option value="activo">Activo</option>
-								<option value="inactivo">Inactivo</option>
-								<option value="bloqueado">Bloqueado</option>
-								<option value="borrador">Borrador / Lead</option>
-							</select>
-							<select
-								value={sortBy}
-								onChange={(e) => setSortBy(e.target.value)}
-								className="w-full sm:w-auto px-3 py-2 bg-white border border-gray-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-200 rounded-lg outline-none text-sm font-medium text-gray-700">
-								<option value="name_asc">A → Z</option>
-								<option value="name_desc">Z → A</option>
-								<option value="recent">Más recientes</option>
-								<option value="oldest">Más antiguos</option>
-							</select>
-							<ColumnPicker
-								columns={CLIENT_COLUMNS}
-								isVisible={isClientColVisible}
-								onToggle={toggleClientCol}
-							/>
-							<button
-								type="button"
-								onClick={() => handleOpenModal()}
-								className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold bg-rose-700 text-white hover:bg-rose-800 transition-colors shrink-0">
-								<Plus size={16} />
-								<span>Nuevo Cliente</span>
-							</button>
+							{listTab !== "leads" && (
+								<select
+									value={sortBy}
+									onChange={(e) => setSortBy(e.target.value)}
+									className="w-full sm:w-auto px-3 py-2 bg-surface border border-edge rounded-xl outline-none text-sm font-medium text-fg">
+									<option value="name_asc">A → Z</option>
+									<option value="name_desc">Z → A</option>
+									<option value="recent">Más recientes</option>
+									<option value="oldest">Más antiguos</option>
+								</select>
+							)}
+							{listTab === "leads" ? (
+								<button
+									type="button"
+									onClick={() => setShowNewLead((v) => !v)}
+									className="btn-inverse inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 rounded-xl text-sm font-semibold shrink-0">
+									<Plus size={16} />
+									<span>{showNewLead ? "Cerrar" : "Nuevo lead"}</span>
+								</button>
+							) : (
+								<button
+									type="button"
+									onClick={() => handleOpenModal()}
+									className="btn-inverse inline-flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2 rounded-xl text-sm font-semibold shrink-0">
+									<Plus size={16} />
+									<span>Nuevo paciente</span>
+								</button>
+							)}
 						</div>
 					</div>
 
-					{filteredClients.length === 0 ? (
-						<div className="flex-1 bg-white border border-gray-200 rounded-xl shadow-sm p-8">
+					<PageTabs
+						items={[
+							{
+								id: "directorio",
+								label: "Directorio",
+								active: listTab === "directorio",
+								onClick: () => {
+									setListTab("directorio");
+									setShowNewLead(false);
+								},
+							},
+							{
+								id: "leads",
+								label: "Leads / Potenciales",
+								active: listTab === "leads",
+								onClick: () => setListTab("leads"),
+							},
+							{
+								id: "bonos",
+								label: "Con Bonos Activos",
+								active: listTab === "bonos",
+								onClick: () => {
+									setListTab("bonos");
+									setShowNewLead(false);
+								},
+							},
+							{
+								id: "archivados",
+								label: "Archivados",
+								active: listTab === "archivados",
+								onClick: () => {
+									setListTab("archivados");
+									setShowNewLead(false);
+								},
+							},
+						]}
+					/>
+
+					{listTab === "leads" ? (
+						<div className="flex-1 min-h-0 flex flex-col gap-3">
+							{showNewLead && (
+								<NewLeadForm
+									saving={savingLead}
+									onCancel={() => setShowNewLead(false)}
+									onSubmit={createLead}
+								/>
+							)}
+							<LeadsPanel
+								leads={leads}
+								loading={leadsLoading}
+								clinicName={clinic?.name || "la clínica"}
+								searchTerm={searchTerm}
+								convertingId={convertingLeadId}
+								onConvert={startConvertLead}
+							/>
+						</div>
+					) : filteredClients.length === 0 ? (
+						<div className="flex-1 bg-white border border-slate-200 rounded-2xl p-8">
 							<EmptyState
 								icon={Users}
-								title={searchTerm ? "Sin resultados" : "No hay clientes"}
+								title={searchTerm ? "Sin resultados" : listTab === "archivados" ? "Sin archivados" : listTab === "bonos" ? "Nadie con bono activo" : "No hay pacientes"}
 								description={
 									searchTerm
 										? "Prueba con otro término de búsqueda"
-										: "Añade tu primer cliente para empezar a gestionar citas y facturación."
+										: listTab === "archivados"
+											? "Los pacientes archivados aparecerán aquí."
+											: "Añade tu primer paciente para gestionar citas e historial."
 								}
-								actionLabel={searchTerm ? undefined : "Añadir cliente"}
-								onAction={searchTerm ? undefined : () => handleOpenModal()}
+								actionLabel={searchTerm || listTab !== "directorio" ? undefined : "Añadir paciente"}
+								onAction={searchTerm || listTab !== "directorio" ? undefined : () => handleOpenModal()}
 							/>
 						</div>
 					) : (
-						<>
-							{/* Móvil: cards */}
-							<div className="md:hidden space-y-3 flex-1 overflow-y-auto">
-								{filteredClients.map((client) => (
-									<div
-										key={client.id}
-										role="button"
-										tabIndex={0}
-										onClick={() => selectClient(client)}
-										onKeyDown={(e) => {
-											if (e.key === "Enter" || e.key === " ") {
-												e.preventDefault();
-												selectClient(client);
-											}
-										}}
-										className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-3 cursor-pointer active:bg-gray-50">
-										<div className="flex justify-between items-start gap-3">
-											<div className="flex items-center gap-3 min-w-0">
-												<div className="w-10 h-10 rounded-full bg-rose-50 text-rose-700 flex items-center justify-center text-sm font-bold shrink-0 border border-rose-100">
-													{client.name.charAt(0)}
-												</div>
-												<div className="min-w-0">
-													<p className="font-semibold text-gray-900 text-sm truncate">
-														{client.name} {client.surname}
-													</p>
-													<p className="text-xs text-gray-500 truncate">
-														{client.phone || "Sin teléfono"}
-														{client.nif ? ` · ${client.nif}` : ""}
-													</p>
-												</div>
-											</div>
-											<div className="flex items-center gap-1 shrink-0">
-												{client.estado === "inactivo" && (
-													<StatusChip tone="neutral">Inactivo</StatusChip>
-												)}
-												{client.estado === "bloqueado" && (
-													<StatusChip tone="danger">Bloqueado</StatusChip>
-												)}
-												{client.estado === "borrador" && (
-													<StatusChip tone="warning">Borrador</StatusChip>
-												)}
-												{(!client.estado || client.estado === "activo") && (
-													<StatusChip tone="success">Activo</StatusChip>
-												)}
-											</div>
-										</div>
-										<div className="flex items-center justify-between">
-											<div className="flex items-center gap-3 text-[11px] font-bold text-slate-500">
-												<span className="flex items-center gap-1">
-													{client.has_consent ? <Check size={12} className="text-emerald-500" /> : <X size={12} className="text-slate-300" />} C
-												</span>
-												<span className="flex items-center gap-1">
-													{client.has_image_rights ? <Check size={12} className="text-emerald-500" /> : <X size={12} className="text-slate-300" />} I
-												</span>
-												{client.is_company && (
-													<span className="px-1.5 py-0.5 text-[10px] bg-slate-100 text-slate-600 font-bold rounded border border-slate-200">Empresa</span>
-												)}
-											</div>
-											<div className="flex gap-1">
-												{client.phone && (
-													<a
-														href={buildWhatsAppUrl(client.phone, client.name, clinic?.name)}
-														target="_blank"
-														rel="noopener noreferrer"
-														onClick={(e) => e.stopPropagation()}
-														className="p-2 rounded-lg bg-green-50 text-emerald-700"
-														title="WhatsApp">
-														<MessageCircle size={16} />
-													</a>
-												)}
-												<button
-													type="button"
-													onClick={(e) => {
-														e.stopPropagation();
-														setSelectedClient(client);
-													}}
-													className="p-2 rounded-lg bg-gray-50 text-gray-500"
-													title="Ver ficha">
-													<Eye size={16} />
-												</button>
-												{canDeleteOperational && (
-													<button
-														type="button"
-														onClick={(e) => handleDeleteClick(e, client)}
-														className="p-2 rounded-lg bg-red-50 text-rose-700"
-														title="Archivar">
-														<Trash2 size={16} />
-													</button>
-												)}
-											</div>
-										</div>
-									</div>
-								))}
-							</div>
-
-							{/* Desktop: tabla */}
-							<div className="hidden md:block flex-1 overflow-x-auto overflow-y-auto custom-scrollbar bg-white border border-gray-200 rounded-xl shadow-sm">
-								<table className="w-full text-left border-collapse min-w-[640px] md:min-w-[800px]">
-									<thead className="sticky top-0 z-10">
-										<tr className="bg-slate-50/90 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wider">
-											{isClientColVisible("patient") && (
-												<th className="p-3.5 pl-5">Paciente</th>
-											)}
-											{isClientColVisible("estado") && (
-												<th className="p-3.5">Estado</th>
-											)}
-											{isClientColVisible("contacto") && (
-												<th className="p-3.5">Contacto</th>
-											)}
-											{isClientColVisible("identificacion") && (
-												<th className="p-3.5 hidden lg:table-cell">Identificación</th>
-											)}
-											{isClientColVisible("legal") && (
-												<th className="p-3.5 text-center">Legal</th>
-											)}
-											{isClientColVisible("acciones") && (
-												<th className="p-3.5 text-right pr-5">Acciones</th>
-											)}
-										</tr>
-									</thead>
-									<tbody className="divide-y divide-slate-100 bg-white">
-										{filteredClients.map((client) => (
+						<div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar bg-surface border border-edge rounded-2xl">
+							<table className="w-full text-left border-collapse min-w-[720px]">
+								<thead className="sticky top-0 z-10">
+									<tr className="bg-surface-2 border-b border-edge text-[11px] font-semibold text-muted uppercase tracking-wider">
+										<th className="p-3.5 pl-5">Paciente</th>
+										<th className="p-3.5">Última visita</th>
+										<th className="p-3.5">Bonos activos</th>
+										<th className="p-3.5">Etiquetas</th>
+										<th className="p-3.5 w-12 pr-4" />
+									</tr>
+								</thead>
+								<tbody className="divide-y divide-edge">
+									{filteredClients.map((client) => {
+										const fullName = [client.name, client.surname].filter(Boolean).join(" ");
+										const visit = lastVisitByClient[client.id];
+										const bonos = bonusesByClient[client.id] || [];
+										const tags = clientTags(client);
+										const archived = listTab === "archivados" || client.activo === false;
+										const menuOpen = rowMenuId === client.id;
+										return (
 											<tr
 												key={client.id}
 												onClick={() => selectClient(client)}
-												className="hover:bg-slate-50/70 transition-colors cursor-pointer group">
-												{isClientColVisible("patient") && (
+												className="group cursor-pointer hover:bg-slate-50 transition-colors">
 												<td className="p-3.5 pl-5">
-													<div className="flex items-center gap-3">
-														<div className="w-9 h-9 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center text-sm font-medium shrink-0 border border-slate-200">
-															{client.name.charAt(0)}
+													<div className="flex items-center gap-3 min-w-0">
+														<div className="w-10 h-10 rounded-full bg-surface-2 text-fg flex items-center justify-center text-sm font-semibold shrink-0 border border-edge">
+															{(client.name || "?").charAt(0).toUpperCase()}
 														</div>
-														<div className="flex items-center gap-2 min-w-0">
-															<p className="font-medium text-slate-900 text-sm truncate">{client.name} {client.surname}</p>
-															{client.is_company && (
-																<span className="px-1.5 py-0.5 text-[10px] bg-slate-50 text-slate-600 font-medium rounded border border-slate-200 shrink-0">Empresa</span>
-															)}
+														<div className="min-w-0">
+															<p className="text-fg font-semibold text-sm truncate">
+																{fullName}
+															</p>
+															<p className="text-muted text-xs truncate tabular-nums">
+																{client.phone || "Sin teléfono"}
+															</p>
 														</div>
 													</div>
 												</td>
-												)}
-												{isClientColVisible("estado") && (
 												<td className="p-3.5">
-													{client.estado === "inactivo" && (
-														<StatusChip tone="neutral">Inactivo</StatusChip>
-													)}
-													{client.estado === "bloqueado" && (
-														<StatusChip tone="danger">Bloqueado</StatusChip>
-													)}
-													{client.estado === "borrador" && (
-														<StatusChip tone="warning">Borrador</StatusChip>
-													)}
-													{(!client.estado || client.estado === "activo") && (
-														<StatusChip tone="success">Activo</StatusChip>
+													{visit?.date ? (
+														<div>
+															<p className="text-sm text-slate-900 tabular-nums">
+																{new Date(visit.date + "T12:00:00").toLocaleDateString("es-ES", {
+																	day: "2-digit",
+																	month: "short",
+																	year: "numeric",
+																})}
+															</p>
+															<p className="text-xs text-slate-500 truncate max-w-[200px]">
+																{visit.label}
+															</p>
+														</div>
+													) : (
+														<p className="text-sm text-muted">Sin visitas previas</p>
 													)}
 												</td>
-												)}
-												{isClientColVisible("contacto") && (
 												<td className="p-3.5">
-													<div className="flex items-center gap-2">
-														<span className="text-sm font-medium text-slate-900 tabular-nums">{client.phone || "Sin tlf"}</span>
-														{client.phone && (
-															<a
-																href={buildWhatsAppUrl(client.phone, client.name, clinic?.name)}
-																target="_blank"
-																rel="noopener noreferrer"
-																onClick={(e) => e.stopPropagation()}
-																className="p-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 opacity-0 group-hover:opacity-100 transition-opacity"
-																title="WhatsApp">
-																<MessageCircle size={14} />
-															</a>
-														)}
-													</div>
+													{bonos.length > 0 ? (
+														<div className="flex flex-wrap gap-1.5">
+															{bonos.slice(0, 2).map((b) => {
+																const name =
+																	b.treatments?.name ||
+																	b.bonus_templates?.name ||
+																	"Bono";
+																const used = Number(b.used_sessions) || 0;
+																const total = Number(b.total_sessions) || 0;
+																const left = Math.max(total - used, 0);
+																return (
+																	<span
+																		key={b.id}
+																		className="inline-flex items-center rounded-md bg-violet-50 text-violet-800 px-2 py-0.5 text-[11px] font-medium">
+																		{name} ({left}/{total})
+																	</span>
+																);
+															})}
+														</div>
+													) : (
+														<span className="text-slate-300">—</span>
+													)}
 												</td>
-												)}
-												{isClientColVisible("identificacion") && (
-												<td className="p-3.5 hidden lg:table-cell">
-													<span className="text-sm font-medium text-slate-900 tabular-nums">{client.nif || "—"}</span>
+												<td className="p-3.5">
+													{tags.length ? (
+														<div className="flex flex-wrap gap-1.5">
+															{tags.map((t) => (
+																<span
+																	key={t}
+																	className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
+																	{t}
+																</span>
+															))}
+														</div>
+													) : (
+														<span className="text-slate-300">—</span>
+													)}
 												</td>
-												)}
-												{isClientColVisible("legal") && (
-												<td className="p-3.5 text-center">
-													<div className="flex items-center justify-center gap-2">
-														<span className="flex items-center gap-1 text-[11px] font-medium text-slate-500" title="Consentimiento">
-															{client.has_consent ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} C
-														</span>
-														<span className="flex items-center gap-1 text-[11px] font-medium text-slate-500" title="Derechos de imagen">
-															{client.has_image_rights ? <Check size={12} className="text-emerald-500"/> : <X size={12} className="text-slate-300"/>} I
-														</span>
-													</div>
-												</td>
-												)}
-												{isClientColVisible("acciones") && (
-												<td className="p-3 pr-4 text-right">
-													<div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+												<td className="p-3.5 pr-4 text-right" onClick={(e) => e.stopPropagation()}>
+													<div className="relative inline-flex justify-end">
 														<button
 															type="button"
-															onClick={(e) => {
-																e.stopPropagation();
-																setSelectedClient(client);
-															}}
-															className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
-															title="Ver ficha">
-															<Eye size={16} />
+															onClick={() =>
+																setRowMenuId(menuOpen ? null : client.id)
+															}
+															className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-opacity ${
+																menuOpen
+																	? "opacity-100"
+																	: "opacity-0 group-hover:opacity-100 focus:opacity-100"
+															}`}
+															aria-label="Acciones">
+															<MoreHorizontal size={18} />
 														</button>
-														{canDeleteOperational && (
-															<button
-																type="button"
-																onClick={(e) => handleDeleteClick(e, client)}
-																className="p-1.5 text-slate-400 hover:text-rose-700 rounded-lg hover:bg-rose-50 transition-colors"
-																title="Archivar">
-																<Trash2 size={16} />
-															</button>
+														{menuOpen && (
+															<div className="absolute right-0 top-9 z-20 w-48 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+																<button
+																	type="button"
+																	className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+																	onClick={() => {
+																		setRowMenuId(null);
+																		selectClient(client);
+																	}}>
+																	Ver ficha
+																</button>
+																{!archived && (
+																	<button
+																		type="button"
+																		className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+																		onClick={() => {
+																			setRowMenuId(null);
+																			onNewAppointment?.(client.id);
+																		}}>
+																		Nueva cita
+																	</button>
+																)}
+																{archived ? (
+																	<button
+																		type="button"
+																		className="w-full text-left px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50"
+																		onClick={() => restoreClient(client)}>
+																		Restaurar paciente
+																	</button>
+																) : (
+																	canDeleteOperational && (
+																		<button
+																			type="button"
+																			className="w-full text-left px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
+																			onClick={(e) => handleDeleteClick(e, client)}>
+																			Archivar paciente
+																		</button>
+																	)
+																)}
+															</div>
 														)}
 													</div>
 												</td>
-												)}
 											</tr>
-										))}
-									</tbody>
-								</table>
-							</div>
-						</>
+										);
+									})}
+								</tbody>
+							</table>
+						</div>
 					)}
 				</div>
 			) : (
@@ -928,56 +1124,126 @@ export const ClientsTab = ({
 				className="flex-1 min-w-0 overflow-hidden flex flex-col w-full">
 				{selectedClient ? (
 					<>
-						<div className="pb-4 mb-1 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-							<div className="flex items-center gap-4">
+						{/* Hero paciente */}
+						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5">
+							<div className="flex items-center gap-4 min-w-0">
 								<button
+									type="button"
 									onClick={() => selectClient(null)}
-									className="flex items-center justify-center w-10 h-10 bg-white border border-gray-200 rounded-2xl text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors shrink-0 shadow-sm"
+									className="flex items-center justify-center w-10 h-10 bg-surface border border-edge rounded-xl text-muted hover:text-fg hover:bg-surface-2 transition-colors shrink-0"
 									title="Volver">
-									<ArrowLeft size={20} />
+									<ArrowLeft size={18} />
 								</button>
-								<div>
-									<h2 className="text-xl xl:text-2xl font-semibold text-gray-900 tracking-tight flex items-center gap-2">
-										{selectedClient.name} {selectedClient.surname}
+								<div className="flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary text-xl sm:text-2xl font-bold ring-2 ring-edge">
+									{(selectedClient.name || "?").charAt(0).toUpperCase()}
+								</div>
+								<div className="min-w-0">
+									<div className="flex items-center gap-2 flex-wrap">
+										<h2 className="text-xl sm:text-2xl font-bold text-fg tracking-tight truncate">
+											{selectedClient.name} {selectedClient.surname}
+										</h2>
 										{selectedClient.is_company && (
-											<span className="px-2 py-0.5 text-[11px] bg-gray-100 text-gray-600 font-medium rounded border border-gray-200">
+											<span className="px-2 py-0.5 text-[11px] bg-surface-2 text-muted font-medium rounded-md border border-edge">
 												Empresa
 											</span>
 										)}
-									</h2>
+									</div>
+									<p className="text-sm text-muted mt-0.5 truncate">
+										{[
+											getAge(selectedClient.fecha_nacimiento) != null
+												? `${getAge(selectedClient.fecha_nacimiento)} años`
+												: null,
+											selectedClient.phone || null,
+										]
+											.filter(Boolean)
+											.join(" · ") || "Sin datos de contacto"}
+									</p>
 								</div>
 							</div>
-							<div className="flex items-center gap-2">
+							<div className="flex items-center gap-2 sm:pl-14">
+								{selectedClient.phone && (
+									<>
+										<a
+											href={`tel:${selectedClient.phone}`}
+											className="inline-flex items-center gap-2 rounded-xl border border-edge bg-surface px-3.5 py-2.5 text-sm font-semibold text-fg hover:bg-surface-2 transition-colors"
+											title="Llamar">
+											<Phone size={16} className="text-primary" />
+											<span className="hidden sm:inline">Llamar</span>
+										</a>
+										<a
+											href={buildWhatsAppUrl(
+												selectedClient.phone,
+												selectedClient.name,
+												clinic?.name,
+											)}
+											target="_blank"
+											rel="noopener noreferrer"
+											className="inline-flex items-center gap-2 rounded-xl border border-edge bg-surface px-3.5 py-2.5 text-sm font-semibold text-fg hover:bg-surface-2 transition-colors"
+											title="WhatsApp">
+											<MessageCircle size={16} className="text-success" />
+											<span className="hidden sm:inline">WhatsApp</span>
+										</a>
+									</>
+								)}
+								<div className="relative">
+									<button
+										type="button"
+										onClick={() => setClientMoreOpen((v) => !v)}
+										className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-edge bg-surface text-muted hover:bg-surface-2 hover:text-fg transition-colors"
+										aria-label="Más acciones">
+										<MoreHorizontal size={18} />
+									</button>
+									{clientMoreOpen && (
+										<div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-xl border border-edge bg-surface py-1 shadow-xl">
+											{clientDetailTab === "datos" && (
+												<button
+													type="button"
+													onClick={() => {
+														setClientMoreOpen(false);
+														handleSaveClient({ preventDefault: () => {} });
+													}}
+													disabled={savingClient}
+													className="w-full px-3 py-2 text-left text-sm font-medium text-fg hover:bg-surface-2">
+													{savingClient ? "Guardando…" : "Guardar cambios"}
+												</button>
+											)}
+											{canDeleteOperational && (
+												<button
+													type="button"
+													onClick={(e) => {
+														setClientMoreOpen(false);
+														handleDeleteClick(e, selectedClient);
+													}}
+													className="w-full px-3 py-2 text-left text-sm font-medium text-danger hover:bg-danger/10">
+													Archivar paciente
+												</button>
+											)}
+										</div>
+									)}
+								</div>
 								{clientDetailTab === "datos" && (
 									<button
+										type="button"
 										onClick={(e) => handleSaveClient({ preventDefault: () => {} })}
 										disabled={savingClient}
-										className="px-4 py-2 bg-rose-700 text-white rounded-lg text-sm font-semibold hover:bg-rose-800 transition-colors flex items-center gap-2 disabled:opacity-50">
-										{savingClient ? "Guardando..." : "Guardar Cambios"}
+										className="hidden sm:inline-flex px-4 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50">
+										{savingClient ? "Guardando…" : "Guardar"}
 									</button>
 								)}
 							</div>
 						</div>
 
-						{/* Pestañas perfil — gated por módulos SaaS */}
-						<div className="flex border-b border-gray-200 gap-1 overflow-x-auto">
-							{clientDetailTabs.map(({ id, label, icon: Icon }) => (
-								<button
-									key={id}
-									type="button"
-									onClick={() => setClientDetailTab(id)}
-									className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-										clientDetailTab === id
-											? "border-rose-700 text-rose-700"
-											: "border-transparent text-gray-400 hover:text-gray-600"
-									}`}>
-									<Icon size={16} />
-									{label}
-								</button>
-							))}
-						</div>
+						<PageTabs
+							items={clientDetailTabs.map((t) => ({
+								id: t.id,
+								label: t.label,
+								active: clientDetailTab === t.id,
+								onClick: () => setClientDetailTab(t.id),
+							}))}
+							className="mb-6"
+						/>
 
-						<div className="flex-1 overflow-y-auto pt-6 custom-scrollbar">
+						<div className="flex-1 overflow-y-auto custom-scrollbar">
 							{clientDetailTab === "visitas" && canClientsHistory && (
 								<div className="space-y-8 pb-10">
 									<div className="flex justify-between items-end mb-6">
@@ -1284,123 +1550,201 @@ export const ClientsTab = ({
 								</div>
 							)}
 							{clientDetailTab === "datos" && (
-								<div className="space-y-6">
-									<h3 className="font-black text-slate-400 text-xs uppercase tracking-widest flex items-center gap-2">
-										<User size={14} /> Información General & Fiscal
-									</h3>
-									
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div>
-											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
-												Nombre
+								<div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pb-10">
+									{/* Bento: Información básica */}
+									<section className="lg:col-span-5 rounded-2xl border border-edge bg-surface p-5 sm:p-6 space-y-5">
+										<div className="flex items-center justify-between gap-2">
+											<h3 className="text-sm font-bold text-fg">Información básica</h3>
+											<span className="text-[11px] font-medium text-muted">Editable</span>
+										</div>
+										<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+											<label className="block space-y-1 sm:col-span-1">
+												<span className="text-[11px] font-semibold text-muted">Nombre</span>
+												<input
+													className="input-field"
+													value={formData.name}
+													onChange={(e) =>
+														setFormData({ ...formData, name: e.target.value })
+													}
+												/>
 											</label>
-											<input
-												required
-												placeholder="Ej: Laura"
-												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
-												value={formData.name}
+											<label className="block space-y-1">
+												<span className="text-[11px] font-semibold text-muted">Apellidos</span>
+												<input
+													className="input-field"
+													value={formData.surname}
+													onChange={(e) =>
+														setFormData({ ...formData, surname: e.target.value })
+													}
+												/>
+											</label>
+										</div>
+										<ul className="space-y-3">
+											<li className="flex items-start gap-3">
+												<span className="mt-2.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
+													<IdCard size={15} />
+												</span>
+												<label className="flex-1 min-w-0 space-y-1">
+													<span className="text-[11px] font-semibold text-muted">NIF / CIF</span>
+													<input
+														className="input-field"
+														value={formData.nif}
+														onChange={(e) =>
+															setFormData({
+																...formData,
+																nif: e.target.value.toUpperCase(),
+															})
+														}
+														placeholder="12345678A"
+													/>
+												</label>
+											</li>
+											<li className="flex items-start gap-3">
+												<span className="mt-2.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
+													<Cake size={15} />
+												</span>
+												<label className="flex-1 min-w-0 space-y-1">
+													<span className="text-[11px] font-semibold text-muted">
+														Fecha de nacimiento
+													</span>
+													<input
+														type="date"
+														className="input-field"
+														value={formData.fecha_nacimiento}
+														onChange={(e) =>
+															setFormData({
+																...formData,
+																fecha_nacimiento: e.target.value,
+															})
+														}
+													/>
+												</label>
+											</li>
+											<li className="flex items-start gap-3">
+												<span className="mt-2.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
+													<Phone size={15} />
+												</span>
+												<label className="flex-1 min-w-0 space-y-1">
+													<span className="text-[11px] font-semibold text-muted">Teléfono</span>
+													<input
+														type="tel"
+														className="input-field"
+														value={formData.phone}
+														onChange={(e) =>
+															setFormData({ ...formData, phone: e.target.value })
+														}
+													/>
+												</label>
+											</li>
+											<li className="flex items-start gap-3">
+												<span className="mt-2.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-muted">
+													<MapPin size={15} />
+												</span>
+												<label className="flex-1 min-w-0 space-y-1">
+													<span className="text-[11px] font-semibold text-muted">Origen</span>
+													<select
+														className="input-field"
+														value={formData.origin}
+														onChange={(e) =>
+															setFormData({ ...formData, origin: e.target.value })
+														}>
+														<option value="">(No especificado)</option>
+														<option value="Instagram">Instagram</option>
+														<option value="Google">Google / Búsqueda</option>
+														<option value="Recomendacion">Recomendado</option>
+														<option value="Fisico">Pase por la clínica</option>
+														<option value="Doctoralia">Doctoralia</option>
+														<option value="Otro">Otro</option>
+													</select>
+												</label>
+											</li>
+										</ul>
+									</section>
+
+									{/* Bento: Alertas y notas */}
+									<section className="lg:col-span-7 rounded-2xl border border-edge bg-surface p-5 sm:p-6 space-y-5">
+										<div className="flex items-center gap-2">
+											<AlertTriangle size={16} className="text-amber-600" />
+											<h3 className="text-sm font-bold text-fg">
+												Alergias y notas internas
+											</h3>
+										</div>
+										{formData.allergies?.trim() ? (
+											<div className="flex flex-wrap gap-2">
+												{formData.allergies
+													.split(/[,;\n]+/)
+													.map((a) => a.trim())
+													.filter(Boolean)
+													.map((tag) => (
+														<span
+															key={tag}
+															className="inline-flex items-center rounded-lg bg-danger/10 text-danger border border-danger/20 px-2.5 py-1 text-xs font-bold">
+															{tag}
+														</span>
+													))}
+											</div>
+										) : (
+											<p className="text-xs text-muted">Sin alergias registradas</p>
+										)}
+										<label className="block space-y-1">
+											<span className="text-[11px] font-semibold text-danger">
+												Alergias / contraindicaciones
+											</span>
+											<textarea
+												rows={3}
+												className={`input-field resize-none ${
+													formData.allergies
+														? "border-danger/30 bg-danger/5"
+														: ""
+												}`}
+												placeholder="Ej: Lidocaína, látex…"
+												value={formData.allergies}
 												onChange={(e) =>
-													setFormData({ ...formData, name: e.target.value })
+													setFormData({ ...formData, allergies: e.target.value })
 												}
 											/>
-										</div>
-										<div>
-											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
-												Apellidos
-											</label>
-											<input
-												required
-												placeholder="Ej: Gómez Pérez"
-												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
-												value={formData.surname}
-												onChange={(e) =>
-													setFormData({ ...formData, surname: e.target.value })
-												}
-											/>
-										</div>
-										<div>
-											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
-												NIF / CIF
-											</label>
-											<input
-												placeholder="Ej: 12345678A"
-												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
-												value={formData.nif}
-												onChange={(e) =>
-													setFormData({ ...formData, nif: e.target.value.toUpperCase() })
-												}
-											/>
-										</div>
-										<div>
-											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
-												Teléfono / WhatsApp
-											</label>
-											<input
-												required
-												type="tel"
-												placeholder="Ej: +34 600 000 000"
-												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
-												value={formData.phone}
-												onChange={(e) =>
-													setFormData({ ...formData, phone: e.target.value })
-												}
-											/>
-										</div>
-										<div>
-											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
-												Fecha Nacimiento
-											</label>
-											<input
-												type="date"
-												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
-												value={formData.fecha_nacimiento}
+										</label>
+										<label className="block space-y-1">
+											<span className="text-[11px] font-semibold text-muted inline-flex items-center gap-1.5">
+												<StickyNote size={12} /> Notas internas
+											</span>
+											<textarea
+												rows={3}
+												className="input-field resize-none"
+												placeholder="Preferencias, observaciones privadas…"
+												value={formData.notas_privadas}
 												onChange={(e) =>
 													setFormData({
 														...formData,
-														fecha_nacimiento: e.target.value,
+														notas_privadas: e.target.value,
 													})
 												}
 											/>
-										</div>
-										<div>
-											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
-												Origen
+										</label>
+										{formData.medical_history != null && (
+											<label className="block space-y-1">
+												<span className="text-[11px] font-semibold text-muted">
+													Antecedentes
+												</span>
+												<textarea
+													rows={2}
+													className="input-field resize-none"
+													value={formData.medical_history || ""}
+													onChange={(e) =>
+														setFormData({
+															...formData,
+															medical_history: e.target.value,
+														})
+													}
+												/>
 											</label>
-											<select
-												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
-												value={formData.origin}
-												onChange={(e) =>
-													setFormData({ ...formData, origin: e.target.value })
-												}>
-												<option value="">(No especificado)</option>
-												<option value="Instagram">Instagram</option>
-												<option value="Google">Google / Búsqueda</option>
-												<option value="Recomendacion">Recomendado por un amigo</option>
-												<option value="Fisico">Pase por la clínica</option>
-												<option value="Doctoralia">Doctoralia</option>
-												<option value="Otro">Otro</option>
-											</select>
-										</div>
-										<div>
-											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
-												Estado
-											</label>
-											<select
-												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold shadow-sm text-slate-800"
-												value={formData.estado || "activo"}
-												onChange={(e) =>
-													setFormData({ ...formData, estado: e.target.value })
-												}>
-												<option value="activo">Activo</option>
-												<option value="inactivo">Inactivo</option>
-												<option value="bloqueado">Bloqueado</option>
-												<option value="borrador">Borrador / Lead</option>
-											</select>
-										</div>
-									</div>
+										)}
+									</section>
 
-									<div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-										<label className="flex items-start gap-3 cursor-pointer">
+									{/* Bento: Fiscal / empresa */}
+									<section className="lg:col-span-6 rounded-2xl border border-edge bg-surface p-5 sm:p-6 space-y-4">
+										<h3 className="text-sm font-bold text-fg">Facturación</h3>
+										<label className="flex items-start gap-3 cursor-pointer rounded-xl border border-edge bg-surface-2/50 px-3 py-3">
 											<input
 												type="checkbox"
 												checked={formData.is_company}
@@ -1410,21 +1754,25 @@ export const ClientsTab = ({
 														is_company: e.target.checked,
 													})
 												}
-												className="mt-1 w-5 h-5 rounded border-gray-300 text-rose-700 focus:ring-rose-700"
+												className="mt-0.5 w-4 h-4 rounded border-edge text-primary"
 											/>
-											<div>
-												<span className="font-bold text-slate-800 block text-sm">Es una Empresa / B2B (Requiere Factura Completa)</span>
-												<span className="text-xs text-slate-500 font-medium">Obligatorio rellenar NIF y Dirección Fiscal si se marca.</span>
-											</div>
+											<span>
+												<span className="block text-sm font-semibold text-fg">
+													Empresa / B2B
+												</span>
+												<span className="text-xs text-muted">
+													Requiere NIF y dirección fiscal
+												</span>
+											</span>
 										</label>
 										{formData.is_company && (
-											<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-gray-50">
-												<div>
-													<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
-														Retención IRPF (%)
-													</label>
+											<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+												<label className="block space-y-1">
+													<span className="text-[11px] font-semibold text-muted">
+														Retención IRPF
+													</span>
 													<select
-														className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-bold text-slate-800"
+														className="input-field"
 														value={formData.irpf_withholding_rate}
 														onChange={(e) =>
 															setFormData({
@@ -1432,98 +1780,89 @@ export const ClientsTab = ({
 																irpf_withholding_rate: e.target.value,
 															})
 														}>
-														<option value="7">7% (Nuevos autónomos)</option>
-														<option value="15">15% (General)</option>
-														<option value="0">0% (Sin retención)</option>
+														<option value="7">7%</option>
+														<option value="15">15%</option>
+														<option value="0">0%</option>
 													</select>
-												</div>
-												<div>
-													<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
-														Dirección Fiscal Completa
-													</label>
+												</label>
+												<label className="block space-y-1 sm:col-span-2">
+													<span className="text-[11px] font-semibold text-muted">
+														Dirección fiscal
+													</span>
 													<textarea
-														rows="2"
-														placeholder="Calle, Número, Piso, Ciudad, CP, Provincia"
-														className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-medium resize-none text-slate-800"
+														rows={2}
+														className="input-field resize-none"
 														value={formData.address}
 														onChange={(e) =>
-															setFormData({ ...formData, address: e.target.value })
+															setFormData({
+																...formData,
+																address: e.target.value,
+															})
 														}
 													/>
-												</div>
+												</label>
 											</div>
 										)}
-									</div>
+									</section>
 
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-										<div>
-											<label className="text-[11px] font-black text-rose-700 uppercase tracking-widest mb-1 block ml-1">
-												Alergias / Contraindicaciones
-											</label>
-											<textarea
-												rows="3"
-												placeholder="Importante destacar si tiene alergias a algún producto"
-												className="w-full p-4 bg-rose-50 border-2 border-transparent focus:bg-white focus:border-rose-200 rounded-2xl outline-none font-medium resize-none text-slate-800"
-												value={formData.allergies}
-												onChange={(e) =>
-													setFormData({ ...formData, allergies: e.target.value })
-												}
+									{/* Bento: Legal */}
+									<section className="lg:col-span-6 rounded-2xl border border-edge bg-surface p-5 sm:p-6 space-y-4">
+										<div className="flex items-center gap-2">
+											<Shield size={16} className="text-primary" />
+											<h3 className="text-sm font-bold text-fg">Legal y privacidad</h3>
+										</div>
+										<label className="flex items-start gap-3 cursor-pointer">
+											<input
+												type="checkbox"
+												checked={formData.has_consent}
+												onChange={async (e) => {
+													const val = e.target.checked;
+													setFormData({ ...formData, has_consent: val });
+													await supabase
+														.from("clients")
+														.update({ has_consent: val })
+														.eq("id", selectedClient.id);
+													showToast("Estado legal actualizado");
+												}}
+												className="mt-0.5 w-4 h-4 rounded border-edge text-primary"
 											/>
-										</div>
-										<div>
-											<label className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">
-												Notas Internas Privadas
-											</label>
-											<textarea
-												rows="3"
-												placeholder="Notas o preferencias del paciente"
-												className="w-full p-4 bg-white border-2 border-transparent focus:border-rose-100 rounded-2xl outline-none font-medium resize-none shadow-sm text-slate-800"
-												value={formData.notas_privadas}
-												onChange={(e) =>
-													setFormData({ ...formData, notas_privadas: e.target.value })
-												}
+											<span className="text-sm font-semibold text-fg">
+												Protección de datos (LOPD) firmada
+											</span>
+										</label>
+										<label className="flex items-start gap-3 cursor-pointer">
+											<input
+												type="checkbox"
+												checked={formData.has_image_rights}
+												onChange={async (e) => {
+													const val = e.target.checked;
+													setFormData({ ...formData, has_image_rights: val });
+													await supabase
+														.from("clients")
+														.update({ has_image_rights: val })
+														.eq("id", selectedClient.id);
+													showToast("Estado de imagen actualizado");
+												}}
+												className="mt-0.5 w-4 h-4 rounded border-edge text-primary"
 											/>
-										</div>
-									</div>
-									<div className="pt-6 mt-6 border-t border-gray-100 space-y-4">
-											<h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">Legal y Privacidad</h3>
-											<div className="flex flex-col gap-3">
-												<label className="flex items-start gap-3 cursor-pointer">
-													<input
-														type="checkbox"
-														checked={formData.has_consent}
-														onChange={async (e) => {
-															const val = e.target.checked;
-															setFormData({ ...formData, has_consent: val });
-															await supabase.from("clients").update({ has_consent: val }).eq("id", selectedClient.id);
-															showToast("Estado legal actualizado");
-														}}
-														className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-700 focus:ring-rose-700"
-													/>
-													<div>
-														<span className="font-bold text-slate-800 block text-sm">Protección de Datos (LOPD) Firmada</span>
-													</div>
-												</label>
-												
-												<label className="flex items-start gap-3 cursor-pointer">
-													<input
-														type="checkbox"
-														checked={formData.has_image_rights}
-														onChange={async (e) => {
-															const val = e.target.checked;
-															setFormData({ ...formData, has_image_rights: val });
-															await supabase.from("clients").update({ has_image_rights: val }).eq("id", selectedClient.id);
-															showToast("Estado de imagen actualizado");
-														}}
-														className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-700 focus:ring-rose-700"
-													/>
-													<div>
-														<span className="font-bold text-slate-800 block text-sm">Derechos de Imagen</span>
-													</div>
-												</label>
-											</div>
-										</div>
+											<span className="text-sm font-semibold text-fg">
+												Derechos de imagen
+											</span>
+										</label>
+									</section>
 								</div>
+							)}
+
+							{clientDetailTab === "citas" && (
+								<ClientAppointmentsPanel
+									client={selectedClient}
+									appointments={appointments}
+									treatments={treatments}
+									onNewAppointment={() =>
+										onNewAppointment?.(selectedClient.id)
+									}
+									onGoAgenda={() => navigate("/agenda")}
+								/>
 							)}
 
 							{clientDetailTab === "medico-deprecated" && (
@@ -1801,9 +2140,22 @@ export const ClientsTab = ({
 
 			<SidePanel
 				isOpen={isModalOpen}
-				onClose={() => setIsModalOpen(false)}
-				title={selectedClient ? "Editar cliente" : "Nuevo cliente"}
-				subtitle="Datos de ficha · la lista queda detrás"
+				onClose={() => {
+					setIsModalOpen(false);
+					setConvertingLeadId(null);
+				}}
+				title={
+					convertingLeadId
+						? "Convertir a paciente"
+						: selectedClient
+							? "Editar cliente"
+							: "Nuevo cliente"
+				}
+				subtitle={
+					convertingLeadId
+						? "Revisa y completa la ficha · el lead pasará al directorio"
+						: "Datos de ficha · la lista queda detrás"
+				}
 				size="lg"
 				footer={
 					<LoadingButton
@@ -1811,7 +2163,11 @@ export const ClientsTab = ({
 						type="submit"
 						form="client-form"
 						className="w-full btn-primary py-3">
-						{savingClient ? "Guardando..." : "Guardar"}
+						{savingClient
+							? "Guardando..."
+							: convertingLeadId
+								? "Convertir y guardar"
+								: "Guardar"}
 					</LoadingButton>
 				}
 			>
@@ -1878,19 +2234,9 @@ export const ClientsTab = ({
 									<option value="instagram">Instagram</option>
 									<option value="google">Google</option>
 									<option value="recommendation">Recomendación</option>
+									<option value="webhook">Web / formulario</option>
+									<option value="manual">Manual</option>
 									<option value="other">Otro</option>
-								</select>
-							</div>
-							<div>
-								<label className="text-xs font-medium text-gray-500 block mb-1.5">Estado</label>
-								<select
-									className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-200 transition-colors"
-									value={formData.estado || "activo"}
-									onChange={(e) => setFormData({ ...formData, estado: e.target.value })}>
-									<option value="activo">Activo</option>
-									<option value="inactivo">Inactivo</option>
-									<option value="bloqueado">Bloqueado</option>
-									<option value="borrador">Borrador / Lead</option>
 								</select>
 							</div>
 						</div>
@@ -2175,3 +2521,169 @@ export const ClientsTab = ({
 		</div>
 	);
 };
+
+function ClientAppointmentsPanel({
+	client,
+	appointments = [],
+	treatments = [],
+	onNewAppointment,
+	onGoAgenda,
+}) {
+	const now = Date.now();
+	const clientAppts = useMemo(() => {
+		if (!client?.id) return [];
+		return (appointments || [])
+			.filter(
+				(a) =>
+					a.client_id === client.id &&
+					a.type !== "tax_deadline" &&
+					a.activo !== false,
+			)
+			.sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+	}, [appointments, client?.id]);
+
+	const upcoming = clientAppts.filter(
+		(a) => a.status !== "cancelled" && new Date(a.end_at || a.start_at).getTime() >= now,
+	);
+	const past = clientAppts
+		.filter(
+			(a) =>
+				a.status === "cancelled" ||
+				new Date(a.end_at || a.start_at).getTime() < now,
+		)
+		.reverse();
+
+	const formatWhen = (a) => {
+		const start = a.start_at ? new Date(a.start_at) : null;
+		if (!start || Number.isNaN(start.getTime())) return "—";
+		if (a.all_day) {
+			return start.toLocaleDateString("es-ES", {
+				weekday: "short",
+				day: "numeric",
+				month: "short",
+				year: "numeric",
+			});
+		}
+		const end = a.end_at ? new Date(a.end_at) : null;
+		const day = start.toLocaleDateString("es-ES", {
+			weekday: "short",
+			day: "numeric",
+			month: "short",
+		});
+		const t0 = start.toLocaleTimeString("es-ES", {
+			hour: "2-digit",
+			minute: "2-digit",
+		});
+		const t1 =
+			end && !Number.isNaN(end.getTime())
+				? end.toLocaleTimeString("es-ES", {
+						hour: "2-digit",
+						minute: "2-digit",
+					})
+				: null;
+		return t1 ? `${day} · ${t0}–${t1}` : `${day} · ${t0}`;
+	};
+
+	const treatmentName = (a) => {
+		if (!a.treatment_id) return null;
+		return treatments.find((t) => t.id === a.treatment_id)?.name || null;
+	};
+
+	const renderRow = (a) => {
+		const status = a.status || "pending";
+		const label = APPT_STATUS_LABEL[status] || status;
+		const tx = treatmentName(a);
+		return (
+			<li
+				key={a.id}
+				className="flex items-start justify-between gap-3 rounded-xl border border-slate-100 bg-white px-4 py-3">
+				<div className="min-w-0">
+					<p className="text-sm font-semibold text-slate-900 truncate">
+						{a.title || "Cita"}
+					</p>
+					<p className="text-xs text-slate-500 mt-0.5 tabular-nums capitalize">
+						{formatWhen(a)}
+					</p>
+					{tx && (
+						<p className="text-xs text-slate-400 mt-0.5 truncate">{tx}</p>
+					)}
+				</div>
+				<span
+					className={`shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
+						status === "confirmed"
+							? "bg-blue-50 text-blue-800 border-blue-100"
+							: status === "done"
+								? "bg-emerald-50 text-emerald-800 border-emerald-100"
+								: status === "cancelled"
+									? "bg-rose-50 text-rose-700 border-rose-100"
+									: "bg-slate-50 text-slate-600 border-slate-200"
+					}`}>
+					{label}
+				</span>
+			</li>
+		);
+	};
+
+	if (clientAppts.length === 0) {
+		return (
+			<div className="pb-10">
+				<EmptyState
+					icon={CalendarCheck}
+					title="Sin citas registradas"
+					description="Este paciente aún no tiene citas en la agenda."
+					actionLabel="Nueva cita"
+					onAction={onNewAppointment}
+				/>
+				<button
+					type="button"
+					onClick={onGoAgenda}
+					className="mt-3 text-xs font-medium text-slate-500 hover:text-slate-800 underline-offset-2 hover:underline mx-auto block">
+					Ir a Agenda
+				</button>
+			</div>
+		);
+	}
+
+	return (
+		<div className="space-y-6 pb-10">
+			<div className="flex flex-wrap items-center justify-between gap-2">
+				<p className="text-sm text-slate-500">
+					{upcoming.length} próxima{upcoming.length === 1 ? "" : "s"}
+					{past.length > 0 ? ` · ${past.length} pasada${past.length === 1 ? "" : "s"}` : ""}
+				</p>
+				<div className="flex items-center gap-2">
+					<button
+						type="button"
+						onClick={onGoAgenda}
+						className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl border border-slate-200 bg-white">
+						Ver agenda
+					</button>
+					<button
+						type="button"
+						onClick={onNewAppointment}
+						className="inline-flex items-center gap-1.5 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 px-3 py-2 rounded-xl">
+						<Plus size={14} /> Nueva cita
+					</button>
+				</div>
+			</div>
+
+			{upcoming.length > 0 && (
+				<section className="space-y-2">
+					<h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+						Próximas
+					</h3>
+					<ul className="space-y-2">{upcoming.map(renderRow)}</ul>
+				</section>
+			)}
+
+			{past.length > 0 && (
+				<section className="space-y-2">
+					<h3 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+						Anteriores
+					</h3>
+					<ul className="space-y-2">{past.slice(0, 30).map(renderRow)}</ul>
+				</section>
+			)}
+		</div>
+	);
+}

@@ -1,17 +1,37 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { Calendar, dateFnsLocalizer } from "react-big-calendar";
+import React, { useState, useMemo, useCallback } from "react";
+import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
 import withDragAndDrop from "react-big-calendar/lib/addons/dragAndDrop";
-import { format, parse, startOfWeek, getDay, addHours } from "date-fns";
+import {
+	format,
+	parse,
+	startOfWeek,
+	getDay,
+	addHours,
+	endOfWeek,
+	startOfDay,
+	endOfDay,
+	startOfMonth,
+	endOfMonth,
+} from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Trash2, Edit2, CalendarDays, RefreshCw, Unplug } from "lucide-react";
+import {
+	Plus,
+	Trash2,
+	Edit2,
+	ChevronLeft,
+	ChevronRight,
+	Landmark,
+	ShoppingBag,
+	Sparkles,
+	Check,
+} from "lucide-react";
 import { supabase } from "../../services/supabase";
 import {
-	startGoogleCalendarLink,
-	syncGoogleCalendar,
-	disconnectGoogleCalendar,
-	fetchGoogleCalendarLinkStatus,
-} from "../../services/googleCalendar";
-import { mergeCalendarEvents, STATUS_COLORS } from "../../utils/calendarUtils";
+	mergeCalendarEvents,
+	STATUS_COLORS,
+	taxDeadlinesInRange,
+	actionsInRange,
+} from "../../utils/calendarUtils";
 import { formatCurrency } from "../../utils/format";
 import { SidePanel } from "../ui/SidePanel";
 import { LoadingButton } from "../ui/LoadingButton";
@@ -43,18 +63,117 @@ const messages = {
 	yesterday: "Ayer",
 	tomorrow: "Mañana",
 	today: "Hoy",
-	agenda: "Agenda",
-	noEventsInRange: "No hay eventos en este rango",
+	agenda: "Lista",
+	noEventsInRange: "No hay citas en este rango",
+	showMore: (n) => `+${n} más`,
 };
 
 const STATUS_OPTIONS = [
-	{ value: "pending", label: "Pendiente", color: STATUS_COLORS.pending },
-	{ value: "confirmed", label: "Confirmada", color: STATUS_COLORS.confirmed },
-	{ value: "done", label: "Realizada", color: STATUS_COLORS.done },
-	{ value: "cancelled", label: "Cancelada", color: STATUS_COLORS.cancelled },
+	{ value: "pending", label: "Pendiente", color: STATUS_COLORS.pending.border },
+	{ value: "confirmed", label: "Confirmada", color: STATUS_COLORS.confirmed.border },
+	{ value: "done", label: "Realizada", color: STATUS_COLORS.done.border },
+	{ value: "cancelled", label: "Cancelada", color: STATUS_COLORS.cancelled.border },
+];
+
+const VIEW_OPTIONS = [
+	{ id: Views.WEEK, label: "Semana" },
+	{ id: Views.DAY, label: "Día" },
+	{ id: Views.MONTH, label: "Mes" },
+	{ id: Views.AGENDA, label: "Lista" },
 ];
 
 const DnDCalendar = withDragAndDrop(Calendar);
+
+function rangeForView(view, date) {
+	if (view === Views.DAY) {
+		return { start: startOfDay(date), end: endOfDay(date) };
+	}
+	if (view === Views.MONTH || view === Views.AGENDA) {
+		return { start: startOfMonth(date), end: endOfMonth(date) };
+	}
+	return {
+		start: startOfWeek(date, { weekStartsOn: 1 }),
+		end: endOfWeek(date, { weekStartsOn: 1 }),
+	};
+}
+
+function CalendarEventBlock({ event }) {
+	const time =
+		event.allDay || !event.start ? "" : format(event.start, "HH:mm");
+	return (
+		<div className="leading-snug px-1 py-0.5 h-full min-h-0 overflow-hidden">
+			{time ? (
+				<span className="text-[10px] font-semibold opacity-75 tabular-nums mr-1">
+					{time}
+				</span>
+			) : null}
+			<span className="text-[11px] font-semibold">{event.title}</span>
+		</div>
+	);
+}
+
+function AgendaToolbar({
+	label,
+	onNavigate,
+	onView,
+	view,
+	onCreate,
+}) {
+	return (
+		<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+			<div className="flex items-center gap-2">
+				<button
+					type="button"
+					onClick={() => onNavigate("TODAY")}
+					className="h-9 px-3 rounded-xl border border-edge bg-surface text-sm font-semibold text-fg hover:bg-surface-2">
+					Hoy
+				</button>
+				<div className="inline-flex items-center rounded-xl border border-edge bg-surface overflow-hidden">
+					<button
+						type="button"
+						onClick={() => onNavigate("PREV")}
+						className="h-9 w-9 inline-flex items-center justify-center text-muted hover:bg-surface-2 hover:text-fg"
+						aria-label="Anterior">
+						<ChevronLeft size={18} />
+					</button>
+					<button
+						type="button"
+						onClick={() => onNavigate("NEXT")}
+						className="h-9 w-9 inline-flex items-center justify-center text-muted hover:bg-surface-2 hover:text-fg border-l border-edge"
+						aria-label="Siguiente">
+						<ChevronRight size={18} />
+					</button>
+				</div>
+				<p className="text-base sm:text-lg font-bold text-fg capitalize tracking-tight ml-1">
+					{label}
+				</p>
+			</div>
+			<div className="flex flex-wrap items-center gap-2">
+				<div className="inline-flex rounded-xl border border-edge bg-surface-2 p-0.5">
+					{VIEW_OPTIONS.map((v) => (
+						<button
+							key={v.id}
+							type="button"
+							onClick={() => onView(v.id)}
+							className={`h-8 px-3 rounded-[10px] text-xs font-semibold transition-colors ${
+								view === v.id
+									? "bg-surface text-fg shadow-sm"
+									: "text-muted hover:text-fg"
+							}`}>
+							{v.label}
+						</button>
+					))}
+				</div>
+				<button
+					type="button"
+					onClick={onCreate}
+					className="h-9 px-3.5 rounded-xl btn-inverse text-sm font-semibold inline-flex items-center gap-1.5">
+					<Plus size={16} /> Crear
+				</button>
+			</div>
+		</div>
+	);
+}
 
 export const CalendarTab = ({
 	user,
@@ -66,7 +185,7 @@ export const CalendarTab = ({
 	onRefresh,
 }) => {
 	const { clinicId } = useTenant();
-	const [view, setView] = useState("month");
+	const [view, setView] = useState(Views.WEEK);
 	const [date, setDate] = useState(new Date());
 	const [showModal, setShowModal] = useState(false);
 	const [showDetailModal, setShowDetailModal] = useState(false);
@@ -86,26 +205,22 @@ export const CalendarTab = ({
 		notes: "",
 	});
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-	const [gcStatus, setGcStatus] = useState(null);
-	const [gcBusy, setGcBusy] = useState(false);
 
-	const refreshGcStatus = useCallback(async () => {
-		if (!user?.id) return;
-		try {
-			const s = await fetchGoogleCalendarLinkStatus();
-			setGcStatus(s);
-		} catch {
-			setGcStatus({ connected: false });
-		}
-	}, [user?.id]);
-
-	useEffect(() => {
-		refreshGcStatus();
-	}, [refreshGcStatus]);
+	const visibleRange = useMemo(() => rangeForView(view, date), [view, date]);
 
 	const events = useMemo(
 		() => mergeCalendarEvents(entries, appointments, clients),
 		[entries, appointments, clients],
+	);
+
+	const taxPills = useMemo(
+		() => taxDeadlinesInRange(appointments, visibleRange.start, visibleRange.end),
+		[appointments, visibleRange],
+	);
+
+	const weekActions = useMemo(
+		() => actionsInRange(entries, clients, visibleRange.start, visibleRange.end),
+		[entries, clients, visibleRange],
 	);
 
 	const openModalForSlot = (slotInfo) => {
@@ -120,7 +235,7 @@ export const CalendarTab = ({
 			endTime: format(addHours(d, 1), "HH:mm"),
 			type: "appointment",
 			allDay: false,
-			status: "pending",
+			status: "confirmed",
 			clientId: "",
 			treatmentId: "",
 			notes: "",
@@ -137,9 +252,9 @@ export const CalendarTab = ({
 			startAt: format(d, "yyyy-MM-dd"),
 			startTime: "10:00",
 			endTime: "11:00",
-			type: "task",
+			type: "appointment",
 			allDay: false,
-			status: "pending",
+			status: "confirmed",
 			clientId: "",
 			treatmentId: "",
 			notes: "",
@@ -148,16 +263,6 @@ export const CalendarTab = ({
 	};
 
 	const handleSelectEvent = (event) => {
-		if (event.resource?.type === "session") {
-			setSelectedEvent(event);
-			setShowDetailModal(true);
-			return;
-		}
-		if (event.resource?.type === "tax_deadline") {
-			setSelectedEvent(event);
-			setShowDetailModal(true);
-			return;
-		}
 		if (event.resource?.type === "appointment") {
 			setSelectedEvent(event);
 			setShowDetailModal(true);
@@ -186,9 +291,9 @@ export const CalendarTab = ({
 	};
 
 	const getPayload = () => {
-		let startAt,
-			endAt,
-			all_day = false;
+		let startAt;
+		let endAt;
+		let all_day = false;
 		if (formData.type === "task" && formData.allDay) {
 			startAt = new Date(`${formData.startAt}T00:00:00`);
 			endAt = new Date(`${formData.startAt}T23:59:59`);
@@ -213,7 +318,7 @@ export const CalendarTab = ({
 	};
 
 	const handleSubmit = async (e) => {
-		e.preventDefault();
+		e?.preventDefault?.();
 		if (!clinicId) {
 			showToast("No hay clínica activa", "error");
 			return;
@@ -262,11 +367,44 @@ export const CalendarTab = ({
 			showToast("Cita archivada");
 			setShowModal(false);
 			setShowDeleteConfirm(false);
+			setShowDetailModal(false);
 			setSelectedEvent(null);
 			onRefresh?.();
 		} catch (err) {
 			console.error(err);
 			showToast("Error al eliminar", "error");
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const handleQuickStatus = async (status) => {
+		const appointmentId = selectedEvent?.resource?.appointment?.id;
+		if (!appointmentId) return;
+		setSaving(true);
+		try {
+			const { error } = await supabase
+				.from("appointments")
+				.update({ status })
+				.eq("id", appointmentId);
+			if (error) throw error;
+			showToast("Estado actualizado");
+			setSelectedEvent((prev) =>
+				prev
+					? {
+							...prev,
+							status,
+							resource: {
+								...prev.resource,
+								appointment: { ...prev.resource.appointment, status },
+							},
+						}
+					: prev,
+			);
+			onRefresh?.();
+		} catch (err) {
+			console.error(err);
+			showToast("No se pudo actualizar", "error");
 		} finally {
 			setSaving(false);
 		}
@@ -295,156 +433,194 @@ export const CalendarTab = ({
 	};
 
 	const eventStyleGetter = (event) => {
-		const isSession = event.resource?.type === "session";
-		if (isSession) {
-			return { style: { backgroundColor: "#f43f5e" } };
-		}
+		const isTask = event.resource?.isTask || event.resource?.appointment?.type === "task";
 		const status =
 			event.status || event.resource?.appointment?.status || "pending";
-		const bg = STATUS_COLORS[status] || STATUS_COLORS.pending;
+		const palette = isTask
+			? STATUS_COLORS.task
+			: STATUS_COLORS[status] || STATUS_COLORS.pending;
 		return {
 			style: {
-				backgroundColor: bg,
+				backgroundColor: palette.bg,
+				borderLeft: `3px solid ${palette.border}`,
+				borderTop: "none",
+				borderRight: "none",
+				borderBottom: "none",
+				color: palette.text,
+				borderRadius: "8px",
+				boxShadow: "none",
+				opacity: status === "cancelled" ? 0.65 : 1,
 				textDecoration: status === "cancelled" ? "line-through" : undefined,
-				opacity: status === "cancelled" ? 0.8 : 1,
 			},
 		};
 	};
 
+	const components = {
+		event: CalendarEventBlock,
+		toolbar: (props) => <AgendaToolbar {...props} onCreate={openModalForTask} />,
+	};
+
+	const openActionDetail = useCallback((action) => {
+		setSelectedEvent({
+			title: action.title,
+			resource: { type: "action", entry: action.entry, action },
+		});
+		setShowDetailModal(true);
+	}, []);
+
 	return (
-		<div className="space-y-6 animate-in fade-in pb-24 md:pb-0">
-			<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-				<h2 className="text-2xl xl:text-3xl font-black text-gray-800 tracking-tight">
+		<div className="space-y-4 animate-in fade-in pb-24 md:pb-0">
+			<div>
+				<h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-fg">
 					Agenda
-				</h2>
-				<button
-					onClick={openModalForTask}
-					className="bg-primary hover:bg-primary-hover text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg transition-all">
-					<Plus size={18} /> Nueva cita / Tarea
-				</button>
+				</h1>
+				<p className="text-sm text-muted mt-1">
+					Citas en la rejilla · ventas y sesiones como actividad
+				</p>
 			</div>
 
-			<div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-					<div className="flex items-start gap-3">
-						<div className="rounded-xl bg-gray-100 p-2 text-gray-600">
-							<CalendarDays className="size-5" />
-						</div>
-						<div>
-							<p className="text-sm font-bold text-gray-900">Google Calendar</p>
-							<p className="text-xs text-gray-500 mt-0.5 max-w-xl">
-								Sincronización bidireccional de citas y tareas con el calendario principal de tu cuenta
-								Google. Tras conectar, usa «Sincronizar» para alinear cambios (también puedes volver a
-								ejecutarlo cuando quieras).
-							</p>
-							{gcStatus?.connected && (
-								<p className="text-[11px] text-gray-400 mt-1">
-									Última sincronización:{" "}
-									{gcStatus.last_sync_at ?
-										new Date(gcStatus.last_sync_at).toLocaleString("es-ES")
-									:	"—"}
-									{gcStatus.last_error ?
-										<span className="text-rose-700"> · Error previo: {gcStatus.last_error}</span>
-									:	null}
-								</p>
-							)}
-						</div>
-					</div>
-					<div className="flex flex-wrap items-center gap-2 shrink-0">
-						{!gcStatus?.connected ? (
-							<button
-								type="button"
-								disabled={gcBusy || !user}
-								onClick={async () => {
-									setGcBusy(true);
-									try {
-										const url = await startGoogleCalendarLink();
-										window.location.href = url;
-									} catch (e) {
-										console.error(e);
-										showToast(e?.message || "No se pudo conectar", "error");
-									} finally {
-										setGcBusy(false);
-									}
-								}}
-								className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-gray-800 disabled:opacity-50">
-								<CalendarDays className="size-4" /> Conectar cuenta Google
-							</button>
-						) : (
-							<>
-								<button
-									type="button"
-									disabled={gcBusy}
-									onClick={async () => {
-										setGcBusy(true);
-										try {
-											const r = await syncGoogleCalendar();
-											showToast(
-												`Sincronizado: ${r.pulled} desde Google, ${r.pushed} hacia Google`,
-											);
-											await refreshGcStatus();
-											onRefresh?.();
-										} catch (e) {
-											console.error(e);
-											showToast(e?.message || "Error al sincronizar", "error");
-										} finally {
-											setGcBusy(false);
-										}
-									}}
-									className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold text-gray-800 hover:bg-gray-50 disabled:opacity-50">
-									<RefreshCw className={`size-4 ${gcBusy ? "animate-spin" : ""}`} /> Sincronizar ahora
-								</button>
-								<button
-									type="button"
-									disabled={gcBusy}
-									onClick={async () => {
-										if (!confirm("¿Desconectar Google Calendar? No se borran citas en el ERP."))
-											return;
-										setGcBusy(true);
-										try {
-											await disconnectGoogleCalendar();
-											await refreshGcStatus();
-											onRefresh?.();
-											showToast("Google Calendar desconectado");
-										} catch (e) {
-											console.error(e);
-											showToast(e?.message || "Error al desconectar", "error");
-										} finally {
-											setGcBusy(false);
-										}
-									}}
-									className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-bold text-rose-700 hover:bg-rose-100 disabled:opacity-50">
-									<Unplug className="size-4" /> Desconectar
-								</button>
-							</>
-						)}
-					</div>
+			{taxPills.length > 0 && (
+				<div className="flex flex-wrap items-center gap-2 rounded-xl border border-warning-border bg-warning-bg px-3 py-2">
+					<span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-warning-text shrink-0">
+						<Landmark size={13} className="text-warning-icon" /> Fiscal
+					</span>
+					{taxPills.slice(0, 4).map((t) => (
+						<button
+							key={t.id}
+							type="button"
+							onClick={() => {
+								setSelectedEvent({
+									title: t.title,
+									resource: { type: "tax_deadline", appointment: t.appointment },
+								});
+								setShowDetailModal(true);
+							}}
+							className="inline-flex items-center gap-1.5 rounded-full bg-surface border border-warning-border px-2.5 py-1 text-xs font-medium text-warning-text hover:bg-surface-2 max-w-[220px]">
+							<span className="truncate">{t.title.replace(/^Ventana Impuestos\s*/i, "AEAT ")}</span>
+							<span className="text-warning-text-light tabular-nums shrink-0">
+								{format(t.start, "d MMM", { locale: es })}–{format(t.end, "d MMM", { locale: es })}
+							</span>
+						</button>
+					))}
+					{taxPills.length > 4 && (
+						<span className="text-xs text-warning-text-light">+{taxPills.length - 4}</span>
+					)}
 				</div>
-			</div>
+			)}
 
-			<div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden p-4">
-				<div className="h-[500px] xl:h-[600px] [&_.rbc-calendar]:font-sans [&_.rbc-toolbar]:flex-wrap [&_.rbc-toolbar]:gap-2 [&_.rbc-toolbar]:mb-4 [&_.rbc-toolbar_label]:font-black [&_.rbc-toolbar_button]:rounded-xl [&_.rbc-toolbar_button]:px-4 [&_.rbc-toolbar_button]:py-2 [&_.rbc-toolbar_button]:font-bold [&_.rbc-today]:bg-rose-50/50 [&_.rbc-event]:rounded-lg [&_.rbc-event]:py-1 [&_.rbc-event]:px-2 [&_.rbc-event-content]:font-bold [&_.rbc-event-content]:text-sm">
-					<DnDCalendar
-						localizer={localizer}
-						events={events}
-						view={view}
-						date={date}
-						onView={setView}
-						onNavigate={setDate}
-						onSelectSlot={openModalForSlot}
-						onSelectEvent={handleSelectEvent}
-						onEventDrop={handleEventDrop}
-						selectable
-						draggableAccessor="draggable"
-						messages={messages}
-						culture="es"
-						eventPropGetter={eventStyleGetter}
-						startAccessor="start"
-						endAccessor="end"
-						titleAccessor="title"
-						resizable={false}
-					/>
+			<div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_280px] gap-4 items-start">
+				<div className="rounded-2xl border border-edge bg-surface p-3 sm:p-4 shadow-sm overflow-hidden">
+					<div
+						className={[
+							"agenda-calendar",
+							"h-[min(72vh,720px)] min-h-[480px]",
+							"[&_.rbc-calendar]:font-sans [&_.rbc-calendar]:text-fg",
+							"[&_.rbc-header]:border-edge [&_.rbc-header]:py-2.5 [&_.rbc-header]:text-[11px] [&_.rbc-header]:font-bold [&_.rbc-header]:uppercase [&_.rbc-header]:tracking-wider [&_.rbc-header]:text-muted",
+							"[&_.rbc-time-header]:border-edge",
+							"[&_.rbc-time-content]:border-edge",
+							"[&_.rbc-timeslot-group]:border-edge",
+							"[&_.rbc-day-slot_.rbc-time-slot]:border-edge",
+							"[&_.rbc-today]:bg-primary-soft",
+							"[&_.rbc-off-range-bg]:bg-surface-2",
+							"[&_.rbc-current-time-indicator]:bg-danger",
+							"[&_.rbc-event]:border-0 [&_.rbc-event]:shadow-none [&_.rbc-event]:px-0",
+							"[&_.rbc-event-label]:hidden",
+							"[&_.rbc-addons-dnd-resizable]:overflow-hidden",
+							"[&_.rbc-month-view]:border-edge",
+							"[&_.rbc-month-row]:border-edge",
+							"[&_.rbc-day-bg]:border-edge",
+							"[&_.rbc-time-gutter_.rbc-label]:text-[11px] [&_.rbc-time-gutter_.rbc-label]:text-muted [&_.rbc-time-gutter_.rbc-label]:font-medium",
+							"[&_.rbc-agenda-view]:text-sm",
+						].join(" ")}>
+						<DnDCalendar
+							localizer={localizer}
+							events={events}
+							view={view}
+							date={date}
+							onView={setView}
+							onNavigate={setDate}
+							onSelectSlot={openModalForSlot}
+							onSelectEvent={handleSelectEvent}
+							onEventDrop={handleEventDrop}
+							selectable
+							draggableAccessor="draggable"
+							messages={messages}
+							culture="es"
+							components={components}
+							eventPropGetter={eventStyleGetter}
+							startAccessor="start"
+							endAccessor="end"
+							titleAccessor="title"
+							resizable={false}
+							popup
+							step={30}
+							timeslots={2}
+							min={new Date(1970, 0, 1, 8, 0, 0)}
+							max={new Date(1970, 0, 1, 21, 0, 0)}
+							scrollToTime={new Date(1970, 0, 1, 8, 0, 0)}
+						/>
+					</div>
 				</div>
+
+				<aside className="rounded-2xl border border-edge bg-surface p-4 shadow-sm xl:sticky xl:top-20">
+					<div className="flex items-center justify-between gap-2 mb-3">
+						<p className="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-1.5">
+							<Sparkles size={13} /> Actividad
+						</p>
+						<span className="text-[11px] font-medium text-muted tabular-nums">
+							{weekActions.length}
+						</span>
+					</div>
+					<p className="text-xs text-muted mb-3 leading-snug">
+						Ventas y tratamientos hechos en el periodo visible. No ocupan huecos de cita.
+					</p>
+					{weekActions.length === 0 ? (
+						<p className="text-sm text-muted py-6 text-center">
+							Sin actividad registrada
+						</p>
+					) : (
+						<ul className="space-y-2 max-h-[min(60vh,560px)] overflow-y-auto [scrollbar-width:thin]">
+							{weekActions.slice(0, 40).map((a) => (
+								<li key={a.id}>
+									<button
+										type="button"
+										onClick={() => openActionDetail(a)}
+										className="w-full text-left rounded-xl border border-edge bg-surface-2 hover:brightness-110 px-3 py-2.5 transition-colors">
+										<div className="flex items-start gap-2">
+											<span
+												className={`mt-0.5 shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-lg ${
+													a.subtitle === "Venta"
+														? "bg-income-soft text-income"
+														: "bg-primary-soft text-primary"
+												}`}>
+												{a.subtitle === "Venta" ? (
+													<ShoppingBag size={12} />
+												) : (
+													<Sparkles size={12} />
+												)}
+											</span>
+											<div className="min-w-0 flex-1">
+												<p className="text-sm font-medium text-fg leading-snug">
+													{a.title}
+												</p>
+												<p className="text-[11px] text-muted mt-0.5 flex items-center justify-between gap-2">
+													<span className="capitalize">
+														{format(a.date, "EEE d MMM", { locale: es })}
+													</span>
+													{a.amount != null && (
+														<span className="tabular-nums font-semibold text-fg">
+															{formatCurrency(a.amount)}
+														</span>
+													)}
+												</p>
+											</div>
+										</div>
+									</button>
+								</li>
+							))}
+						</ul>
+					)}
+				</aside>
 			</div>
 
 			<SidePanel
@@ -453,8 +629,8 @@ export const CalendarTab = ({
 					setShowModal(false);
 					setSelectedEvent(null);
 				}}
-				title={selectedEvent ? "Editar cita o tarea" : "Nueva cita o tarea"}
-				subtitle="La lista de agenda sigue visible a la izquierda"
+				title={selectedEvent ? "Editar cita o tarea" : "Nueva cita"}
+				subtitle="Arrastra citas en la semana para reprogramar"
 				size="md"
 				footer={
 					<div className="flex gap-3">
@@ -581,9 +757,7 @@ export const CalendarTab = ({
 								}
 								className="rounded border-gray-300 text-rose-700 focus:ring-rose-500"
 							/>
-							<span className="text-sm font-bold text-gray-700">
-								Todo el día
-							</span>
+							<span className="text-sm font-bold text-gray-700">Todo el día</span>
 						</label>
 					)}
 
@@ -659,10 +833,8 @@ export const CalendarTab = ({
 				message={`Estás a punto de archivar esta cita${
 					selectedEvent?.resource?.appointment?.title
 						? ` («${selectedEvent.resource.appointment.title}»)`
-						: selectedEvent?.resource?.appointment?.client_name
-							? ` con ${selectedEvent.resource.appointment.client_name}`
-							: ""
-				}.\n\nDejará de mostrarse en la agenda. Los datos se conservan en base de datos, pero no podrás recuperarla fácilmente desde aquí.\n\n¿Confirmas la eliminación?`}
+						: ""
+				}.\n\nDejará de mostrarse en la agenda.\n\n¿Confirmas?`}
 				onConfirm={handleDeleteAppointment}
 				onCancel={() => setShowDeleteConfirm(false)}
 				isDestructive
@@ -676,8 +848,8 @@ export const CalendarTab = ({
 					setSelectedEvent(null);
 				}}
 				title={
-					selectedEvent?.resource?.type === "session"
-						? "Detalle de sesión"
+					selectedEvent?.resource?.type === "action"
+						? "Actividad registrada"
 						: selectedEvent?.resource?.type === "tax_deadline"
 							? "Ventana fiscal AEAT"
 							: selectedEvent?.resource?.appointment?.type === "task"
@@ -687,18 +859,48 @@ export const CalendarTab = ({
 				size="md"
 				footer={
 					selectedEvent?.resource?.type === "appointment" ? (
-						<button
-							type="button"
-							onClick={openEditFromDetail}
-							className="w-full btn-ghost py-3 inline-flex items-center justify-center gap-2">
-							<Edit2 size={18} /> Editar
-						</button>
+						<div className="flex flex-col gap-2 w-full">
+							<div className="grid grid-cols-2 gap-2">
+								{[
+									{ s: "confirmed", l: "Confirmada" },
+									{ s: "done", l: "Realizada" },
+									{ s: "pending", l: "Pendiente" },
+									{ s: "cancelled", l: "Cancelar" },
+								].map(({ s, l }) => (
+									<button
+										key={s}
+										type="button"
+										disabled={saving}
+										onClick={() => handleQuickStatus(s)}
+										className={`text-xs font-semibold py-2 rounded-xl border transition-colors ${
+											selectedEvent?.resource?.appointment?.status === s
+												? "border-slate-900 bg-slate-900 text-white"
+												: "border-slate-200 text-slate-700 hover:bg-slate-50"
+										}`}>
+										{selectedEvent?.resource?.appointment?.status === s ? (
+											<span className="inline-flex items-center gap-1">
+												<Check size={12} /> {l}
+											</span>
+										) : (
+											l
+										)}
+									</button>
+								))}
+							</div>
+							<button
+								type="button"
+								onClick={openEditFromDetail}
+								className="w-full btn-ghost py-3 inline-flex items-center justify-center gap-2">
+								<Edit2 size={18} /> Editar completa
+							</button>
+						</div>
 					) : null
 				}>
-				{selectedEvent?.resource?.type === "session" && (
+				{selectedEvent?.resource?.type === "action" && (
 					<SessionDetail
 						entry={selectedEvent.resource.entry}
 						clients={clients}
+						headline={selectedEvent.resource.action?.title}
 					/>
 				)}
 				{selectedEvent?.resource?.type === "tax_deadline" && (
@@ -711,8 +913,8 @@ export const CalendarTab = ({
 								"Plazo de presentación de impuestos. No cuenta como cita clínica."}
 						</p>
 						<p className="text-xs text-amber-800 bg-amber-50 rounded-lg p-3">
-							Evento automático del módulo Fiscalidad. No se incluye en KPIs ni
-							alertas de pacientes.
+							Aviso compacto del módulo Fiscalidad. Detalle completo en Finanzas →
+							Fiscalidad.
 						</p>
 					</div>
 				)}
@@ -728,7 +930,7 @@ export const CalendarTab = ({
 	);
 };
 
-function SessionDetail({ entry, clients }) {
+function SessionDetail({ entry, clients, headline }) {
 	const client = clients.find((c) => c.id === entry.client_id);
 	const clientName = client
 		? `${client.name} ${client.surname || ""}`.trim()
@@ -737,9 +939,12 @@ function SessionDetail({ entry, clients }) {
 
 	return (
 		<div className="space-y-4">
+			{headline && (
+				<p className="text-sm font-semibold text-slate-800 leading-snug">{headline}</p>
+			)}
 			<div>
 				<span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
-					Tratamiento
+					Concepto
 				</span>
 				<p className="font-bold text-gray-800 mt-1">{treatmentName}</p>
 			</div>
@@ -755,13 +960,9 @@ function SessionDetail({ entry, clients }) {
 				</span>
 				<p className="font-bold text-gray-800 mt-1">
 					{entry.date
-						? format(
-								new Date(entry.date + "T12:00:00"),
-								"EEEE d 'de' MMMM yyyy",
-								{
-									locale: es,
-								},
-							)
+						? format(new Date(entry.date + "T12:00:00"), "EEEE d 'de' MMMM yyyy", {
+								locale: es,
+							})
 						: "—"}
 				</p>
 			</div>
@@ -778,9 +979,7 @@ function SessionDetail({ entry, clients }) {
 					<span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
 						Descripción
 					</span>
-					<p className="font-medium text-gray-700 mt-1 text-sm">
-						{entry.description}
-					</p>
+					<p className="font-medium text-gray-700 mt-1 text-sm">{entry.description}</p>
 				</div>
 			)}
 		</div>
@@ -814,9 +1013,7 @@ function AppointmentDetail({ appointment, clients, treatments }) {
 				<span className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
 					Título
 				</span>
-				<p className="font-bold text-gray-800 mt-1">
-					{appointment.title || "—"}
-				</p>
+				<p className="font-bold text-gray-800 mt-1">{appointment.title || "—"}</p>
 			</div>
 			{appointment.type === "appointment" && clientName && (
 				<div>
@@ -852,4 +1049,4 @@ function AppointmentDetail({ appointment, clients, treatments }) {
 			)}
 		</div>
 	);
-}
+};

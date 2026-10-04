@@ -1,30 +1,27 @@
 import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
-import {
-	FileText,
-	AlertTriangle,
-	ChevronRight,
-	Landmark,
-	CalendarClock,
-} from "lucide-react";
-import { getActiveTaxAlerts } from "../../../utils/tax/deadlines";
+import { ChevronRight, CalendarClock } from "lucide-react";
 import { computeModelo130 } from "../../../utils/tax/modelo130";
 import { computeModelo303 } from "../../../utils/tax/modelo303";
 import { formatCurrency } from "../../../utils/format";
 
-const LINKS = [
-	{ to: "/fiscalidad/trimestral/130", label: "Modelo 130", hint: "IRPF · YTD" },
-	{ to: "/fiscalidad/trimestral/303", label: "Modelo 303", hint: "IVA · trimestre" },
-	{ to: "/fiscalidad/trimestral/115", label: "Modelo 115", hint: "Alquiler" },
-	{ to: "/fiscalidad/anual/390", label: "Modelo 390", hint: "Resumen IVA" },
-	{ to: "/fiscalidad/anual/180", label: "Modelo 180", hint: "Resumen 115" },
-	{ to: "/fiscalidad/renta", label: "Preparación Renta", hint: "Modelo 100" },
-	{ to: "/fiscalidad/declaraciones", label: "Resumen Declaraciones", hint: "Estados + PDF" },
-	{ to: "/fiscalidad/bienes-inversion", label: "Bienes de inversión", hint: "Amortizaciones" },
+const taxLinks = (base = "/finanzas/fiscalidad") => [
+	{ to: `${base}/trimestral/130`, label: "Modelo 130", hint: "IRPF · YTD" },
+	{ to: `${base}/trimestral/303`, label: "Modelo 303", hint: "IVA · trimestre" },
+	{ to: `${base}/trimestral/115`, label: "Modelo 115", hint: "Alquiler" },
+	{ to: `${base}/anual/390`, label: "Modelo 390", hint: "Resumen IVA" },
+	{ to: `${base}/anual/180`, label: "Modelo 180", hint: "Resumen 115" },
+	{ to: `${base}/renta`, label: "Preparación Renta", hint: "Modelo 100" },
+	{ to: `${base}/declaraciones`, label: "Resumen Declaraciones", hint: "Estados + PDF" },
+	{ to: `${base}/bienes-inversion`, label: "Bienes de inversión", hint: "Amortizaciones" },
 ];
 
-export const TaxHubView = ({ entries = [], declarations = [] }) => {
-	const alerts = useMemo(() => getActiveTaxAlerts(declarations), [declarations]);
+export const TaxHubView = ({
+	entries = [],
+	declarations = [],
+	taxBasePath = "/finanzas/fiscalidad",
+}) => {
+	const LINKS = taxLinks(taxBasePath);
 	const year = new Date().getFullYear();
 	const quarter = Math.floor((new Date().getMonth() + 3) / 3);
 
@@ -39,41 +36,6 @@ export const TaxHubView = ({ entries = [], declarations = [] }) => {
 
 	return (
 		<div className="space-y-8">
-			<div>
-				<h2 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-2">
-					<Landmark className="text-rose-700" /> Fiscalidad & AEAT
-				</h2>
-				<p className="text-sm text-gray-500 mt-1">
-					Liquidaciones, resúmenes anuales y control de presentación.
-				</p>
-			</div>
-
-			{alerts.length > 0 && (
-				<div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-2">
-					<p className="text-sm font-black text-amber-900 flex items-center gap-2">
-						<AlertTriangle size={16} /> Plazos AEAT activos
-					</p>
-					<ul className="space-y-1">
-						{alerts.map((a) => (
-							<li key={a.id} className="text-sm text-amber-900 flex justify-between gap-2">
-								<span>
-									{a.title} — vence en {a.daysLeft} día(s)
-								</span>
-								<Link
-									to={
-										a.period === "ANUAL"
-											? `/fiscalidad/anual/${a.model}`
-											: `/fiscalidad/trimestral/${a.model}`
-									}
-									className="font-bold underline shrink-0">
-									Ir
-								</Link>
-							</li>
-						))}
-					</ul>
-				</div>
-			)}
-
 			<div className="grid sm:grid-cols-2 gap-4">
 				<div className="rounded-2xl border border-gray-100 bg-white p-5">
 					<p className="text-[10px] font-black uppercase tracking-widest text-gray-400">

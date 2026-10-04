@@ -13,6 +13,7 @@ import {
 	Heart,
 	Sparkles,
 	AlertTriangle,
+	BellRing,
 } from "lucide-react";
 import {
 	companyMissingFiscalAddress,
@@ -28,6 +29,7 @@ import {
 	taxRateLabel,
 } from "../../utils/incomeTax";
 import { useTenant } from "../../context/TenantContext";
+import { addDaysToYmd } from "../../utils/dateUtils";
 import { SidePanel } from "./SidePanel";
 
 export const SessionModal = ({
@@ -60,6 +62,7 @@ export const SessionModal = ({
 	const [internalNotes, setInternalNotes] = useState("");
 	const [planAmigo, setPlanAmigo] = useState(false);
 	const [consumeBono, setConsumeBono] = useState(false);
+	const [scheduleReviewReminder, setScheduleReviewReminder] = useState(false);
 
 	const { data: activeBono } = useActiveBonoForSession(
 		user?.id,
@@ -81,6 +84,7 @@ export const SessionModal = ({
 			setInternalNotes("");
 			setPlanAmigo(false);
 			setConsumeBono(false);
+			setScheduleReviewReminder(false);
 		}
 	}, [isOpen, treatment]);
 
@@ -165,6 +169,8 @@ export const SessionModal = ({
 		});
 	};
 
+	const reviewReminderDate = addDaysToYmd(selectedDate, 15);
+
 	const handleConfirm = () => {
 		if (!selectedClient) return;
 		if (companyAddressMissing) return;
@@ -176,7 +182,8 @@ export const SessionModal = ({
 			extras,
 			internalNotes,
 			canPlanAmigo && !!planAmigo,
-			consumeBono && activeBono ? activeBono.id : undefined
+			consumeBono && activeBono ? activeBono.id : undefined,
+			scheduleReviewReminder && !!selectedClient?.id,
 		);
 	};
 
@@ -404,13 +411,41 @@ export const SessionModal = ({
 									const mat = inventory?.find((i) => i.id === item.materialId);
 									const materialName = mat?.name || "Material desconocido";
 									const unit = mat?.unit_consumption || mat?.unit || "uds";
+									const isMachine = (mat?.item_type || "material") === "maquina";
+									const stock = mat != null ? Number(mat.stock) : null;
+									const qty = Number(item.quantity) || 0;
+									const insufficient =
+										!isMachine && stock != null && stock < qty;
+									const zeroStock = !isMachine && stock != null && stock <= 0;
 									return (
 										<div
 											key={`recipe-${idx}`}
-											className="flex justify-between items-center text-xs font-bold text-gray-600 pl-2 border-l-2 border-gray-200 gap-2">
+											className={`flex justify-between items-center text-xs font-bold pl-2 border-l-2 gap-2 ${
+												insufficient
+													? "border-rose-400 text-rose-800 bg-rose-50/60 rounded-r-lg pr-1"
+													: "border-gray-200 text-gray-600"
+											}`}>
 											<div className="flex-1 min-w-0">
 												<span>{materialName}</span>
 												<span className="text-gray-400 ml-1">({unit})</span>
+												{!isMachine && (
+													<span
+														className={`ml-2 text-[10px] font-bold tabular-nums ${
+															insufficient || zeroStock
+																? "text-rose-700"
+																: "text-slate-400"
+														}`}>
+														stock {stock}
+														{insufficient ? " · insuficiente" : ""}
+													</span>
+												)}
+												{(insufficient || zeroStock) && (
+													<span
+														className="inline-flex items-center gap-0.5 ml-1 text-rose-600"
+														title="Stock insuficiente">
+														<AlertTriangle size={12} />
+													</span>
+												)}
 											</div>
 											<input
 												type="number"
@@ -501,6 +536,36 @@ export const SessionModal = ({
 							onChange={(e) => setInternalNotes(e.target.value)}
 						/>
 					</div>
+
+					{/* Recordatorio interno de revisión (+15 días) — no crea cita en agenda */}
+					{selectedClient?.id && (
+						<div className="flex items-start gap-3 p-4 bg-sky-50/70 border border-sky-100 rounded-2xl">
+							<input
+								id="session-review-reminder"
+								type="checkbox"
+								checked={scheduleReviewReminder}
+								onChange={(e) => setScheduleReviewReminder(e.target.checked)}
+								className="mt-1 w-4 h-4 rounded border-sky-300 text-sky-600 focus:ring-sky-500"
+							/>
+							<label htmlFor="session-review-reminder" className="flex-1 cursor-pointer">
+								<span className="flex items-center gap-2 font-bold text-sky-950">
+									<BellRing size={16} className="text-sky-600" />
+									Programar recordatorio de revisión (15 días)
+								</span>
+								<p className="text-xs text-sky-900/75 mt-0.5">
+									Crea una tarea interna de seguimiento
+									{reviewReminderDate
+										? ` para el ${new Date(reviewReminderDate + "T12:00:00").toLocaleDateString("es-ES", {
+												day: "numeric",
+												month: "short",
+												year: "numeric",
+											})}`
+										: ""}
+									. No reserva hueco en la agenda.
+								</p>
+							</label>
+						</div>
+					)}
 
 					{/* Plan Amigo: solo si el módulo SaaS está activo en la clínica */}
 					{canPlanAmigo && (

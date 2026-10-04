@@ -15,7 +15,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 const MAIN_NAV_ITEMS = [
 	{ id: "home", label: NAV_LABELS.home, icon: <Home size={20} /> },
 	{ id: "clients", label: NAV_LABELS.clients, icon: <Users size={20} /> },
-	{ id: "treatments", label: NAV_LABELS.treatments, icon: <Sparkles size={20} /> },
+	{ id: "catalog", label: NAV_LABELS.catalog, icon: <Sparkles size={20} /> },
 	{ id: "inventory", label: NAV_LABELS.inventory, icon: <Package size={20} /> },
 ];
 

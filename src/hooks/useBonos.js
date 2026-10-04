@@ -105,6 +105,28 @@ export const useClientBonos = (userId, clientId) => {
 	});
 };
 
+/** Bonos activos de toda la clínica (para directorio de pacientes). */
+export const useClinicActiveBonuses = (user) => {
+	const userId = user?.id;
+	const { clinicId } = useTenant();
+	return useQuery({
+		queryKey: ["clientBonusesActive", clinicId],
+		queryFn: async () => {
+			const { data, error } = await supabase
+				.from("client_bonuses")
+				.select(
+					"id, client_id, total_sessions, used_sessions, status, treatments(id, name), bonus_templates(name)",
+				)
+				.eq("status", "active")
+				.order("created_at", { ascending: false });
+			if (error) throw error;
+			return data || [];
+		},
+		enabled: !!userId && !!clinicId,
+		staleTime: QUERY_STALE.operational,
+	});
+};
+
 /** Bono activo para cliente + tratamiento (para SessionModal) */
 export const useActiveBonoForSession = (userId, clientId, treatmentId) => {
 	const { clinicId } = useTenant();

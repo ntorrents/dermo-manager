@@ -15,16 +15,14 @@ import {
 	Download,
 	AlertTriangle,
 	Shield,
-	ArrowLeft,
-	ChevronRight,
 	Users,
 	UserPlus,
 	ScrollText,
-	Copy,
-	Globe,
 	Palette,
 	Sun,
 	Moon,
+	ImagePlus,
+	Trash2,
 } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../../services/supabase";
@@ -40,15 +38,17 @@ import {
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { useAuditLog } from "../../hooks/useAuditLog";
 import { auditActionLabel, auditEntityLabel, auditChangesLines } from "../../utils/auditLabels";
+import { IntegrationsSettings } from "./IntegrationsSettings";
+import { SignatureComposer } from "./SignatureComposer";
 
 const SETTINGS_VIEWS = {
-	hub: "hub",
 	appearance: "appearance",
 	clinic: "clinic",
 	me: "me",
 	team: "team",
 	security: "security",
 	audit: "audit",
+	integrations: "integrations",
 };
 
 const ROLE_OPTIONS = [
@@ -94,7 +94,7 @@ export const SettingsTab = ({
 		[profile]
 	);
 
-	const [view, setView] = useState(SETTINGS_VIEWS.hub);
+	const [view, setView] = useState(SETTINGS_VIEWS.clinic);
 
 	const {
 		rows: auditRows,
@@ -152,6 +152,7 @@ export const SettingsTab = ({
 	const [confirmPassword, setConfirmPassword] = useState("");
 
 	const [loadingProfile, setLoadingProfile] = useState(false);
+	const [uploadingLogo, setUploadingLogo] = useState(false);
 	const [loadingPass, setLoadingPass] = useState(false);
 	const [loadingEmail, setLoadingEmail] = useState(false);
 	const [loadingBackup, setLoadingBackup] = useState(false);
@@ -220,11 +221,11 @@ export const SettingsTab = ({
 	}, [view, isAdmin, loadTeam]);
 
 	useEffect(() => {
-		if (!isAdmin && view === SETTINGS_VIEWS.team) setView(SETTINGS_VIEWS.hub);
+		if (!isAdmin && view === SETTINGS_VIEWS.team) setView(SETTINGS_VIEWS.clinic);
 	}, [isAdmin, view]);
 
 	useEffect(() => {
-		if (!isAdmin && view === SETTINGS_VIEWS.audit) setView(SETTINGS_VIEWS.hub);
+		if (!isAdmin && view === SETTINGS_VIEWS.audit) setView(SETTINGS_VIEWS.clinic);
 	}, [isAdmin, view]);
 
 	useEffect(() => {
@@ -239,10 +240,11 @@ export const SettingsTab = ({
 		if (section === "appearance") {
 			setView(SETTINGS_VIEWS.appearance);
 			setSearchParams({}, { replace: true });
+		} else if (section === "integrations") {
+			setView(SETTINGS_VIEWS.integrations);
+			setSearchParams({}, { replace: true });
 		}
 	}, [searchParams, setSearchParams]);
-
-	const goHub = () => setView(SETTINGS_VIEWS.hub);
 
 	const handleUpdateClinic = async () => {
 		if (!clinicId) return;
@@ -423,180 +425,48 @@ export const SettingsTab = ({
 		}
 	};
 
-	const subHeader = (title) => (
-		<div className="flex items-center gap-3 mb-6">
-			<button
-				type="button"
-				onClick={goHub}
-				className="p-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-				aria-label="Volver">
-				<ArrowLeft size={20} />
-			</button>
-			<h2 className="text-xl font-bold text-gray-800">{title}</h2>
-		</div>
-	);
-
-	const hubCard = ({ id, icon: Icon, title, desc, onClick, badge }) => (
-		<button
-			type="button"
-			key={id}
-			onClick={onClick}
-			className="w-full text-left bg-white p-4 rounded-xl border border-slate-100 hover:border-rose-200 hover:shadow-sm transition-all flex items-center gap-3 group">
-			<div className="shrink-0 w-10 h-10 rounded-xl bg-slate-50 text-slate-700 flex items-center justify-center group-hover:bg-rose-50 group-hover:text-rose-700 transition-colors">
-				<Icon size={18} />
-			</div>
-			<div className="flex-1 min-w-0">
-				<div className="flex items-center gap-2 flex-wrap">
-					<h3 className="text-sm font-medium text-slate-900">{title}</h3>
-					{badge}
-				</div>
-				<p className="text-xs text-slate-500 mt-0.5 leading-snug">{desc}</p>
-			</div>
-			<ChevronRight className="shrink-0 text-slate-300 group-hover:text-rose-400" size={18} />
-		</button>
-	);
+	const settingsTabs = [
+		{ id: SETTINGS_VIEWS.clinic, label: "Clínica" },
+		{ id: SETTINGS_VIEWS.appearance, label: "Apariencia" },
+		{ id: SETTINGS_VIEWS.integrations, label: "Integraciones" },
+		{ id: SETTINGS_VIEWS.me, label: "Mi perfil" },
+		isAdmin && { id: SETTINGS_VIEWS.team, label: "Equipo" },
+		{ id: SETTINGS_VIEWS.security, label: "Seguridad" },
+		isAdmin && { id: SETTINGS_VIEWS.audit, label: "Auditoría" },
+	].filter(Boolean);
 
 	return (
 		<div className="space-y-6 animate-in fade-in pb-20 md:pb-0">
-			{view === SETTINGS_VIEWS.hub && (
-				<>
-					<div className="flex justify-between items-center">
-						<h2 className="text-2xl font-bold text-gray-800 tracking-tight">Configuración</h2>
-					</div>
-					<p className="text-sm text-slate-500 -mt-2">
-						Organizado por contexto. Los datos de clínica son comunes para todo el personal.
-						{!isAdmin && (
-							<span className="block mt-1 text-xs text-slate-400">
-								Auditoría e invitaciones solo para administradores.
-							</span>
-						)}
+			<div className="space-y-4">
+				<div>
+					<h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-fg">
+						Configuración
+					</h1>
+					<p className="text-sm text-muted mt-1">
+						Clínica, apariencia, equipo y seguridad
 					</p>
-
-					<div className="space-y-5">
-						{/* Clínica */}
-						<section className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-sm">
-							<div className="mb-3">
-								<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-									Clínica
-								</p>
-								<p className="text-sm text-slate-500 mt-0.5">
-									Identidad, facturación y aspecto de la interfaz.
-								</p>
-							</div>
-							<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-								{hubCard({
-									id: "clinic-data",
-									icon: Building2,
-									title: "Datos de empresa",
-									desc: "Nombre, logo y datos visibles en documentos.",
-									onClick: () => setView(SETTINGS_VIEWS.clinic),
-									badge: !isAdmin ? (
-										<span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-											Solo lectura
-										</span>
-									) : null,
-								})}
-								{hubCard({
-									id: "clinic-billing",
-									icon: CreditCard,
-									title: "Facturación",
-									desc: "NIF, dirección fiscal y teléfono de clínica.",
-									onClick: () => setView(SETTINGS_VIEWS.clinic),
-									badge: !isAdmin ? (
-										<span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
-											Solo lectura
-										</span>
-									) : null,
-								})}
-								{hubCard({
-									id: "appearance",
-									icon: Palette,
-									title: "Apariencia",
-									desc: "Tema de color y densidad de la interfaz.",
-									onClick: () => setView(SETTINGS_VIEWS.appearance),
-								})}
-							</div>
-						</section>
-
-						{/* Equipo */}
-						<section className="rounded-2xl border border-slate-100 bg-slate-50/50 p-4 sm:p-5 shadow-sm">
-							<div className="mb-3">
-								<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-									Equipo
-								</p>
-								<p className="text-sm text-slate-500 mt-0.5">
-									Tu perfil, roles e invitaciones.
-								</p>
-							</div>
-							<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-								{hubCard({
-									id: "me",
-									icon: User,
-									title: "Mis datos",
-									desc: "Tu nombre, contacto y firma en PDFs.",
-									onClick: () => setView(SETTINGS_VIEWS.me),
-								})}
-								{isAdmin &&
-									hubCard({
-										id: "team",
-										icon: Users,
-										title: "Perfiles del equipo",
-										desc: "Quién tiene acceso e invitaciones.",
-										onClick: () => setView(SETTINGS_VIEWS.team),
-									})}
-								{isAdmin &&
-									hubCard({
-										id: "permissions",
-										icon: Shield,
-										title: "Permisos",
-										desc: "Roles (admin, staff, recepción) por miembro.",
-										onClick: () => setView(SETTINGS_VIEWS.team),
-									})}
-							</div>
-						</section>
-
-						{/* Sistema */}
-						<section className="rounded-2xl border border-slate-100 bg-white p-4 sm:p-5 shadow-sm">
-							<div className="mb-3">
-								<p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
-									Sistema y seguridad
-								</p>
-								<p className="text-sm text-slate-500 mt-0.5">
-									Cuenta, auditoría e integraciones de correo.
-								</p>
-							</div>
-							<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-								{hubCard({
-									id: "security",
-									icon: Lock,
-									title: "Cuenta y seguridad",
-									desc: "Correo, contraseña, copia de seguridad y sesión.",
-									onClick: () => setView(SETTINGS_VIEWS.security),
-								})}
-								{isAdmin &&
-									hubCard({
-										id: "audit",
-										icon: ScrollText,
-										title: "Auditoría",
-										desc: "Registro de altas, cambios y bajas.",
-										onClick: () => setView(SETTINGS_VIEWS.audit),
-									})}
-								{hubCard({
-									id: "integrations",
-									icon: Globe,
-									title: "Integraciones",
-									desc: "Remitente de email y dominio propio (Resend).",
-									onClick: () => setView(SETTINGS_VIEWS.clinic),
-								})}
-							</div>
-						</section>
-					</div>
-				</>
-			)}
+				</div>
+				<nav
+					className="flex items-center gap-1 overflow-x-auto border-b border-edge [scrollbar-width:thin]"
+					aria-label="Secciones de configuración">
+					{settingsTabs.map((t) => (
+						<button
+							key={t.id}
+							type="button"
+							onClick={() => setView(t.id)}
+							className={`shrink-0 whitespace-nowrap px-3.5 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+								view === t.id
+									? "border-primary text-primary"
+									: "border-transparent text-muted hover:text-fg"
+							}`}>
+							{t.label}
+						</button>
+					))}
+				</nav>
+			</div>
 
 			{view === SETTINGS_VIEWS.appearance && (
 				<>
-					{subHeader("Apariencia")}
 					<div className="ui-card space-y-8">
 						<section className="space-y-3">
 							<div>
@@ -671,7 +541,6 @@ export const SettingsTab = ({
 
 			{view === SETTINGS_VIEWS.clinic && (
 				<>
-					{subHeader("Datos clínica")}
 					<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
 						<p className="text-sm text-gray-500 mb-4">
 							{isAdmin
@@ -694,27 +563,119 @@ export const SettingsTab = ({
 								</div>
 							</div>
 							<div className="md:col-span-2">
-								<label className="text-xs font-bold text-gray-500 uppercase">URL del logo (clínica)</label>
-								<div className="flex gap-4 items-start mt-1">
-									<input
-										disabled={!isAdmin}
-										className="flex-1 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
-										value={clinicForm.logo_url}
-										onChange={(e) => setClinicForm({ ...clinicForm, logo_url: e.target.value })}
-										placeholder="https://..."
-									/>
-									{clinicForm.logo_url && (
-										<div className="shrink-0 w-20 h-14 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+								<label className="text-xs font-bold text-gray-500 uppercase">
+									Logo de la clínica
+								</label>
+								<div className="mt-2 flex flex-col sm:flex-row gap-3 sm:items-center">
+									<div className="shrink-0 w-24 h-24 rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden flex items-center justify-center">
+										{clinicForm.logo_url ? (
 											<img
 												src={clinicForm.logo_url}
 												alt="Logo"
-												className="w-full h-full object-contain"
+												className="w-full h-full object-contain p-2"
 												onError={(e) => {
 													e.target.style.display = "none";
 												}}
 											/>
-										</div>
-									)}
+										) : (
+											<ImagePlus className="text-slate-300" size={28} />
+										)}
+									</div>
+									<div className="flex-1 min-w-0 space-y-2">
+										<p className="text-sm text-slate-500">
+											PNG, JPG, WebP o SVG. Se usa en facturas, PDFs y favicon.
+										</p>
+										{isAdmin ? (
+											<div className="flex flex-wrap items-center gap-2">
+												<label
+													className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold cursor-pointer transition-colors ${
+														uploadingLogo
+															? "bg-slate-100 text-slate-400"
+															: "bg-slate-900 text-white hover:bg-slate-800"
+													}`}>
+													{uploadingLogo ? (
+														<Loader2 size={16} className="animate-spin" />
+													) : (
+														<ImagePlus size={16} />
+													)}
+													{clinicForm.logo_url ? "Cambiar archivo" : "Subir archivo"}
+													<input
+														type="file"
+														accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif"
+														className="hidden"
+														disabled={uploadingLogo}
+														onChange={async (e) => {
+															const f = e.target.files?.[0];
+															if (!f || !user?.id) return;
+															if (f.size > 3 * 1024 * 1024) {
+																showToast?.("El logo no puede superar 3 MB", "error");
+																e.target.value = "";
+																return;
+															}
+															setUploadingLogo(true);
+															try {
+																const url = await uploadProfileAsset(
+																	user.id,
+																	f,
+																	"logo",
+																);
+																if (!url) throw new Error("No se obtuvo URL del logo");
+																setClinicForm((prev) => ({ ...prev, logo_url: url }));
+																if (clinicId) {
+																	const { error } = await supabase
+																		.from("clinics")
+																		.update({ logo_url: url })
+																		.eq("id", clinicId);
+																	if (error) throw error;
+																	await refreshTenant?.();
+																}
+																showToast?.("Logo actualizado");
+															} catch (err) {
+																console.error(err);
+																showToast?.(
+																	err?.message || "Error al subir el logo",
+																	"error",
+																);
+															} finally {
+																setUploadingLogo(false);
+																e.target.value = "";
+															}
+														}}
+													/>
+												</label>
+												{clinicForm.logo_url && (
+													<button
+														type="button"
+														disabled={uploadingLogo}
+														onClick={async () => {
+															setClinicForm((prev) => ({ ...prev, logo_url: "" }));
+															if (!clinicId) return;
+															try {
+																const { error } = await supabase
+																	.from("clinics")
+																	.update({ logo_url: null })
+																	.eq("id", clinicId);
+																if (error) throw error;
+																await refreshTenant?.();
+																showToast?.("Logo eliminado");
+															} catch (err) {
+																showToast?.(
+																	err?.message || "No se pudo eliminar",
+																	"error",
+																);
+															}
+														}}
+														className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+														<Trash2 size={14} /> Quitar
+													</button>
+												)}
+											</div>
+										) : (
+											<p className="text-xs text-slate-400">
+												Solo el administrador puede cambiar el logo.
+											</p>
+										)}
+									</div>
 								</div>
 							</div>
 							<div>
@@ -778,14 +739,20 @@ export const SettingsTab = ({
 							</div>
 						)}
 					</div>
+				</>
+			)}
 
-					<EmailIdentityCard
-						isAdmin={isAdmin}
+			{view === SETTINGS_VIEWS.integrations && (
+				<>
+					<IntegrationsSettings
+						user={user}
 						clinic={clinic}
 						clinicId={clinicId}
 						clinicForm={clinicForm}
 						setClinicForm={setClinicForm}
+						isAdmin={isAdmin}
 						hasCustomDomainModule={hasModule("custom_email_domain")}
+						hasWebLeadsModule={hasModule("web_leads")}
 						showToast={showToast}
 						refreshTenant={refreshTenant}
 						onSaveSender={handleUpdateClinic}
@@ -796,7 +763,6 @@ export const SettingsTab = ({
 
 			{view === SETTINGS_VIEWS.me && (
 				<>
-					{subHeader("Mis datos")}
 					<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
 						<p className="text-sm text-gray-500 mb-4">Datos personales (no se comparten con el resto del equipo).</p>
 
@@ -835,47 +801,36 @@ export const SettingsTab = ({
 							</div>
 
 							<div className="md:col-span-2">
-								<label className="text-xs font-bold text-gray-500 uppercase">Firma profesional (PDF consentimientos)</label>
-								<p className="text-[10px] text-gray-500 mt-0.5 mb-1">Solo en documentos que generes tú.</p>
-								<div className="flex gap-4 items-start mt-1">
-									<input
-										className="flex-1 p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500"
-										value={profileForm.consent_signature_url}
-										onChange={(e) =>
-											setProfileForm({ ...profileForm, consent_signature_url: e.target.value })
-										}
-										placeholder="https://... (o sube imagen abajo)"
-									/>
-									{profileForm.consent_signature_url && (
-										<div className="shrink-0 w-20 h-14 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
-											<img
-												src={profileForm.consent_signature_url}
-												alt="Firma"
-												className="w-full h-full object-contain"
-												onError={(e) => {
-													e.target.style.display = "none";
-												}}
-											/>
-										</div>
-									)}
-								</div>
-								<input
-									type="file"
-									accept="image/*"
-									className="mt-2 text-sm text-gray-600 file:mr-2 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-rose-50 file:text-rose-700 file:font-bold"
-									onChange={async (e) => {
-										const f = e.target.files?.[0];
-										if (!f || !user?.id) return;
-										try {
-											const url = await uploadProfileAsset(user.id, f, "signature");
-											if (url) {
-												setProfileForm({ ...profileForm, consent_signature_url: url });
-												showToast?.("Firma subida; pulsa Guardar para persistir");
-											}
-										} catch (err) {
-											showToast?.(err?.message || "Error al subir firma", "error");
-										}
-										e.target.value = "";
+								<SignatureComposer
+									userId={user?.id}
+									valueUrl={profileForm.consent_signature_url}
+									defaultName={[profileForm.name, profileForm.surname]
+										.filter(Boolean)
+										.join(" ")}
+									defaultSurname={profileForm.surname}
+									defaultTitle={
+										profileForm.collegiateNumber
+											? `Nº col. ${profileForm.collegiateNumber}`
+											: ""
+									}
+									showToast={showToast}
+									onChangeUrl={(url) =>
+										setProfileForm((prev) => ({
+											...prev,
+											consent_signature_url: url || "",
+										}))
+									}
+									onPersist={async (url) => {
+										if (!user?.id) return;
+										const { error } = await supabase
+											.from("profiles")
+											.upsert({
+												id: user.id,
+												consent_signature_url: url || null,
+												email: user.email,
+												updated_at: new Date(),
+											});
+										if (error) throw error;
 									}}
 								/>
 							</div>
@@ -896,7 +851,6 @@ export const SettingsTab = ({
 
 			{view === SETTINGS_VIEWS.team && isAdmin && (
 				<>
-					{subHeader("Perfiles del equipo")}
 					<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-4">
 						<h4 className="text-sm font-bold text-gray-700 mb-2 flex items-center gap-2">
 							<UserPlus size={16} className="text-rose-700" /> Añadir persona
@@ -998,7 +952,6 @@ export const SettingsTab = ({
 
 			{view === SETTINGS_VIEWS.security && (
 				<>
-					{subHeader("Cuenta y seguridad")}
 					<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-4">
 						<h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
 							<Lock size={20} className="text-rose-700" /> Acceso
@@ -1118,7 +1071,6 @@ export const SettingsTab = ({
 
 			{view === SETTINGS_VIEWS.audit && isAdmin && (
 				<>
-					{subHeader("Auditoría")}
 					<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
 						<p className="text-sm text-gray-500 mb-4">
 							Historial generado automáticamente al crear, modificar o eliminar registros en clientes,
@@ -1256,214 +1208,3 @@ export const SettingsTab = ({
 		</div>
 	);
 };
-
-const STATUS_LABEL = {
-	not_configured: "No configurado",
-	pending: "Pendiente DNS",
-	verified: "Verificado",
-	failed: "Error",
-};
-
-const EmailIdentityCard = ({
-	isAdmin,
-	clinic,
-	clinicId,
-	clinicForm,
-	setClinicForm,
-	hasCustomDomainModule,
-	showToast,
-	refreshTenant,
-	onSaveSender,
-	loading,
-}) => {
-	const [busy, setBusy] = useState(false);
-	const dnsRecords = Array.isArray(clinic?.email_dns_records) ? clinic.email_dns_records : [];
-	const status = clinic?.email_domain_status || "not_configured";
-
-	const copyText = async (text) => {
-		try {
-			await navigator.clipboard.writeText(text || "");
-			showToast?.("Copiado");
-		} catch {
-			showToast?.("No se pudo copiar", "error");
-		}
-	};
-
-	const invokeDomain = async (action) => {
-		if (!clinicId) return;
-		setBusy(true);
-		try {
-			const { data, error } = await supabase.functions.invoke("manage-email-domain", {
-				body: {
-					action,
-					clinic_id: clinicId,
-					domain: clinicForm.custom_email_domain?.trim().toLowerCase() || undefined,
-				},
-			});
-			if (error) throw error;
-			if (data?.error) throw new Error(data.error);
-			showToast?.(
-				action === "connect" ? "Dominio registrado en Resend" : "Estado actualizado",
-			);
-			await refreshTenant?.();
-		} catch (e) {
-			console.error(e);
-			showToast?.(e.message || "Error con Resend", "error");
-		} finally {
-			setBusy(false);
-		}
-	};
-
-	return (
-		<div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mt-5 space-y-4">
-			<div className="flex items-start gap-3">
-				<Globe className="text-violet-600 shrink-0 mt-0.5" size={22} />
-				<div>
-					<h3 className="font-black text-gray-900">Identidad de Correo y Dominio Propio</h3>
-					<p className="text-sm text-gray-500 mt-0.5">
-						Remitente visible y, si tu plan lo incluye, dominio propio verificado vía Resend.
-					</p>
-				</div>
-			</div>
-
-			{!hasCustomDomainModule && (
-				<div className="rounded-xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-violet-900">
-					Tus correos se envían desde BaseClínica (
-					<span className="font-semibold">hola@baseclinica.com</span>
-					). Para enviar desde tu propio dominio (ej.{" "}
-					<span className="font-semibold">info@tuclinica.com</span>), actualiza al Plan Clínica 360.
-				</div>
-			)}
-
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<div>
-					<label className="text-xs font-bold text-gray-500 uppercase">Nombre del remitente</label>
-					<input
-						disabled={!isAdmin}
-						className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500 disabled:bg-gray-100"
-						value={clinicForm.sender_email_name}
-						onChange={(e) =>
-							setClinicForm({ ...clinicForm, sender_email_name: e.target.value })
-						}
-						placeholder="Ej: Clínica Sol · recepción"
-					/>
-				</div>
-				<div>
-					<label className="text-xs font-bold text-gray-500 uppercase">Reply-To</label>
-					<input
-						disabled={!isAdmin}
-						type="email"
-						className="w-full p-3 border border-gray-200 rounded-xl mt-1 outline-none focus:border-rose-500 disabled:bg-gray-100"
-						value={clinicForm.sender_reply_to}
-						onChange={(e) =>
-							setClinicForm({ ...clinicForm, sender_reply_to: e.target.value })
-						}
-						placeholder="info@tuclinica.com"
-					/>
-				</div>
-			</div>
-
-			{hasCustomDomainModule && (
-				<div className="space-y-3 border-t border-gray-100 pt-4">
-					<div className="flex flex-wrap items-end gap-3">
-						<label className="flex-1 min-w-[200px] block space-y-1">
-							<span className="text-xs font-bold text-gray-500 uppercase">Dominio propio</span>
-							<input
-								disabled={!isAdmin}
-								className="w-full p-3 border border-gray-200 rounded-xl outline-none focus:border-rose-500 disabled:bg-gray-100"
-								value={clinicForm.custom_email_domain}
-								onChange={(e) =>
-									setClinicForm({ ...clinicForm, custom_email_domain: e.target.value })
-								}
-								placeholder="tuclinica.com"
-							/>
-						</label>
-						<span
-							className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black uppercase ${
-								status === "verified"
-									? "bg-emerald-50 text-emerald-700"
-									: status === "failed"
-										? "bg-rose-50 text-rose-700"
-										: status === "pending"
-											? "bg-amber-50 text-amber-800"
-											: "bg-gray-100 text-gray-600"
-							}`}>
-							{STATUS_LABEL[status] || status}
-						</span>
-					</div>
-					{isAdmin && (
-						<div className="flex flex-wrap gap-2">
-							<button
-								type="button"
-								disabled={busy || !clinicForm.custom_email_domain?.trim()}
-								onClick={() => invokeDomain("connect")}
-								className="inline-flex items-center gap-2 rounded-xl bg-violet-700 text-white px-4 py-2.5 text-sm font-bold disabled:opacity-50">
-								{busy ? <Loader2 size={16} className="animate-spin" /> : <Globe size={16} />}
-								Conectar Dominio
-							</button>
-							<button
-								type="button"
-								disabled={busy || !clinic?.resend_domain_id}
-								onClick={() => invokeDomain("verify")}
-								className="inline-flex items-center gap-2 rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-800 disabled:opacity-50">
-								Verificar Estado
-							</button>
-						</div>
-					)}
-					{dnsRecords.length > 0 && (
-						<div className="overflow-x-auto rounded-xl border border-gray-100">
-							<table className="w-full text-sm min-w-[560px]">
-								<thead>
-									<tr className="bg-gray-50 text-[10px] uppercase tracking-wider text-gray-400 text-left">
-										<th className="px-3 py-2">Tipo</th>
-										<th className="px-3 py-2">Nombre</th>
-										<th className="px-3 py-2">Valor</th>
-										<th className="px-3 py-2">Estado</th>
-										<th className="px-3 py-2" />
-									</tr>
-								</thead>
-								<tbody>
-									{dnsRecords.map((r, i) => (
-										<tr key={i} className="border-t border-gray-50">
-											<td className="px-3 py-2 font-mono text-xs">{r.type || r.record || "—"}</td>
-											<td className="px-3 py-2 font-mono text-xs break-all">{r.name || "—"}</td>
-											<td className="px-3 py-2 font-mono text-xs break-all max-w-[220px]">
-												{r.value || "—"}
-											</td>
-											<td className="px-3 py-2 text-xs">{r.status || "pending"}</td>
-											<td className="px-3 py-2 text-right">
-												<button
-													type="button"
-													onClick={() => copyText(r.value)}
-													className="inline-flex items-center gap-1 text-xs font-bold text-violet-700">
-													<Copy size={12} /> Copiar
-												</button>
-											</td>
-										</tr>
-									))}
-								</tbody>
-							</table>
-							<p className="text-[11px] text-gray-500 px-3 py-2">
-								Pega estos registros en tu DNS (Cloudflare, Google Domains, etc.) y pulsa Verificar.
-							</p>
-						</div>
-					)}
-				</div>
-			)}
-
-			{isAdmin && (
-				<div className="flex justify-end">
-					<button
-						type="button"
-						onClick={onSaveSender}
-						disabled={loading}
-						className="bg-gray-900 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-black inline-flex items-center gap-2 disabled:opacity-50">
-						{loading ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-						Guardar identidad de correo
-					</button>
-				</div>
-			)}
-		</div>
-	);
-};
-

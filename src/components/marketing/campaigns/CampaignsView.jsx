@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Loader2, Save, Send } from "lucide-react";
+import { Loader2, Plus, Save, Send } from "lucide-react";
 import { supabase } from "../../../services/supabase";
 import { useTenant } from "../../../context/TenantContext";
 import { useAuth } from "../../../context/AuthContext";
@@ -10,6 +10,9 @@ import { RecipientPicker } from "../shared/RecipientPicker";
 import { parseExtraEmails, processEmailQueue } from "../shared/emailQueue";
 import { EMAIL_TEMPLATE_VARS } from "../../../utils/emailBranding";
 import { StatusChip, statusToneFromLabel } from "../../ui/StatusChip";
+import { SidePanel } from "../../ui/SidePanel";
+import { EmptyState } from "../../ui/EmptyState";
+import { Megaphone } from "lucide-react";
 
 const emptyForm = () => ({
 	name: "",
@@ -27,6 +30,7 @@ export const CampaignsView = ({ showToast }) => {
 	const [loading, setLoading] = useState(true);
 	const [busy, setBusy] = useState(false);
 	const [form, setForm] = useState(emptyForm);
+	const [editorOpen, setEditorOpen] = useState(false);
 	const [sendTarget, setSendTarget] = useState(null);
 	const [selectedIds, setSelectedIds] = useState([]);
 	const [extraEmails, setExtraEmails] = useState("");
@@ -51,7 +55,7 @@ export const CampaignsView = ({ showToast }) => {
 				.select("*")
 				.eq("clinic_id", clinicId)
 				.order("created_at", { ascending: false })
-				.limit(40),
+				.limit(80),
 		]);
 		setTemplates(tpls || []);
 		setCampaigns(camps || []);
@@ -61,6 +65,11 @@ export const CampaignsView = ({ showToast }) => {
 	useEffect(() => {
 		load();
 	}, [clinicId]);
+
+	const openNew = () => {
+		setForm(emptyForm());
+		setEditorOpen(true);
+	};
 
 	const applyTemplate = (id) => {
 		const t = templates.find((x) => x.id === id);
@@ -105,6 +114,7 @@ export const CampaignsView = ({ showToast }) => {
 		else {
 			showToast?.("Borrador guardado");
 			setForm(emptyForm());
+			setEditorOpen(false);
 			await load();
 		}
 	};
@@ -147,28 +157,36 @@ export const CampaignsView = ({ showToast }) => {
 	if (loading) {
 		return (
 			<div className="p-10 flex justify-center">
-				<Loader2 className="animate-spin text-rose-700" />
+				<Loader2 className="animate-spin text-primary" />
 			</div>
 		);
 	}
 
 	return (
-		<div className="space-y-6">
-			<div>
-				<h2 className="text-xl font-black text-gray-900">Campañas</h2>
-				<p className="text-sm text-gray-500">
-					Redacta, guarda borrador y elige a quién enviar — nunca a toda la base
-					automáticamente.
-				</p>
+		<div className="space-y-5">
+			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+				<div>
+					<h2 className="text-xl font-bold text-fg tracking-tight">Campañas</h2>
+					<p className="text-sm text-muted mt-1">
+						Borradores y envíos · elige destinatarios, nunca a toda la base
+						automáticamente.
+					</p>
+				</div>
+				<button
+					type="button"
+					onClick={openNew}
+					className="btn-inverse inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold shrink-0">
+					<Plus size={16} /> Nueva campaña
+				</button>
 			</div>
 
 			{sendTarget && (
 				<div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
-					<div className="w-full max-w-lg rounded-2xl bg-white p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
+					<div className="w-full max-w-lg rounded-2xl bg-surface border border-edge p-5 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
 						<div>
-							<p className="text-lg font-black text-gray-900">Elegir destinatarios</p>
-							<p className="text-sm text-gray-500 mt-0.5">
-								Campaña: <span className="font-semibold">{sendTarget.name}</span>
+							<p className="text-lg font-bold text-fg">Elegir destinatarios</p>
+							<p className="text-sm text-muted mt-0.5">
+								Campaña: <span className="font-semibold text-fg">{sendTarget.name}</span>
 							</p>
 						</div>
 						<RecipientPicker
@@ -183,14 +201,14 @@ export const CampaignsView = ({ showToast }) => {
 								type="button"
 								disabled={busy}
 								onClick={() => setSendTarget(null)}
-								className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-700">
+								className="rounded-xl border border-edge px-4 py-2.5 text-sm font-bold text-fg">
 								Cancelar
 							</button>
 							<button
 								type="button"
 								disabled={busy}
 								onClick={confirmSend}
-								className="inline-flex items-center gap-2 rounded-xl bg-rose-700 text-white px-4 py-2.5 text-sm font-bold disabled:opacity-50">
+								className="inline-flex items-center gap-2 rounded-xl btn-inverse px-4 py-2.5 text-sm font-bold disabled:opacity-50">
 								{busy ? (
 									<Loader2 size={16} className="animate-spin" />
 								) : (
@@ -203,14 +221,87 @@ export const CampaignsView = ({ showToast }) => {
 				</div>
 			)}
 
-			<div className="grid lg:grid-cols-2 gap-6">
-				<div className="rounded-2xl border border-gray-100 bg-white p-5 space-y-3">
+			{campaigns.length === 0 ? (
+				<div className="rounded-2xl border border-edge bg-surface p-8">
+					<EmptyState
+						icon={Megaphone}
+						title="Aún no hay campañas"
+						description="Crea un borrador y elige a quién enviarlo cuando esté listo."
+						actionLabel="Nueva campaña"
+						onAction={openNew}
+					/>
+				</div>
+			) : (
+				<div className="rounded-2xl border border-edge bg-surface overflow-x-auto">
+					<table className="w-full text-sm min-w-[640px]">
+						<thead>
+							<tr className="border-b border-edge text-[10px] uppercase tracking-wider text-muted text-left bg-surface-2">
+								<th className="px-4 py-3">Campaña</th>
+								<th className="px-4 py-3">Asunto</th>
+								<th className="px-4 py-3">Estado</th>
+								<th className="px-4 py-3">Fecha</th>
+								<th className="px-4 py-3" />
+							</tr>
+						</thead>
+						<tbody className="divide-y divide-edge">
+							{campaigns.map((c) => (
+								<tr key={c.id} className="hover:bg-surface-2/50">
+									<td className="px-4 py-3 font-semibold text-fg">{c.name}</td>
+									<td className="px-4 py-3 text-muted">{c.subject}</td>
+									<td className="px-4 py-3">
+										<StatusChip tone={statusToneFromLabel(c.status)}>
+											{c.status}
+										</StatusChip>
+									</td>
+									<td className="px-4 py-3 text-muted tabular-nums whitespace-nowrap">
+										{c.sent_at || c.created_at
+											? new Date(c.sent_at || c.created_at).toLocaleDateString(
+													"es-ES",
+													{ day: "numeric", month: "short", year: "numeric" },
+												)
+											: "—"}
+									</td>
+									<td className="px-4 py-3 text-right">
+										{c.status === "draft" && (
+											<button
+												type="button"
+												disabled={busy}
+												onClick={() => openSend(c)}
+												className="inline-flex items-center gap-1 text-xs font-bold text-primary">
+												<Send size={14} /> Enviar…
+											</button>
+										)}
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			)}
+
+			<SidePanel
+				isOpen={editorOpen}
+				onClose={() => setEditorOpen(false)}
+				title="Nueva campaña"
+				subtitle="Redacta el mensaje · guardará como borrador"
+				size="lg"
+				footer={
+					<button
+						type="button"
+						disabled={busy}
+						onClick={saveCampaign}
+						className="w-full btn-primary py-3 inline-flex items-center justify-center gap-2 disabled:opacity-50">
+						{busy ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+						Guardar borrador
+					</button>
+				}>
+				<div className="space-y-4">
 					<label className="block space-y-1">
-						<span className="text-xs font-bold text-gray-500">Plantilla</span>
+						<span className="text-xs font-bold text-muted uppercase">Plantilla</span>
 						<select
 							value={form.template_id}
 							onChange={(e) => applyTemplate(e.target.value)}
-							className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold">
+							className="w-full rounded-xl border border-edge px-3 py-2.5 text-sm font-semibold bg-surface text-fg">
 							<option value="">— Sin plantilla —</option>
 							{(templates || []).map((t) => (
 								<option key={t.id} value={t.id}>
@@ -221,19 +312,21 @@ export const CampaignsView = ({ showToast }) => {
 						</select>
 					</label>
 					<label className="block space-y-1">
-						<span className="text-xs font-bold text-gray-500">Nombre interno</span>
+						<span className="text-xs font-bold text-muted uppercase">
+							Nombre interno
+						</span>
 						<input
 							value={form.name}
 							onChange={(e) => setForm({ ...form, name: e.target.value })}
-							className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
+							className="w-full rounded-xl border border-edge px-3 py-2.5 text-sm font-semibold bg-surface text-fg"
 						/>
 					</label>
 					<label className="block space-y-1">
-						<span className="text-xs font-bold text-gray-500">Asunto</span>
+						<span className="text-xs font-bold text-muted uppercase">Asunto</span>
 						<input
 							value={form.subject}
 							onChange={(e) => setForm({ ...form, subject: e.target.value })}
-							className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold"
+							className="w-full rounded-xl border border-edge px-3 py-2.5 text-sm font-semibold bg-surface text-fg"
 							placeholder="Hola {{nombre_paciente}}"
 						/>
 					</label>
@@ -243,7 +336,7 @@ export const CampaignsView = ({ showToast }) => {
 								key={v.key}
 								type="button"
 								onClick={() => insertVar(v.key)}
-								className="text-[11px] font-bold px-2 py-1 rounded-lg bg-violet-50 text-violet-800 hover:bg-violet-100">
+								className="text-[11px] font-bold px-2 py-1 rounded-lg border border-edge text-fg hover:bg-surface-2">
 								{`{{${v.key}}}`}
 							</button>
 						))}
@@ -252,68 +345,13 @@ export const CampaignsView = ({ showToast }) => {
 						value={form.body_html}
 						onChange={(html) => setForm({ ...form, body_html: html })}
 					/>
-					<button
-						type="button"
-						disabled={busy}
-						onClick={saveCampaign}
-						className="inline-flex items-center gap-2 rounded-xl bg-rose-700 text-white px-4 py-2.5 text-sm font-bold disabled:opacity-50">
-						{busy ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-						Guardar borrador
-					</button>
-				</div>
-
-				<div className="rounded-2xl border border-gray-100 bg-white p-5">
 					<EmailPreview
 						bodyHtml={form.body_html}
 						clinicName={clinicName}
 						sampleName={sampleName}
 					/>
 				</div>
-			</div>
-
-			<div className="rounded-2xl border border-gray-100 bg-white overflow-x-auto">
-				<table className="w-full text-sm min-w-[560px]">
-					<thead>
-						<tr className="border-b border-gray-100 text-[10px] uppercase tracking-wider text-gray-400 text-left">
-							<th className="px-4 py-3">Campaña</th>
-							<th className="px-4 py-3">Asunto</th>
-							<th className="px-4 py-3">Estado</th>
-							<th className="px-4 py-3" />
-						</tr>
-					</thead>
-					<tbody>
-						{campaigns.map((c) => (
-							<tr key={c.id} className="border-t border-gray-50">
-								<td className="px-4 py-3 font-bold text-gray-900">{c.name}</td>
-								<td className="px-4 py-3 text-gray-600">{c.subject}</td>
-								<td className="px-4 py-3">
-									<StatusChip tone={statusToneFromLabel(c.status)}>
-										{c.status}
-									</StatusChip>
-								</td>
-								<td className="px-4 py-3 text-right">
-									{c.status === "draft" && (
-										<button
-											type="button"
-											disabled={busy}
-											onClick={() => openSend(c)}
-											className="inline-flex items-center gap-1 text-xs font-bold text-rose-700">
-											<Send size={14} /> Elegir destinatarios…
-										</button>
-									)}
-								</td>
-							</tr>
-						))}
-						{campaigns.length === 0 && (
-							<tr>
-								<td colSpan={4} className="px-4 py-8 text-center text-gray-400">
-									Aún no hay campañas.
-								</td>
-							</tr>
-						)}
-					</tbody>
-				</table>
-			</div>
+			</SidePanel>
 		</div>
 	);
 };

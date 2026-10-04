@@ -11,7 +11,7 @@ import {
 	Copy,
 	Image as ImageIcon,
 } from "lucide-react";
-import { IVA_OPTIONS, formatCurrency, formatDate } from "../../utils/format";
+import { formatCurrency, formatDate } from "../../utils/format";
 import { calculateUnitCost } from "../../utils/calculations";
 import { ConfirmModal } from "../ui/ConfirmModal";
 import { ColumnPicker } from "../ui/ColumnPicker";
@@ -25,8 +25,13 @@ import {
 	FormSheetPrimary,
 	FormSheetPreview,
 	FormPreviewStat,
-	FormDetails,
 } from "../ui/FormSheet";
+import {
+	FormWizardProgress,
+	FormWizardNav,
+	FormWizardBatchHint,
+	useFormWizard,
+} from "../ui/FormWizard";
 import {
 	validateSpanishTaxId,
 	validateFile,
@@ -46,12 +51,17 @@ import {
 	useRestockMaterial,
 	useDeleteMaterial,
 	useUpdateBatch,
+	useInvoiceBatchPurchase,
+	useAdjustStock,
 } from "../../hooks/useInventoryMutations";
 import {
 	useInventoryBatches,
 	fetchBatchesForMaterial,
 } from "../../hooks/useInventoryBatches";
 import { useTenant } from "../../context/TenantContext";
+import { PurchaseCostFields } from "./PurchaseCostFields";
+import { InvoiceBatchPurchasePanel } from "./InvoiceBatchPurchasePanel";
+import { AdjustStockPanel } from "./AdjustStockPanel";
 
 function BatchEditRow({ batch, onSave, showToast }) {
 	const [lotNumber, setLotNumber] = useState(batch.lot_number);
@@ -109,6 +119,8 @@ export const InventoryTab = ({
 	const restockMaterial = useRestockMaterial(user?.id);
 	const deleteMaterial = useDeleteMaterial(user?.id);
 	const updateBatch = useUpdateBatch(user?.id);
+	const invoiceBatchPurchase = useInvoiceBatchPurchase(user?.id);
+	const adjustStock = useAdjustStock(user?.id);
 	const { batches } = useInventoryBatches(user?.id);
 	const { canDeleteOperational } = useTenant();
 
@@ -167,6 +179,8 @@ export const InventoryTab = ({
 	const [showDeleteModal, setShowDeleteModal] = useState(false);
 	const [itemToDelete, setItemToDelete] = useState(null);
 	const [editBatches, setEditBatches] = useState([]);
+	const [invoiceBatchOpen, setInvoiceBatchOpen] = useState(false);
+	const [adjustItem, setAdjustItem] = useState(null);
 
 	const [formData, setFormData] = useState({
 		name: "",
@@ -174,6 +188,7 @@ export const InventoryTab = ({
 		unit: "uds",
 		totalCost: "",
 		tax_rate: 21,
+		priceMode: "included",
 		min_stock: "5",
 		item_type: "material",
 		costPerUse: "",
@@ -185,6 +200,31 @@ export const InventoryTab = ({
 		supplier_nif: "",
 		invoice_number: "",
 	});
+
+	const useCreateWizard =
+		isModalOpen && !editingItem && formData.item_type === "material";
+
+	const createWizard = useFormWizard(
+		[
+			{ id: "item", label: "Ítem" },
+			{ id: "lote", label: "Lote" },
+			{
+				id: "fiscal",
+				label: "Fiscal",
+				when: !!formData.is_deductible,
+			},
+		],
+		{ open: useCreateWizard, resetKey: formData.item_type },
+	);
+
+	const restockWizard = useFormWizard(
+		[
+			{ id: "entrada", label: "Entrada" },
+			{ id: "fiscal", label: "Fiscal", when: !!restockData.is_deductible },
+			{ id: "adjunto", label: "Adjunto", when: !!restockData.is_deductible },
+		],
+		{ open: isRestockModalOpen, resetKey: restockItem?.id || "restock" },
+	);
 
 	const supplierDirectory = React.useMemo(
 		() => buildSupplierDirectory(entries),
@@ -237,6 +277,7 @@ export const InventoryTab = ({
 				unit: item.unit || "uds",
 				totalCost: calculatedTotal,
 				tax_rate: 21,
+				priceMode: "included",
 				min_stock: item.min_stock,
 				item_type: item.item_type || "material",
 				costPerUse: isMaquina ? String(item.unit_cost ?? "") : "",
@@ -258,6 +299,7 @@ export const InventoryTab = ({
 				unit: "uds",
 				totalCost: "",
 				tax_rate: 21,
+				priceMode: "included",
 				min_stock: "5",
 				item_type: "material",
 				costPerUse: "",
@@ -273,8 +315,90 @@ export const InventoryTab = ({
 		setIsModalOpen(true);
 	};
 
+	const validateInvCreateStep = () => {
+		if (!useCreateWizard) return true;
+		if (createWizard.stepId === "item") {
+			if (!formData.name?.trim()) {
+				showToast("Indica el nombre del material", "error");
+				return false;
+			}
+			if (!(Number(formData.stock) > 0)) {
+				showToast("El stock debe ser mayor a 0", "error");
+				return false;
+			}
+			if (formData.totalCost === "" || Number(formData.totalCost) < 0) {
+				showToast("Indica el coste total del lote", "error");
+				return false;
+			}
+			return true;
+		}
+		if (createWizard.stepId === "lote") {
+			if (!formData.purchaseDate?.trim()) {
+				showToast("La fecha de compra es obligatoria", "error");
+				return false;
+			}
+			if (!formData.lotNumber?.trim() || !formData.expiryDate) {
+				showToast("Lote y fecha de caducidad son obligatorios", "error");
+				return false;
+			}
+			return true;
+		}
+		if (createWizard.stepId === "fiscal") {
+			if (
+				!formData.provider_name?.trim() ||
+				!formData.supplier_nif?.trim() ||
+				!formData.invoice_number?.trim()
+			) {
+				showToast(
+					"Factura deducible: completa proveedor, NIF y nº de factura",
+					"error",
+				);
+				return false;
+			}
+			return true;
+		}
+		return true;
+	};
+
+	const validateInvRestockStep = () => {
+		if (restockWizard.stepId === "entrada") {
+			if (!(Number(restockData.quantity) > 0)) {
+				showToast("Indica la cantidad comprada", "error");
+				return false;
+			}
+			if (!restockData.lotNumber?.trim() || !restockData.expiryDate) {
+				showToast("Lote y caducidad son obligatorios", "error");
+				return false;
+			}
+			if (!restockData.purchaseDate?.trim()) {
+				showToast("La fecha de compra es obligatoria", "error");
+				return false;
+			}
+			return true;
+		}
+		if (restockWizard.stepId === "fiscal") {
+			if (
+				!restockData.provider_name?.trim() ||
+				!restockData.supplier_nif?.trim() ||
+				!restockData.invoice_number?.trim()
+			) {
+				showToast(
+					"Factura deducible: completa proveedor, NIF y nº de factura",
+					"error",
+				);
+				return false;
+			}
+			return true;
+		}
+		return true;
+	};
+
 	const handleSave = async (e) => {
 		e.preventDefault();
+		if (useCreateWizard && !createWizard.isLast) {
+			if (validateInvCreateStep()) createWizard.next();
+			return;
+		}
 		const isMaquina = formData.item_type === "maquina";
 		if (!isMaquina && Number(formData.stock) <= 0) {
 			showToast("El stock debe ser mayor a 0", "error");
@@ -305,7 +429,7 @@ export const InventoryTab = ({
 				await updateMaterial.mutateAsync({ editingItem, formData });
 				showToast(isMaquina ? "Máquina actualizada" : "Material actualizado");
 			} else {
-				await createMaterial.mutateAsync({ formData, taxCalc: {} });
+				await createMaterial.mutateAsync({ formData });
 				showToast(isMaquina ? "Máquina creada" : "Material creado y gasto registrado");
 			}
 			setIsModalOpen(false);
@@ -321,6 +445,7 @@ export const InventoryTab = ({
 			quantity: "",
 			totalCost: "",
 			taxRate: 21,
+			priceMode: "included",
 			lotNumber: "",
 			expiryDate: "",
 			purchaseDate: new Date().toISOString().split("T")[0],
@@ -459,6 +584,10 @@ export const InventoryTab = ({
 
 	const handleRestock = async (e) => {
 		e.preventDefault();
+		if (!restockWizard.isLast) {
+			if (validateInvRestockStep()) restockWizard.next();
+			return;
+		}
 
 		if (!restockData.purchaseDate?.trim()) {
 			showToast("La fecha de compra es obligatoria", "error");
@@ -565,12 +694,18 @@ export const InventoryTab = ({
 						onChange={(e) => setSearchTerm(e.target.value)}
 					/>
 				</div>
-				<div className="flex items-center gap-2 w-full md:w-auto">
+				<div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
 					<ColumnPicker
 						columns={INVENTORY_COLUMNS}
 						isVisible={isInvColVisible}
 						onToggle={toggleInvCol}
 					/>
+					<button
+						type="button"
+						onClick={() => setInvoiceBatchOpen(true)}
+						className="inline-flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-xs font-bold bg-warning text-on-inverse shadow-sm hover:brightness-110 transition-colors shrink-0">
+						Factura múltiple
+					</button>
 					<button
 						type="button"
 						onClick={() => openModal()}
@@ -683,7 +818,7 @@ export const InventoryTab = ({
 				)}
 			</div>
 
-			<div className="hidden md:block bg-white rounded-[2rem] shadow-sm border border-gray-100 overflow-hidden overflow-x-auto">
+			<div className="hidden md:block bg-surface rounded-[2rem] shadow-sm border border-edge overflow-hidden overflow-x-auto">
 				{filteredInventory.length === 0 ? (
 					<div className="p-3">
 						<EmptyState
@@ -697,7 +832,7 @@ export const InventoryTab = ({
 				) : (
 					<table className="w-full text-left border-collapse">
 						<thead>
-							<tr className="bg-slate-50/90 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wider">
+							<tr className="bg-surface-2 border-b border-edge text-xs font-medium text-muted uppercase tracking-wider">
 								{isInvColVisible("material") && <th className="p-3">Material</th>}
 								{isInvColVisible("stock") && <th className="p-3 text-center">Stock</th>}
 								{isInvColVisible("expiry") && (
@@ -711,19 +846,19 @@ export const InventoryTab = ({
 								)}
 							</tr>
 						</thead>
-						<tbody className="divide-y divide-gray-100">
+						<tbody className="divide-y divide-edge">
 							{filteredInventory.map((item) => (
 								<tr
 									key={item.id}
-									className="hover:bg-gray-50/30 transition-colors group">
+									className="hover:bg-surface-2/60 transition-colors group">
 									{isInvColVisible("material") && (
 									<td className="p-3">
 										<div className="flex items-center gap-4">
-											<div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-rose-50 group-hover:text-rose-700 transition-colors">
+											<div className="w-12 h-12 rounded-xl bg-surface-2 flex items-center justify-center text-muted group-hover:bg-primary-soft group-hover:text-primary transition-colors">
 												<Package size={24} />
 											</div>
 											<div>
-												<p className="font-bold text-gray-900 text-sm leading-tight">
+												<p className="font-bold text-fg text-sm leading-tight">
 													{item.name}
 													{(item.item_type || "material") === "maquina" && (
 														<StatusChip tone="warning" className="ml-2 align-middle">
@@ -731,7 +866,7 @@ export const InventoryTab = ({
 														</StatusChip>
 													)}
 												</p>
-												<p className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+												<p className="text-xs text-muted font-medium uppercase tracking-wider">
 													{(item.item_type || "material") === "maquina"
 														? "Coste por uso"
 														: item.unit_purchase || item.unit_consumption
@@ -788,10 +923,10 @@ export const InventoryTab = ({
 									)}
 									{isInvColVisible("cost") && (
 									<td className="p-3 text-center">
-										<span className="font-medium text-slate-900 text-sm tabular-nums">
+										<span className="font-medium text-fg text-sm tabular-nums">
 											{Number(item.unit_cost).toFixed(2)} €
 											{(item.item_type || "material") === "maquina" && (
-												<span className="text-xs font-normal text-slate-400">/sesión</span>
+												<span className="text-xs font-normal text-muted">/sesión</span>
 											)}
 										</span>
 									</td>
@@ -806,6 +941,15 @@ export const InventoryTab = ({
 													className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
 													title="Reponer Stock">
 													<Plus size={16} />
+												</button>
+											)}
+											{(item.item_type || "material") !== "maquina" && (
+												<button
+													type="button"
+													onClick={() => setAdjustItem(item)}
+													className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+													title="Ajustar stock">
+													Ajustar
 												</button>
 											)}
 											<button
@@ -843,24 +987,58 @@ export const InventoryTab = ({
 			isOpen={isModalOpen}
 			onClose={() => setIsModalOpen(false)}
 			title={editingItem ? "Editar stock" : "Nuevo ítem de inventario"}
-			subtitle="Material o máquina · coste y fiscalidad"
+			subtitle={
+				useCreateWizard && createWizard.steps[createWizard.stepIndex]
+					? `Paso ${createWizard.stepIndex + 1} de ${createWizard.steps.length}: ${createWizard.steps[createWizard.stepIndex].label}`
+					: "Material o máquina · coste y fiscalidad"
+			}
 			size="lg"
 			footer={
-				<LoadingButton
-					loading={loading}
-					type="submit"
-					form="inventory-item-form"
-					className="w-full btn-primary py-3">
-					{loading
-						? "Guardando..."
-						: formData.item_type === "maquina"
-							? "Guardar máquina"
-							: "Guardar material"}
-				</LoadingButton>
+				useCreateWizard ? (
+					<FormWizardNav
+						isFirst={createWizard.isFirst}
+						isLast={createWizard.isLast}
+						onBack={createWizard.back}
+						onNext={() => {
+							if (validateInvCreateStep()) createWizard.next();
+						}}
+						formId="inventory-item-form"
+						loading={loading}
+						submitLabel="Guardar material"
+					/>
+				) : (
+					<LoadingButton
+						loading={loading}
+						type="submit"
+						form="inventory-item-form"
+						className="w-full btn-primary py-3">
+						{loading
+							? "Guardando..."
+							: formData.item_type === "maquina"
+								? "Guardar máquina"
+								: "Guardar material"}
+					</LoadingButton>
+				)
 			}>
 			<form id="inventory-item-form" onSubmit={handleSave}>
+				{useCreateWizard && (
+					<>
+						<FormWizardBatchHint
+							onOpen={() => {
+								setIsModalOpen(false);
+								setInvoiceBatchOpen(true);
+							}}
+						/>
+						<FormWizardProgress
+							steps={createWizard.steps}
+							current={createWizard.stepIndex}
+						/>
+					</>
+				)}
 				<FormSheet>
 					<FormSheetPrimary>
+					{(!useCreateWizard || createWizard.stepId === "item") && (
+					<>
 					{!editingItem && (
 						<div>
 							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
@@ -959,71 +1137,59 @@ export const InventoryTab = ({
 							</select>
 						</div>
 					</div>
-					<div className="grid grid-cols-2 gap-4">
-						<div>
-							<label className="text-[11px] font-black text-rose-700 uppercase tracking-widest mb-2 block ml-1">
-								Coste Total (€)
-							</label>
-							<input
-								type="number"
-								step="0.01"
-								placeholder="Ej: 25.50"
-								className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold text-rose-700 placeholder-rose-300"
-								value={formData.totalCost}
-								onChange={(e) =>
-									setFormData({ ...formData, totalCost: e.target.value })
-								}
-							/>
-						</div>
-						{!editingItem && formData.is_deductible && (
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-									IVA (%)
-								</label>
-								<select
-									className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold appearance-none cursor-pointer"
-									value={formData.tax_rate}
+					{!editingItem && (
+						<>
+							<label className="flex items-start gap-3 cursor-pointer p-3 bg-slate-50 rounded-xl border border-slate-100">
+								<input
+									type="checkbox"
+									checked={formData.is_deductible}
 									onChange={(e) =>
 										setFormData({
 											...formData,
-											tax_rate: Number(e.target.value),
+											is_deductible: e.target.checked,
 										})
-									}>
-									{IVA_OPTIONS.map((v) => (
-										<option key={v} value={v}>
-											{v}%
-										</option>
-									))}
-								</select>
-							</div>
-						)}
-						<div className={!editingItem ? "col-span-2" : ""}>
-							<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-								Aviso Mínimo
+									}
+									className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-700"
+								/>
+								<span className="text-xs font-semibold text-gray-800">
+									Factura deducible (IVA en modelo 303)
+									<span className="block text-xs font-normal text-gray-500 mt-0.5">
+										Activa el desglose Base / IVA según si el importe va con IVA
+										incluido o aparte.
+									</span>
+								</span>
 							</label>
-							<input
-								type="number"
-								placeholder="Ej: 5"
-								className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
-								value={formData.min_stock}
-								onChange={(e) =>
-									setFormData({ ...formData, min_stock: e.target.value })
-								}
+							<PurchaseCostFields
+								totalCost={formData.totalCost}
+								onTotalCostChange={(v) => setFormData({ ...formData, totalCost: v })}
+								taxRate={formData.tax_rate}
+								onTaxRateChange={(v) => setFormData({ ...formData, tax_rate: v })}
+								priceMode={formData.priceMode}
+								onPriceModeChange={(v) => setFormData({ ...formData, priceMode: v })}
+								isDeductible={formData.is_deductible}
+								required
 							/>
-						</div>
+						</>
+					)}
+					<div>
+						<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+							Aviso Mínimo
+						</label>
+						<input
+							type="number"
+							placeholder="Ej: 5"
+							className="w-full p-4 bg-gray-50 rounded-2xl outline-none font-bold"
+							value={formData.min_stock}
+							onChange={(e) =>
+								setFormData({ ...formData, min_stock: e.target.value })
+							}
+						/>
 					</div>
 						</>
 					)}
+					</>
+					)}
 
-					{(editingItem && editBatches.length > 0) ||
-					(!editingItem &&
-						formData.item_type !== "maquina" &&
-						Number(formData.stock) > 0) ? (
-						<FormDetails
-							title="Más detalles"
-							defaultOpen={
-								!editingItem && Number(formData.stock) > 0
-							}>
 					{editingItem && editBatches.length > 0 && (
 						<div className="space-y-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
 							<p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">
@@ -1046,7 +1212,11 @@ export const InventoryTab = ({
 							))}
 						</div>
 					)}
-					{!editingItem && Number(formData.stock) > 0 && formData.item_type !== "maquina" && (
+
+					{(!useCreateWizard || createWizard.stepId === "lote") &&
+						!editingItem &&
+						Number(formData.stock) > 0 &&
+						formData.item_type !== "maquina" && (
 						<div className="space-y-4 p-4 bg-amber-50 rounded-2xl border border-amber-100">
 							<p className="text-xs font-bold text-amber-800 uppercase">
 								Trazabilidad y compra
@@ -1057,7 +1227,6 @@ export const InventoryTab = ({
 								</label>
 								<input
 									type="date"
-									required
 									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
 									value={formData.purchaseDate || ""}
 									onChange={(e) =>
@@ -1071,7 +1240,6 @@ export const InventoryTab = ({
 								</label>
 								<input
 									type="text"
-									required
 									placeholder="Ej: L2024-001"
 									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
 									value={formData.lotNumber}
@@ -1086,7 +1254,6 @@ export const InventoryTab = ({
 								</label>
 								<input
 									type="date"
-									required
 									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
 									value={formData.expiryDate}
 									onChange={(e) =>
@@ -1094,86 +1261,7 @@ export const InventoryTab = ({
 									}
 								/>
 							</div>
-							<label className="flex items-start gap-3 cursor-pointer p-3 bg-white rounded-xl border border-amber-200">
-								<input
-									type="checkbox"
-									checked={formData.is_deductible}
-									onChange={(e) =>
-										setFormData({
-											...formData,
-											is_deductible: e.target.checked,
-										})
-									}
-									className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-700"
-								/>
-								<span className="text-xs font-semibold text-gray-800">
-									Factura deducible (IVA en modelo 303)
-									<span className="block text-xs font-normal text-gray-500 mt-0.5">
-										Sin marcar: compra rápida (farmacia, etc.). Solo trazabilidad;
-										no se deduce IVA.
-									</span>
-								</span>
-							</label>
-							{formData.is_deductible ? (
-								<div className="space-y-4 pt-1 border-t border-amber-200">
-									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-											Proveedor (nombre) <span className="text-rose-700">*</span>
-										</label>
-										<input
-											type="text"
-											required
-											list="inventory-providers-list"
-											placeholder="Ej: Distribuciones Estéticas SL"
-											className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
-											value={formData.provider_name}
-											onChange={(e) =>
-												setFormData({
-													...formData,
-													provider_name: e.target.value,
-												})
-											}
-											onBlur={(e) =>
-												applyProviderFromName(e.target.value, setFormData)
-											}
-										/>
-									</div>
-									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-											NIF/CIF Proveedor <span className="text-rose-700">*</span>
-										</label>
-										<input
-											required
-											placeholder="Ej: B12345678"
-											className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
-											value={formData.supplier_nif}
-											onChange={(e) =>
-												setFormData({
-													...formData,
-													supplier_nif: e.target.value,
-												})
-											}
-										/>
-									</div>
-									<div>
-										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
-											Nº Factura Proveedor <span className="text-rose-700">*</span>
-										</label>
-										<input
-											required
-											placeholder="Ej: F2026-001"
-											className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
-											value={formData.invoice_number}
-											onChange={(e) =>
-												setFormData({
-													...formData,
-													invoice_number: e.target.value,
-												})
-											}
-										/>
-									</div>
-								</div>
-							) : (
+							{!formData.is_deductible && (
 								<div>
 									<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
 										Origen (opcional)
@@ -1199,10 +1287,128 @@ export const InventoryTab = ({
 									</p>
 								</div>
 							)}
+							{!useCreateWizard && formData.is_deductible && (
+								<div className="space-y-4 pt-1 border-t border-amber-200">
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+											Proveedor (nombre) <span className="text-rose-700">*</span>
+										</label>
+										<input
+											type="text"
+											list="inventory-providers-list"
+											placeholder="Ej: Distribuciones Estéticas SL"
+											className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
+											value={formData.provider_name}
+											onChange={(e) =>
+												setFormData({
+													...formData,
+													provider_name: e.target.value,
+												})
+											}
+											onBlur={(e) =>
+												applyProviderFromName(e.target.value, setFormData)
+											}
+										/>
+									</div>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+											NIF/CIF Proveedor <span className="text-rose-700">*</span>
+										</label>
+										<input
+											placeholder="Ej: B12345678"
+											className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
+											value={formData.supplier_nif}
+											onChange={(e) =>
+												setFormData({
+													...formData,
+													supplier_nif: e.target.value,
+												})
+											}
+										/>
+									</div>
+									<div>
+										<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+											Nº Factura Proveedor <span className="text-rose-700">*</span>
+										</label>
+										<input
+											placeholder="Ej: F2026-001"
+											className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-amber-200"
+											value={formData.invoice_number}
+											onChange={(e) =>
+												setFormData({
+													...formData,
+													invoice_number: e.target.value,
+												})
+											}
+										/>
+									</div>
+								</div>
+							)}
 						</div>
 					)}
-						</FormDetails>
-					) : null}
+
+					{useCreateWizard &&
+						createWizard.stepId === "fiscal" &&
+						formData.is_deductible && (
+						<div className="space-y-4 p-4 bg-blue-50 rounded-2xl border border-blue-100">
+							<p className="text-xs font-bold text-blue-900 uppercase">
+								Información fiscal
+							</p>
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+									Proveedor (nombre) <span className="text-rose-700">*</span>
+								</label>
+								<input
+									type="text"
+									list="inventory-providers-list"
+									placeholder="Ej: Distribuciones Estéticas SL"
+									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-blue-200"
+									value={formData.provider_name}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											provider_name: e.target.value,
+										})
+									}
+									onBlur={(e) =>
+										applyProviderFromName(e.target.value, setFormData)
+									}
+								/>
+							</div>
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+									NIF/CIF Proveedor <span className="text-rose-700">*</span>
+								</label>
+								<input
+									placeholder="Ej: B12345678"
+									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-blue-200"
+									value={formData.supplier_nif}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											supplier_nif: e.target.value,
+										})
+									}
+								/>
+							</div>
+							<div>
+								<label className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 block ml-1">
+									Nº Factura Proveedor <span className="text-rose-700">*</span>
+								</label>
+								<input
+									placeholder="Ej: F2026-001"
+									className="w-full p-4 bg-white rounded-2xl outline-none font-bold border border-blue-200"
+									value={formData.invoice_number}
+									onChange={(e) =>
+										setFormData({
+											...formData,
+											invoice_number: e.target.value,
+										})
+									}
+								/>
+							</div>
+						</div>
+					)}
 					</FormSheetPrimary>
 					<FormSheetPreview>
 						{formData.name ? (
@@ -1259,20 +1465,34 @@ export const InventoryTab = ({
 			isOpen={isRestockModalOpen}
 			onClose={() => setIsRestockModalOpen(false)}
 			title={restockItem ? `Reponer: ${restockItem.name}` : "Reponer stock"}
-			subtitle="Lote, coste y factura si aplica"
+			subtitle={
+				restockWizard.steps[restockWizard.stepIndex]
+					? `Paso ${restockWizard.stepIndex + 1} de ${restockWizard.steps.length}: ${restockWizard.steps[restockWizard.stepIndex].label}`
+					: "Lote, coste y factura si aplica"
+			}
 			size="lg"
 			footer={
-				<LoadingButton
+				<FormWizardNav
+					isFirst={restockWizard.isFirst}
+					isLast={restockWizard.isLast}
+					onBack={restockWizard.back}
+					onNext={() => {
+						if (validateInvRestockStep()) restockWizard.next();
+					}}
+					formId="inventory-restock-form"
 					loading={loading}
-					type="submit"
-					form="inventory-restock-form"
-					className="w-full btn-primary py-3">
-					{loading ? "Guardando..." : "Confirmar reposición"}
-				</LoadingButton>
+					submitLabel="Confirmar reposición"
+				/>
 			}>
 			<form id="inventory-restock-form" onSubmit={handleRestock}>
+				<FormWizardProgress
+					steps={restockWizard.steps}
+					current={restockWizard.stepIndex}
+				/>
 				<FormSheet>
 					<FormSheetPrimary>
+					{restockWizard.stepId === "entrada" && (
+					<>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
 							Cantidad comprada ({restockItem?.unit || "uds"})
@@ -1289,49 +1509,36 @@ export const InventoryTab = ({
 							}
 						/>
 					</div>
-					<div className={restockData.is_deductible ? "grid grid-cols-2 gap-4" : ""}>
-						<div>
-							<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-								Coste Total (€)
-							</label>
-							<input
-								type="number"
-								step="0.01"
-								required
-								placeholder="0.00"
-								className="w-full p-4 bg-gray-50 rounded-2xl font-bold text-xl outline-none"
-								value={restockData.totalCost}
-								onChange={(e) =>
-									setRestockData({
-										...restockData,
-										totalCost: e.target.value,
-									})
-								}
-							/>
-						</div>
-						{restockData.is_deductible && (
-							<div>
-								<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-									IVA (%)
-								</label>
-								<select
-									className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none appearance-none cursor-pointer"
-									value={restockData.taxRate}
-									onChange={(e) =>
-										setRestockData({
-											...restockData,
-											taxRate: Number(e.target.value),
-										})
-									}>
-									{IVA_OPTIONS.map((v) => (
-										<option key={v} value={v}>
-											{v}%
-										</option>
-									))}
-								</select>
-							</div>
-						)}
-					</div>
+					<label className="flex items-start gap-3 cursor-pointer p-3 bg-slate-50 rounded-xl border border-slate-100">
+						<input
+							type="checkbox"
+							checked={restockData.is_deductible}
+							onChange={(e) =>
+								setRestockData({
+									...restockData,
+									is_deductible: e.target.checked,
+								})
+							}
+							className="mt-0.5 w-5 h-5 rounded border-gray-300 text-rose-700"
+						/>
+						<span className="text-xs font-semibold text-gray-800">
+							Factura deducible (IVA)
+						</span>
+					</label>
+					<PurchaseCostFields
+						totalCost={restockData.totalCost}
+						onTotalCostChange={(v) =>
+							setRestockData({ ...restockData, totalCost: v })
+						}
+						taxRate={restockData.taxRate}
+						onTaxRateChange={(v) => setRestockData({ ...restockData, taxRate: v })}
+						priceMode={restockData.priceMode || "included"}
+						onPriceModeChange={(v) =>
+							setRestockData({ ...restockData, priceMode: v })
+						}
+						isDeductible={restockData.is_deductible}
+						required
+					/>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
 							Nº de Lote <span className="text-rose-700">*</span>
@@ -1354,7 +1561,6 @@ export const InventoryTab = ({
 							</label>
 							<input
 								type="date"
-								required
 								className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
 								value={restockData.purchaseDate || ""}
 								onChange={(e) =>
@@ -1368,7 +1574,6 @@ export const InventoryTab = ({
 							</label>
 							<input
 								type="date"
-								required
 								className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
 								value={restockData.expiryDate}
 								onChange={(e) =>
@@ -1377,27 +1582,35 @@ export const InventoryTab = ({
 							/>
 						</div>
 					</div>
-					<label className="flex items-start gap-3 cursor-pointer p-3 bg-gray-50 rounded-xl border border-gray-200">
-						<input
-							type="checkbox"
-							checked={restockData.is_deductible}
-							onChange={(e) =>
-								setRestockData({
-									...restockData,
-									is_deductible: e.target.checked,
-								})
-							}
-							className="mt-0.5 w-5 h-5 rounded border-gray-300 text-blue-600"
-						/>
-						<span className="text-xs font-semibold text-gray-800">
-							Factura deducible (IVA en modelo 303)
-							<span className="block text-xs font-normal text-gray-500 mt-0.5">
-								Desmarcado: compra sin factura completa (p. ej. farmacia).
-							</span>
-						</span>
-					</label>
-					<FormDetails title="Proveedor y adjunto" defaultOpen={!!restockData.is_deductible}>
-					{restockData.is_deductible ? (
+					{!restockData.is_deductible && (
+						<div>
+							<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
+								Origen (opcional)
+							</label>
+							<input
+								type="text"
+								list="inventory-providers-list"
+								placeholder={GENERIC_PURCHASE_PROVIDER}
+								className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
+								value={restockData.provider_name}
+								onChange={(e) =>
+									setRestockData({
+										...restockData,
+										provider_name: e.target.value,
+									})
+								}
+								onBlur={(e) =>
+									applyProviderFromName(e.target.value, setRestockData)
+								}
+							/>
+							<p className="text-xs text-gray-500 mt-2 ml-1">
+								Vacío → «{GENERIC_PURCHASE_PROVIDER}». El gasto no deduce IVA.
+							</p>
+						</div>
+					)}
+					</>
+					)}
+					{restockWizard.stepId === "fiscal" && restockData.is_deductible && (
 					<>
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
@@ -1405,7 +1618,6 @@ export const InventoryTab = ({
 						</label>
 						<input
 							type="text"
-							required
 							list="inventory-providers-list"
 							placeholder="Ej: Distribuciones Estéticas SL"
 							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
@@ -1491,7 +1703,6 @@ export const InventoryTab = ({
 							Nº Factura Proveedor <span className="text-rose-700">*</span>
 						</label>
 						<input
-							required
 							placeholder="Ej: F2026-001"
 							className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
 							value={restockData.invoice_number}
@@ -1503,34 +1714,7 @@ export const InventoryTab = ({
 							}
 						/>
 					</div>
-					</>
-					) : (
-						<div>
-							<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-								Origen (opcional)
-							</label>
-							<input
-								type="text"
-								list="inventory-providers-list"
-								placeholder={GENERIC_PURCHASE_PROVIDER}
-								className="w-full p-4 bg-gray-50 rounded-2xl font-bold outline-none"
-								value={restockData.provider_name}
-								onChange={(e) =>
-									setRestockData({
-										...restockData,
-										provider_name: e.target.value,
-									})
-								}
-								onBlur={(e) =>
-									applyProviderFromName(e.target.value, setRestockData)
-								}
-							/>
-							<p className="text-xs text-gray-500 mt-2 ml-1">
-								Vacío → «{GENERIC_PURCHASE_PROVIDER}». El gasto no deduce IVA.
-							</p>
-						</div>
-					)}
-					{restockData.is_deductible && restockDateWarning?.warning && (
+					{restockDateWarning?.warning && (
 						<div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
 							<p className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-2">
 								<AlertCircle size={14} />
@@ -1551,10 +1735,13 @@ export const InventoryTab = ({
 							)}
 						</div>
 					)}
-					{restockData.is_deductible && (
+					</>
+					)}
+					{restockWizard.stepId === "adjunto" && restockData.is_deductible && (
 					<div>
 						<label className="text-[11px] font-black text-gray-400 uppercase mb-2 block ml-1">
-							Factura (PDF/imagen) <span className="text-gray-400 font-normal">(opcional)</span>
+							Factura (PDF/imagen){" "}
+							<span className="text-gray-400 font-normal">(opcional)</span>
 							<span className="text-xs text-gray-400 ml-2 block mt-0.5">
 								Se compartirá con otros materiales de la misma factura si la subes
 							</span>
@@ -1592,7 +1779,6 @@ export const InventoryTab = ({
 						)}
 					</div>
 					)}
-					</FormDetails>
 					</FormSheetPrimary>
 					<FormSheetPreview>
 						{restockItem ? (
@@ -1633,9 +1819,52 @@ export const InventoryTab = ({
 			</form>
 		</SidePanel>
 
-		<ProviderDatalist
+			<ProviderDatalist
 				id="inventory-providers-list"
 				directory={supplierDirectory}
+			/>
+
+			<InvoiceBatchPurchasePanel
+				isOpen={invoiceBatchOpen}
+				onClose={() => setInvoiceBatchOpen(false)}
+				mode="inventory"
+				items={inventory}
+				supplierDirectory={supplierDirectory}
+				loading={invoiceBatchPurchase.isPending}
+				onSubmit={async ({ header, lines }) => {
+					try {
+						await invoiceBatchPurchase.mutateAsync({
+							header,
+							lines: lines.map((l) => ({
+								...l,
+								inventoryId: l.inventoryId || l.itemId || null,
+							})),
+						});
+						showToast(`Factura registrada (${lines.length} líneas)`);
+						await onRefresh();
+					} catch (err) {
+						showToast(err?.message || "Error al guardar factura", "error");
+						throw err;
+					}
+				}}
+			/>
+
+			<AdjustStockPanel
+				isOpen={!!adjustItem}
+				onClose={() => setAdjustItem(null)}
+				item={adjustItem}
+				batches={batches}
+				loading={adjustStock.isPending}
+				onSubmit={async (payload) => {
+					try {
+						await adjustStock.mutateAsync(payload);
+						showToast("Ajuste de stock registrado");
+						await onRefresh();
+					} catch (err) {
+						showToast(err?.message || "Error al ajustar stock", "error");
+						throw err;
+					}
+				}}
 			/>
 		</div>
 	);

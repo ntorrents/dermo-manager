@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronDown, ChevronUp, LogOut, Settings, User } from "lucide-react";
 
 export const UserMenu = ({
 	user,
@@ -8,10 +8,14 @@ export const UserMenu = ({
 	onLogout,
 	onOpenSettings,
 	compact = false,
+	placement = "bottom",
+	variant = "default",
 }) => {
 	const [open, setOpen] = useState(false);
 	const rootRef = useRef(null);
 	const menuRef = useRef(null);
+	const dropUp = placement === "top";
+	const sidebar = variant === "sidebar";
 
 	useEffect(() => {
 		function onDoc(e) {
@@ -34,7 +38,6 @@ export const UserMenu = ({
 			list[i]?.focus?.();
 		};
 
-		// foco inicial en primer ítem
 		requestAnimationFrame(() => focusAt(0));
 
 		const onKeyDown = (e) => {
@@ -79,19 +82,27 @@ export const UserMenu = ({
 		.filter(Boolean)
 		.join("")
 		.toUpperCase() || (user?.email?.[0] || "U").toUpperCase();
-	const logoUrl = clinic?.logo_url && /^https?:\/\//i.test(clinic.logo_url) ? clinic.logo_url : null;
+	const logoUrl =
+		clinic?.logo_url && /^https?:\/\//i.test(clinic.logo_url) ? clinic.logo_url : null;
+	const Chevron = dropUp ? ChevronUp : ChevronDown;
 
 	return (
-		<div className="relative shrink-0" ref={rootRef}>
+		<div className={`relative shrink-0 ${sidebar ? "w-full" : ""}`} ref={rootRef}>
 			<button
 				type="button"
 				onClick={() => setOpen((v) => !v)}
-				className={`flex items-center gap-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors ${
-					compact ? "p-1.5 pr-2" : "p-1.5 pr-3"
+				className={`flex items-center gap-2.5 rounded-xl border border-edge bg-surface hover:bg-surface-2 transition-colors ${
+					sidebar
+						? compact
+							? "w-full justify-center p-2"
+							: "w-full p-2 pr-2.5"
+						: compact
+							? "p-1.5 pr-2"
+							: "p-1.5 pr-3"
 				}`}
 				aria-expanded={open}
 				aria-haspopup="menu">
-				<span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-rose-50 text-rose-700 text-xs font-bold ring-1 ring-rose-100">
+				<span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary-soft text-primary text-xs font-bold ring-1 ring-edge">
 					{logoUrl ? (
 						<img src={logoUrl} alt="" className="h-full w-full object-cover" />
 					) : (
@@ -99,22 +110,36 @@ export const UserMenu = ({
 					)}
 				</span>
 				{!compact && (
-					<span className="hidden sm:block max-w-[140px] truncate text-left text-sm font-semibold text-gray-800">
-						{displayName}
+					<span className="min-w-0 flex-1 text-left">
+						<span className="block truncate text-sm font-semibold text-fg">
+							{displayName}
+						</span>
+						{sidebar && user?.email ? (
+							<span className="block truncate text-[11px] text-muted">
+								{user.email}
+							</span>
+						) : null}
 					</span>
 				)}
-				<ChevronDown size={16} className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+				{!compact && (
+					<Chevron
+						size={16}
+						className={`text-muted shrink-0 transition-transform ${open ? "opacity-100" : "opacity-70"}`}
+					/>
+				)}
 			</button>
 			{open && (
 				<div
 					ref={menuRef}
-					className="absolute right-0 top-full z-[60] mt-2 w-56 rounded-xl border border-gray-100 bg-white py-1 shadow-xl"
+					className={`absolute z-[60] w-56 rounded-xl border border-edge bg-surface py-1 shadow-xl ${
+						dropUp ? "bottom-full mb-2 left-0 right-0 w-full min-w-[14rem]" : "right-0 top-full mt-2"
+					}`}
 					role="menu">
-					<div className="border-b border-gray-100 px-4 py-3">
-						<p className="truncate text-sm font-bold text-gray-900">{displayName}</p>
-						<p className="truncate text-xs text-gray-500">{user?.email}</p>
+					<div className="border-b border-edge px-4 py-3">
+						<p className="truncate text-sm font-bold text-fg">{displayName}</p>
+						<p className="truncate text-xs text-muted">{user?.email}</p>
 						{clinic?.name && (
-							<p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wide text-rose-700">
+							<p className="mt-1 truncate text-[10px] font-bold uppercase tracking-wide text-primary">
 								{clinic.name}
 							</p>
 						)}
@@ -126,8 +151,8 @@ export const UserMenu = ({
 							setOpen(false);
 							onOpenSettings?.();
 						}}
-						className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-rose-50">
-						<Settings size={18} className="text-gray-400" /> Configuración
+						className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-fg hover:bg-primary-soft">
+						<Settings size={18} className="text-muted" /> Configuración
 					</button>
 					<button
 						type="button"
@@ -136,10 +161,10 @@ export const UserMenu = ({
 							setOpen(false);
 							onLogout?.();
 						}}
-						className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-rose-700 hover:bg-red-50">
+						className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-danger hover:bg-danger/10">
 						<LogOut size={18} /> Cerrar sesión
 					</button>
-					<div className="flex items-center gap-2 border-t border-gray-50 px-4 py-2 text-[10px] text-gray-400">
+					<div className="flex items-center gap-2 border-t border-edge px-4 py-2 text-[10px] text-muted">
 						<User size={12} /> Sesión activa
 					</div>
 				</div>

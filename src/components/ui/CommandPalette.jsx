@@ -23,9 +23,11 @@ const NAV_ACTIONS = [
 	{ id: "nav-clients", label: "Ir a Clientes", path: "/clientes", icon: Users, keywords: "pacientes" },
 	{ id: "nav-cal", label: "Ir a Agenda", path: "/agenda", icon: CalendarPlus, keywords: "citas calendar" },
 	{ id: "nav-inv", label: "Ir a Inventario", path: "/inventario", icon: Package, keywords: "stock" },
+	{ id: "nav-trace", label: "Ir a Trazabilidad", path: "/inventario/trazabilidad", icon: Package, keywords: "lotes consumo" },
 	{ id: "nav-fin", label: "Ir a Finanzas", path: "/finanzas/movimientos", icon: Receipt, keywords: "gastos ingresos" },
-	{ id: "nav-prod", label: "Ir a Productos", path: "/productos", icon: ShoppingBag, keywords: "catalogo venta" },
-	{ id: "nav-set", label: "Ir a Ajustes", path: "/ajustes", icon: Settings, keywords: "config apariencia" },
+	{ id: "nav-catalog", label: "Ir a Catálogo", path: "/catalogo", icon: ShoppingBag, keywords: "productos tratamientos bonos" },
+	{ id: "nav-docs", label: "Ir a Documentos", path: "/documentos", icon: Receipt, keywords: "presupuestos consentimientos" },
+	{ id: "nav-set", label: "Ir a Configuración", path: "/configuracion", icon: Settings, keywords: "ajustes apariencia" },
 ];
 
 const QUICK_ACTIONS = [
@@ -122,7 +124,7 @@ export const CommandPalette = ({
 				onQuickAction?.("new-expense");
 				navigate("/finanzas/movimientos?new=expense");
 			},
-			"act-appearance": () => navigate("/ajustes?section=appearance"),
+			"act-appearance": () => navigate("/configuracion?section=appearance"),
 		};
 
 		if (!q) {
@@ -226,11 +228,11 @@ export const CommandPalette = ({
 						label: t.name,
 						hint: t.price != null ? `${Number(t.price).toFixed(2)} €` : "",
 						icon: Receipt,
-						run: () => navigate("/tratamientos"),
+						run: () => navigate("/catalogo/tratamientos"),
 						_recent: {
 							id: `tr-${t.id}`,
 							label: t.name,
-							path: "/tratamientos",
+							path: "/catalogo/tratamientos",
 							hint: "Tratamiento",
 						},
 					});

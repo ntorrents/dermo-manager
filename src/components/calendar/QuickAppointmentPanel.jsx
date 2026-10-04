@@ -36,6 +36,7 @@ export const QuickAppointmentPanel = ({
 	treatments = [],
 	showToast,
 	onSaved,
+	initialClientId = "",
 }) => {
 	const { clinicId } = useTenant();
 	const [saving, setSaving] = useState(false);
@@ -58,11 +59,11 @@ export const QuickAppointmentPanel = ({
 			startTime: nextHalfHour(),
 			durationMin: 45,
 			status: "confirmed",
-			clientId: "",
+			clientId: initialClientId || "",
 			treatmentId: "",
 			notes: "",
 		});
-	}, [isOpen]);
+	}, [isOpen, initialClientId]);
 
 	const clientsActive = useMemo(
 		() => (clients || []).filter((c) => c.activo !== false),

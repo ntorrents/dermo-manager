@@ -651,58 +651,122 @@ export const TreatmentsTab = ({
 									</select>
 								</label>
 							</div>
-							<div className="space-y-2">
-								<div className="flex justify-between items-center">
-									<span className="erp-label mb-0">Materiales / receta</span>
-									<button
-										type="button"
-										onClick={() =>
+							<div className="space-y-3">
+								<span className="erp-label mb-0">Materiales / receta</span>
+								<label className="block space-y-1">
+									<span className="text-xs font-bold text-muted">
+										Añadir varios de golpe
+									</span>
+									<select
+										className="input-field text-sm"
+										value=""
+										onChange={(e) => {
+											const id = e.target.value;
+											if (!id) return;
+											if (formData.recipe.some((r) => r.materialId === id)) return;
 											setFormData({
 												...formData,
-												recipe: [...formData.recipe, { materialId: "", quantity: 1 }],
-											})
-										}
-										className="text-primary text-[11px] font-bold uppercase">
-										+ Añadir
-									</button>
-								</div>
-								{formData.recipe.map((item, index) => (
-									<div
-										key={index}
-										className="flex gap-2 items-center bg-surface-2 p-2 rounded-xl border border-edge">
-										<select
-											className="flex-1 bg-transparent text-xs font-bold outline-none text-fg"
-											value={item.materialId}
-											onChange={(e) => updateMaterial(index, "materialId", e.target.value)}
-											required>
-											<option value="">Seleccionar...</option>
-											{inventory.map((inv) => (
+												recipe: [
+													...formData.recipe,
+													{ materialId: id, quantity: 1 },
+												],
+											});
+										}}>
+										<option value="">— Seleccionar producto / máquina —</option>
+										{inventory
+											.filter(
+												(inv) =>
+													!formData.recipe.some((r) => r.materialId === inv.id),
+											)
+											.map((inv) => (
 												<option key={inv.id} value={inv.id}>
 													{inv.name}
-													{(inv.item_type || "material") === "maquina" ? " (Máquina)" : ""}
+													{(inv.item_type || "material") === "maquina"
+														? " (Máquina)"
+														: ` · stock ${inv.stock}`}
 												</option>
 											))}
-										</select>
-										<input
-											type="number"
-											className="w-16 p-2 bg-surface rounded-lg text-center font-bold text-primary text-sm border border-edge"
-											value={item.quantity}
-											onChange={(e) => updateMaterial(index, "quantity", e.target.value)}
-											required
-										/>
-										<button
-											type="button"
-											onClick={() =>
-												setFormData({
-													...formData,
-													recipe: formData.recipe.filter((_, i) => i !== index),
-												})
-											}
-											className="text-muted hover:text-danger">
-											<X size={16} />
-										</button>
+									</select>
+								</label>
+								{formData.recipe.length > 0 && (
+									<div className="rounded-xl border border-edge overflow-hidden">
+										<table className="w-full text-sm">
+											<thead>
+												<tr className="bg-surface-2 text-[10px] font-medium uppercase tracking-wider text-muted">
+													<th className="text-left p-2">Producto</th>
+													<th className="text-center p-2 w-20">Uds</th>
+													<th className="text-center p-2 w-16">Stock</th>
+													<th className="w-8" />
+												</tr>
+											</thead>
+											<tbody className="divide-y divide-edge">
+												{formData.recipe.map((item, index) => {
+													const inv = inventory.find((i) => i.id === item.materialId);
+													const stock = inv ? Number(inv.stock) : null;
+													const isMachine =
+														(inv?.item_type || "material") === "maquina";
+													const low =
+														!isMachine &&
+														stock != null &&
+														stock < Number(item.quantity || 0);
+													return (
+														<tr key={`${item.materialId}-${index}`}>
+															<td className="p-2 font-medium text-fg">
+																{inv?.name || "—"}
+															</td>
+															<td className="p-2">
+																<input
+																	type="number"
+																	step="0.1"
+																	min="0"
+																	className="w-full p-1.5 bg-surface rounded-lg text-center font-bold text-primary text-sm border border-edge"
+																	value={item.quantity}
+																	onChange={(e) =>
+																		updateMaterial(
+																			index,
+																			"quantity",
+																			e.target.value,
+																		)
+																	}
+																	required
+																/>
+															</td>
+															<td className="p-2 text-center tabular-nums text-xs">
+																{isMachine ? (
+																	<span className="text-muted">—</span>
+																) : (
+																	<span
+																		className={
+																			low
+																				? "text-rose-700 font-bold"
+																				: "text-muted"
+																		}>
+																		{stock}
+																	</span>
+																)}
+															</td>
+															<td className="p-2">
+																<button
+																	type="button"
+																	onClick={() =>
+																		setFormData({
+																			...formData,
+																			recipe: formData.recipe.filter(
+																				(_, i) => i !== index,
+																			),
+																		})
+																	}
+																	className="text-muted hover:text-danger">
+																	<X size={16} />
+																</button>
+															</td>
+														</tr>
+													);
+												})}
+											</tbody>
+										</table>
 									</div>
-								))}
+								)}
 							</div>
 							<FormDetails title="Más detalles" defaultOpen={!!formData.internal_notes}>
 								<label className="block space-y-1">

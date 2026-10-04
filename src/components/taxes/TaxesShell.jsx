@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { Routes, Route, Navigate, NavLink, useLocation } from "react-router-dom";
+import React, { useEffect, useMemo } from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useTenant } from "../../context/TenantContext";
 import { useTaxDeclarations } from "../../hooks/useTaxDeclarations";
@@ -12,18 +12,9 @@ import { Modelo390View, Modelo180View } from "./models/ModeloAnualViews";
 import { PreparacionRentaView } from "./renta/PreparacionRentaView";
 import { DeclaracionesResumenView } from "./declarations/DeclaracionesResumenView";
 import { AssetsTab } from "./AssetsTab";
+import { PageTabs } from "../ui/PageTabs";
 
-const SUBNAV = [
-	{ to: "/fiscalidad", end: true, label: "Hub" },
-	{ to: "/fiscalidad/trimestral/130", label: "130" },
-	{ to: "/fiscalidad/trimestral/303", label: "303" },
-	{ to: "/fiscalidad/trimestral/115", label: "115" },
-	{ to: "/fiscalidad/anual/390", label: "390" },
-	{ to: "/fiscalidad/anual/180", label: "180" },
-	{ to: "/fiscalidad/renta", label: "Renta" },
-	{ to: "/fiscalidad/declaraciones", label: "Declaraciones" },
-	{ to: "/fiscalidad/bienes-inversion", label: "Bienes" },
-];
+const TAX_BASE = "/finanzas/fiscalidad";
 
 export const TaxesShell = ({
 	entries = [],
@@ -31,10 +22,10 @@ export const TaxesShell = ({
 	user,
 	showToast = () => {},
 	onNavigateFinanceIssues,
+	basePath = TAX_BASE,
 }) => {
 	const { user: authUser } = useAuth();
 	const { clinicId } = useTenant();
-	const location = useLocation();
 	const { declarations, upsertDeclaration } = useTaxDeclarations(authUser?.id || user?.id);
 
 	useEffect(() => {
@@ -47,6 +38,21 @@ export const TaxesShell = ({
 		ensureTaxCalendarEvents(year - 1, clinicId, uid).catch(() => {});
 	}, [clinicId, authUser?.id, user?.id]);
 
+	const subnav = useMemo(
+		() => [
+			{ to: basePath, end: true, label: "Resumen" },
+			{ to: `${basePath}/trimestral/130`, label: "130" },
+			{ to: `${basePath}/trimestral/303`, label: "303" },
+			{ to: `${basePath}/trimestral/115`, label: "115" },
+			{ to: `${basePath}/anual/390`, label: "390" },
+			{ to: `${basePath}/anual/180`, label: "180" },
+			{ to: `${basePath}/renta`, label: "Renta" },
+			{ to: `${basePath}/declaraciones`, label: "Declaraciones" },
+			{ to: `${basePath}/bienes-inversion`, label: "Bienes" },
+		],
+		[basePath],
+	);
+
 	const common = {
 		entries,
 		clients,
@@ -55,28 +61,12 @@ export const TaxesShell = ({
 		showToast,
 		user: authUser || user,
 		onNavigateFinanceIssues,
+		taxBasePath: basePath,
 	};
 
 	return (
-		<div className="space-y-6">
-			<nav className="flex flex-nowrap gap-1.5 overflow-x-auto p-1 rounded-2xl bg-gray-100/80 -mx-1 px-1 [scrollbar-width:thin]">
-				{SUBNAV.map((item) => (
-					<NavLink
-						key={item.to}
-						to={item.to}
-						end={item.end}
-						className={({ isActive }) =>
-							`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition ${
-								isActive || (item.end && location.pathname === "/fiscalidad")
-									? "bg-white text-rose-700 shadow-sm"
-									: "text-gray-500 hover:text-gray-800"
-							}`
-						}>
-						{item.label}
-					</NavLink>
-				))}
-			</nav>
-
+		<div className="space-y-4">
+			<PageTabs items={subnav} />
 			<Routes>
 				<Route index element={<TaxHubView {...common} />} />
 				<Route path="trimestral/130" element={<Modelo130View {...common} />} />
@@ -87,7 +77,7 @@ export const TaxesShell = ({
 				<Route path="renta" element={<PreparacionRentaView {...common} />} />
 				<Route path="declaraciones" element={<DeclaracionesResumenView {...common} />} />
 				<Route path="bienes-inversion" element={<AssetsTab entries={entries} />} />
-				<Route path="*" element={<Navigate to="/fiscalidad" replace />} />
+				<Route path="*" element={<Navigate to={basePath} replace />} />
 			</Routes>
 		</div>
 	);

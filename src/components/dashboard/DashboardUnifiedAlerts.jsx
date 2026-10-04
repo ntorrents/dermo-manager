@@ -27,36 +27,38 @@ export const DashboardUnifiedAlerts = ({
 		<div
 			className={`p-4 rounded-2xl shadow-sm border h-auto min-h-0 ${
 				hasAlerts
-					? "bg-amber-50/80 border-amber-200"
-					: "bg-gray-50 border-gray-100"
+					? "bg-warning-bg border-warning-border"
+					: "bg-surface-2 border-edge"
 			}`}>
 			<div className="flex items-start gap-3 w-full">
 				<div
 					className={`p-2 rounded-lg shrink-0 ${
-						hasAlerts ? "bg-amber-100 text-amber-700" : "bg-gray-200 text-gray-500"
+						hasAlerts
+							? "bg-warning-bg text-warning-icon ring-1 ring-warning-border"
+							: "bg-surface text-muted ring-1 ring-edge"
 					}`}>
 					{hasAlerts ? <AlertTriangle size={22} /> : <CheckCircle size={22} />}
 				</div>
 				<div className="min-w-0 flex-1 space-y-3">
 					<h4
 						className={`font-bold text-sm ${
-							hasAlerts ? "text-amber-900" : "text-gray-600"
+							hasAlerts ? "text-warning-text" : "text-muted"
 						}`}>
 						Alertas del día
 					</h4>
 
 					{!hasAlerts && (
-						<p className="text-sm text-gray-500">
+						<p className="text-sm text-muted">
 							Sin citas hoy ni alertas de stock.
 						</p>
 					)}
 
 					{appointmentsToday.length > 0 && (
 						<div>
-							<p className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1 mb-1">
+							<p className="text-[10px] font-black text-muted uppercase tracking-widest flex items-center gap-1 mb-1">
 								<CalendarDays size={12} /> Citas hoy ({appointmentsToday.length})
 							</p>
-							<ul className="text-sm text-gray-800 space-y-0.5">
+							<ul className="text-sm text-fg space-y-0.5">
 								{appointmentsToday.slice(0, 4).map((a) => {
 									const time = a.start_at
 										? new Date(a.start_at).toLocaleTimeString("es-ES", {
@@ -76,7 +78,7 @@ export const DashboardUnifiedAlerts = ({
 								<button
 									type="button"
 									onClick={onGoCalendar}
-									className="text-xs font-bold text-rose-700 mt-1 hover:underline">
+									className="text-xs font-bold text-primary mt-1 hover:underline">
 									Ver agenda
 								</button>
 							)}
@@ -85,11 +87,11 @@ export const DashboardUnifiedAlerts = ({
 
 					{stockAlerts && (
 						<div>
-							<p className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1 mb-1">
+							<p className="text-[10px] font-black text-muted uppercase tracking-widest flex items-center gap-1 mb-1">
 								<Package size={12} /> Stock
 							</p>
 							{lowStockItems.length > 0 && (
-								<p className="text-sm text-red-800">
+								<p className="text-sm text-danger">
 									<strong>Bajo:</strong>{" "}
 									{lowStockItems.map((i) => i.name).join(", ")}
 									{lowStockItems.length > 3 &&
@@ -97,7 +99,7 @@ export const DashboardUnifiedAlerts = ({
 								</p>
 							)}
 							{expiredStockItems.length > 0 && (
-								<p className="text-sm text-red-800 mt-0.5">
+								<p className="text-sm text-danger mt-0.5">
 									<strong>Caducados:</strong>{" "}
 									{expiredStockItems.map((i) => i.name).join(", ")}
 									{expiredStockItems.length > 3 &&
@@ -108,7 +110,7 @@ export const DashboardUnifiedAlerts = ({
 								<button
 									type="button"
 									onClick={onGoInventory}
-									className="text-xs font-bold text-rose-700 mt-1 hover:underline">
+									className="text-xs font-bold text-primary mt-1 hover:underline">
 									Ver stock
 								</button>
 							)}

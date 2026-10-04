@@ -19,6 +19,18 @@
 	--color-danger: var(--ui-danger);
 	--color-success: var(--ui-success);
 	--color-warning: var(--ui-warning);
+	--color-warning-bg: var(--ui-warning-bg);
+	--color-warning-border: var(--ui-warning-border);
+	--color-warning-text: var(--ui-warning-text);
+	--color-warning-text-light: var(--ui-warning-text-light);
+	--color-warning-icon: var(--ui-warning-icon);
+	--color-danger-soft: var(--ui-danger-soft);
+	--color-income: var(--ui-income);
+	--color-income-hover: var(--ui-income-hover);
+	--color-income-soft: var(--ui-income-soft);
+	--color-expense: var(--ui-expense);
+	--color-expense-hover: var(--ui-expense-hover);
+	--color-expense-soft: var(--ui-expense-soft);
 
 	--font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
 	--font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -42,9 +54,36 @@ html[data-theme="clinic-teal"] {
 	--ui-border: #e2e8f0;
 	--ui-fg: #0f172a;
 	--ui-muted: #64748b;
+	--ui-warning-bg: #fffbeb;
+	--ui-warning-border: #fde68a;
+	--ui-warning-text: #92400e;
+	--ui-warning-text-light: #b45309;
+	--ui-warning-icon: #d97706;
+	--ui-danger-soft: #fff1f2;
+	--cal-pending-bg: #f1f5f9;
+	--cal-pending-border: #94a3b8;
+	--cal-pending-text: #334155;
+	--cal-confirmed-bg: #dbeafe;
+	--cal-confirmed-border: #3b82f6;
+	--cal-confirmed-text: #1e3a8a;
+	--cal-done-bg: #dcfce7;
+	--cal-done-border: #22c55e;
+	--cal-done-text: #14532d;
+	--cal-cancelled-bg: #fee2e2;
+	--cal-cancelled-border: #f87171;
+	--cal-cancelled-text: #7f1d1d;
+	--cal-task-bg: #f3e8ff;
+	--cal-task-border: #a855f7;
+	--cal-task-text: #581c87;
 	--ui-danger: #e11d48;
-	--ui-success: #059669;
+	--ui-success: #0f766e;
 	--ui-warning: #d97706;
+	--ui-income: #0f766e;
+	--ui-income-hover: #0d9488;
+	--ui-income-soft: #ccfbf1;
+	--ui-expense: #9f1239;
+	--ui-expense-hover: #881337;
+	--ui-expense-soft: #ffe4e6;
 	--ui-inverse: #0f172a;
 	--ui-on-inverse: #f8fafc;
 	--ui-surface-dark: #0f172a;
@@ -66,8 +105,14 @@ html[data-theme="clinic-rose"] {
 	--ui-fg: #0f172a;
 	--ui-muted: #64748b;
 	--ui-danger: #e11d48;
-	--ui-success: #059669;
+	--ui-success: #0f766e;
 	--ui-warning: #d97706;
+	--ui-income: #0f766e;
+	--ui-income-hover: #0d9488;
+	--ui-income-soft: #ccfbf1;
+	--ui-expense: #9f1239;
+	--ui-expense-hover: #881337;
+	--ui-expense-soft: #ffe4e6;
 	--ui-inverse: #0f172a;
 	--ui-on-inverse: #f8fafc;
 	--ui-surface-dark: #0f172a;
@@ -89,8 +134,14 @@ html[data-theme="graphite-indigo"] {
 	--ui-fg: #0f172a;
 	--ui-muted: #64748b;
 	--ui-danger: #e11d48;
-	--ui-success: #059669;
+	--ui-success: #3730a3;
 	--ui-warning: #d97706;
+	--ui-income: #3730a3;
+	--ui-income-hover: #312e81;
+	--ui-income-soft: #e0e7ff;
+	--ui-expense: #9f1239;
+	--ui-expense-hover: #881337;
+	--ui-expense-soft: #ffe4e6;
 	--ui-inverse: #1e1b4b;
 	--ui-on-inverse: #eef2ff;
 	--ui-surface-dark: #1e1b4b;
@@ -103,7 +154,7 @@ html[data-theme="graphite-indigo"] {
 html[data-theme="sand-olive"] {
 	--ui-primary: #3f6212;
 	--ui-primary-hover: #365314;
-	--ui-primary-soft: #ecfccb;
+	--ui-primary-soft: #e7e5e4;
 	--ui-on-primary: #ffffff;
 	--ui-bg: #f7f5f0;
 	--ui-surface: #fffcfa;
@@ -111,15 +162,23 @@ html[data-theme="sand-olive"] {
 	--ui-border: #e7e0d4;
 	--ui-fg: #1c1917;
 	--ui-muted: #57534e;
-	--ui-danger: #be123c;
-	--ui-success: #15803d;
+	--ui-danger: #9f1239;
+	/* Sin verde chillón: éxito = oliva apagada del tema */
+	--ui-success: #3f6212;
 	--ui-warning: #b45309;
+	/* Ingreso = tinta piedra; gasto = terracota (contraste claro) */
+	--ui-income: #292524;
+	--ui-income-hover: #1c1917;
+	--ui-income-soft: #e7e5e4;
+	--ui-expense: #9a3412;
+	--ui-expense-hover: #7c2d12;
+	--ui-expense-soft: #ffedd5;
 	--ui-inverse: #1c1917;
 	--ui-on-inverse: #fafaf9;
 	--ui-surface-dark: #1c1917;
 	--ui-on-surface-dark: #fafaf9;
-	--ui-sidebar-active-bg: #ecfccb;
-	--ui-sidebar-active-fg: #365314;
+	--ui-sidebar-active-bg: #e7e5e4;
+	--ui-sidebar-active-fg: #292524;
 	--ui-topbar-bg: rgba(255, 252, 250, 0.9);
 }
 
@@ -131,19 +190,46 @@ html[data-theme="midnight"] {
 	--ui-bg: #0b1220;
 	--ui-surface: #151e2e;
 	--ui-surface-2: #1c2740;
-	--ui-border: #243044;
-	--ui-fg: #e2e8f0;
-	--ui-muted: #94a3b8;
+	--ui-border: #334155;
+	--ui-fg: #f8fafc;
+	--ui-muted: #cbd5e1;
 	--ui-danger: #fb7185;
-	--ui-success: #34d399;
+	--ui-success: #2dd4bf;
 	--ui-warning: #fbbf24;
-	--ui-inverse: #e2e8f0;
+	--ui-warning-bg: rgba(251, 191, 36, 0.12);
+	--ui-warning-border: rgba(251, 191, 36, 0.35);
+	--ui-warning-text: #fde68a;
+	--ui-warning-text-light: #fcd34d;
+	--ui-warning-icon: #fbbf24;
+	--ui-danger-soft: rgba(251, 113, 133, 0.14);
+	--ui-income: #2dd4bf;
+	--ui-income-hover: #5eead4;
+	--ui-income-soft: rgba(45, 212, 191, 0.14);
+	--ui-expense: #fb7185;
+	--ui-expense-hover: #fda4af;
+	--ui-expense-soft: rgba(251, 113, 133, 0.14);
+	--ui-inverse: #f8fafc;
 	--ui-on-inverse: #0b1220;
 	--ui-surface-dark: #0f172a;
-	--ui-on-surface-dark: #e2e8f0;
-	--ui-sidebar-active-bg: rgba(45, 212, 191, 0.16);
-	--ui-sidebar-active-fg: #99f6e4;
-	--ui-topbar-bg: rgba(21, 30, 46, 0.9);
+	--ui-on-surface-dark: #f8fafc;
+	--ui-sidebar-active-bg: rgba(45, 212, 191, 0.22);
+	--ui-sidebar-active-fg: #ccfbf1;
+	--ui-topbar-bg: rgba(21, 30, 46, 0.92);
+	--cal-pending-bg: rgba(148, 163, 184, 0.18);
+	--cal-pending-border: #94a3b8;
+	--cal-pending-text: #e2e8f0;
+	--cal-confirmed-bg: rgba(59, 130, 246, 0.22);
+	--cal-confirmed-border: #60a5fa;
+	--cal-confirmed-text: #dbeafe;
+	--cal-done-bg: rgba(34, 197, 94, 0.2);
+	--cal-done-border: #4ade80;
+	--cal-done-text: #bbf7d0;
+	--cal-cancelled-bg: rgba(248, 113, 113, 0.18);
+	--cal-cancelled-border: #f87171;
+	--cal-cancelled-text: #fecaca;
+	--cal-task-bg: rgba(168, 85, 247, 0.2);
+	--cal-task-border: #c084fc;
+	--cal-task-text: #e9d5ff;
 }
 
 html[data-theme="obsidian"] {
@@ -154,19 +240,46 @@ html[data-theme="obsidian"] {
 	--ui-bg: #09090b;
 	--ui-surface: #18181b;
 	--ui-surface-2: #27272a;
-	--ui-border: #3f3f46;
-	--ui-fg: #f4f4f5;
-	--ui-muted: #a1a1aa;
+	--ui-border: #52525b;
+	--ui-fg: #fafafa;
+	--ui-muted: #d4d4d8;
 	--ui-danger: #fb7185;
-	--ui-success: #34d399;
+	--ui-success: #a5b4fc;
 	--ui-warning: #fbbf24;
-	--ui-inverse: #f4f4f5;
+	--ui-warning-bg: rgba(251, 191, 36, 0.12);
+	--ui-warning-border: rgba(251, 191, 36, 0.35);
+	--ui-warning-text: #fde68a;
+	--ui-warning-text-light: #fcd34d;
+	--ui-warning-icon: #fbbf24;
+	--ui-danger-soft: rgba(251, 113, 133, 0.14);
+	--ui-income: #a5b4fc;
+	--ui-income-hover: #c7d2fe;
+	--ui-income-soft: rgba(165, 180, 252, 0.14);
+	--ui-expense: #fb7185;
+	--ui-expense-hover: #fda4af;
+	--ui-expense-soft: rgba(251, 113, 133, 0.14);
+	--ui-inverse: #fafafa;
 	--ui-on-inverse: #09090b;
 	--ui-surface-dark: #09090b;
-	--ui-on-surface-dark: #f4f4f5;
-	--ui-sidebar-active-bg: rgba(165, 180, 252, 0.16);
-	--ui-sidebar-active-fg: #c7d2fe;
-	--ui-topbar-bg: rgba(24, 24, 27, 0.92);
+	--ui-on-surface-dark: #fafafa;
+	--ui-sidebar-active-bg: rgba(165, 180, 252, 0.22);
+	--ui-sidebar-active-fg: #e0e7ff;
+	--ui-topbar-bg: rgba(24, 24, 27, 0.94);
+	--cal-pending-bg: rgba(161, 161, 170, 0.2);
+	--cal-pending-border: #a1a1aa;
+	--cal-pending-text: #f4f4f5;
+	--cal-confirmed-bg: rgba(129, 140, 248, 0.22);
+	--cal-confirmed-border: #a5b4fc;
+	--cal-confirmed-text: #e0e7ff;
+	--cal-done-bg: rgba(52, 211, 153, 0.18);
+	--cal-done-border: #34d399;
+	--cal-done-text: #a7f3d0;
+	--cal-cancelled-bg: rgba(248, 113, 113, 0.18);
+	--cal-cancelled-border: #f87171;
+	--cal-cancelled-text: #fecaca;
+	--cal-task-bg: rgba(167, 139, 250, 0.22);
+	--cal-task-border: #c4b5fd;
+	--cal-task-text: #ede9fe;
 }
 
 /* Densidad */
@@ -198,7 +311,9 @@ html[data-theme="obsidian"] .bg-white,
 html[data-theme="midnight"] .bg-white\/90,
 html[data-theme="obsidian"] .bg-white\/90,
 html[data-theme="midnight"] .bg-white\/80,
-html[data-theme="obsidian"] .bg-white\/80 {
+html[data-theme="obsidian"] .bg-white\/80,
+html[data-theme="midnight"] .bg-white\/70,
+html[data-theme="obsidian"] .bg-white\/70 {
 	background-color: var(--ui-surface) !important;
 }
 
@@ -208,11 +323,63 @@ html[data-theme="midnight"] .bg-gray-50,
 html[data-theme="obsidian"] .bg-gray-50,
 html[data-theme="midnight"] .bg-slate-50\/50,
 html[data-theme="obsidian"] .bg-slate-50\/50,
+html[data-theme="midnight"] .bg-slate-50\/80,
+html[data-theme="obsidian"] .bg-slate-50\/80,
+html[data-theme="midnight"] .bg-slate-50\/90,
+html[data-theme="obsidian"] .bg-slate-50\/90,
+html[data-theme="midnight"] .bg-slate-50\/95,
+html[data-theme="obsidian"] .bg-slate-50\/95,
 html[data-theme="midnight"] .bg-gray-50\/50,
 html[data-theme="obsidian"] .bg-gray-50\/50,
 html[data-theme="midnight"] .bg-gray-50\/70,
-html[data-theme="obsidian"] .bg-gray-50\/70 {
+html[data-theme="obsidian"] .bg-gray-50\/70,
+html[data-theme="midnight"] .bg-slate-100,
+html[data-theme="obsidian"] .bg-slate-100,
+html[data-theme="midnight"] .bg-gray-100,
+html[data-theme="obsidian"] .bg-gray-100 {
 	background-color: var(--ui-surface-2) !important;
+}
+
+/* Soft “pastel” claros → tintes oscuros (evita blanco sobre beige) */
+html[data-theme="midnight"] .bg-amber-50,
+html[data-theme="obsidian"] .bg-amber-50,
+html[data-theme="midnight"] .bg-amber-50\/70,
+html[data-theme="obsidian"] .bg-amber-50\/70,
+html[data-theme="midnight"] .bg-amber-50\/80,
+html[data-theme="obsidian"] .bg-amber-50\/80,
+html[data-theme="midnight"] .bg-amber-50\/50,
+html[data-theme="obsidian"] .bg-amber-50\/50,
+html[data-theme="midnight"] .bg-amber-100,
+html[data-theme="obsidian"] .bg-amber-100 {
+	background-color: var(--ui-warning-bg) !important;
+}
+html[data-theme="midnight"] .bg-violet-50,
+html[data-theme="obsidian"] .bg-violet-50,
+html[data-theme="midnight"] .bg-violet-100,
+html[data-theme="obsidian"] .bg-violet-100,
+html[data-theme="midnight"] .bg-purple-50,
+html[data-theme="obsidian"] .bg-purple-50 {
+	background-color: rgba(167, 139, 250, 0.14) !important;
+}
+html[data-theme="midnight"] .bg-emerald-50,
+html[data-theme="obsidian"] .bg-emerald-50,
+html[data-theme="midnight"] .bg-green-50,
+html[data-theme="obsidian"] .bg-green-50 {
+	background-color: rgba(45, 212, 191, 0.12) !important;
+}
+html[data-theme="midnight"] .bg-sky-50,
+html[data-theme="obsidian"] .bg-sky-50,
+html[data-theme="midnight"] .bg-sky-50\/40,
+html[data-theme="obsidian"] .bg-sky-50\/40,
+html[data-theme="midnight"] .bg-blue-50,
+html[data-theme="obsidian"] .bg-blue-50 {
+	background-color: color-mix(in srgb, var(--ui-primary) 14%, transparent) !important;
+}
+html[data-theme="midnight"] .bg-rose-50,
+html[data-theme="obsidian"] .bg-rose-50,
+html[data-theme="midnight"] .bg-red-50,
+html[data-theme="obsidian"] .bg-red-50 {
+	background-color: rgba(251, 113, 133, 0.12) !important;
 }
 
 html[data-theme="midnight"] .text-gray-900,
@@ -226,8 +393,40 @@ html[data-theme="obsidian"] .text-slate-800,
 html[data-theme="midnight"] .text-slate-700,
 html[data-theme="obsidian"] .text-slate-700,
 html[data-theme="midnight"] .text-gray-700,
-html[data-theme="obsidian"] .text-gray-700 {
+html[data-theme="obsidian"] .text-gray-700,
+html[data-theme="midnight"] .text-amber-900,
+html[data-theme="obsidian"] .text-amber-900,
+html[data-theme="midnight"] .text-amber-800,
+html[data-theme="obsidian"] .text-amber-800,
+html[data-theme="midnight"] .text-amber-700,
+html[data-theme="obsidian"] .text-amber-700 {
 	color: var(--ui-fg) !important;
+}
+
+html[data-theme="midnight"] .text-amber-800\/80,
+html[data-theme="obsidian"] .text-amber-800\/80,
+html[data-theme="midnight"] .text-amber-900\/80,
+html[data-theme="obsidian"] .text-amber-900\/80 {
+	color: #fde68a !important;
+}
+
+html[data-theme="midnight"] .text-violet-800,
+html[data-theme="obsidian"] .text-violet-800,
+html[data-theme="midnight"] .text-violet-700,
+html[data-theme="obsidian"] .text-violet-700 {
+	color: #ddd6fe !important;
+}
+html[data-theme="midnight"] .text-emerald-800,
+html[data-theme="obsidian"] .text-emerald-800,
+html[data-theme="midnight"] .text-emerald-700,
+html[data-theme="obsidian"] .text-emerald-700 {
+	color: #99f6e4 !important;
+}
+html[data-theme="midnight"] .text-rose-800,
+html[data-theme="obsidian"] .text-rose-800,
+html[data-theme="midnight"] .text-red-700,
+html[data-theme="obsidian"] .text-red-700 {
+	color: #fda4af !important;
 }
 
 html[data-theme="midnight"] .text-gray-500,
@@ -241,7 +440,9 @@ html[data-theme="obsidian"] .text-slate-600,
 html[data-theme="midnight"] .text-gray-400,
 html[data-theme="obsidian"] .text-gray-400,
 html[data-theme="midnight"] .text-slate-400,
-html[data-theme="obsidian"] .text-slate-400 {
+html[data-theme="obsidian"] .text-slate-400,
+html[data-theme="midnight"] .text-slate-300,
+html[data-theme="obsidian"] .text-slate-300 {
 	color: var(--ui-muted) !important;
 }
 
@@ -254,14 +455,26 @@ html[data-theme="obsidian"] .border-slate-100,
 html[data-theme="midnight"] .border-slate-200,
 html[data-theme="obsidian"] .border-slate-200,
 html[data-theme="midnight"] .border-gray-50,
-html[data-theme="obsidian"] .border-gray-50 {
+html[data-theme="obsidian"] .border-gray-50,
+html[data-theme="midnight"] .border-amber-200,
+html[data-theme="obsidian"] .border-amber-200,
+html[data-theme="midnight"] .border-amber-200\/80,
+html[data-theme="obsidian"] .border-amber-200\/80,
+html[data-theme="midnight"] .border-violet-100,
+html[data-theme="obsidian"] .border-violet-100,
+html[data-theme="midnight"] .border-emerald-100,
+html[data-theme="obsidian"] .border-emerald-100,
+html[data-theme="midnight"] .border-emerald-200,
+html[data-theme="obsidian"] .border-emerald-200 {
 	border-color: var(--ui-border) !important;
 }
 
 html[data-theme="midnight"] .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
 html[data-theme="obsidian"] .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
 html[data-theme="midnight"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
-html[data-theme="obsidian"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+html[data-theme="obsidian"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+html[data-theme="midnight"] .divide-x > :not([hidden]) ~ :not([hidden]),
+html[data-theme="obsidian"] .divide-x > :not([hidden]) ~ :not([hidden]) {
 	border-color: var(--ui-border) !important;
 }
 
@@ -270,8 +483,46 @@ html[data-theme="obsidian"] .hover\:bg-gray-50:hover,
 html[data-theme="midnight"] .hover\:bg-slate-50:hover,
 html[data-theme="obsidian"] .hover\:bg-slate-50:hover,
 html[data-theme="midnight"] .hover\:bg-gray-50\/70:hover,
-html[data-theme="obsidian"] .hover\:bg-gray-50\/70:hover {
+html[data-theme="obsidian"] .hover\:bg-gray-50\/70:hover,
+html[data-theme="midnight"] .hover\:bg-white\/70:hover,
+html[data-theme="obsidian"] .hover\:bg-white\/70:hover {
 	background-color: var(--ui-surface-2) !important;
+}
+
+/* Calendario react-big-calendar en dark */
+html[data-theme="midnight"] .rbc-today,
+html[data-theme="obsidian"] .rbc-today {
+	background-color: color-mix(in srgb, var(--ui-primary) 16%, transparent) !important;
+}
+html[data-theme="midnight"] .rbc-off-range-bg,
+html[data-theme="obsidian"] .rbc-off-range-bg {
+	background-color: color-mix(in srgb, var(--ui-surface-2) 70%, transparent) !important;
+}
+html[data-theme="midnight"] .rbc-header,
+html[data-theme="obsidian"] .rbc-header,
+html[data-theme="midnight"] .rbc-time-gutter .rbc-label,
+html[data-theme="obsidian"] .rbc-time-gutter .rbc-label,
+html[data-theme="midnight"] .rbc-label,
+html[data-theme="obsidian"] .rbc-label {
+	color: var(--ui-muted) !important;
+}
+html[data-theme="midnight"] .rbc-time-content,
+html[data-theme="obsidian"] .rbc-time-content,
+html[data-theme="midnight"] .rbc-timeslot-group,
+html[data-theme="obsidian"] .rbc-timeslot-group,
+html[data-theme="midnight"] .rbc-day-slot .rbc-time-slot,
+html[data-theme="obsidian"] .rbc-day-slot .rbc-time-slot,
+html[data-theme="midnight"] .rbc-month-row,
+html[data-theme="obsidian"] .rbc-month-row,
+html[data-theme="midnight"] .rbc-day-bg,
+html[data-theme="obsidian"] .rbc-day-bg,
+html[data-theme="midnight"] .rbc-time-header,
+html[data-theme="obsidian"] .rbc-time-header {
+	border-color: var(--ui-border) !important;
+}
+html[data-theme="midnight"] .rbc-event,
+html[data-theme="obsidian"] .rbc-event {
+	box-shadow: none !important;
 }
 
 /* Botones neutros dark (gray-900) → contraste en temas oscuros */
@@ -355,11 +606,26 @@ html .bg-surface-dark.text-white,
 html .text-on-surface-dark {
 	color: var(--ui-on-surface-dark) !important;
 }
-html .bg-inverse {
+html .bg-inverse,
+html .btn-inverse,
+html .bg-slate-900,
+html .bg-gray-900,
+html .bg-black {
 	background-color: var(--ui-inverse) !important;
 	color: var(--ui-on-inverse) !important;
 }
-html .bg-inverse.text-white {
+html .bg-inverse.text-white,
+html .btn-inverse.text-white,
+html .bg-slate-900.text-white,
+html .bg-gray-900.text-white,
+html .bg-black.text-white {
+	color: var(--ui-on-inverse) !important;
+}
+html .hover\:bg-slate-800:hover,
+html .hover\:bg-gray-800:hover,
+html .hover\:bg-black:hover,
+html .btn-inverse:hover {
+	background-color: color-mix(in srgb, var(--ui-inverse) 88%, var(--ui-fg)) !important;
 	color: var(--ui-on-inverse) !important;
 }
 
@@ -402,12 +668,12 @@ html .bg-inverse.text-white {
 
 	.btn-inverse {
 		@apply font-semibold rounded-xl px-4 py-2 transition-colors shadow-sm active:scale-[0.98];
-		background-color: var(--ui-inverse);
-		color: var(--ui-on-inverse);
+		background-color: var(--ui-inverse) !important;
+		color: var(--ui-on-inverse) !important;
 	}
 	.btn-inverse:hover {
-		background-color: color-mix(in srgb, var(--ui-inverse) 88%, var(--ui-fg));
-		color: var(--ui-on-inverse);
+		background-color: color-mix(in srgb, var(--ui-inverse) 88%, var(--ui-fg)) !important;
+		color: var(--ui-on-inverse) !important;
 	}
 
 	.btn-ghost {

@@ -1,143 +1,58 @@
 import React, { useEffect, useMemo } from "react";
 import {
-	Euro,
-	Landmark,
 	Settings,
 	X,
 	Calendar,
-	Ticket,
 	FolderOpen,
-	Building2,
-	FileText,
 	BarChart3,
-	ScrollText,
-	FileSignature,
-	PieChart,
-	Wallet,
 	Megaphone,
 	ShoppingBag,
+	Package,
+	Wallet,
+	Users,
 } from "lucide-react";
-import { useTenant } from "../../context/TenantContext";
 import { NAV_LABELS, PATH_MAP } from "./navigationLabels";
 import { useNavigate } from "react-router-dom";
-import { filterNavItem } from "./navModules";
 
 const ICONS = {
 	dashboard: BarChart3,
 	calendar: Calendar,
-	products: ShoppingBag,
-	products_ventas: ShoppingBag,
-	bonos: Ticket,
-	consents: FileSignature,
-	budgets: ScrollText,
-	finance_movements: Wallet,
-	financial_analysis: PieChart,
-	invoices: FileText,
-	suppliers: Building2,
-	taxes: Landmark,
-	taxes_130: Landmark,
-	taxes_303: Landmark,
-	taxes_115: Landmark,
-	taxes_390: Landmark,
-	taxes_180: Landmark,
-	taxes_renta: Landmark,
-	taxes_declaraciones: Landmark,
-	assets: Landmark,
+	clients: Users,
+	catalog: ShoppingBag,
+	inventory: Package,
+	finance: Wallet,
+	documents: FolderOpen,
 	marketing: Megaphone,
 	settings: Settings,
-	documents: FolderOpen,
-	finance: Euro,
 };
 
+/** Mismos 9 ítems L1 que el Sidebar. */
 const DRAWER_SECTIONS = [
 	{
-		id: "general",
+		id: "main",
 		title: null,
 		items: [
-			{ id: "dashboard" },
-			{ id: "calendar" },
+			{ id: "dashboard", label: "Dashboard", to: "/dashboard" },
+			{ id: "calendar", label: "Agenda", to: "/agenda" },
+			{ id: "clients", label: "Pacientes", to: "/clientes" },
+			{ id: "catalog", label: "Catálogo", to: "/catalogo" },
+			{ id: "inventory", label: "Inventario", to: "/inventario" },
+			{ id: "finance", label: "Finanzas", to: "/finanzas/movimientos" },
+			{ id: "documents", label: "Documentos", to: "/documentos" },
+			{ id: "marketing", label: "Marketing", to: "/marketing/campanas" },
+			{ id: "settings", label: "Configuración", to: "/configuracion" },
 		],
-	},
-	{
-		id: "products",
-		title: "Productos",
-		items: [
-			{ id: "products" },
-			{ id: "products_ventas", nested: true },
-		],
-	},
-	{
-		id: "docs",
-		title: "Documentos & Ventas",
-		items: [
-			{ id: "bonos", requireBonos: true },
-			{ id: "consents" },
-			{ id: "budgets" },
-		],
-	},
-	{
-		id: "finance",
-		title: "Finanzas & Caja",
-		items: [
-			{ id: "finance_movements" },
-			{ id: "financial_analysis" },
-			{ id: "invoices" },
-			{ id: "suppliers" },
-		],
-	},
-	{
-		id: "taxes",
-		title: "Fiscalidad & AEAT",
-		items: [
-			{ id: "taxes" },
-			{ id: "taxes_130", nested: true },
-			{ id: "taxes_303", nested: true },
-			{ id: "taxes_115", nested: true },
-			{ id: "taxes_390", nested: true },
-			{ id: "taxes_180", nested: true },
-			{ id: "taxes_renta", nested: true },
-			{ id: "taxes_declaraciones", nested: true },
-			{ id: "assets", nested: true },
-		],
-	},
-	{
-		id: "marketing",
-		title: "Marketing",
-		items: [
-			{ id: "marketing" },
-			{ id: "marketing_campanas", nested: true },
-			{ id: "marketing_seguimiento", nested: true },
-			{ id: "marketing_plantillas", nested: true },
-		],
-	},
-	{
-		id: "settings",
-		title: null,
-		items: [{ id: "settings" }],
 	},
 ];
 
-/** IDs del drawer (para resaltar «Más» en la bottom bar). */
-export const DRAWER_NAV_IDS = DRAWER_SECTIONS.flatMap((s) => s.items.map((i) => i.id));
+export const DRAWER_NAV_IDS = DRAWER_SECTIONS.flatMap((s) =>
+	s.items.map((i) => i.id),
+);
 
 export const MobileDrawer = ({ isOpen, onClose, activeTabId }) => {
 	const navigate = useNavigate();
-	const { allowsPresupuestosBonos, loading: tenantLoading, hasModule } = useTenant();
 
-	const sections = useMemo(
-		() =>
-			DRAWER_SECTIONS.map((section) => ({
-				...section,
-				items: section.items.filter((item) =>
-					filterNavItem(item, {
-						tenantLoading,
-						allowsPresupuestosBonos,
-						hasModuleFn: hasModule,
-					}),
-				),
-			})).filter((section) => section.items.length > 0),
-		[tenantLoading, allowsPresupuestosBonos, hasModule],
-	);
+	const sections = useMemo(() => DRAWER_SECTIONS, []);
 
 	useEffect(() => {
 		if (!isOpen) return undefined;
@@ -148,77 +63,61 @@ export const MobileDrawer = ({ isOpen, onClose, activeTabId }) => {
 		return () => document.removeEventListener("keydown", onKeyDown);
 	}, [isOpen, onClose]);
 
-	useEffect(() => {
-		if (isOpen) document.body.style.overflow = "hidden";
-		return () => {
-			document.body.style.overflow = "";
-		};
-	}, [isOpen]);
-
 	if (!isOpen) return null;
 
-	const handleSelect = (id) => {
-		navigate(PATH_MAP[id] || "/");
-		onClose();
+	const resolveActive = (item) => {
+		if (item.id === "finance") return activeTabId?.startsWith?.("finance") || activeTabId?.startsWith?.("tax") || activeTabId === "invoices" || activeTabId === "assets";
+		if (item.id === "catalog") return ["catalog", "treatments", "products", "products_ventas", "bonos"].includes(activeTabId);
+		if (item.id === "documents") return ["documents", "budgets", "consents"].includes(activeTabId);
+		if (item.id === "inventory") return ["inventory", "inventory_compras", "inventory_trazabilidad", "suppliers"].includes(activeTabId);
+		return activeTabId === item.id;
 	};
 
 	return (
-		<>
-			<div
-				className="fixed inset-0 bg-black/40 z-[60] animate-in fade-in duration-200"
+		<div className="fixed inset-0 z-[70] md:hidden">
+			<button
+				type="button"
+				aria-label="Cerrar menú"
+				className="absolute inset-0 bg-slate-900/40"
 				onClick={onClose}
-				aria-hidden="true"
 			/>
-			<div
-				className="fixed right-0 top-0 bottom-0 w-72 max-w-[85vw] bg-white z-[61] shadow-2xl animate-in slide-in-from-right duration-200 flex flex-col"
-				role="dialog"
-				aria-label="Menú de navegación">
-				<div className="p-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-					<h3 className="font-black text-gray-800 uppercase tracking-tight text-sm">
-						Más opciones
-					</h3>
+			<div className="absolute bottom-0 left-0 right-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl bg-white shadow-2xl pb-safe">
+				<div className="sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4">
+					<p className="text-sm font-bold text-slate-900">Menú</p>
 					<button
 						type="button"
 						onClick={onClose}
-						aria-label="Cerrar menú lateral"
-						className="p-2 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600">
-						<X size={20} />
+						className="rounded-xl p-2 text-slate-400 hover:bg-slate-50"
+						aria-label="Cerrar">
+						<X size={18} />
 					</button>
 				</div>
-				<nav className="p-4 space-y-4 flex-1 overflow-y-auto pb-8">
-					{sections.map((section) => (
-						<div key={section.id} className="space-y-1">
-							{section.title && (
-								<p className="px-3 pt-1 pb-1.5 text-[10px] font-black uppercase tracking-wider text-gray-400">
-									{section.title}
-								</p>
-							)}
-							{section.items.map((item) => {
-								const Icon = ICONS[item.id] || Landmark;
-								const active = activeTabId === item.id;
-								return (
-									<button
-										key={item.id}
-										type="button"
-										onClick={() => handleSelect(item.id)}
-										className={`w-full flex items-center gap-3 rounded-xl font-bold text-left transition-colors ${
-											item.nested
-												? "pl-8 pr-3 py-2.5 text-sm"
-												: "px-4 py-3.5"
-										} ${
-											active
-												? "bg-rose-700 text-white"
-												: "text-gray-600 hover:bg-gray-50"
-										}`}>
-										<Icon size={item.nested ? 16 : 20} className="shrink-0" />
-										<span className="truncate">{NAV_LABELS[item.id] || item.id}</span>
-									</button>
-								);
-							})}
-						</div>
-					))}
-				</nav>
+				{sections.map((section) => (
+					<div key={section.id} className="px-3 py-3 space-y-0.5">
+						{section.items.map((item) => {
+							const Icon = ICONS[item.id] || FolderOpen;
+							const active = resolveActive(item);
+							return (
+								<button
+									key={item.id}
+									type="button"
+									onClick={() => {
+										navigate(item.to || PATH_MAP[item.id] || "/");
+										onClose();
+									}}
+									className={`w-full flex items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition-colors ${
+										active
+											? "bg-slate-900 text-white"
+											: "text-slate-600 hover:bg-slate-50"
+									}`}>
+									<Icon size={18} strokeWidth={1.5} />
+									{item.label || NAV_LABELS[item.id]}
+								</button>
+							);
+						})}
+					</div>
+				))}
 			</div>
-		</>
+		</div>
 	);
 };

@@ -1,293 +1,147 @@
-import React, { useState, useEffect } from "react";
-import { useTenant } from "../../context/TenantContext";
+import React from "react";
 import {
 	BarChart3,
 	Users,
 	Package,
 	DollarSign,
-	Landmark,
-	FolderOpen,
 	Settings,
-	ChevronDown,
 	Megaphone,
 	ShoppingBag,
+	Calendar,
+	FileText,
 } from "lucide-react";
-import { NAV_LABELS, PATH_MAP } from "./navigationLabels";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { filterNavItem } from "./navModules";
+import { UserMenu } from "./UserMenu";
 
-const NAV_GROUPS = [
-	{
-		id: "dashboard-group",
-		label: "Dashboard",
-		icon: BarChart3,
-		items: [{ id: "dashboard", l: NAV_LABELS.dashboard }],
-	},
-	{
-		id: "clinic-group",
-		label: "Clínica & Pacientes",
-		icon: Users,
-		items: [
-			{ id: "clients", l: NAV_LABELS.clients },
-			{ id: "calendar", l: NAV_LABELS.calendar },
-			{ id: "treatments", l: NAV_LABELS.treatments },
-		],
-	},
-	{
-		id: "products-group",
-		label: "Productos",
-		icon: ShoppingBag,
-		items: [
-			{ id: "products", l: NAV_LABELS.products },
-			{ id: "products_ventas", l: NAV_LABELS.products_ventas, nested: true },
-		],
-	},
-	{
-		id: "sales-group",
-		label: "Documentos & Ventas",
-		icon: FolderOpen,
-		items: [
-			{ id: "bonos", l: NAV_LABELS.bonos, requireBonos: true },
-			{ id: "consents", l: NAV_LABELS.consents },
-			{ id: "budgets", l: NAV_LABELS.budgets },
-		],
-	},
-	{
-		id: "inventory-group",
-		label: "Inventario & Compras",
-		icon: Package,
-		items: [
-			{ id: "inventory", l: NAV_LABELS.inventory },
-			{ id: "suppliers", l: NAV_LABELS.suppliers },
-		],
-	},
-	{
-		id: "finance-group",
-		label: "Finanzas & Caja",
-		icon: DollarSign,
-		items: [
-			{ id: "finance_movements", l: NAV_LABELS.finance_movements },
-			{ id: "financial_analysis", l: NAV_LABELS.financial_analysis },
-			{ id: "invoices", l: NAV_LABELS.invoices },
-		],
-	},
-	{
-		id: "taxes-group",
-		label: "Fiscalidad & AEAT",
-		icon: Landmark,
-		items: [
-			{ id: "taxes", l: NAV_LABELS.taxes },
-			{ id: "taxes_130", l: NAV_LABELS.taxes_130, nested: true },
-			{ id: "taxes_303", l: NAV_LABELS.taxes_303, nested: true },
-			{ id: "taxes_115", l: NAV_LABELS.taxes_115, nested: true },
-			{ id: "taxes_390", l: NAV_LABELS.taxes_390, nested: true },
-			{ id: "taxes_180", l: NAV_LABELS.taxes_180, nested: true },
-			{ id: "taxes_renta", l: NAV_LABELS.taxes_renta, nested: true },
-			{ id: "taxes_declaraciones", l: NAV_LABELS.taxes_declaraciones, nested: true },
-			{ id: "assets", l: NAV_LABELS.assets, nested: true },
-		],
-	},
-	{
-		id: "marketing-group",
-		label: "Marketing",
-		icon: Megaphone,
-		items: [
-			{ id: "marketing", l: NAV_LABELS.marketing },
-			{ id: "marketing_campanas", l: NAV_LABELS.marketing_campanas, nested: true },
-			{ id: "marketing_seguimiento", l: NAV_LABELS.marketing_seguimiento, nested: true },
-			{ id: "marketing_plantillas", l: NAV_LABELS.marketing_plantillas, nested: true },
-		],
-	},
-	{
-		id: "settings-group",
-		label: "Configuración",
-		icon: Settings,
-		items: [{ id: "settings", l: NAV_LABELS.settings }],
-	},
+/** Exactamente 9 elementos de Nivel 1. */
+const NAV_ITEMS = [
+	{ id: "dashboard", label: "Dashboard", icon: BarChart3, to: "/dashboard" },
+	{ id: "calendar", label: "Agenda", icon: Calendar, to: "/agenda" },
+	{ id: "clients", label: "Pacientes", icon: Users, to: "/clientes" },
+	{ id: "catalog", label: "Catálogo", icon: ShoppingBag, to: "/catalogo" },
+	{ id: "inventory", label: "Inventario", icon: Package, to: "/inventario" },
+	{ id: "finance", label: "Finanzas", icon: DollarSign, to: "/finanzas/movimientos" },
+	{ id: "documents", label: "Documentos", icon: FileText, to: "/documentos" },
+	{ id: "marketing", label: "Marketing", icon: Megaphone, to: "/marketing/campanas" },
+	{ id: "settings", label: "Configuración", icon: Settings, to: "/configuracion" },
 ];
 
-/** Solo el ítem con la ruta más específica coincide (evita dos rojos: hub + subruta). */
-const getActiveItemId = (pathname, items) => {
-	let bestId = null;
-	let bestLen = -1;
-	for (const item of items) {
-		const p = PATH_MAP[item.id];
-		if (!p) continue;
-		const matches = pathname === p || (p !== "/" && pathname.startsWith(`${p}/`));
-		if (matches && p.length > bestLen) {
-			bestId = item.id;
-			bestLen = p.length;
-		}
+const isItemActive = (pathname, item) => {
+	if (item.id === "finance") return pathname.startsWith("/finanzas");
+	if (item.id === "inventory") {
+		return pathname.startsWith("/inventario") || pathname.startsWith("/proveedores");
 	}
-	return bestId;
+	if (item.id === "catalog") {
+		return (
+			pathname.startsWith("/catalogo") ||
+			pathname.startsWith("/productos") ||
+			pathname.startsWith("/tratamientos") ||
+			pathname.startsWith("/bonos")
+		);
+	}
+	if (item.id === "documents") {
+		return (
+			pathname.startsWith("/documentos") ||
+			pathname.startsWith("/presupuestos") ||
+			pathname.startsWith("/consentimientos")
+		);
+	}
+	if (item.id === "marketing") return pathname.startsWith("/marketing");
+	if (item.id === "clients") return pathname.startsWith("/clientes");
+	if (item.id === "calendar") return pathname.startsWith("/agenda");
+	if (item.id === "settings") return pathname.startsWith("/configuracion");
+	if (item.id === "dashboard") return pathname === "/dashboard";
+	return pathname === item.to || pathname.startsWith(`${item.to}/`);
 };
 
-export const Sidebar = ({ companyName, collapsed, setCollapsed }) => {
-	const [tempExpanded, setTempExpanded] = useState(false);
+export const Sidebar = ({
+	companyName,
+	collapsed,
+	setCollapsed,
+	user,
+	profile,
+	clinic,
+	onLogout,
+	onOpenSettings,
+}) => {
 	const location = useLocation();
 	const navigate = useNavigate();
-	const { allowsPresupuestosBonos, loading: tenantLoading, hasModule } = useTenant();
-
-	const [expandedGroups, setExpandedGroups] = useState({});
-
-	const activeTab = location.pathname;
-
-	useEffect(() => {
-		setExpandedGroups((prev) => {
-			const next = { ...prev };
-			for (const group of NAV_GROUPS) {
-				if (getActiveItemId(activeTab, group.items)) {
-					next[group.id] = true;
-				}
-			}
-			return next;
-		});
-	}, [activeTab]);
-
 	const narrow = Boolean(collapsed);
 
-	const toggleGroup = (groupId) => {
-		setExpandedGroups((prev) => ({
-			...prev,
-			[groupId]: !prev[groupId],
-		}));
-	};
-
 	return (
-		<div
+		<aside
 			className={`hidden md:flex flex-col shrink-0 bg-surface border-r border-edge h-screen fixed left-0 top-0 z-50 transition-[width] duration-200 ease-out ${
 				narrow ? "w-[4.5rem]" : "w-60 lg:w-64"
 			}`}>
 			<div
-				className={`h-16 flex items-center border-b border-edge shrink-0 ${narrow ? "justify-center px-1" : "px-4"}`}>
+				className={`h-16 flex items-center border-b border-edge shrink-0 ${
+					narrow ? "justify-center px-1" : "px-4"
+				}`}>
 				<button
 					type="button"
 					onClick={() => navigate("/")}
-					className="flex items-center gap-2 truncate hover:opacity-80 transition-opacity cursor-pointer"
+					className="flex items-center gap-2.5 truncate hover:opacity-80 transition-opacity min-w-0"
 					title="Ir a inicio">
-					{narrow ? (
-						<span
-							className="text-sm font-black text-primary"
-							title={companyName || "Clínica"}>
-							{(companyName || "CL").slice(0, 2).toUpperCase()}
-						</span>
-					) : (
-						<h1 className="text-lg font-bold text-primary truncate tracking-tight">
+					<span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary text-xs font-black">
+						{(companyName || "CL").slice(0, 2).toUpperCase()}
+					</span>
+					{!narrow && (
+						<span className="text-[15px] font-bold text-fg truncate tracking-tight">
 							{companyName || "Clínica"}
-						</h1>
+						</span>
 					)}
 				</button>
 			</div>
+
 			<nav
-				className={`flex-1 overflow-y-auto custom-scrollbar min-h-0 space-y-1 ${narrow ? "p-2" : "p-3"}`}>
-				{NAV_GROUPS.map((group) => {
-					const validItems = group.items.filter((item) =>
-						filterNavItem(item, {
-							tenantLoading,
-							allowsPresupuestosBonos,
-							hasModuleFn: hasModule,
-						}),
-					);
-
-					if (validItems.length === 0) return null;
-
-					const isExpanded = !!expandedGroups[group.id];
-					const activeItemId = getActiveItemId(activeTab, validItems);
-					const isGroupActive = Boolean(activeItemId);
-					const hasMultipleItems = validItems.length > 1;
-
+				className={`flex-1 overflow-y-auto custom-scrollbar min-h-0 space-y-0.5 ${
+					narrow ? "p-2" : "p-3"
+				}`}>
+				{NAV_ITEMS.map((item) => {
+					const active = isItemActive(location.pathname, item);
+					const Icon = item.icon;
 					return (
-						<div key={group.id} className="space-y-0.5">
-							<button
-								type="button"
-								onClick={() => {
-									if (narrow) {
-										if (hasMultipleItems) {
-											setCollapsed(false);
-											setTempExpanded(true);
-											setExpandedGroups((prev) => ({ ...prev, [group.id]: true }));
-										} else {
-											navigate(PATH_MAP[validItems[0].id]);
-										}
-									} else if (hasMultipleItems) {
-										toggleGroup(group.id);
-									} else {
-										navigate(PATH_MAP[validItems[0].id]);
-										if (tempExpanded) {
-											setCollapsed(true);
-											setTempExpanded(false);
-										}
-									}
-								}}
-								title={group.label}
-								className={`w-full flex items-center justify-between rounded-xl font-semibold transition-colors ${
-									narrow ? "px-0 py-3 justify-center" : "px-3 py-2.5"
-								} ${
-									isGroupActive && (!isExpanded || !hasMultipleItems)
-										? "text-[var(--ui-sidebar-active-fg)] bg-[var(--ui-sidebar-active-bg)]"
-										: "text-muted hover:bg-surface-2 hover:text-fg"
-								}`}>
-								<div className="flex items-center gap-3">
-									<group.icon
-										size={narrow ? 22 : 18}
-										strokeWidth={1.5}
-										className={
-											isGroupActive
-												? "text-[var(--ui-sidebar-active-fg)]"
-												: "text-muted"
-										}
-									/>
-									{!narrow && <span className="text-[13px] truncate">{group.label}</span>}
-								</div>
-								{!narrow && hasMultipleItems && (
-									<ChevronDown
-										size={16}
-										className={`text-muted transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
-									/>
-								)}
-							</button>
-
-							{!narrow && isExpanded && hasMultipleItems && (
-								<div className="pl-3 space-y-0.5 mt-1 border-l border-edge ml-5">
-									{validItems.map((item) => {
-										const isActive = activeItemId === item.id;
-										const nested = Boolean(item.nested);
-										return (
-											<NavLink
-												key={item.id}
-												to={PATH_MAP[item.id]}
-												end={
-													PATH_MAP[item.id] === "/fiscalidad" ||
-													PATH_MAP[item.id] === "/marketing" ||
-													PATH_MAP[item.id] === "/productos"
-												}
-												onClick={() => {
-													if (tempExpanded) {
-														setCollapsed(true);
-														setTempExpanded(false);
-													}
-												}}
-												className={`w-full block text-left rounded-lg text-[13px] transition-colors ${
-													nested ? "pl-4 pr-3 py-1.5 ml-1" : "px-3 py-2"
-												} ${
-													isActive
-														? nested
-															? "bg-[var(--ui-sidebar-active-bg)] text-[var(--ui-sidebar-active-fg)] font-semibold border border-edge"
-															: "bg-primary text-on-primary font-medium shadow-sm"
-														: nested
-															? "text-muted font-medium hover:text-fg hover:bg-surface-2"
-															: "text-muted font-medium hover:text-fg hover:bg-surface-2"
-												}`}>
-												{item.l}
-											</NavLink>
-										);
-									})}
-								</div>
-							)}
-						</div>
+						<NavLink
+							key={item.id}
+							to={item.to}
+							title={item.label}
+							onClick={() => {
+								if (narrow) setCollapsed?.(true);
+							}}
+							className={`w-full flex items-center gap-3 rounded-xl text-[13px] font-semibold transition-colors ${
+								narrow ? "justify-center px-0 py-3" : "px-3 py-2.5"
+							} ${
+								active
+									? "bg-[var(--ui-sidebar-active-bg)] text-[var(--ui-sidebar-active-fg)]"
+									: "text-muted hover:bg-surface-2 hover:text-fg"
+							}`}>
+							<Icon
+								size={narrow ? 22 : 18}
+								strokeWidth={1.5}
+								className={
+									active
+										? "text-[var(--ui-sidebar-active-fg)]"
+										: "text-muted"
+								}
+							/>
+							{!narrow && <span className="truncate">{item.label}</span>}
+						</NavLink>
 					);
 				})}
 			</nav>
-		</div>
+
+			<div className={`shrink-0 border-t border-edge ${narrow ? "p-2" : "p-3"}`}>
+				<UserMenu
+					user={user}
+					profile={profile}
+					clinic={clinic}
+					onLogout={onLogout}
+					onOpenSettings={onOpenSettings}
+					compact={narrow}
+					placement="top"
+					variant="sidebar"
+				/>
+			</div>
+		</aside>
 	);
 };
