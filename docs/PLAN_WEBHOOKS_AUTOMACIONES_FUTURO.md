@@ -19,18 +19,26 @@
 
 ---
 
-## Pendiente (esta fase futura)
+## Hecho (worker citas → Resend)
 
-### 1. Worker / cron de disparo
+- Edge Function `dispatch-appointment-automations` + cron horario (`:10`) en PRO.
+- Eventos: **reminder_24h** (ventana ~23–25 h) y **pre_session** (~90–150 min).
+- Solo si `clinic_message_automations.is_active` y `channel = email` + plantilla.
+- Idempotencia: `automation_dispatch_log` (una vez por cita+evento).
+- Cron auxiliar `process-email-queue-hourly` (`:20`).
 
-- Job (Edge Function programada o cola) que, ante eventos reales:
-  - **Pre-sesión / Recordatorio 24h:** citas en `appointments` con fecha mañana / en N horas.
-  - **Post-sesión:** tras `finance_entries` de tipo sesión (o flag en sesión).
-  - **Reseña Google:** N días después de sesión (configurable).
-- Leer `clinic_message_automations` donde `is_active = true`.
+**Si el toggle está off → no se encola ni se envía nada**, aunque exista la plantilla.
+
+---
+
+## Pendiente (resto)
+
+### 1. Más disparadores
+
+- **Post-sesión:** tras sesión / `finance_entries`.
+- **Reseña Google:** N días después.
 - Respetar `channel`:
-  - `email` → reutilizar cola Resend (`queue_marketing_email` / `process-email-queue`).
-  - `whatsapp` → stub hasta tener proveedor (Meta / Twilio).
+  - `whatsapp` → stub hasta proveedor (Meta / Twilio).
   - `none` → solo webhook de salida (si hay URL).
 
 ### 2. Emisor de webhook de salida
